@@ -210,3 +210,15 @@ Apache 2.0. Include a `LICENSE` file in the repo root.
 - [ ] Parser warnings surface cleanly without crashing
 - [ ] All unit tests pass
 - [ ] MCP server can be wired to Claude Desktop independently of the rest of the app
+
+---
+
+## Dev Environment Note
+
+Development happens on a Proxmox VM via SSH. The Satisfactory game files 
+are not directly accessible from the VM. The game data file (en-US.json) 
+is copied manually from the Windows host using SCP and placed at 
+game-data/en-US.json (gitignored). 
+
+SATISFACTORY_DOCS_PATH should point to this local copy.
+Do not assume the game directory is mounted or accessible at runtime.

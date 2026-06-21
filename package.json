@@ -1,0 +1,22 @@
+{
+  "name": "foreman",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Foreman — AI companion for Satisfactory. Phase 1: MCP game-data server.",
+  "license": "Apache-2.0",
+  "author": "Stu",
+  "workspaces": [
+    "packages/*"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev": "npm run dev -w @foreman/mcp",
+    "build": "npm run build -w @foreman/mcp",
+    "start": "npm run start -w @foreman/mcp",
+    "test": "npm run test -w @foreman/mcp",
+    "lint": "npm run lint -w @foreman/mcp",
+    "inspect": "npm run inspect -w @foreman/mcp --"
+  }
+}
