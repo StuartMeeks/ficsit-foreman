@@ -15,7 +15,7 @@ export interface ServerConfig {
 }
 
 const DEFAULT_HTTP_HOST = '0.0.0.0';
-const DEFAULT_HTTP_PORT = 8080;
+const DEFAULT_HTTP_PORT = 8723;
 
 /**
  * Resolves transport configuration from the environment. Defaults to stdio
