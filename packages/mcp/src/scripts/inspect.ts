@@ -63,6 +63,12 @@ async function run(): Promise<void> {
     case 'get_schematic':
       result = graph.getSchematic(str('name'));
       break;
+    case 'get_building':
+      result = graph.getBuilding(str('name'));
+      break;
+    case 'list_power_generators':
+      result = graph.listPowerGenerators();
+      break;
     case 'cypher_query':
       result = await graph.cypherQuery(str('query'));
       break;
@@ -87,6 +93,8 @@ async function run(): Promise<void> {
           'buildable_with',
           'list_schematics',
           'get_schematic',
+          'get_building',
+          'list_power_generators',
           'cypher_query',
         ],
         usage: "npm run inspect <tool> '<json-args>'",

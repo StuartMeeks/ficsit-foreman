@@ -44,6 +44,7 @@ export function itemFromRaw(raw: RawClass, isResource: boolean): Item {
     stackSize: resolveStackSize(raw),
     form: mapForm(getString(raw, 'mForm')),
     sinkPoints: getNumber(raw, 'mResourceSinkPoints', 0),
+    energyValue: getNumber(raw, 'mEnergyValue', 0),
     isResource,
   };
 }

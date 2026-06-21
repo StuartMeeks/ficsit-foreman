@@ -92,7 +92,8 @@ async function loadRecipes(conn: Connection, gameData: GameData): Promise<void> 
 async function loadBuildings(conn: Connection, gameData: GameData): Promise<void> {
   const stmt = await conn.prepare(
     `CREATE (:Building {className: $className, displayName: $displayName, category: $category,
-       powerConsumption: $powerConsumption})`,
+       powerConsumption: $powerConsumption, maxPowerConsumption: $maxPowerConsumption,
+       powerProduction: $powerProduction})`,
   );
   for (const building of Object.values(gameData.buildings)) {
     await conn.execute(stmt, {
@@ -100,6 +101,8 @@ async function loadBuildings(conn: Connection, gameData: GameData): Promise<void
       displayName: building.displayName,
       category: building.category,
       powerConsumption: building.powerConsumption,
+      maxPowerConsumption: building.maxPowerConsumption ?? 0,
+      powerProduction: building.powerProduction ?? 0,
     });
   }
 }

@@ -30,6 +30,8 @@ export const NODE_TABLES: readonly string[] = [
      displayName STRING,
      category STRING,
      powerConsumption DOUBLE,
+     maxPowerConsumption DOUBLE,
+     powerProduction DOUBLE,
      PRIMARY KEY(className)
    )`,
   `CREATE NODE TABLE Schematic(

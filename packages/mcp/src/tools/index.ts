@@ -171,11 +171,38 @@ export function registerTools(server: McpServer, graph: GraphDB): void {
   );
 
   server.registerTool(
+    'get_building',
+    {
+      title: 'Get building',
+      description:
+        'Resolve a building or machine by display name or class name. Returns power draw (constant, or max for variable-power machines), build cost, and — for power generators — MW output plus every fuel option with per-minute fuel, supplemental (water) and byproduct rates.',
+      inputSchema: { name: z.string() },
+    },
+    async ({ name }): Promise<ToolResult> => {
+      const building = graph.getBuilding(name);
+      return building === undefined ? notFound(`building '${name}'`) : ok({ building });
+    },
+  );
+
+  server.registerTool(
+    'list_power_generators',
+    {
+      title: 'List power generators',
+      description:
+        'Every power-generating building with its MW output and complete fuel breakdown: per-minute fuel burn (per fuel option), supplemental water, and byproducts (e.g. nuclear waste). The authoritative source for power planning.',
+      inputSchema: {},
+    },
+    async (): Promise<ToolResult> => {
+      return ok({ generators: graph.listPowerGenerators() });
+    },
+  );
+
+  server.registerTool(
     'cypher_query',
     {
       title: 'Cypher query (read-only)',
       description:
-        'Guarded escape hatch. Executes a read-only Cypher query against the Kùzu graph. Rejects any query containing a mutating keyword (CREATE, DELETE, SET, MERGE, DROP, …). Node tables: Item, Recipe, Building, Schematic. Rel tables: PRODUCES, CONSUMES, PRODUCED_IN, BUILD_COST, UNLOCKS_RECIPE, UNLOCKS_BUILDING, UNLOCKS_ITEM.',
+        'Guarded escape hatch. Executes a read-only Cypher query against the Kùzu graph. Rejects any query containing a mutating keyword (CREATE, DELETE, SET, MERGE, DROP, …). Node tables: Item, Recipe, Building (className, displayName, category, powerConsumption, maxPowerConsumption, powerProduction), Schematic. Rel tables: PRODUCES, CONSUMES, PRODUCED_IN, BUILD_COST, UNLOCKS_RECIPE, UNLOCKS_BUILDING, UNLOCKS_ITEM.',
       inputSchema: { query: z.string() },
     },
     async ({ query }): Promise<ToolResult> => {
