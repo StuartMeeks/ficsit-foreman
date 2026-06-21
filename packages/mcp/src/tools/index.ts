@@ -14,6 +14,11 @@ type ToolResult = {
  * responses are version-tagged. Tools return computed, distilled answers; the
  * recursion and aggregation happen server-side in the graph layer.
  */
+// Schema-compatibility note: keep tool input schemas to widely-supported JSON
+// Schema keywords. Claude Desktop (and the Anthropic tool layer) silently DROP
+// tools whose schema uses unsupported keywords such as `exclusiveMinimum`
+// (from zod `.positive()`/`.gt()`) or `propertyNames` (from `z.record`). Prefer
+// plain `z.number()` with a runtime guard, and arrays of objects over maps.
 export function registerTools(server: McpServer, graph: GraphDB): void {
   const ok = (payload: object): ToolResult => ({
     content: [{ type: 'text', text: JSON.stringify({ version: graph.version, ...payload }) }],
@@ -25,6 +30,10 @@ export function registerTools(server: McpServer, graph: GraphDB): void {
         text: JSON.stringify({ version: graph.version, error: `Not found: ${what}` }),
       },
     ],
+    isError: true,
+  });
+  const badRequest = (message: string): ToolResult => ({
+    content: [{ type: 'text', text: JSON.stringify({ version: graph.version, error: message }) }],
     isError: true,
   });
 
@@ -78,12 +87,25 @@ export function registerTools(server: McpServer, graph: GraphDB): void {
         'Flat list of per-minute requirements and machine counts for every tier of production of an item at a target rate. Does NOT return nested recipe objects — the graph does the recursion and returns the computed answer. Optional recipeChoices maps an item (name or class) to a chosen recipe.',
       inputSchema: {
         item: z.string(),
-        targetPerMinute: z.number().positive(),
-        recipeChoices: z.record(z.string(), z.string()).optional(),
+        targetPerMinute: z
+          .number()
+          .describe('Target output rate per minute. Must be greater than 0.'),
+        recipeChoices: z
+          .array(z.object({ item: z.string(), recipe: z.string() }))
+          .optional()
+          .describe(
+            'Optional recipe overrides: for each item (display or class name), the recipe (display or class name) to use instead of the default.',
+          ),
       },
     },
     async ({ item, targetPerMinute, recipeChoices }): Promise<ToolResult> => {
-      const result = await graph.ingredientTree(item, targetPerMinute, recipeChoices);
+      if (targetPerMinute <= 0) {
+        return badRequest('targetPerMinute must be greater than 0.');
+      }
+      const choices = recipeChoices
+        ? Object.fromEntries(recipeChoices.map((choice) => [choice.item, choice.recipe]))
+        : undefined;
+      const result = await graph.ingredientTree(item, targetPerMinute, choices);
       return result === undefined ? notFound(`item '${item}'`) : ok({ tree: result });
     },
   );
@@ -94,9 +116,17 @@ export function registerTools(server: McpServer, graph: GraphDB): void {
       title: 'Total raw inputs',
       description:
         'Leaf raw resources only (iron ore, water, crude oil, …) needed to produce an item at a target rate. What the player actually has to mine or extract.',
-      inputSchema: { item: z.string(), targetPerMinute: z.number().positive() },
+      inputSchema: {
+        item: z.string(),
+        targetPerMinute: z
+          .number()
+          .describe('Target output rate per minute. Must be greater than 0.'),
+      },
     },
     async ({ item, targetPerMinute }): Promise<ToolResult> => {
+      if (targetPerMinute <= 0) {
+        return badRequest('targetPerMinute must be greater than 0.');
+      }
       const result = await graph.totalRawInputs(item, targetPerMinute);
       return result === undefined ? notFound(`item '${item}'`) : ok(result);
     },
