@@ -16,7 +16,7 @@ Foreman is required.
 
 ## Prerequisites
 
-- Node.js 20+
+- Node.js 22+
 - A copy of Satisfactory's `en-US.json` (ships at
   `<game install>/CommunityResources/Docs/en-US.json`). The file is UTF-16 LE — the
   parser handles that for you.

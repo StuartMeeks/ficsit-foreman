@@ -26,7 +26,7 @@ phases (see [`SPEC.md`](./SPEC.md)).
 
 ## Prerequisites
 
-- **Node.js 20+** and **npm 10+** — all platforms (Windows / macOS / Linux).
+- **Node.js 22+** and **npm 10+** — all platforms (Windows / macOS / Linux).
 - A copy of Satisfactory's `en-US.json`, found in your install at
   `CommunityResources/Docs/en-US.json`. It is UTF-16 LE encoded; Foreman handles that.
 
