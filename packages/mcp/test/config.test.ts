@@ -3,7 +3,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 
-import { resolveDocsPath } from '../src/config.js';
+import { resolveDocsPath, resolveServerConfig } from '../src/config.js';
 
 /** A data dir guaranteed not to exist, so no bundled channel is found. */
 const NO_DATA_DIR = path.join(os.tmpdir(), 'foreman-no-such-data');
@@ -71,5 +71,20 @@ describe('resolveDocsPath', () => {
     const result = resolveDocsPath({}, NO_DATA_DIR);
     expect(result.path).toBeUndefined();
     expect(result.warning).toBeTruthy();
+  });
+});
+
+describe('resolveServerConfig', () => {
+  it('defaults to stdio on port 8723', () => {
+    expect(resolveServerConfig({})).toEqual({ transport: 'stdio', host: '0.0.0.0', port: 8723 });
+  });
+
+  it('honours http transport, host and port overrides', () => {
+    const config = resolveServerConfig({
+      MCP_TRANSPORT: 'http',
+      MCP_HTTP_HOST: '127.0.0.1',
+      MCP_HTTP_PORT: '9000',
+    });
+    expect(config).toEqual({ transport: 'http', host: '127.0.0.1', port: 9000 });
   });
 });

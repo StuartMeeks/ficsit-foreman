@@ -69,9 +69,9 @@ Streamable HTTP transport (stateless) and serves on `/mcp`, with a `/health` end
 
 ```bash
 SATISFACTORY_DOCS_PATH=/path/to/en-US.json \
-MCP_TRANSPORT=http MCP_HTTP_HOST=0.0.0.0 MCP_HTTP_PORT=8080 \
+MCP_TRANSPORT=http MCP_HTTP_HOST=0.0.0.0 MCP_HTTP_PORT=8723 \
   npm run start -w @foreman/mcp
-# → [foreman-mcp] Listening on http://0.0.0.0:8080/mcp (health: /health)
+# → [foreman-mcp] Listening on http://0.0.0.0:8723/mcp (health: /health)
 #   (when bound to 0.0.0.0 it also logs each reachable LAN address)
 ```
 
@@ -79,10 +79,16 @@ MCP_TRANSPORT=http MCP_HTTP_HOST=0.0.0.0 MCP_HTTP_PORT=8080 \
 |---|---|---|
 | `MCP_TRANSPORT` | `stdio` | `stdio` or `http`. |
 | `MCP_HTTP_HOST` | `0.0.0.0` | Bind host for http mode. |
-| `MCP_HTTP_PORT` | `8080` | Port for http mode. |
+| `MCP_HTTP_PORT` | `8723` | Port for http mode. |
 
 > **Security:** the HTTP transport has **no authentication**. Only run it on a trusted
 > localhost/LAN, or put an authenticating proxy in front of it.
+
+### Docker
+
+A container image (`ghcr.io/stuartmeeks/foreman-mcp`) ships the bundled stable game data
+and defaults to HTTP on `:8723`. See [Run with Docker](../../README.md#run-with-docker) in
+the root README.
 
 ## Inspecting without an MCP client
 
