@@ -175,6 +175,11 @@ export function useForeman(): ForemanState {
 
   const saveSettings = useCallback(
     async (input: { personality: string; pioneerProfile: string; llm: LlmSettings }) => {
+      // The user's own provider key, held only in their browser so they need not
+      // re-enter it each visit. It is sent solely as the request header they
+      // authorised and never persisted server-side. localStorage is clear-text
+      // by nature; this at-rest exposure is an accepted trade-off for a key the
+      // user owns on their own machine.
       writeStorage(API_KEY, input.llm.apiKey);
       writeStorage(PROVIDER_KEY, input.llm.provider);
       writeStorage(MODEL_KEY, input.llm.model);
