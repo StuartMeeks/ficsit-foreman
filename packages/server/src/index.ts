@@ -10,7 +10,8 @@ import { disconnectDb, prisma } from './db.js';
 import type { AppDeps } from './deps.js';
 import { logger } from './logger.js';
 import { loadSystemPromptTemplate } from './anthropic/systemPrompt.js';
-import { SummaryService } from './anthropic/summary.js';
+import { createProvider } from './llm/factory.js';
+import { SummaryService } from './llm/summary.js';
 import { McpHttpClient } from './mcp/client.js';
 import { SessionService } from './services/sessionService.js';
 import { WorkOrderService } from './services/workOrderService.js';
@@ -49,11 +50,8 @@ async function main(): Promise<void> {
     sessions,
     workOrders: new WorkOrderService(prisma),
     mcp,
-    summary: new SummaryService(sessions, {
-      summaryModel: config.summaryModel,
-      summaryMaxTokens: config.summaryMaxTokens,
-      historyWindow: config.historyWindow,
-    }),
+    summary: new SummaryService(sessions, { historyWindow: config.historyWindow }, createProvider),
+    llmProviderFactory: createProvider,
     systemPromptTemplate,
   };
 
@@ -61,11 +59,12 @@ async function main(): Promise<void> {
   const server = app.listen(config.port, config.host, () => {
     logger.info(`Listening on http://${config.host}:${config.port} (health: /health)`);
     logger.info(
-      `Model: ${config.model} | MCP: ${config.mcpUrl} | history window: ${config.historyWindow}`,
+      `LLM: ${config.providerKind} (${config.model})${config.baseUrl !== undefined ? ` @ ${config.baseUrl}` : ''} | ` +
+        `MCP: ${config.mcpUrl} | history window: ${config.historyWindow}`,
     );
     if (config.hostedApiKey === undefined) {
       logger.warn(
-        `No hosted ANTHROPIC_API_KEY set — clients must supply their own via the '${config.clientKeyHeader}' header.`,
+        `No hosted LLM key set — clients must supply their own via the '${config.clientKeyHeader}' header.`,
       );
     }
   });

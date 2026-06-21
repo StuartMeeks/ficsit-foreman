@@ -1,9 +1,9 @@
 # @foreman/server
 
 The FICSIT Foreman backend — the Express service that sits between the web client
-and the Anthropic API. It runs the foreman persona, streams chat responses,
-calls the Phase 1 MCP server for accurate game data, and persists sessions and
-work orders.
+and the LLM provider. It runs the foreman persona, streams chat responses, calls
+the Phase 1 MCP server for accurate game data, and persists sessions and work
+orders.
 
 It runs as the `server` service in the `foreman` Docker Compose project,
 alongside the `mcp` service.
@@ -11,14 +11,19 @@ alongside the `mcp` service.
 ## What it does
 
 - **Chat proxy.** Streams the foreman's responses over Server-Sent Events while
-  running the Anthropic tool-use loop server-side: the model calls MCP game-data
-  tools and work-order tools, and the server feeds the results back until the
-  foreman produces a final answer.
+  running the tool-use loop server-side: the model calls MCP game-data tools and
+  work-order tools, and the server feeds the results back until the foreman
+  produces a final answer.
+- **Multiple providers.** Native Anthropic, or any OpenAI-compatible API
+  (OpenAI, OpenRouter, Gemini-compat, Azure) via a base URL — see the provider
+  seam below. `LLM_PROVIDER` selects the default; a client can override per
+  request.
 - **Foreman persona.** Loads `SYSTEM_PROMPT.md` once at startup and substitutes
   the session's `{{PERSONALITY}}` and `{{PIONEER_PROFILE}}` per request.
-- **Two key tiers.** Free tier — the client passes its own Anthropic key in the
-  `x-anthropic-api-key` header. Hosted tier — the server uses its own
-  `ANTHROPIC_API_KEY`. The header wins when both are present.
+- **Two key tiers.** Free tier — the client passes its own provider key in the
+  `x-anthropic-api-key` header (and may pick provider/model in the chat body).
+  Hosted tier — the server uses its own `LLM_API_KEY`. The header wins when both
+  are present.
 - **Work orders.** The foreman issues and closes orders via the `create_work_order`
   and `complete_work_order` tools; the same records are also exposed over REST.
   Sequence numbers are per-session and monotonic (WO-001, WO-002, …) and only one
@@ -122,11 +127,28 @@ docker run --rm -v foreman-db:/data -v "$PWD:/backup" busybox \
   tar czf /backup/foreman-db.tgz /data
 ```
 
+## LLM providers
+
+The chat loop is provider-agnostic. It speaks the neutral types in
+`src/llm/types.ts` and depends only on the `LlmProvider` interface
+(`src/llm/provider.ts`); each adapter translates to and from its own wire
+format:
+
+- `src/llm/anthropic.ts` — native Anthropic (streaming + tool_use blocks).
+- `src/llm/openai.ts` — any OpenAI Chat Completions-compatible API; the base URL
+  selects the concrete provider. `consumeOpenAiStream` assembles streamed
+  tool-call fragments.
+- `src/llm/factory.ts` — `createProvider(config)` picks the adapter.
+
+To add a provider, implement `LlmProvider` and wire it into `createProvider`.
+The chat loop, summariser, and routes need no changes.
+
 ## Testing
 
 ```bash
 npm run test -w @foreman/server
 ```
 
-Tests run against an isolated temporary SQLite database and mock the Anthropic
-SDK and the MCP gateway — no live API calls or network needed.
+Tests run against an isolated temporary SQLite database and inject a fake
+`LlmProvider` and a fake MCP gateway — no SDKs, live API calls, or network
+needed. `test/openai-stream.test.ts` unit-tests the OpenAI tool-call assembly.

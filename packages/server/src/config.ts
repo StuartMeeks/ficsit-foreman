@@ -2,29 +2,37 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import type { LlmRuntimeConfig, ProviderKind } from './llm/types.js';
+
 /**
  * Backend runtime configuration, resolved from the environment. Every value has
  * a sensible default so the server starts for local development with no `.env`.
+ * The LLM settings are provider-neutral; the legacy `ANTHROPIC_*` env vars are
+ * still honoured when the provider is anthropic (back-compat).
  */
 export interface ServerConfig {
   /** HTTP bind host. */
   host: string;
   /** HTTP port. */
   port: number;
-  /** Anthropic model the foreman runs on. */
+  /** Default LLM provider the foreman runs on. */
+  providerKind: ProviderKind;
+  /** Default model the foreman runs on. */
   model: string;
-  /** Upper bound on tokens per Anthropic response. */
+  /** Upper bound on tokens per chat response. */
   maxTokens: number;
   /** Cheaper model used for background session summarisation. */
   summaryModel: string;
   /** Upper bound on tokens for a summary response. */
   summaryMaxTokens: number;
+  /** Base URL override (OpenAI-compatible provider only). */
+  baseUrl: string | undefined;
   /**
-   * Server-held Anthropic API key (hosted tier). May be undefined — free-tier
-   * clients supply their own key per request via {@link clientKeyHeader}.
+   * Server-held LLM API key (hosted tier). May be undefined — free-tier clients
+   * supply their own key per request via {@link clientKeyHeader}.
    */
   hostedApiKey: string | undefined;
-  /** Request header a free-tier client uses to pass its own Anthropic key. */
+  /** Request header a free-tier client uses to pass its own LLM key. */
   clientKeyHeader: string;
   /** URL of the Phase 1 MCP server's Streamable HTTP endpoint. */
   mcpUrl: string;
@@ -36,17 +44,43 @@ export interface ServerConfig {
 
 const DEFAULT_HOST = '0.0.0.0';
 const DEFAULT_PORT = 8724;
-const DEFAULT_MODEL = 'claude-sonnet-4-6';
 const DEFAULT_MAX_TOKENS = 4096;
-const DEFAULT_SUMMARY_MODEL = 'claude-haiku-4-5';
 const DEFAULT_SUMMARY_MAX_TOKENS = 512;
 const DEFAULT_CLIENT_KEY_HEADER = 'x-anthropic-api-key';
 const DEFAULT_MCP_URL = 'http://127.0.0.1:8723/mcp';
 const DEFAULT_HISTORY_WINDOW = 20;
 
+/** Default chat model per provider (overridable via env or the UI). */
+export function defaultModelFor(provider: ProviderKind): string {
+  return provider === 'openai' ? 'gpt-4.1' : 'claude-sonnet-4-6';
+}
+
+/** Default cheap summary model per provider. */
+export function defaultSummaryModelFor(provider: ProviderKind): string {
+  return provider === 'openai' ? 'gpt-4.1-mini' : 'claude-haiku-4-5';
+}
+
+function parseProvider(raw: string | undefined): ProviderKind | undefined {
+  const value = raw?.trim().toLowerCase();
+  if (value === 'openai' || value === 'anthropic') {
+    return value;
+  }
+  return undefined;
+}
+
 function parsePositiveInt(raw: string | undefined, fallback: number): number {
   const parsed = Number.parseInt(raw?.trim() ?? '', 10);
   return Number.isInteger(parsed) && parsed > 0 ? parsed : fallback;
+}
+
+function firstNonEmpty(...values: (string | undefined)[]): string | undefined {
+  for (const value of values) {
+    const trimmed = value?.trim();
+    if (trimmed !== undefined && trimmed.length > 0) {
+      return trimmed;
+    }
+  }
+  return undefined;
 }
 
 /**
@@ -75,21 +109,80 @@ export function resolveSystemPromptPath(env: NodeJS.ProcessEnv = process.env): s
 
 /** Resolves all backend configuration from the environment. */
 export function resolveServerConfig(env: NodeJS.ProcessEnv = process.env): ServerConfig {
-  const hostedApiKey = env['ANTHROPIC_API_KEY']?.trim();
+  const providerKind = parseProvider(env['LLM_PROVIDER']) ?? 'anthropic';
+  const hostedApiKey = firstNonEmpty(
+    env['LLM_API_KEY'],
+    providerKind === 'anthropic' ? env['ANTHROPIC_API_KEY'] : env['OPENAI_API_KEY'],
+  );
   return {
     host: env['HOST']?.trim() || DEFAULT_HOST,
     port: parsePositiveInt(env['PORT'], DEFAULT_PORT),
-    model: env['ANTHROPIC_MODEL']?.trim() || DEFAULT_MODEL,
-    maxTokens: parsePositiveInt(env['ANTHROPIC_MAX_TOKENS'], DEFAULT_MAX_TOKENS),
-    summaryModel: env['ANTHROPIC_SUMMARY_MODEL']?.trim() || DEFAULT_SUMMARY_MODEL,
-    summaryMaxTokens: parsePositiveInt(
-      env['ANTHROPIC_SUMMARY_MAX_TOKENS'],
-      DEFAULT_SUMMARY_MAX_TOKENS,
+    providerKind,
+    model: firstNonEmpty(env['LLM_MODEL'], env['ANTHROPIC_MODEL']) ?? defaultModelFor(providerKind),
+    maxTokens: parsePositiveInt(
+      env['LLM_MAX_TOKENS'],
+      parsePositiveInt(env['ANTHROPIC_MAX_TOKENS'], DEFAULT_MAX_TOKENS),
     ),
-    hostedApiKey: hostedApiKey && hostedApiKey.length > 0 ? hostedApiKey : undefined,
+    summaryModel:
+      firstNonEmpty(env['LLM_SUMMARY_MODEL'], env['ANTHROPIC_SUMMARY_MODEL']) ??
+      defaultSummaryModelFor(providerKind),
+    summaryMaxTokens: parsePositiveInt(
+      env['LLM_SUMMARY_MAX_TOKENS'],
+      parsePositiveInt(env['ANTHROPIC_SUMMARY_MAX_TOKENS'], DEFAULT_SUMMARY_MAX_TOKENS),
+    ),
+    baseUrl: firstNonEmpty(env['LLM_BASE_URL']),
+    hostedApiKey,
     clientKeyHeader: (env['CLIENT_KEY_HEADER']?.trim() || DEFAULT_CLIENT_KEY_HEADER).toLowerCase(),
     mcpUrl: env['MCP_URL']?.trim() || DEFAULT_MCP_URL,
     historyWindow: parsePositiveInt(env['HISTORY_WINDOW'], DEFAULT_HISTORY_WINDOW),
     systemPromptPath: resolveSystemPromptPath(env),
+  };
+}
+
+/** A per-request client override of the provider/model/base URL. */
+export interface LlmOverride {
+  provider?: string;
+  model?: string;
+  baseUrl?: string;
+}
+
+/** The runtime config using the server's own defaults + a resolved key. */
+export function serverLlmConfig(config: ServerConfig, apiKey: string): LlmRuntimeConfig {
+  return {
+    providerKind: config.providerKind,
+    model: config.model,
+    summaryModel: config.summaryModel,
+    maxTokens: config.maxTokens,
+    summaryMaxTokens: config.summaryMaxTokens,
+    apiKey,
+    baseUrl: config.baseUrl,
+  };
+}
+
+/**
+ * The runtime config for a request that supplied its own key, applying the
+ * client's provider/model/base-URL override on top of the server defaults. When
+ * the client switches provider, models fall back to that provider's defaults so
+ * a mismatched server model is never used.
+ */
+export function clientLlmConfig(
+  config: ServerConfig,
+  override: LlmOverride,
+  apiKey: string,
+): LlmRuntimeConfig {
+  const providerKind = parseProvider(override.provider) ?? config.providerKind;
+  const sameAsServer = providerKind === config.providerKind;
+  const model =
+    firstNonEmpty(override.model) ?? (sameAsServer ? config.model : defaultModelFor(providerKind));
+  const summaryModel = sameAsServer ? config.summaryModel : defaultSummaryModelFor(providerKind);
+  const baseUrl = firstNonEmpty(override.baseUrl) ?? (sameAsServer ? config.baseUrl : undefined);
+  return {
+    providerKind,
+    model,
+    summaryModel,
+    maxTokens: config.maxTokens,
+    summaryMaxTokens: config.summaryMaxTokens,
+    apiKey,
+    baseUrl,
   };
 }

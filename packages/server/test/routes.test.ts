@@ -7,7 +7,8 @@ import { buildApp } from '../src/app.js';
 import { resolveServerConfig } from '../src/config.js';
 import type { AppDeps } from '../src/deps.js';
 import type { McpGateway } from '../src/mcp/client.js';
-import { SummaryService } from '../src/anthropic/summary.js';
+import { SummaryService } from '../src/llm/summary.js';
+import type { LlmProviderFactory } from '../src/llm/provider.js';
 import { SessionService } from '../src/services/sessionService.js';
 import { WorkOrderService } from '../src/services/workOrderService.js';
 import { createTestDb, type TestDb } from './helpers.js';
@@ -35,16 +36,17 @@ const workOrderBody = {
 beforeAll(async () => {
   db = await createTestDb();
   const sessions = new SessionService(db.prisma);
+  const stubFactory: LlmProviderFactory = () => ({
+    runTurn: async () => ({ text: '', toolCalls: [], stopReason: 'stop' }),
+    complete: async () => '',
+  });
   const deps: AppDeps = {
     config: resolveServerConfig({}),
     sessions,
     workOrders: new WorkOrderService(db.prisma),
     mcp: stubMcp,
-    summary: new SummaryService(
-      sessions,
-      { summaryModel: 'stub', summaryMaxTokens: 256, historyWindow: 20 },
-      () => ({ messages: { create: async () => ({ content: [] }) } }),
-    ),
+    summary: new SummaryService(sessions, { historyWindow: 20 }, stubFactory),
+    llmProviderFactory: stubFactory,
     systemPromptTemplate: 'Prompt {{PERSONALITY}} {{PIONEER_PROFILE}} {{SESSION_SUMMARY}}',
   };
   const app = buildApp(deps);

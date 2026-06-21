@@ -476,7 +476,8 @@ textarea {
 }
 
 .dialog textarea,
-.dialog input {
+.dialog input,
+.dialog select {
   background: var(--surface-inset);
   border: 1px solid var(--border-hairline);
   border-radius: var(--radius-sm);

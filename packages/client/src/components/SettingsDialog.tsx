@@ -1,36 +1,55 @@
 import { useState } from 'react';
 
 import type { Session } from '../api/types.js';
+import type { LlmSettings } from '../useForeman.js';
 
 interface SettingsDialogProps {
   session: Session | null;
-  apiKey: string;
+  llm: LlmSettings;
   onClose: () => void;
-  onSave: (input: { personality: string; pioneerProfile: string; apiKey: string }) => Promise<void>;
+  onSave: (input: {
+    personality: string;
+    pioneerProfile: string;
+    llm: LlmSettings;
+  }) => Promise<void>;
 }
 
 /**
  * Settings: the foreman's personality and the pioneer profile (stored on the
- * session), plus an optional Anthropic API key held only in this browser. A key
- * is needed unless the server is configured with its own.
+ * session), plus the LLM provider/model/key (held only in this browser). Leave
+ * the provider on "Server default" to use whatever the server is configured for.
  */
 export function SettingsDialog({
   session,
-  apiKey,
+  llm,
   onClose,
   onSave,
 }: SettingsDialogProps): React.JSX.Element {
   const [personality, setPersonality] = useState(session?.personality ?? '');
   const [pioneerProfile, setPioneerProfile] = useState(session?.pioneerProfile ?? '');
-  const [key, setKey] = useState(apiKey);
+  const [provider, setProvider] = useState(llm.provider);
+  const [model, setModel] = useState(llm.model);
+  const [baseUrl, setBaseUrl] = useState(llm.baseUrl);
+  const [apiKey, setApiKey] = useState(llm.apiKey);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const modelPlaceholder =
+    provider === 'openai'
+      ? 'gpt-4.1'
+      : provider === 'anthropic'
+        ? 'claude-sonnet-4-6'
+        : 'server default';
 
   const save = async (): Promise<void> => {
     setSaving(true);
     setError(null);
     try {
-      await onSave({ personality, pioneerProfile, apiKey: key });
+      await onSave({
+        personality,
+        pioneerProfile,
+        llm: { apiKey, provider, model, baseUrl },
+      });
       onClose();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not save settings.');
@@ -71,18 +90,55 @@ export function SettingsDialog({
         </div>
 
         <div className="field">
-          <label htmlFor="apikey">Anthropic API key</label>
+          <label htmlFor="provider">LLM provider</label>
+          <select id="provider" value={provider} onChange={(e) => setProvider(e.target.value)}>
+            <option value="">Server default</option>
+            <option value="anthropic">Anthropic (Claude)</option>
+            <option value="openai">OpenAI-compatible</option>
+          </select>
+        </div>
+
+        <div className="field">
+          <label htmlFor="model">Model</label>
+          <input
+            id="model"
+            value={model}
+            onChange={(e) => setModel(e.target.value)}
+            placeholder={modelPlaceholder}
+            autoComplete="off"
+          />
+        </div>
+
+        {provider === 'openai' ? (
+          <div className="field">
+            <label htmlFor="baseurl">Base URL (optional)</label>
+            <input
+              id="baseurl"
+              value={baseUrl}
+              onChange={(e) => setBaseUrl(e.target.value)}
+              placeholder="https://api.openai.com/v1"
+              autoComplete="off"
+            />
+            <span className="hint">
+              For OpenAI-compatible providers: OpenAI, OpenRouter, Gemini (OpenAI-compatible), Azure
+              OpenAI. Leave blank for OpenAI.
+            </span>
+          </div>
+        ) : null}
+
+        <div className="field">
+          <label htmlFor="apikey">LLM API key</label>
           <input
             id="apikey"
             type="password"
-            value={key}
-            onChange={(e) => setKey(e.target.value)}
-            placeholder="sk-ant-…  (stored only in this browser)"
+            value={apiKey}
+            onChange={(e) => setApiKey(e.target.value)}
+            placeholder="Your provider key (stored only in this browser)"
             autoComplete="off"
           />
           <span className="hint">
-            Only needed if the server has no key of its own. Sent with each message; never stored on
-            the server.
+            Needed unless the server has its own key. Sent with each message; never stored on the
+            server. A key also unlocks the provider/model override above.
           </span>
         </div>
 
