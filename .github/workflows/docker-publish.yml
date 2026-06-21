@@ -1,14 +1,18 @@
 name: Docker image
 
-# Builds the MCP server image on every PR (build only, to catch Dockerfile
-# breakage) and publishes it to GHCR on pushes to main and on version tags.
+# Builds the MCP server image and publishes it to GHCR on pushes to main and on
+# version tags. To avoid rebuilding :latest on every main push, a `changes` job
+# gates the build: it always runs for tags (releases), manual runs and PRs, but
+# for a main-branch push it builds only when image-relevant files changed.
+# (A `paths:` filter on the push trigger can't be used here — it would also
+# filter tag pushes, which must always publish.)
 
 on:
   push:
     branches: [main]
     tags: ['v*']
-  # On PRs, only build when something that affects the image changes — the
-  # docker job isn't a required check, so skipping it elsewhere blocks nothing.
+  # On PRs, only run when something that affects the image changes — the docker
+  # job isn't a required check, so skipping it elsewhere blocks nothing.
   pull_request:
     paths:
       - 'Dockerfile'
@@ -25,7 +29,48 @@ permissions:
   packages: write
 
 jobs:
+  changes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      build: ${{ steps.decide.outputs.build }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Decide whether to build
+        id: decide
+        env:
+          EVENT: ${{ github.event_name }}
+          REF_TYPE: ${{ github.ref_type }}
+          BEFORE: ${{ github.event.before }}
+          AFTER: ${{ github.sha }}
+        run: |
+          # Always build for tags (releases), manual runs, and PRs (the PR trigger
+          # is already path-filtered, so any PR run is image-relevant).
+          if [ "$EVENT" != "push" ] || [ "$REF_TYPE" = "tag" ]; then
+            echo "build=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          # New branch / unknown previous commit → build to be safe.
+          if [ "$BEFORE" = "0000000000000000000000000000000000000000" ] \
+            || ! git rev-parse --verify --quiet "$BEFORE^{commit}" >/dev/null; then
+            echo "build=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          # main push: build only if image-relevant files changed.
+          changed=$(git diff --name-only "$BEFORE" "$AFTER" | { grep -E '^(Dockerfile|\.dockerignore|packages/mcp/|package\.json|package-lock\.json|tsconfig\.base\.json|\.github/workflows/docker-publish\.yml)' || true; })
+          if [ -n "$changed" ]; then
+            echo "build=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "build=false" >> "$GITHUB_OUTPUT"
+          fi
+
   docker:
+    needs: changes
+    if: ${{ needs.changes.outputs.build == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
