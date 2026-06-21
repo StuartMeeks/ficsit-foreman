@@ -135,18 +135,30 @@ textarea {
 /* ── Main two-pane layout ───────────────────────────────────────────────── */
 .main {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 0.85fr);
+  /* chat | draggable divider | work order. Chat width is set live via --chat-pct. */
+  grid-template-columns: var(--chat-pct, 30%) 6px minmax(0, 1fr);
   min-height: 0;
 }
 
 .pane {
   min-height: 0;
+  min-width: 0;
   display: flex;
   flex-direction: column;
 }
 
-.pane.chat {
-  border-right: 1px solid var(--border-hairline);
+/* Draggable separator between the two panes. */
+.divider {
+  cursor: col-resize;
+  background: var(--border-hairline);
+  transition: background 0.15s ease;
+  touch-action: none;
+}
+
+.divider:hover,
+.divider:active,
+.divider:focus-visible {
+  background: var(--accent);
 }
 
 .pane-head {
@@ -539,8 +551,10 @@ textarea {
     grid-template-columns: 1fr;
     grid-template-rows: 1fr auto;
   }
+  .divider {
+    display: none;
+  }
   .pane.chat {
-    border-right: none;
     border-bottom: 1px solid var(--border-hairline);
   }
 }

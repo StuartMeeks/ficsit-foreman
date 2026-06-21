@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { ChatColumn } from './components/ChatColumn.js';
 import { Header } from './components/Header.js';
@@ -6,9 +6,66 @@ import { SettingsDialog } from './components/SettingsDialog.js';
 import { WorkOrderPanel } from './components/WorkOrderPanel.js';
 import { useForeman } from './useForeman.js';
 
+const SPLIT_KEY = 'foreman.chatSplit';
+const MIN_PCT = 20;
+const MAX_PCT = 75;
+
+function clampPct(value: number): number {
+  return Math.min(MAX_PCT, Math.max(MIN_PCT, value));
+}
+
+function initialSplit(): number {
+  try {
+    const stored = Number.parseFloat(localStorage.getItem(SPLIT_KEY) ?? '');
+    if (Number.isFinite(stored)) {
+      return clampPct(stored);
+    }
+  } catch {
+    /* ignore storage failures */
+  }
+  return 30;
+}
+
 export function App(): React.JSX.Element {
   const foreman = useForeman();
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [chatPct, setChatPct] = useState(initialSplit);
+  const mainRef = useRef<HTMLElement>(null);
+  const dragging = useRef(false);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(SPLIT_KEY, String(chatPct));
+    } catch {
+      /* ignore storage failures */
+    }
+  }, [chatPct]);
+
+  const onPointerDown = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    dragging.current = true;
+    e.currentTarget.setPointerCapture(e.pointerId);
+  }, []);
+
+  const onPointerMove = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    if (!dragging.current || mainRef.current === null) {
+      return;
+    }
+    const rect = mainRef.current.getBoundingClientRect();
+    setChatPct(clampPct(((e.clientX - rect.left) / rect.width) * 100));
+  }, []);
+
+  const onPointerUp = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    dragging.current = false;
+    e.currentTarget.releasePointerCapture(e.pointerId);
+  }, []);
+
+  const onKeyDown = useCallback((e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (e.key === 'ArrowLeft') {
+      setChatPct((p) => clampPct(p - 2));
+    } else if (e.key === 'ArrowRight') {
+      setChatPct((p) => clampPct(p + 2));
+    }
+  }, []);
 
   return (
     <div className="app">
@@ -19,7 +76,7 @@ export function App(): React.JSX.Element {
 
       {foreman.keyNeeded ? (
         <div className="banner">
-          <span>An Anthropic API key is required to talk to the foreman.</span>
+          <span>An API key is required to talk to the foreman.</span>
           <button type="button" onClick={() => setSettingsOpen(true)}>
             Add a key
           </button>
@@ -32,8 +89,23 @@ export function App(): React.JSX.Element {
         </div>
       ) : null}
 
-      <main className="main">
+      <main
+        className="main"
+        ref={mainRef}
+        style={{ ['--chat-pct']: `${chatPct}%` } as React.CSSProperties}
+      >
         <ChatColumn messages={foreman.messages} sending={foreman.sending} onSend={foreman.send} />
+        <div
+          className="divider"
+          role="separator"
+          aria-orientation="vertical"
+          aria-label="Resize chat and work-order panels"
+          tabIndex={0}
+          onPointerDown={onPointerDown}
+          onPointerMove={onPointerMove}
+          onPointerUp={onPointerUp}
+          onKeyDown={onKeyDown}
+        />
         <WorkOrderPanel active={foreman.activeWorkOrder} history={foreman.history} />
       </main>
 
