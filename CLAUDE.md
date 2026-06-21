@@ -213,6 +213,80 @@ Apache 2.0. Include a `LICENSE` file in the repo root.
 
 ---
 
+## Phase 2 Scope — Backend & Foreman Chat
+
+Phase 2 builds the Node/Express backend that sits between the React client and the Anthropic API. The MCP server from Phase 1 is already running; Phase 2 wires everything together.
+
+### Package: `packages/server`
+
+Build a Node.js + Express + TypeScript backend with:
+
+#### 1. Anthropic API Proxy
+- Accepts chat messages from the client and forwards them to the Anthropic API
+- Supports two modes:
+  - **Free tier**: client supplies its own `ANTHROPIC_API_KEY` in the request header
+  - **Hosted tier**: server uses its own `ANTHROPIC_API_KEY` env var (for future Patreon gating)
+- Streams responses back to the client using Server-Sent Events (SSE)
+- Attaches the foreman system prompt on every request (see `SYSTEM_PROMPT.md`)
+- Injects `{{PERSONALITY}}` and `{{PIONEER_PROFILE}}` from the session's stored values
+- Connects to the MCP server so the foreman can call game data tools mid-conversation
+- Applies conversation history windowing: send only the last N messages (start with N=20, make it configurable)
+
+#### 2. System Prompt
+- See `SYSTEM_PROMPT.md` in the repo root for the full prompt
+- `{{PERSONALITY}}` and `{{PIONEER_PROFILE}}` are runtime substitutions from session state
+- The prompt is loaded once at startup; substitutions happen per-request
+
+#### 3. Session Management
+- Sessions are identified by a UUID stored client-side (localStorage)
+- Session state includes: `personality` string, `pioneerProfile` string, conversation history
+- Sessions persist across page reloads via SQLite
+- No user accounts in Phase 2 — session ID is the identity
+
+#### 4. Work Order Persistence
+Implement the full work order schema from `SPEC.md`. Key requirements:
+- `sequenceNumber` — auto-incrementing per session, displayed as WO-001, WO-002, etc.
+- `status` — enforce that only one work order is `active` at a time per session
+- `completionSummary`, `adaptations`, `pioneerFeedback` — all nullable, populated at close-out
+- Endpoints:
+  - `POST /api/sessions/:sessionId/work-orders` — create new work order (sets any existing active → abandoned)
+  - `GET /api/sessions/:sessionId/work-orders` — list all (history)
+  - `GET /api/sessions/:sessionId/work-orders/active` — get the current active order
+  - `PATCH /api/sessions/:sessionId/work-orders/:id` — update (complete, abandon, add feedback)
+
+#### 5. Database
+- SQLite via Prisma for local dev
+- Schema covers: sessions, work orders (full schema from SPEC.md)
+- Migrations via `prisma migrate dev`
+- `DATABASE_URL` in `.env` (default: `file:./dev.db`)
+
+#### 6. Onboarding Endpoint
+- `POST /api/sessions` — create session, store initial `personality` and `pioneerProfile` strings
+- `PATCH /api/sessions/:sessionId` — update personality or pioneer profile (takes effect on next message)
+
+### Stack additions for Phase 2
+
+| Addition | Choice |
+|---|---|
+| ORM | Prisma |
+| Database (dev) | SQLite |
+| Streaming | Server-Sent Events (SSE) |
+| MCP client | `@modelcontextprotocol/sdk` client mode |
+
+### Definition of Done for Phase 2
+
+- [ ] `POST /api/chat` streams a foreman response with MCP tool calls working
+- [ ] System prompt correctly substitutes `{{PERSONALITY}}` and `{{PIONEER_PROFILE}}`
+- [ ] Work orders persist across server restarts
+- [ ] Only one work order can be `active` per session at a time
+- [ ] Sequence numbers increment correctly (WO-001, WO-002, …)
+- [ ] Conversation history is windowed — not the full history on every request
+- [ ] `PATCH /api/sessions/:id` personality update takes effect on the next message
+- [ ] Free-tier API key passthrough works
+- [ ] All Prisma migrations run cleanly on a fresh database
+
+---
+
 ## Dev Environment Note
 
 Development happens on a Proxmox VM via SSH. The Satisfactory game files 
