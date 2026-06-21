@@ -55,6 +55,29 @@ Foreman personality is fully configurable. Players choose the tone and character
 
 Personality is not locked at onboarding. The player can adjust it at any time through a settings panel. Changes take effect immediately — the foreman's next message reflects the updated personality. This allows the experience to evolve naturally: a player who wanted a drill sergeant at the start might want something more collaborative once the factory gets complex.
 
+#### Pioneer Profile Elicitation
+
+Alongside personality, onboarding captures three questions about the pioneer themselves. These are stored separately and injected into the system prompt as `{{PIONEER_PROFILE}}` — distinct from `{{PERSONALITY}}`. The foreman's character doesn't change based on the pioneer profile, but how it applies that character does.
+
+**1. Experience level** — "How familiar are you with Satisfactory?"
+- First playthrough — explain what things are, don't assume knowledge
+- Returning player — assume familiarity, skip the basics
+- Veteran — I know the game, just help me think
+
+**2. Session style** — "How do you like to play?"
+- Goal-oriented — clear task, let me get on with it
+- Exploratory — I like to wander and discover things
+- Mixed — direction when I need it, freedom when I don't
+
+**3. Involvement** — "How much do you want the foreman involved?"
+- Hands-on — check in often, lots of guidance
+- Light touch — issue the order and trust me to execute
+- On demand — I'll ask when I need you
+
+Like the personality string, the generated pioneer profile is editable freeform text. The questions seed it; the pioneer owns it. The generated string is injected into the foreman's system prompt at `{{PIONEER_PROFILE}}`.
+
+The interaction between the two blocks is intentional: a gruff foreman with a first-time player should still be gruff, but shouldn't assume knowledge. A warm mentor with a veteran can engage peer-to-peer. Personality sets the voice; pioneer profile sets the register.
+
 ### 5. Save Game Awareness *(Phase 4)*
 Players can upload their save file. The foreman parses it to understand what's actually been built, what resources are available, and what milestones have been unlocked — giving orders that reflect reality rather than assumption.
 
