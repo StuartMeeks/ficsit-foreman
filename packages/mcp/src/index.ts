@@ -10,7 +10,8 @@ import { emptyGameData, parseDocsFile } from './parser/index.js';
 import type { GameData } from './parser/types.js';
 import { initGraph } from './graph/index.js';
 import { registerTools } from './tools/index.js';
-import { resolveDocsPath } from './config.js';
+import { resolveDocsPath, resolveServerConfig } from './config.js';
+import { startHttpServer } from './http.js';
 import { logger } from './logger.js';
 
 const SERVER_NAME = 'foreman-mcp';
@@ -25,37 +26,58 @@ function loadEnv(): void {
   dotenv.config(); // also honour a .env in the current working directory
 }
 
-function loadGameData(): GameData {
+function loadGameData(): { gameData: GameData; docsPath: string | undefined } {
   const { path: docsPath, warning } = resolveDocsPath();
   if (warning !== undefined) {
     logger.warn(warning);
   }
   if (docsPath === undefined) {
-    return emptyGameData('unknown');
+    return { gameData: emptyGameData('unknown'), docsPath: undefined };
   }
   try {
     const { gameData, parseWarnings } = parseDocsFile(docsPath);
     for (const message of parseWarnings) {
       logger.warn(message);
     }
-    return gameData;
+    return { gameData, docsPath };
   } catch (error) {
     logger.error(`Failed to read or parse docs file at '${docsPath}':`, error);
-    return emptyGameData('unknown');
+    return { gameData: emptyGameData('unknown'), docsPath: undefined };
   }
+}
+
+/** Echoes what was loaded and from where, so startup is self-explanatory. */
+function logStartupSummary(gameData: GameData, docsPath: string | undefined): void {
+  logger.info(`Game data source: ${docsPath ?? '(none — running with an empty dataset)'}`);
+  logger.info(
+    `Game version: ${gameData.version} | ` +
+      `items=${count(gameData.items)} resources=${count(gameData.resources)} ` +
+      `recipes=${count(gameData.recipes)} buildings=${count(gameData.buildings)} ` +
+      `schematics=${count(gameData.schematics)}`,
+  );
+}
+
+function count(record: Record<string, unknown>): number {
+  return Object.keys(record).length;
 }
 
 async function main(): Promise<void> {
   loadEnv();
-  const gameData = loadGameData();
+  const { gameData, docsPath } = loadGameData();
   const graph = await initGraph(gameData);
+  logStartupSummary(gameData, docsPath);
+
+  const config = resolveServerConfig();
+  if (config.transport === 'http') {
+    await startHttpServer(graph, config.host, config.port, SERVER_NAME, SERVER_VERSION);
+    return;
+  }
 
   const server = new McpServer({ name: SERVER_NAME, version: SERVER_VERSION });
   registerTools(server, graph);
-
   const transport = new StdioServerTransport();
   await server.connect(transport);
-  logger.info(`Ready. Serving Satisfactory game data (version: ${gameData.version}).`);
+  logger.info('Transport: stdio (no network port — the client talks over stdin/stdout).');
 }
 
 main().catch((error: unknown) => {

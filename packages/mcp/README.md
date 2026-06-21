@@ -52,8 +52,32 @@ SATISFACTORY_DOCS_PATH=/path/to/en-US.json npm run dev -w @foreman/mcp
 SATISFACTORY_DOCS_PATH=/path/to/en-US.json npm run start -w @foreman/mcp
 ```
 
-The server speaks MCP over **stdio**. All logging goes to stderr; stdout is reserved
-for the protocol.
+By default the server speaks MCP over **stdio** — there is no network port; the client
+spawns it as a child process and talks over stdin/stdout. All logging goes to stderr;
+stdout is reserved for the protocol. Startup echoes the loaded docs path, game version
+and entity counts.
+
+### HTTP transport (opt-in)
+
+To listen on a network port instead, set `MCP_TRANSPORT=http`. This uses the MCP
+Streamable HTTP transport (stateless) and serves on `/mcp`, with a `/health` endpoint.
+
+```bash
+SATISFACTORY_DOCS_PATH=/path/to/en-US.json \
+MCP_TRANSPORT=http MCP_HTTP_HOST=0.0.0.0 MCP_HTTP_PORT=8080 \
+  npm run start -w @foreman/mcp
+# → [foreman-mcp] Listening on http://0.0.0.0:8080/mcp (health: /health)
+#   (when bound to 0.0.0.0 it also logs each reachable LAN address)
+```
+
+| Variable | Default | Meaning |
+|---|---|---|
+| `MCP_TRANSPORT` | `stdio` | `stdio` or `http`. |
+| `MCP_HTTP_HOST` | `0.0.0.0` | Bind host for http mode. |
+| `MCP_HTTP_PORT` | `8080` | Port for http mode. |
+
+> **Security:** the HTTP transport has **no authentication**. Only run it on a trusted
+> localhost/LAN, or put an authenticating proxy in front of it.
 
 ## Inspecting without an MCP client
 

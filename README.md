@@ -74,7 +74,13 @@ A leading `~` is expanded to your home directory.
 |---|---|---|
 | `SATISFACTORY_DOCS_PATH` | One of these | Full path to `en-US.json`. Takes priority. |
 | `SATISFACTORY_GAME_DIR` | One of these | Game install root; docs path is derived from it. |
+| `MCP_TRANSPORT` | No | `stdio` (default, for Claude Desktop) or `http` to listen on a network port. |
+| `MCP_HTTP_HOST` | No | HTTP bind host when `MCP_TRANSPORT=http` (default `0.0.0.0`). |
+| `MCP_HTTP_PORT` | No | HTTP port when `MCP_TRANSPORT=http` (default `8080`). |
 | `ANTHROPIC_API_KEY` | Phase 2+ | For the foreman chat backend. Not used by the Phase 1 MCP server. |
+
+> The HTTP transport has **no authentication** in Phase 1 — only run it on a trusted
+> localhost/LAN.
 
 If neither game-data variable is set, the MCP server starts with an empty dataset and
 logs a warning rather than failing.
