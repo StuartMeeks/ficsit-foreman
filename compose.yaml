@@ -51,6 +51,13 @@ services:
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       # Optional model override (default claude-sonnet-4-6):
       # ANTHROPIC_MODEL: claude-opus-4-8
+      # ── Use a different frontier provider (OpenAI-compatible) ─────────────────
+      # Set LLM_PROVIDER=openai with a key + (optionally) a base URL to run on
+      # OpenAI, OpenRouter, Gemini's OpenAI-compatible endpoint, etc.
+      LLM_PROVIDER: ${LLM_PROVIDER:-}
+      LLM_API_KEY: ${LLM_API_KEY:-}
+      LLM_MODEL: ${LLM_MODEL:-}
+      LLM_BASE_URL: ${LLM_BASE_URL:-}
     volumes:
       # The SQLite database lives in a named volume, so your sessions and work
       # orders SURVIVE upgrades: `docker compose pull` + `up -d` recreates the

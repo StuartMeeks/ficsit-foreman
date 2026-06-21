@@ -40,7 +40,7 @@ export function App(): React.JSX.Element {
       {settingsOpen ? (
         <SettingsDialog
           session={foreman.session}
-          apiKey={foreman.apiKey}
+          llm={foreman.llm}
           onClose={() => setSettingsOpen(false)}
           onSave={foreman.saveSettings}
         />

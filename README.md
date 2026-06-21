@@ -7,10 +7,10 @@ you can stay in the game. The foreman's personality is chosen by you during
 onboarding; there is no hardcoded character.
 
 This repository is a monorepo. It delivers the **game-data backbone** (an MCP server that
-answers production questions accurately from real game data) and the **foreman chat
-backend** (an Anthropic proxy with the foreman persona and work-order persistence). The
-web UI is a later phase (see [`SPEC.md`](./SPEC.md)) and joins the same Docker Compose
-project.
+answers production questions accurately from real game data), the **foreman chat backend**
+(a chat proxy — Anthropic or any OpenAI-compatible provider — with the foreman persona and
+work-order persistence), and a **web UI** to talk to the foreman. All three run as services
+in one Docker Compose project.
 
 ---
 
@@ -19,7 +19,7 @@ project.
 | Package | Status | Purpose |
 |---|---|---|
 | [`packages/mcp`](./packages/mcp) | **Built** | Parses `en-US.json`, loads it into an embedded Kùzu graph, exposes computed MCP tools. Works standalone with Claude Desktop. |
-| [`packages/server`](./packages/server) | **Built** | Express backend: Anthropic chat proxy with the foreman persona, MCP game-data tool use, and work-order persistence. |
+| [`packages/server`](./packages/server) | **Built** | Express backend: LLM chat proxy (Anthropic or OpenAI-compatible) with the foreman persona, MCP game-data tool use, and work-order persistence. |
 | [`packages/client`](./packages/client) | **Boilerplate** | React UI: foreman chat (streaming) with a minimal work-order/history panel. Served on port `8725`. |
 
 > FICSIT Foreman runs as a **Docker Compose project** named `foreman`: the MCP server and
@@ -152,12 +152,33 @@ All optional — by default the server serves the bundled **stable** game data.
 
 | Variable | Description |
 |---|---|
-| `ANTHROPIC_API_KEY` | Hosted-tier key. If unset, clients must pass their own via the `x-anthropic-api-key` header. |
-| `ANTHROPIC_MODEL` | Model the foreman runs on (default `claude-sonnet-4-6`). |
+| `LLM_PROVIDER` | `anthropic` (native Claude, default) or `openai` (OpenAI-compatible). |
+| `LLM_API_KEY` | Hosted-tier key for the chosen provider. If unset, clients pass their own via the `x-anthropic-api-key` header. |
+| `LLM_MODEL` | Model (default `claude-sonnet-4-6` / `gpt-4.1`). |
+| `LLM_BASE_URL` | OpenAI-compatible base URL (OpenAI, OpenRouter, Gemini-compat, Azure). |
 | `MCP_URL` | Where the backend reaches the MCP server (Compose: `http://mcp:8723/mcp`; bare metal default `http://127.0.0.1:8723/mcp`). |
 | `PORT` | Backend HTTP port (default `8724`). |
 | `DATABASE_URL` | Database connection (default `file:./dev.db`; Docker `file:/data/foreman.db`). |
 | `HISTORY_WINDOW` | Most-recent messages sent per chat request (default `20`). |
+
+> The legacy `ANTHROPIC_*` variables still work when `LLM_PROVIDER` is `anthropic`.
+
+### Using a different LLM provider
+
+The foreman runs on Anthropic by default but works with any OpenAI-compatible
+frontier provider. Set the provider on the server (covers everyone), or pick one
+per player in the web UI's **Settings** (provider + model + your own key). For
+example, to run the whole server on OpenRouter:
+
+```bash
+LLM_PROVIDER=openai
+LLM_API_KEY=sk-or-...
+LLM_BASE_URL=https://openrouter.ai/api/v1
+LLM_MODEL=anthropic/claude-sonnet-4.5   # or any model OpenRouter offers
+```
+
+Tool-calling quality varies by model — the foreman leans on tools heavily, so a
+strong frontier model gives the best results.
 
 Resolution order for game data: `SATISFACTORY_DOCS_PATH` → `SATISFACTORY_GAME_DIR` →
 bundled channel (`SATISFACTORY_GAME_CHANNEL`) → empty dataset with a warning. See

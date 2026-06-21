@@ -86,6 +86,13 @@ export async function listWorkOrders(sessionId: string): Promise<WorkOrder[]> {
   return (await response.json()) as WorkOrder[];
 }
 
+/** Per-request LLM override (effective only when an API key is supplied). */
+export interface ClientLlmConfig {
+  provider?: 'anthropic' | 'openai';
+  model?: string;
+  baseUrl?: string;
+}
+
 /** Callbacks invoked as the foreman's streamed turn unfolds. */
 export interface ChatHandlers {
   onText(delta: string): void;
@@ -103,14 +110,26 @@ export async function streamChat(
   sessionId: string,
   message: string,
   apiKey: string | undefined,
+  llm: ClientLlmConfig,
   handlers: ChatHandlers,
 ): Promise<void> {
+  const body: Record<string, unknown> = { message };
+  if (llm.provider !== undefined) {
+    body['provider'] = llm.provider;
+  }
+  if (llm.model !== undefined && llm.model.length > 0) {
+    body['model'] = llm.model;
+  }
+  if (llm.baseUrl !== undefined && llm.baseUrl.length > 0) {
+    body['baseUrl'] = llm.baseUrl;
+  }
+
   let response: Response;
   try {
     response = await fetch(`/api/sessions/${sessionId}/chat`, {
       method: 'POST',
       headers: jsonHeaders(apiKey),
-      body: JSON.stringify({ message }),
+      body: JSON.stringify(body),
     });
   } catch {
     handlers.onError('Could not reach the foreman. Is the backend running?');

@@ -1,30 +1,39 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
-import { SummaryService, type SummaryClient } from '../src/anthropic/summary.js';
+import { SummaryService } from '../src/llm/summary.js';
+import type { LlmCompletionRequest, LlmRuntimeConfig } from '../src/llm/types.js';
+import type { LlmProvider, LlmProviderFactory } from '../src/llm/provider.js';
 import { SessionService } from '../src/services/sessionService.js';
 import { createTestDb, type TestDb } from './helpers.js';
 
 let db: TestDb;
 let sessions: SessionService;
 
-const config = { summaryModel: 'claude-haiku-4-5', summaryMaxTokens: 512, historyWindow: 5 };
+const config = { historyWindow: 5 };
 
-/** A fake client capturing the params and returning a canned summary. */
-function fakeClient(): {
-  client: SummaryClient;
-  factory: () => SummaryClient;
-  calls: unknown[];
+const llm: LlmRuntimeConfig = {
+  providerKind: 'anthropic',
+  model: 'claude-sonnet-4-6',
+  summaryModel: 'claude-haiku-4-5',
+  maxTokens: 1024,
+  summaryMaxTokens: 512,
+  apiKey: 'k',
+};
+
+/** A fake provider factory capturing the completion requests it receives. */
+function fakeFactory(text = 'A concise session summary.'): {
+  factory: LlmProviderFactory;
+  calls: LlmCompletionRequest[];
 } {
-  const calls: unknown[] = [];
-  const client: SummaryClient = {
-    messages: {
-      create: async (params) => {
-        calls.push(params);
-        return { content: [{ type: 'text', text: 'A concise session summary.' }] };
-      },
+  const calls: LlmCompletionRequest[] = [];
+  const provider: LlmProvider = {
+    runTurn: async () => ({ text: '', toolCalls: [], stopReason: 'stop' }),
+    complete: async (req) => {
+      calls.push(req);
+      return text;
     },
   };
-  return { client, factory: () => client, calls };
+  return { factory: () => provider, calls };
 }
 
 beforeAll(async () => {
@@ -46,18 +55,20 @@ async function seedMessages(count: number): Promise<string> {
 
 describe('SummaryService.shouldSummarise', () => {
   it('triggers only once the count exceeds twice the window', () => {
-    const service = new SummaryService(sessions, config, fakeClient().factory);
+    const service = new SummaryService(sessions, config, fakeFactory().factory);
     expect(service.shouldSummarise(config.historyWindow * 2)).toBe(false);
     expect(service.shouldSummarise(config.historyWindow * 2 + 1)).toBe(true);
   });
 });
 
 describe('SummaryService.summarise', () => {
-  it('folds the prior summary and transcript into the request', async () => {
-    const fake = fakeClient();
+  it('uses the summary model and folds prior summary + transcript', async () => {
+    const fake = fakeFactory();
     const service = new SummaryService(sessions, config, fake.factory);
+    const provider = fake.factory(llm);
     const result = await service.summarise(
-      'key',
+      provider,
+      llm,
       [
         { role: 'user', content: 'Build iron.' },
         { role: 'assistant', content: 'On it.' },
@@ -65,49 +76,46 @@ describe('SummaryService.summarise', () => {
       'Earlier: set up power.',
     );
     expect(result).toBe('A concise session summary.');
-    const params = fake.calls[0] as { model: string; system: string; messages: { content: string }[] };
-    expect(params.model).toBe('claude-haiku-4-5');
-    expect(params.system).toContain('Summarise this Satisfactory factory session');
-    expect(params.messages[0]?.content).toContain('Earlier: set up power.');
-    expect(params.messages[0]?.content).toContain('Pioneer: Build iron.');
-    expect(params.messages[0]?.content).toContain('Foreman: On it.');
+    const req = fake.calls[0];
+    expect(req?.model).toBe('claude-haiku-4-5');
+    expect(req?.system).toContain('Summarise this Satisfactory factory session');
+    expect(req?.userText).toContain('Earlier: set up power.');
+    expect(req?.userText).toContain('Pioneer: Build iron.');
+    expect(req?.userText).toContain('Foreman: On it.');
   });
 });
 
 describe('SummaryService.summariseIfNeeded', () => {
   it('does nothing below the threshold', async () => {
-    const fake = fakeClient();
+    const fake = fakeFactory();
     const service = new SummaryService(sessions, config, fake.factory);
-    const sessionId = await seedMessages(config.historyWindow * 2); // exactly 2x — not past
-    await service.summariseIfNeeded(sessionId, 'key');
+    const sessionId = await seedMessages(config.historyWindow * 2);
+    await service.summariseIfNeeded(sessionId, llm);
     expect(fake.calls).toHaveLength(0);
     expect((await sessions.get(sessionId))?.summary).toBeUndefined();
   });
 
   it('summarises and stores once past the threshold', async () => {
-    const fake = fakeClient();
+    const fake = fakeFactory();
     const service = new SummaryService(sessions, config, fake.factory);
     const sessionId = await seedMessages(config.historyWindow * 2 + 2);
-    await service.summariseIfNeeded(sessionId, 'key');
+    await service.summariseIfNeeded(sessionId, llm);
     expect(fake.calls).toHaveLength(1);
-    // Only messages outside the window are summarised.
-    const params = fake.calls[0] as { messages: { content: string }[] };
-    expect(params.messages[0]?.content).toContain('msg-1');
-    expect(params.messages[0]?.content).not.toContain(`msg-${config.historyWindow * 2 + 2}`);
+    expect(fake.calls[0]?.userText).toContain('msg-1');
+    expect(fake.calls[0]?.userText).not.toContain(`msg-${config.historyWindow * 2 + 2}`);
     expect((await sessions.get(sessionId))?.summary).toBe('A concise session summary.');
   });
 
-  it('never throws when the Anthropic call fails', async () => {
-    const failing: SummaryClient = {
-      messages: {
-        create: async () => {
-          throw new Error('boom');
-        },
+  it('never throws when the provider fails', async () => {
+    const failing: LlmProviderFactory = () => ({
+      runTurn: async () => ({ text: '', toolCalls: [], stopReason: 'stop' }),
+      complete: async () => {
+        throw new Error('boom');
       },
-    };
-    const service = new SummaryService(sessions, config, () => failing);
+    });
+    const service = new SummaryService(sessions, config, failing);
     const sessionId = await seedMessages(config.historyWindow * 2 + 2);
-    await expect(service.summariseIfNeeded(sessionId, 'key')).resolves.toBeUndefined();
+    await expect(service.summariseIfNeeded(sessionId, llm)).resolves.toBeUndefined();
     expect((await sessions.get(sessionId))?.summary).toBeUndefined();
   });
 });

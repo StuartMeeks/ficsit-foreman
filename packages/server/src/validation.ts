@@ -69,4 +69,8 @@ export const updateSessionSchema = z
 
 export const chatSchema = z.object({
   message: z.string().min(1),
+  // Optional per-request LLM override (effective only with a client-supplied key).
+  provider: z.enum(['anthropic', 'openai']).optional(),
+  model: z.string().optional(),
+  baseUrl: z.string().optional(),
 });
