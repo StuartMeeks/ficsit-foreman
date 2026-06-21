@@ -26,6 +26,12 @@ jobs:
         uses: github/codeql-action/init@v4
         with:
           languages: javascript-typescript
+          # Exclude vendored/compiled reference artefacts. The north-star design
+          # prototype is a bundled, minified HTML mock — never built or served —
+          # so scanning its bundle (which trips js/xss-through-dom) is noise.
+          config: |
+            paths-ignore:
+              - packages/client/design-reference
 
       - name: Analyse
         uses: github/codeql-action/analyze@v4
