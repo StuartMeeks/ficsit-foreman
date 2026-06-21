@@ -82,14 +82,16 @@ A leading `~` is expanded to your home directory.
 > The HTTP transport has **no authentication** in Phase 1 — only run it on a trusted
 > localhost/LAN.
 
-If neither game-data variable is set, the MCP server starts with an empty dataset and
-logs a warning rather than failing.
+If neither game-data variable is set, the MCP server falls back to a bundled copy at
+`packages/mcp/data/en-US.json` (if present), and otherwise starts with an empty dataset
+and a warning rather than failing.
 
 ## Contributing
 
-Contributions are welcome. The open design questions live at the bottom of
-[`SPEC.md`](./SPEC.md) — that's the best place to start. The parser and graph design
-are documented in [`PARSER.md`](./PARSER.md).
+Contributions are welcome — see [`CONTRIBUTING.md`](./CONTRIBUTING.md) for the workflow
+and conventions, including how to supply bundled `en-US.json` game-data updates. The open
+design questions live at the bottom of [`SPEC.md`](./SPEC.md), and the parser and graph
+design are documented in [`PARSER.md`](./PARSER.md).
 
 ## Licence
 
