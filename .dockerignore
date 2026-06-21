@@ -7,3 +7,6 @@ game-data
 .env
 *.log
 .claude
+
+# Design reference assets (not needed in any image build)
+packages/client/design-reference

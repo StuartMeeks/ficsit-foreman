@@ -20,7 +20,7 @@ project.
 |---|---|---|
 | [`packages/mcp`](./packages/mcp) | **Built** | Parses `en-US.json`, loads it into an embedded Kùzu graph, exposes computed MCP tools. Works standalone with Claude Desktop. |
 | [`packages/server`](./packages/server) | **Built** | Express backend: Anthropic chat proxy with the foreman persona, MCP game-data tool use, and work-order persistence. |
-| `packages/client` | Phase 3 | React UI: foreman chat, active work order, history. |
+| [`packages/client`](./packages/client) | **Boilerplate** | React UI: foreman chat (streaming) with a minimal work-order/history panel. Served on port `8725`. |
 
 > FICSIT Foreman runs as a **Docker Compose project** named `foreman`: the MCP server and
 > backend are separate services in the one project (the web UI joins later), so Docker
@@ -53,9 +53,11 @@ Most Satisfactory players are on Windows, so here's the full path:
    ```
 
    *(The snippet above is the MCP server on its own — all you need to use FICSIT Foreman
-   from Claude Desktop today. The full [`compose.yaml`](./compose.yaml) in this repo also
-   includes the `server` backend on port `8724`; the web UI that drives it lands in Phase
-   3. To run the backend now, set `ANTHROPIC_API_KEY` and `docker compose up -d --build`.)*
+   from Claude Desktop. The full [`compose.yaml`](./compose.yaml) in this repo runs the
+   whole stack: the MCP server, the `server` backend (`:8724`), and the `web` UI (`:8725`).
+   To run it all and chat with the foreman in your browser, set `ANTHROPIC_API_KEY` (or
+   enter a key in the UI's settings) and run `docker compose up -d --build`, then open
+   **<http://localhost:8725>**.)*
 3. Open a terminal in that folder and run:
 
    ```powershell

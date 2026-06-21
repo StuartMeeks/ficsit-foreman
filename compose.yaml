@@ -64,11 +64,20 @@ services:
       #   - ./data:/data
     restart: unless-stopped
 
-  # ── Added in a later phase (same project, separate service) ──────────────────
-  # web:      # Phase 3 — React UI
-  #   image: ghcr.io/stuartmeeks/foreman-web:latest
-  #   container_name: foreman-web
-  #   depends_on: [server]
+  web:
+    # Pull the published image, or build locally if it is not present:
+    #   docker compose up -d --build
+    image: ghcr.io/stuartmeeks/foreman-web:latest
+    build:
+      context: .
+      dockerfile: packages/client/Dockerfile
+    container_name: foreman-web
+    depends_on:
+      - server
+    ports:
+      # Open http://localhost:8725 to use the foreman.
+      - "8725:80"
+    restart: unless-stopped
 
 volumes:
   # Back up before a major upgrade if you like:

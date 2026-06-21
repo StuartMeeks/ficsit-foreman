@@ -1,0 +1,554 @@
+/* FICSIT Foreman client — boilerplate styles.
+ * Executes the north-star SCADA/terminal aesthetic via the semantic design
+ * tokens. The chat and shell are the polished pieces; the work-order panel is
+ * intentionally minimal (it will change radically). */
+
+@import '../../design-tokens.css';
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--surface-page);
+  color: var(--text-body);
+  font-family: var(--font-body);
+  font-size: 15px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+button,
+input,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* Shared mono label treatment — the HUD voice. */
+.label {
+  font-family: var(--font-numeric);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-label);
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.num {
+  font-family: var(--font-numeric);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── App shell ──────────────────────────────────────────────────────────── */
+.app {
+  display: grid;
+  grid-template-rows: auto 1fr;
+  height: 100%;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 0 18px;
+  height: 48px;
+  border-bottom: 1px solid var(--border-hairline);
+  background: var(--surface-panel);
+}
+
+.wordmark {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-family: var(--font-numeric);
+  letter-spacing: var(--tracking-label-loose);
+  font-size: 13px;
+  font-weight: var(--font-weight-bold);
+  color: var(--text-primary);
+}
+
+.wordmark .glyph {
+  width: 14px;
+  height: 14px;
+  background: var(--accent);
+  border-radius: var(--radius-xs);
+}
+
+.header .spacer {
+  flex: 1;
+}
+
+.status {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.pulse-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: var(--radius-full);
+  background: var(--status-online);
+  animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}
+
+.icon-button {
+  background: transparent;
+  border: 1px solid var(--border-hairline);
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  padding: 5px 10px;
+  cursor: pointer;
+  font-family: var(--font-numeric);
+  font-size: 11px;
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+}
+
+.icon-button:hover {
+  border-color: var(--accent);
+  color: var(--text-primary);
+}
+
+/* ── Main two-pane layout ───────────────────────────────────────────────── */
+.main {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 0.85fr);
+  min-height: 0;
+}
+
+.pane {
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.pane.chat {
+  border-right: 1px solid var(--border-hairline);
+}
+
+.pane-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 11px 16px;
+  border-bottom: 1px solid var(--border-hairline);
+}
+
+.pane-head .tick {
+  color: var(--accent);
+}
+
+/* ── Chat ───────────────────────────────────────────────────────────────── */
+.messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.msg {
+  display: grid;
+  grid-template-columns: 18px 1fr;
+  gap: 10px;
+  animation: fadeInUp 0.25s ease both;
+}
+
+.msg .marker {
+  font-family: var(--font-numeric);
+  line-height: 1.5;
+}
+
+.msg.foreman .marker {
+  color: var(--accent);
+}
+
+.msg.pioneer .marker {
+  color: var(--text-muted);
+}
+
+.msg.pioneer .body {
+  color: var(--text-secondary);
+}
+
+.msg .body {
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.msg .tools {
+  margin-top: 6px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.tool-chip {
+  font-family: var(--font-numeric);
+  font-size: 10px;
+  letter-spacing: var(--tracking-tight);
+  text-transform: uppercase;
+  color: var(--accent);
+  border: 1px solid var(--border-emphasis);
+  border-radius: var(--radius-sm);
+  padding: 2px 6px;
+  background: var(--color-accent-tint-soft);
+}
+
+.msg .err {
+  color: var(--status-shortfall);
+  font-size: 13px;
+  margin-top: 4px;
+}
+
+.caret {
+  display: inline-block;
+  width: 7px;
+  height: 1.05em;
+  background: var(--accent);
+  vertical-align: text-bottom;
+  margin-left: 1px;
+  animation: pulse 1s steps(2, start) infinite;
+}
+
+.composer {
+  border-top: 1px solid var(--border-hairline);
+  padding: 12px 16px;
+  display: flex;
+  gap: 10px;
+  align-items: flex-end;
+}
+
+.composer textarea {
+  flex: 1;
+  resize: none;
+  background: var(--surface-inset);
+  border: 1px solid var(--border-hairline);
+  border-radius: var(--radius-sm);
+  color: var(--text-body);
+  padding: 9px 11px;
+  min-height: 42px;
+  max-height: 160px;
+}
+
+.composer textarea:focus {
+  border-color: var(--accent);
+  outline: none;
+}
+
+.send {
+  background: var(--accent);
+  color: var(--text-on-accent);
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: 0 16px;
+  height: 42px;
+  cursor: pointer;
+  font-family: var(--font-numeric);
+  font-size: 12px;
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  font-weight: var(--font-weight-semibold);
+}
+
+.send:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.empty {
+  color: var(--text-muted);
+  font-size: 14px;
+  padding: 8px 0;
+}
+
+/* ── Work-order panel (boilerplate) ─────────────────────────────────────── */
+.pane.work {
+  overflow-y: auto;
+}
+
+.wo {
+  padding: 16px;
+}
+
+.wo-top {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.wo-id {
+  font-family: var(--font-numeric);
+  color: var(--accent);
+  font-size: 12px;
+  letter-spacing: var(--tracking-label);
+}
+
+.chip {
+  font-family: var(--font-numeric);
+  font-size: 10px;
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  padding: 2px 7px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--accent-chip-border);
+  color: var(--status-in-progress);
+}
+
+.chip.completed {
+  border-color: var(--status-met);
+  color: var(--status-met);
+}
+
+.chip.abandoned {
+  border-color: var(--border-emphasis);
+  color: var(--text-muted);
+}
+
+.wo-title {
+  font-family: var(--font-heading);
+  font-weight: var(--font-weight-extrabold);
+  font-size: 26px;
+  line-height: 1.1;
+  color: var(--text-title);
+  margin: 4px 0 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.01em;
+}
+
+.wo-objective {
+  color: var(--text-secondary);
+  font-size: 14px;
+  margin-bottom: 18px;
+}
+
+.section {
+  margin-top: 18px;
+}
+
+.section > .label {
+  display: block;
+  margin-bottom: 8px;
+}
+
+.steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.steps li {
+  display: grid;
+  grid-template-columns: 20px 1fr;
+  gap: 8px;
+  padding: 7px 8px;
+  border-left: 2px solid transparent;
+}
+
+.steps li .step-n {
+  font-family: var(--font-numeric);
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.steps li:first-child {
+  border-left-color: var(--accent-active-step);
+  background: var(--surface-raised);
+}
+
+.ledger {
+  display: flex;
+  flex-direction: column;
+}
+
+.ledger .row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 12px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--border-hairline);
+}
+
+.ledger .row .qty {
+  font-family: var(--font-numeric);
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
+}
+
+.notes {
+  margin-top: 18px;
+  border-top: 1px solid var(--border-hairline);
+  padding-top: 12px;
+  color: var(--text-secondary);
+  font-size: 14px;
+}
+
+.history {
+  margin-top: 22px;
+}
+
+.history .row {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 10px;
+  align-items: center;
+  padding: 7px 0;
+  border-bottom: 1px solid var(--border-hairline);
+  font-size: 13px;
+}
+
+.history .row .wo-n {
+  font-family: var(--font-numeric);
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
+/* ── Settings dialog ────────────────────────────────────────────────────── */
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.dialog {
+  background: var(--surface-panel);
+  border: 1px solid var(--border-emphasis);
+  border-radius: var(--radius-md);
+  width: min(520px, 100%);
+  max-height: 90vh;
+  overflow-y: auto;
+  padding: 22px;
+}
+
+.dialog h2 {
+  font-family: var(--font-heading);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-title);
+  margin: 0 0 4px;
+}
+
+.dialog .field {
+  margin-top: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.dialog label {
+  font-family: var(--font-numeric);
+  font-size: 11px;
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.dialog textarea,
+.dialog input {
+  background: var(--surface-inset);
+  border: 1px solid var(--border-hairline);
+  border-radius: var(--radius-sm);
+  color: var(--text-body);
+  padding: 9px 11px;
+}
+
+.dialog textarea {
+  resize: vertical;
+  min-height: 64px;
+}
+
+.dialog .hint {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.dialog .actions {
+  margin-top: 22px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.banner {
+  background: var(--color-accent-tint);
+  border-bottom: 1px solid var(--border-emphasis);
+  color: var(--text-primary);
+  padding: 9px 16px;
+  font-size: 13px;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.banner button {
+  background: transparent;
+  border: 1px solid var(--accent);
+  color: var(--accent);
+  border-radius: var(--radius-sm);
+  padding: 3px 10px;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (max-width: 820px) {
+  .main {
+    grid-template-columns: 1fr;
+    grid-template-rows: 1fr auto;
+  }
+  .pane.chat {
+    border-right: none;
+    border-bottom: 1px solid var(--border-hairline);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}

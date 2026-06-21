@@ -18,6 +18,7 @@
     "dev": "npm run dev -w @foreman/mcp",
     "dev:mcp": "npm run dev -w @foreman/mcp",
     "dev:server": "npm run dev -w @foreman/server",
+    "dev:web": "npm run dev -w @foreman/client",
     "start:mcp": "npm run start -w @foreman/mcp",
     "start:server": "npm run start -w @foreman/server",
     "inspect": "npm run inspect -w @foreman/mcp --"
