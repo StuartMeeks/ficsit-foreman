@@ -6,11 +6,11 @@ next step instead of an overwhelming blueprint — keeping the maths off your pl
 you can stay in the game. The foreman's personality is chosen by you during
 onboarding; there is no hardcoded character.
 
-This repository is a monorepo. **Phase 1 (this release) delivers the game-data
-backbone** — a locally-run MCP server that answers production questions accurately from
-real game data (bundled in, or parsed from your own install). The chat backend and web
-UI are later phases (see [`SPEC.md`](./SPEC.md)) and will run alongside it as services in
-the same Docker Compose project.
+This repository is a monorepo. It delivers the **game-data backbone** (an MCP server that
+answers production questions accurately from real game data) and the **foreman chat
+backend** (an Anthropic proxy with the foreman persona and work-order persistence). The
+web UI is a later phase (see [`SPEC.md`](./SPEC.md)) and joins the same Docker Compose
+project.
 
 ---
 
@@ -19,12 +19,12 @@ the same Docker Compose project.
 | Package | Status | Purpose |
 |---|---|---|
 | [`packages/mcp`](./packages/mcp) | **Built** | Parses `en-US.json`, loads it into an embedded Kùzu graph, exposes computed MCP tools. Works standalone with Claude Desktop. |
-| `packages/server` | Phase 2 | Express backend: Anthropic proxy, foreman persona, work-order persistence. |
+| [`packages/server`](./packages/server) | **Built** | Express backend: Anthropic chat proxy with the foreman persona, MCP game-data tool use, and work-order persistence. |
 | `packages/client` | Phase 3 | React UI: foreman chat, active work order, history. |
 
-> FICSIT Foreman runs as a **Docker Compose project**: the backend (Phase 2) and web UI (Phase 3)
-> will be added as separate services in the same project, so Docker Desktop keeps them
-> grouped together under one start/stop.
+> FICSIT Foreman runs as a **Docker Compose project** named `foreman`: the MCP server and
+> backend are separate services in the one project (the web UI joins later), so Docker
+> Desktop keeps them grouped together under one start/stop.
 
 ---
 
@@ -51,6 +51,11 @@ Most Satisfactory players are on Windows, so here's the full path:
          - "8723:8723"
        restart: unless-stopped
    ```
+
+   *(The snippet above is the MCP server on its own — all you need to use FICSIT Foreman
+   from Claude Desktop today. The full [`compose.yaml`](./compose.yaml) in this repo also
+   includes the `server` backend on port `8724`; the web UI that drives it lands in Phase
+   3. To run the backend now, set `ANTHROPIC_API_KEY` and `docker compose up -d --build`.)*
 3. Open a terminal in that folder and run:
 
    ```powershell
@@ -130,6 +135,8 @@ To wire the server into Claude Desktop over stdio, see
 
 All optional — by default the server serves the bundled **stable** game data.
 
+**MCP server** (`packages/mcp`):
+
 | Variable | Description |
 |---|---|
 | `SATISFACTORY_GAME_CHANNEL` | Which bundled channel to use: `stable` (default) or `experimental`. |
@@ -138,10 +145,21 @@ All optional — by default the server serves the bundled **stable** game data.
 | `MCP_TRANSPORT` | `stdio` (default, for Claude Desktop) or `http` to listen on a network port. |
 | `MCP_HTTP_HOST` | HTTP bind host when `MCP_TRANSPORT=http` (default `0.0.0.0`). |
 | `MCP_HTTP_PORT` | HTTP port when `MCP_TRANSPORT=http` (default `8723`). |
-| `ANTHROPIC_API_KEY` | For the foreman chat backend (Phase 2+). Not used by the Phase 1 MCP server. |
+
+**Backend** (`packages/server`):
+
+| Variable | Description |
+|---|---|
+| `ANTHROPIC_API_KEY` | Hosted-tier key. If unset, clients must pass their own via the `x-anthropic-api-key` header. |
+| `ANTHROPIC_MODEL` | Model the foreman runs on (default `claude-sonnet-4-6`). |
+| `MCP_URL` | Where the backend reaches the MCP server (Compose: `http://mcp:8723/mcp`; bare metal default `http://127.0.0.1:8723/mcp`). |
+| `PORT` | Backend HTTP port (default `8724`). |
+| `DATABASE_URL` | Database connection (default `file:./dev.db`; Docker `file:/data/foreman.db`). |
+| `HISTORY_WINDOW` | Most-recent messages sent per chat request (default `20`). |
 
 Resolution order for game data: `SATISFACTORY_DOCS_PATH` → `SATISFACTORY_GAME_DIR` →
-bundled channel (`SATISFACTORY_GAME_CHANNEL`) → empty dataset with a warning.
+bundled channel (`SATISFACTORY_GAME_CHANNEL`) → empty dataset with a warning. See
+[`.env.example`](./.env.example) for the complete list.
 
 ---
 

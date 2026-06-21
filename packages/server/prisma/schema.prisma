@@ -1,0 +1,76 @@
+// FICSIT Foreman backend database schema.
+//
+// SQLite for local dev (DATABASE_URL=file:./dev.db); the same schema migrates
+// to Postgres for hosted deployment. Complex work-order fields (arrays, nested
+// objects) are stored as JSON-encoded TEXT rather than native arrays/JSON so the
+// schema is portable across both providers without change. The service layer
+// owns serialisation; the WorkOrder shape that crosses the API matches SPEC.md.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// A play session. Identity is the session id (a client-held UUID); there are no
+// user accounts in Phase 2. Personality and pioneer profile are opaque freeform
+// strings injected into the foreman system prompt at request time.
+model Session {
+  id             String   @id
+  personality    String   @default("")
+  pioneerProfile String   @default("")
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  messages   Message[]
+  workOrders WorkOrder[]
+}
+
+// A single persisted conversational turn. Only user input and the foreman's
+// final assistant text are stored — the intermediate tool-use round-trips happen
+// within a single chat request and are not persisted, keeping history valid and
+// trivially windowable.
+model Message {
+  id        String   @id @default(uuid())
+  sessionId String
+  session   Session  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  role      String // 'user' | 'assistant'
+  content   String // plain text of the turn
+  createdAt DateTime @default(now())
+
+  @@index([sessionId, createdAt])
+}
+
+// A work order. Mirrors the WorkOrder interface in SPEC.md. Sequence numbers are
+// per-session and monotonic (rendered WO-001, WO-002, …). Only one order per
+// session may be `active` at a time — enforced in the service layer.
+model WorkOrder {
+  id             String   @id @default(uuid())
+  sessionId      String
+  session        Session  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  sequenceNumber Int
+  status         String // 'active' | 'completed' | 'abandoned'
+  version        String // game data version this order was built for
+  issuedAt       DateTime @default(now())
+  completedAt    DateTime?
+
+  title             String
+  objective         String
+  tier              Int
+  estimatedDuration String
+
+  requiredItems  String // JSON-encoded LineItem[]
+  buildSteps     String // JSON-encoded string[]
+  expectedOutput String // JSON-encoded { item: string; perMinute: number }[]
+
+  notes             String?
+  adaptations       String? // JSON-encoded string[]
+  completionSummary String?
+  pioneerFeedback   String? // JSON-encoded { enjoyedAspects, didNotEnjoy, freeformNotes? }
+
+  @@unique([sessionId, sequenceNumber])
+  @@index([sessionId, status])
+}

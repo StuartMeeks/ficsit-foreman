@@ -8,6 +8,11 @@ node_modules/
 dist/
 build/
 
+# Local databases (Prisma SQLite dev/test)
+*.db
+*.db-journal
+*.sqlite
+
 # Environment
 .env
 .env.local

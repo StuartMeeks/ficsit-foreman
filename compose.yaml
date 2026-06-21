@@ -8,9 +8,9 @@
 #   docker compose stop / start                   # stop / start the whole project
 #   docker compose down                           # stop and remove
 #
-# Today the project has one service (the MCP server). The Phase 2 backend and Phase 3
-# web UI will be added as additional services in this same project — see the commented
-# placeholders at the bottom.
+# The project groups separate services (mcp, server) under the one "foreman"
+# project so you start/stop them as a unit. The Phase 3 web UI joins the same
+# project later — see the commented placeholder at the bottom.
 name: foreman
 
 services:
@@ -31,13 +31,36 @@ services:
     #   # Windows (Steam) — adjust to your install path:
     #   - "C:/Program Files (x86)/Steam/steamapps/common/Satisfactory:/game:ro"
 
-  # ── Added in later phases (same project, separate services) ──────────────────
-  # server:   # Phase 2 — Express backend / Anthropic proxy
-  #   image: ghcr.io/stuartmeeks/foreman-server:latest
-  #   container_name: foreman-server
-  #   depends_on: [mcp]
-  #
+  server:
+    # Pull the published image, or build locally if it is not present:
+    #   docker compose up -d --build
+    image: ghcr.io/stuartmeeks/foreman-server:latest
+    build:
+      context: .
+      dockerfile: packages/server/Dockerfile
+    container_name: foreman-server
+    depends_on:
+      - mcp
+    ports:
+      - "8724:8724"
+    environment:
+      MCP_URL: http://mcp:8723/mcp
+      DATABASE_URL: file:/data/foreman.db
+      # Hosted tier: the server's own Anthropic key. Leave unset to require each
+      # client to supply its own key via the x-anthropic-api-key header.
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      # Optional model override (default claude-sonnet-4-6):
+      # ANTHROPIC_MODEL: claude-opus-4-8
+    volumes:
+      # Persists the SQLite database across restarts.
+      - foreman-db:/data
+    restart: unless-stopped
+
+  # ── Added in a later phase (same project, separate service) ──────────────────
   # web:      # Phase 3 — React UI
   #   image: ghcr.io/stuartmeeks/foreman-web:latest
   #   container_name: foreman-web
   #   depends_on: [server]
+
+volumes:
+  foreman-db:
