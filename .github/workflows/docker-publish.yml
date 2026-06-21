@@ -7,7 +7,17 @@ on:
   push:
     branches: [main]
     tags: ['v*']
+  # On PRs, only build when something that affects the image changes — the
+  # docker job isn't a required check, so skipping it elsewhere blocks nothing.
   pull_request:
+    paths:
+      - 'Dockerfile'
+      - '.dockerignore'
+      - 'packages/mcp/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'tsconfig.base.json'
+      - '.github/workflows/docker-publish.yml'
   workflow_dispatch:
 
 permissions:
