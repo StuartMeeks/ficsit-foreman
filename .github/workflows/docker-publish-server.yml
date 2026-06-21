@@ -1,0 +1,110 @@
+name: Docker image (server)
+
+# Builds the foreman backend image and publishes it to GHCR on pushes to main
+# and on version tags. Mirrors the MCP image workflow: a `changes` job gates the
+# build so :latest is not rebuilt on every main push. It always runs for tags
+# (releases), manual runs and PRs, but for a main-branch push it builds only when
+# server-image-relevant files changed.
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  # On PRs, only run when something that affects the image changes — the docker
+  # job isn't a required check, so skipping it elsewhere blocks nothing.
+  pull_request:
+    paths:
+      - 'packages/server/**'
+      - 'SYSTEM_PROMPT.md'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'tsconfig.base.json'
+      - '.github/workflows/docker-publish-server.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  changes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      build: ${{ steps.decide.outputs.build }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Decide whether to build
+        id: decide
+        env:
+          EVENT: ${{ github.event_name }}
+          REF_TYPE: ${{ github.ref_type }}
+          BEFORE: ${{ github.event.before }}
+          AFTER: ${{ github.sha }}
+        run: |
+          # Always build for tags (releases), manual runs, and PRs (the PR trigger
+          # is already path-filtered, so any PR run is image-relevant).
+          if [ "$EVENT" != "push" ] || [ "$REF_TYPE" = "tag" ]; then
+            echo "build=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          # New branch / unknown previous commit → build to be safe.
+          if [ "$BEFORE" = "0000000000000000000000000000000000000000" ] \
+            || ! git rev-parse --verify --quiet "$BEFORE^{commit}" >/dev/null; then
+            echo "build=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          # main push: build only if server-image-relevant files changed.
+          changed=$(git diff --name-only "$BEFORE" "$AFTER" | { grep -E '^(packages/server/|SYSTEM_PROMPT\.md|package\.json|package-lock\.json|tsconfig\.base\.json|\.github/workflows/docker-publish-server\.yml)' || true; })
+          if [ -n "$changed" ]; then
+            echo "build=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "build=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  docker:
+    needs: changes
+    if: ${{ needs.changes.outputs.build == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Log in to GHCR
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Image metadata
+        id: meta
+        uses: docker/metadata-action@v6
+        with:
+          images: ghcr.io/stuartmeeks/foreman-server
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Build and push
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: packages/server/Dockerfile
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha,scope=foreman-server
+          cache-to: type=gha,mode=max,scope=foreman-server
