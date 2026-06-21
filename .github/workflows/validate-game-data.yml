@@ -1,0 +1,28 @@
+name: Validate game data
+
+# Guards bundled game-data pull requests: a data PR must touch only one
+# packages/mcp/data/<channel>/ directory, ship a well-formed meta.json, and bump
+# that channel's build above the current one. No-op (passes) on PRs that don't
+# touch bundled game data, so it is safe to require on every PR.
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  validate-game-data:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Validate bundled game data
+        run: node .github/scripts/check-game-data.mjs
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}

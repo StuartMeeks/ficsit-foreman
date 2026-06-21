@@ -1,18 +1,37 @@
 # Bundled game data
 
-This directory holds an optional **bundled fallback** copy of Satisfactory's
-`en-US.json`, used by the MCP server when no local game install is configured
-(i.e. neither `SATISFACTORY_DOCS_PATH` nor `SATISFACTORY_GAME_DIR` resolves to a
-file). See the resolution order in [`../README.md`](../README.md).
+This directory holds **bundled game data per release channel**, used by the MCP
+server when no local game install is configured (i.e. neither
+`SATISFACTORY_DOCS_PATH` nor `SATISFACTORY_GAME_DIR` resolves to a file). See the
+resolution order in [`../README.md`](../README.md).
 
-Expected file: **`en-US.json`** — the file straight from a game install's
-`CommunityResources/Docs/en-US.json` (UTF-16 LE; the parser handles the
-encoding). Use the latest stable game version.
+## Layout
 
-This file is supplied by maintainers or the community via pull requests. When
-contributing it, follow the strict one-file rule in
-[`CONTRIBUTING.md`](../../../CONTRIBUTING.md): the commit and the PR must contain
-**only** `packages/mcp/data/en-US.json` — no code or other changes.
+At most two channels are kept — the latest **stable** and the latest
+**experimental** build:
 
-If `en-US.json` is absent here, the server still runs; it simply falls through
-to an empty dataset (with a warning) when no other source is configured.
+```
+data/
+  stable/
+    en-US.json     # from a stable install's CommunityResources/Docs/ (UTF-16 LE)
+    meta.json      # { "gameVersion": "1.2.3.0", "build": 493833, "channel": "stable" }
+  experimental/
+    en-US.json
+    meta.json      # { ..., "channel": "experimental" }
+```
+
+The server selects a channel with `SATISFACTORY_GAME_CHANNEL` (`stable` |
+`experimental`, default `stable`; it falls back to the other channel if the
+requested one is absent). The parser reads `gameVersion` from `meta.json`, so the
+server reports the real version instead of `unknown`.
+
+## Contributing data
+
+Data is supplied by maintainers or the community via pull requests, and a CI
+gate validates each one. Follow the rules in
+[`CONTRIBUTING.md`](../../../CONTRIBUTING.md): a data PR updates **one** channel,
+contains **only** that channel's `en-US.json` + `meta.json`, and bumps `build`
+above the channel's current value.
+
+If a channel is absent, the server still runs; it falls through to the other
+channel, or to an empty dataset (with a warning) when nothing is configured.

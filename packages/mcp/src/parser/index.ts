@@ -100,6 +100,15 @@ function bucketRawClasses(raw: unknown, warnings: Warnings): Buckets {
 function detectVersion(filePath: string): string {
   try {
     const dir = path.dirname(filePath);
+    // 1. Foreman's own metadata sidecar (used by the bundled channel data).
+    const metaPath = path.join(dir, 'meta.json');
+    if (fs.existsSync(metaPath)) {
+      const meta: unknown = JSON.parse(fs.readFileSync(metaPath, 'utf8'));
+      if (isRecord(meta) && typeof meta['gameVersion'] === 'string' && meta['gameVersion'] !== '') {
+        return meta['gameVersion'];
+      }
+    }
+    // 2. Legacy community convention: a GameVersion.txt next to the docs file.
     const candidates = [path.join(dir, 'GameVersion.txt'), path.join(dir, '..', 'GameVersion.txt')];
     for (const candidate of candidates) {
       if (fs.existsSync(candidate)) {
