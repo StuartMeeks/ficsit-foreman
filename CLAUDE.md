@@ -114,7 +114,7 @@ All tool responses include the game data version string.
 | Language | TypeScript throughout |
 | MCP SDK | `@modelcontextprotocol/sdk` (official) |
 | Graph DB | Kùzu (embedded Node.js package — `kuzu`) |
-| Runtime | Node.js 20+ |
+| Runtime | Node.js 22+ |
 | Test runner | Vitest |
 | Linting | ESLint + Prettier |
 
