@@ -1,0 +1,11 @@
+# Code owners for ficsit-foreman.
+#
+# Listed owners are automatically requested for review on pull requests that
+# touch matching paths, and their approval is required to merge — enforced by
+# the repository's "main protection" ruleset (require_code_owner_review).
+#
+# Later entries take precedence over earlier ones. The catch-all below makes
+# the repository owner the default reviewer for everything; add more specific
+# path rules above it as the project grows.
+
+*       @StuartMeeks
