@@ -101,3 +101,5 @@ design are documented in [`PARSER.md`](./PARSER.md).
 ## Attribution
 
 Built by Stu · [GitHub](https://github.com/StuartMeeks) · [Reddit](https://www.reddit.com/user/sherman384)
+
+<!-- ci probe: remove -->
