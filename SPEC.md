@@ -1,4 +1,4 @@
-# Foreman — AI Companion for Satisfactory
+# FICSIT Foreman — AI Companion for Satisfactory
 
 > *Reduce cognitive load. Stay in the game. Build something you're proud of.*
 
@@ -20,7 +20,7 @@ The problem isn't that Satisfactory is too hard. It's that:
 
 ## The Vision
 
-**Foreman** is an AI companion that lives alongside Satisfactory. It knows the game. It knows where you are in it. And it gives you a human-scaled next step — not an overwhelming blueprint.
+**FICSIT Foreman** is an AI companion that lives alongside Satisfactory. It knows the game. It knows where you are in it. And it gives you a human-scaled next step — not an overwhelming blueprint.
 
 It takes the role of your on-site foreman — with a personality you choose. It issues work orders. It tracks what you've completed. It adapts when things go sideways. And it keeps the maths off your plate so you can stay in the game.
 
@@ -117,7 +117,7 @@ Satisfactory ships a file at:
 
 This file contains machine-readable data for all items, recipes, buildings, and production rates — the same source used by community wiki and calculator tools. In versions prior to 1.0, this file was named `Docs.json`; the 1.0 release split it into per-locale files.
 
-**Foreman parses this file directly using its own purpose-built parser.** No third-party parsing libraries are used. Players point the app at their game install directory during onboarding. The MCP server loads the parsed data into an embedded Kùzu graph database and tags it to the detected game version.
+**FICSIT Foreman parses this file directly using its own purpose-built parser.** No third-party parsing libraries are used. Players point the app at their game install directory during onboarding. The MCP server loads the parsed data into an embedded Kùzu graph database and tags it to the detected game version.
 
 This means:
 - Data is always accurate for the player's actual installed version
@@ -295,12 +295,12 @@ Deployed to Railway or Render. Environment variables replace the `.env` file. Po
 
 ## Monetisation Model
 
-Foreman is free to use. Sustainability is funded through:
+FICSIT Foreman is free to use. Sustainability is funded through:
 
 | Tier | Access | API Cost |
 |---|---|---|
 | **Free** | Full feature access | Player supplies their own Anthropic API key |
-| **Supporter** (Patreon / subscription) | Full feature access + no key needed + priority support | Absorbed by Foreman |
+| **Supporter** (Patreon / subscription) | Full feature access + no key needed + priority support | Absorbed by FICSIT Foreman |
 
 Advertising is intentionally excluded. The Satisfactory community will support a tool they love through Patreon before they'll tolerate ads. Ads also conflict with the focused, distraction-free UX the product needs.
 

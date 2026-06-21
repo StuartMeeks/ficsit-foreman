@@ -1,4 +1,4 @@
-# Foreman — Claude Code Bootstrap Prompt
+# FICSIT Foreman — Claude Code Bootstrap Prompt
 
 Read `SPEC.md` and `PARSER.md` in full before writing any code. Every architectural decision in this prompt traces back to those documents.
 
@@ -6,7 +6,7 @@ Read `SPEC.md` and `PARSER.md` in full before writing any code. Every architectu
 
 ## What We're Building
 
-**Foreman** is an AI companion web app for the game Satisfactory. It reduces cognitive load for players by acting as an AI foreman: issuing structured work orders, answering game questions accurately, and adapting to what's happening on the factory floor.
+**FICSIT Foreman** is an AI companion web app for the game Satisfactory. It reduces cognitive load for players by acting as an AI foreman: issuing structured work orders, answering game questions accurately, and adapting to what's happening on the factory floor.
 
 The foreman's personality is fully configurable by the player during onboarding — tone, character, and communication style are all player-defined and embedded into the system prompt. There is no hardcoded personality.
 
@@ -150,7 +150,7 @@ environment:
 
 The root README is the project's front door. It must cover:
 
-1. **What Foreman is** — one short paragraph
+1. **What FICSIT Foreman is** — one short paragraph
 2. **Prerequisites** — listed clearly by platform (Windows/Mac/Linux), Docker path and bare-metal path separately
 3. **Quick start (Docker)** — numbered steps, copy-pasteable commands
 4. **Quick start (Bare Metal)** — numbered steps, copy-pasteable commands

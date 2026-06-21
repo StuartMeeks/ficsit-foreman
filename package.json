@@ -2,7 +2,7 @@
   "name": "foreman",
   "version": "0.1.0",
   "private": true,
-  "description": "Foreman — AI companion for Satisfactory. Phase 1: MCP game-data server.",
+  "description": "FICSIT Foreman — AI companion for Satisfactory. Phase 1: MCP game-data server.",
   "license": "Apache-2.0",
   "author": "Stu",
   "workspaces": [

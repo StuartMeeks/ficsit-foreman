@@ -1,0 +1,43 @@
+# Run Foreman with Docker Compose.
+#
+# Everything is grouped in Docker Desktop under the "foreman" PROJECT (the `name:`
+# below), so you start/stop it as one unit even as more services are added.
+#
+#   docker compose up -d                          # start (pulls images first time)
+#   docker compose pull && docker compose up -d   # update
+#   docker compose stop / start                   # stop / start the whole project
+#   docker compose down                           # stop and remove
+#
+# Today the project has one service (the MCP server). The Phase 2 backend and Phase 3
+# web UI will be added as additional services in this same project — see the commented
+# placeholders at the bottom.
+name: foreman
+
+services:
+  mcp:
+    image: ghcr.io/stuartmeeks/foreman-mcp:latest
+    container_name: foreman-mcp
+    ports:
+      - "8723:8723"
+    restart: unless-stopped
+
+    # ── Optional overrides — uncomment as needed ───────────────────────────────
+    # environment:
+    #   # Use the experimental channel instead of stable:
+    #   SATISFACTORY_GAME_CHANNEL: experimental
+    #   # Or point at your own install (also uncomment the volume below):
+    #   SATISFACTORY_GAME_DIR: /game
+    # volumes:
+    #   # Windows (Steam) — adjust to your install path:
+    #   - "C:/Program Files (x86)/Steam/steamapps/common/Satisfactory:/game:ro"
+
+  # ── Added in later phases (same project, separate services) ──────────────────
+  # server:   # Phase 2 — Express backend / Anthropic proxy
+  #   image: ghcr.io/stuartmeeks/foreman-server:latest
+  #   container_name: foreman-server
+  #   depends_on: [mcp]
+  #
+  # web:      # Phase 3 — React UI
+  #   image: ghcr.io/stuartmeeks/foreman-web:latest
+  #   container_name: foreman-web
+  #   depends_on: [server]
