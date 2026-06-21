@@ -22,6 +22,10 @@ model Session {
   id             String   @id
   personality    String   @default("")
   pioneerProfile String   @default("")
+  // Running condensed record of the session, regenerated in the background once
+  // the conversation has rolled past the history window. Null until first
+  // summarised; injected into the system prompt as {{SESSION_SUMMARY}}.
+  summary        String?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 

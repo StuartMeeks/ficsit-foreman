@@ -71,6 +71,11 @@ export function chatRouter(deps: AppDeps): Router {
     } finally {
       sse.close();
     }
+
+    // Refresh the running summary in the background once the conversation has
+    // rolled past the window. Fire-and-forget — never blocks the response, and
+    // the service swallows and logs its own errors.
+    void deps.summary.summariseIfNeeded(sessionId, apiKey);
   });
 
   return router;

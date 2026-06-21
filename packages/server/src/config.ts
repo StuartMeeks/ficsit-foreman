@@ -15,6 +15,10 @@ export interface ServerConfig {
   model: string;
   /** Upper bound on tokens per Anthropic response. */
   maxTokens: number;
+  /** Cheaper model used for background session summarisation. */
+  summaryModel: string;
+  /** Upper bound on tokens for a summary response. */
+  summaryMaxTokens: number;
   /**
    * Server-held Anthropic API key (hosted tier). May be undefined — free-tier
    * clients supply their own key per request via {@link clientKeyHeader}.
@@ -34,6 +38,8 @@ const DEFAULT_HOST = '0.0.0.0';
 const DEFAULT_PORT = 8724;
 const DEFAULT_MODEL = 'claude-sonnet-4-6';
 const DEFAULT_MAX_TOKENS = 4096;
+const DEFAULT_SUMMARY_MODEL = 'claude-haiku-4-5';
+const DEFAULT_SUMMARY_MAX_TOKENS = 512;
 const DEFAULT_CLIENT_KEY_HEADER = 'x-anthropic-api-key';
 const DEFAULT_MCP_URL = 'http://127.0.0.1:8723/mcp';
 const DEFAULT_HISTORY_WINDOW = 20;
@@ -75,6 +81,11 @@ export function resolveServerConfig(env: NodeJS.ProcessEnv = process.env): Serve
     port: parsePositiveInt(env['PORT'], DEFAULT_PORT),
     model: env['ANTHROPIC_MODEL']?.trim() || DEFAULT_MODEL,
     maxTokens: parsePositiveInt(env['ANTHROPIC_MAX_TOKENS'], DEFAULT_MAX_TOKENS),
+    summaryModel: env['ANTHROPIC_SUMMARY_MODEL']?.trim() || DEFAULT_SUMMARY_MODEL,
+    summaryMaxTokens: parsePositiveInt(
+      env['ANTHROPIC_SUMMARY_MAX_TOKENS'],
+      DEFAULT_SUMMARY_MAX_TOKENS,
+    ),
     hostedApiKey: hostedApiKey && hostedApiKey.length > 0 ? hostedApiKey : undefined,
     clientKeyHeader: (env['CLIENT_KEY_HEADER']?.trim() || DEFAULT_CLIENT_KEY_HEADER).toLowerCase(),
     mcpUrl: env['MCP_URL']?.trim() || DEFAULT_MCP_URL,

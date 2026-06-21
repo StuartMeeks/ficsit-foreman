@@ -27,11 +27,12 @@ describe('loadSystemPromptTemplate', () => {
 });
 
 describe('buildSystemPrompt', () => {
-  const template = 'Personality: <p>{{PERSONALITY}}</p> Pioneer: <q>{{PIONEER_PROFILE}}</q>';
+  const template =
+    'Personality: <p>{{PERSONALITY}}</p> Pioneer: <q>{{PIONEER_PROFILE}}</q>{{SESSION_SUMMARY}}## Authority';
 
   it('substitutes both placeholders from session state', () => {
     const result = buildSystemPrompt(template, { personality: 'Gruff', pioneerProfile: 'Veteran' });
-    expect(result).toBe('Personality: <p>Gruff</p> Pioneer: <q>Veteran</q>');
+    expect(result).toContain('Personality: <p>Gruff</p> Pioneer: <q>Veteran</q>');
     expect(result).not.toContain('{{');
   });
 
@@ -41,5 +42,33 @@ describe('buildSystemPrompt', () => {
     expect(result).not.toContain('{{PIONEER_PROFILE}}');
     expect(result).toContain('professional, focused factory foreman');
     expect(result).toContain('returning player');
+  });
+
+  it('omits the summary block entirely when there is no summary', () => {
+    const result = buildSystemPrompt(template, { personality: 'Gruff', pioneerProfile: 'Veteran' });
+    expect(result).not.toContain('{{SESSION_SUMMARY}}');
+    expect(result).not.toContain('Session So Far');
+  });
+
+  it('injects the summary block between pioneer profile and authority', () => {
+    const result = buildSystemPrompt(template, {
+      personality: 'Gruff',
+      pioneerProfile: 'Veteran',
+      summary: 'Built an iron line; pioneer enjoyed exploring, disliked belts.',
+    });
+    expect(result).toContain('Session So Far');
+    expect(result).toContain('disliked belts');
+    // Summary sits after the pioneer block and before the authority section.
+    expect(result.indexOf('Veteran')).toBeLessThan(result.indexOf('Session So Far'));
+    expect(result.indexOf('Session So Far')).toBeLessThan(result.indexOf('## Authority'));
+  });
+
+  it('treats a whitespace-only summary as empty', () => {
+    const result = buildSystemPrompt(template, {
+      personality: 'Gruff',
+      pioneerProfile: 'Veteran',
+      summary: '   ',
+    });
+    expect(result).not.toContain('Session So Far');
   });
 });

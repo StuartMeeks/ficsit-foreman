@@ -57,6 +57,8 @@ export interface Session {
   id: string;
   personality: string;
   pioneerProfile: string;
+  /** Condensed running record of the session; undefined until first summarised. */
+  summary?: string;
   createdAt: string;
   updatedAt: string;
 }

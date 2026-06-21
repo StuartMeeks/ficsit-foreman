@@ -7,6 +7,7 @@ import { buildApp } from '../src/app.js';
 import { resolveServerConfig } from '../src/config.js';
 import type { AppDeps } from '../src/deps.js';
 import type { McpGateway } from '../src/mcp/client.js';
+import { SummaryService } from '../src/anthropic/summary.js';
 import { SessionService } from '../src/services/sessionService.js';
 import { WorkOrderService } from '../src/services/workOrderService.js';
 import { createTestDb, type TestDb } from './helpers.js';
@@ -33,12 +34,18 @@ const workOrderBody = {
 
 beforeAll(async () => {
   db = await createTestDb();
+  const sessions = new SessionService(db.prisma);
   const deps: AppDeps = {
     config: resolveServerConfig({}),
-    sessions: new SessionService(db.prisma),
+    sessions,
     workOrders: new WorkOrderService(db.prisma),
     mcp: stubMcp,
-    systemPromptTemplate: 'Prompt {{PERSONALITY}} {{PIONEER_PROFILE}}',
+    summary: new SummaryService(
+      sessions,
+      { summaryModel: 'stub', summaryMaxTokens: 256, historyWindow: 20 },
+      () => ({ messages: { create: async () => ({ content: [] }) } }),
+    ),
+    systemPromptTemplate: 'Prompt {{PERSONALITY}} {{PIONEER_PROFILE}} {{SESSION_SUMMARY}}',
   };
   const app = buildApp(deps);
   await new Promise<void>((resolve) => {

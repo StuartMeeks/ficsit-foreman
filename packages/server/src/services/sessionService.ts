@@ -80,14 +80,47 @@ export class SessionService {
       .reverse()
       .map((row) => ({ role: row.role as ChatMessage['role'], content: row.content }));
   }
+
+  /** Total number of stored messages for a session. */
+  public async countMessages(sessionId: string): Promise<number> {
+    return this.prisma.message.count({ where: { sessionId } });
+  }
+
+  /**
+   * Messages that fall OUTSIDE the current window — everything except the most
+   * recent `window`, in chronological order. This is the context the windowed
+   * history can no longer see, and so the material the summary must preserve.
+   */
+  public async messagesBeforeWindow(sessionId: string, window: number): Promise<ChatMessage[]> {
+    const total = await this.countMessages(sessionId);
+    const olderCount = Math.max(0, total - window);
+    if (olderCount === 0) {
+      return [];
+    }
+    const rows = await this.prisma.message.findMany({
+      where: { sessionId },
+      orderBy: { createdAt: 'asc' },
+      take: olderCount,
+    });
+    return rows.map((row) => ({ role: row.role as ChatMessage['role'], content: row.content }));
+  }
+
+  /** Stores (replaces) the session's running summary. */
+  public async updateSummary(sessionId: string, summary: string): Promise<void> {
+    await this.prisma.session.update({ where: { id: sessionId }, data: { summary } });
+  }
 }
 
 function rowToSession(row: SessionRow): Session {
-  return {
+  const session: Session = {
     id: row.id,
     personality: row.personality,
     pioneerProfile: row.pioneerProfile,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   };
+  if (row.summary !== null && row.summary.length > 0) {
+    session.summary = row.summary;
+  }
+  return session;
 }

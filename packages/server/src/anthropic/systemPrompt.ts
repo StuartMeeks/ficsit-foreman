@@ -4,6 +4,7 @@ import type { Session } from '../types.js';
 
 const PERSONALITY_PLACEHOLDER = '{{PERSONALITY}}';
 const PIONEER_PLACEHOLDER = '{{PIONEER_PROFILE}}';
+const SUMMARY_PLACEHOLDER = '{{SESSION_SUMMARY}}';
 
 const DEFAULT_PERSONALITY =
   'A professional, focused factory foreman. Direct, practical, and encouraging without waffle.';
@@ -26,18 +27,26 @@ export function loadSystemPromptTemplate(filePath: string): string {
 
 /**
  * Produces the final system prompt for a session by substituting its stored
- * personality and pioneer profile. Empty values fall back to neutral defaults so
- * the foreman is never handed an empty character.
+ * personality, pioneer profile, and (if present) running session summary. Empty
+ * personality/profile fall back to neutral defaults so the foreman is never
+ * handed an empty character; an empty summary omits its block entirely.
  */
 export function buildSystemPrompt(
   template: string,
-  session: Pick<Session, 'personality' | 'pioneerProfile'>,
+  session: Pick<Session, 'personality' | 'pioneerProfile' | 'summary'>,
 ): string {
   const personality = session.personality.trim() || DEFAULT_PERSONALITY;
   const pioneerProfile = session.pioneerProfile.trim() || DEFAULT_PIONEER_PROFILE;
+  const summary = session.summary?.trim() ?? '';
+  const summaryBlock =
+    summary.length > 0
+      ? `\n## Session So Far\n\nA condensed record of what has happened earlier in this session, beyond the recent messages you can see:\n\n${summary}\n`
+      : '';
   return template
     .split(PERSONALITY_PLACEHOLDER)
     .join(personality)
     .split(PIONEER_PLACEHOLDER)
-    .join(pioneerProfile);
+    .join(pioneerProfile)
+    .split(SUMMARY_PLACEHOLDER)
+    .join(summaryBlock);
 }

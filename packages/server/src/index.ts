@@ -10,6 +10,7 @@ import { disconnectDb, prisma } from './db.js';
 import type { AppDeps } from './deps.js';
 import { logger } from './logger.js';
 import { loadSystemPromptTemplate } from './anthropic/systemPrompt.js';
+import { SummaryService } from './anthropic/summary.js';
 import { McpHttpClient } from './mcp/client.js';
 import { SessionService } from './services/sessionService.js';
 import { WorkOrderService } from './services/workOrderService.js';
@@ -42,11 +43,17 @@ async function main(): Promise<void> {
     );
   }
 
+  const sessions = new SessionService(prisma);
   const deps: AppDeps = {
     config,
-    sessions: new SessionService(prisma),
+    sessions,
     workOrders: new WorkOrderService(prisma),
     mcp,
+    summary: new SummaryService(sessions, {
+      summaryModel: config.summaryModel,
+      summaryMaxTokens: config.summaryMaxTokens,
+      historyWindow: config.historyWindow,
+    }),
     systemPromptTemplate,
   };
 
