@@ -171,9 +171,10 @@ Tools are high-level and return computed answers. The dataset is tiny (~hundreds
 | `total_raw_inputs(item, targetPerMinute)` | Leaf raw resources only — what you actually need to mine/extract |
 | `what_consumes(item)` | All recipes that use this item as an ingredient |
 | `compare_alternates(item)` | Side-by-side cost and throughput comparison of alternate recipes |
-| `buildable_with(resourceSet)` | What items are producible from a given set of raw resources |
-| `list_schematics(tier?)` | All milestones/MAM nodes, optionally filtered by tier |
-| `cypher_query(query)` | Guarded escape hatch for long-tail queries not covered above |
+| `buildable_with(resources)` | What items are producible from a given set of raw resources |
+| `list_schematics(tier?)` | All milestones/MAM/shop/hard-drive schematics, optionally filtered by tier |
+| `get_schematic(name)` | Resolve a single schematic by displayName or className; returns its full unlock list |
+| `cypher_query(query)` | Guarded read-only escape hatch; rejects mutating keywords (CREATE/DELETE/SET/MERGE/DROP/…) |
 
 Name resolution (displayName or className) is handled transparently — the foreman never needs to know internal class names.
 

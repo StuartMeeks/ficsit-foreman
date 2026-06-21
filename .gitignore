@@ -1,0 +1,22 @@
+# Game data (copied from a Satisfactory install — not redistributable)
+game-data/
+
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+build/
+
+# Environment
+.env
+.env.local
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
