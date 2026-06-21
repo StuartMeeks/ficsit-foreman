@@ -1,12 +1,12 @@
 # @foreman/mcp
 
-The Foreman MCP server. It parses Satisfactory's `en-US.json` game data, loads it
+The FICSIT Foreman MCP server. It parses Satisfactory's `en-US.json` game data, loads it
 into an embedded [Kùzu](https://kuzudb.com) graph database, and exposes it as a set
 of computed, token-efficient [Model Context Protocol](https://modelcontextprotocol.io)
 tools.
 
 It runs standalone and can be wired directly into Claude Desktop — no other part of
-Foreman is required.
+FICSIT Foreman is required.
 
 > **Core principle:** tools return computed, distilled answers — not raw rows. The
 > graph makes recursive production queries cheap server-side, so the model asks one
@@ -120,7 +120,7 @@ config (`claude_desktop_config.json`):
 }
 ```
 
-Restart Claude Desktop; the Foreman tools appear in the tool list. Every response is
+Restart Claude Desktop; the FICSIT Foreman tools appear in the tool list. Every response is
 tagged with the detected game version.
 
 ---

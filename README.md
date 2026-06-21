@@ -1,6 +1,6 @@
-# Foreman
+# FICSIT Foreman
 
-Foreman is an AI companion for the game **Satisfactory**. It acts as your on-site
+FICSIT Foreman is an AI companion for the game **Satisfactory**. It acts as your on-site
 foreman: it knows the game, tracks where you are in it, and hands you a human-scaled
 next step instead of an overwhelming blueprint — keeping the maths off your plate so
 you can stay in the game. The foreman's personality is chosen by you during
@@ -22,7 +22,7 @@ the same Docker Compose project.
 | `packages/server` | Phase 2 | Express backend: Anthropic proxy, foreman persona, work-order persistence. |
 | `packages/client` | Phase 3 | React UI: foreman chat, active work order, history. |
 
-> Foreman runs as a **Docker Compose project**: the backend (Phase 2) and web UI (Phase 3)
+> FICSIT Foreman runs as a **Docker Compose project**: the backend (Phase 2) and web UI (Phase 3)
 > will be added as separate services in the same project, so Docker Desktop keeps them
 > grouped together under one start/stop.
 
@@ -30,7 +30,7 @@ the same Docker Compose project.
 
 ## Quick start (Docker — recommended)
 
-Foreman ships as a Docker image with the latest **stable** game data baked in, so it runs
+FICSIT Foreman ships as a Docker image with the latest **stable** game data baked in, so it runs
 with **zero setup — you don't even need to find your game files**.
 
 ### Windows (Docker Desktop)
@@ -104,7 +104,7 @@ Common install roots:
 
 ## Run from source (Node.js)
 
-Prefer not to use Docker, or want to develop on Foreman? You'll need **Node.js 22+** and
+Prefer not to use Docker, or want to develop on FICSIT Foreman? You'll need **Node.js 22+** and
 **npm 10+** (Windows / macOS / Linux).
 
 ```bash
@@ -155,6 +155,13 @@ design are documented in [`PARSER.md`](./PARSER.md).
 ## Licence
 
 [Apache 2.0](./LICENSE). Use it, fork it, build on it.
+
+## Disclaimer
+
+FICSIT Foreman is an unofficial, community-made companion tool. It is **not affiliated
+with, endorsed by, or sponsored by Coffee Stain Studios**. *Satisfactory*, *FICSIT*, and
+all related names, logos, and game content are trademarks or property of Coffee Stain
+Studios. Game data is read from files that ship with the game and remains their property.
 
 ## Attribution
 

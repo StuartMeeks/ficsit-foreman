@@ -1,7 +1,7 @@
 {
   "name": "@foreman/mcp",
   "version": "0.1.0",
-  "description": "Foreman MCP server: parses Satisfactory game data into an embedded Kùzu graph and exposes it as computed MCP tools.",
+  "description": "FICSIT Foreman MCP server: parses Satisfactory game data into an embedded Kùzu graph and exposes it as computed MCP tools.",
   "license": "Apache-2.0",
   "type": "module",
   "bin": {

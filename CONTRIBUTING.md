@@ -1,4 +1,4 @@
-# Contributing to Foreman
+# Contributing to FICSIT Foreman
 
 Thanks for helping out. This is a community-first project — contributions of
 code, docs, and game-data updates are all welcome.
