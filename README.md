@@ -74,6 +74,7 @@ A leading `~` is expanded to your home directory.
 |---|---|---|
 | `SATISFACTORY_DOCS_PATH` | One of these | Full path to `en-US.json`. Takes priority. |
 | `SATISFACTORY_GAME_DIR` | One of these | Game install root; docs path is derived from it. |
+| `SATISFACTORY_GAME_CHANNEL` | No | Which bundled channel to load when no local install is set: `stable` (default) or `experimental`. |
 | `MCP_TRANSPORT` | No | `stdio` (default, for Claude Desktop) or `http` to listen on a network port. |
 | `MCP_HTTP_HOST` | No | HTTP bind host when `MCP_TRANSPORT=http` (default `0.0.0.0`). |
 | `MCP_HTTP_PORT` | No | HTTP port when `MCP_TRANSPORT=http` (default `8080`). |
@@ -82,9 +83,9 @@ A leading `~` is expanded to your home directory.
 > The HTTP transport has **no authentication** in Phase 1 — only run it on a trusted
 > localhost/LAN.
 
-If neither game-data variable is set, the MCP server falls back to a bundled copy at
-`packages/mcp/data/en-US.json` (if present), and otherwise starts with an empty dataset
-and a warning rather than failing.
+If neither game-data variable is set, the MCP server falls back to bundled channel data
+under `packages/mcp/data/<channel>/` (selected by `SATISFACTORY_GAME_CHANNEL`), and
+otherwise starts with an empty dataset and a warning rather than failing.
 
 ## Contributing
 

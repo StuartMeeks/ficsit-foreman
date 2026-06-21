@@ -38,10 +38,14 @@ The server resolves the docs file in this priority order:
 |---|---|---|
 | 1 | `SATISFACTORY_DOCS_PATH` | Full path directly to `en-US.json`. Highest priority. |
 | 2 | `SATISFACTORY_GAME_DIR` | Game install root; the server appends `CommunityResources/Docs/en-US.json` (falling back to the pre-1.0 `Docs.json`). |
-| 3 | Bundled fallback | A copy committed at `packages/mcp/data/en-US.json`, if present. Supplied by the community (see [CONTRIBUTING.md](../../CONTRIBUTING.md)); may lag the latest game version. |
+| 3 | Bundled channel | Committed game data under `packages/mcp/data/<channel>/`, where `<channel>` is `stable` or `experimental`. Selected by `SATISFACTORY_GAME_CHANNEL` (default `stable`; falls back to the other channel if absent). Supplied via PRs — see [CONTRIBUTING.md](../../CONTRIBUTING.md). |
 
 If none of these resolve, the server starts with an empty dataset and logs a
 warning (it never crashes). A leading `~` is expanded to your home directory.
+
+`SATISFACTORY_GAME_CHANNEL` (`stable` | `experimental`, default `stable`) chooses
+which bundled channel to load — the hook the future UI's stable/experimental
+toggle will use.
 
 ## Running
 
