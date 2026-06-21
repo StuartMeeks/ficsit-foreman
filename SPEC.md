@@ -372,7 +372,7 @@ LLM cost is a real constraint, especially for free-tier users on their own API k
 
 This project is community-first and unbranded. It exists to serve Satisfactory players, not to promote any individual or company.
 
-**Built by:** Stu ([GitHub](https://github.com/stu-globe) · [Reddit](https://www.reddit.com/user/stu-globe))
+**Built by:** Stu ([GitHub](https://github.com/StuartMeeks) · [Reddit](https://www.reddit.com/user/sherman384))
 
 Contributions welcome. If you want to help, start with the open questions or check the issue tracker.
 
