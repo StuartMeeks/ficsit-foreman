@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-import type { GameData, ItemForm, ParseResult, RawClass } from './types.js';
+import type { GameData, Item, ItemForm, ParseResult, RawClass } from './types.js';
 import { Warnings, isRecord } from './util.js';
 import { categoryFor, shortNameFromNativeClass } from './classMap.js';
 import { readDocsFile } from './reader.js';
@@ -152,15 +152,17 @@ export function parseGameData(raw: unknown, version: string): ParseResult {
   const itemForm = new Map<string, ItemForm>();
   const itemDisplay = new Map<string, string>();
   const itemClasses = new Set<string>();
+  const itemsByClass = new Map<string, Item>();
   for (const item of [...Object.values(gameData.items), ...Object.values(gameData.resources)]) {
     itemForm.set(item.className, item.form);
     itemDisplay.set(item.className, item.displayName);
     itemClasses.add(item.className);
+    itemsByClass.set(item.className, item);
   }
 
-  // 2. Buildings.
+  // 2. Buildings (need item energy values to derive generator fuel rates).
   for (const { raw: rawBuilding, shortName } of buckets.buildings) {
-    const building = buildingFromRaw(rawBuilding, shortName);
+    const building = buildingFromRaw(rawBuilding, shortName, itemsByClass);
     if (building.className !== '') {
       gameData.buildings[building.className] = building;
     }

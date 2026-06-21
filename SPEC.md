@@ -162,7 +162,7 @@ Kùzu node tables:
 |---|---|
 | `Item` | className, displayName, form (solid/liquid/gas), stackSize, sinkPoints, isResource |
 | `Recipe` | className, displayName, isAlternate, durationSeconds, power |
-| `Building` | className, displayName, category, powerConsumption |
+| `Building` | className, displayName, category, powerConsumption, maxPowerConsumption, powerProduction |
 | `Schematic` | className, displayName, type (milestone/mam/awesome_shop/hard_drive), tier |
 
 Kùzu relationship tables:
@@ -197,6 +197,8 @@ Tools are high-level and return computed answers. The dataset is tiny (~hundreds
 | `buildable_with(resources)` | What items are producible from a given set of raw resources |
 | `list_schematics(tier?)` | All milestones/MAM/shop/hard-drive schematics, optionally filtered by tier |
 | `get_schematic(name)` | Resolve a single schematic by displayName or className; returns its full unlock list |
+| `get_building(name)` | Resolve a building/machine; returns power draw (or max for variable machines), build cost, and — for generators — MW output with per-fuel burn, water and byproduct rates |
+| `list_power_generators()` | Every power generator with MW output and full fuel/water/byproduct rates per fuel option |
 | `cypher_query(query)` | Guarded read-only escape hatch; rejects mutating keywords (CREATE/DELETE/SET/MERGE/DROP/…) |
 
 Name resolution (displayName or className) is handled transparently — the foreman never needs to know internal class names.

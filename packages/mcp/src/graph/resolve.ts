@@ -19,7 +19,7 @@ export class Resolver {
       this.index(this.recipes, recipe.className, recipe.displayName);
     }
     for (const building of Object.values(gameData.buildings)) {
-      this.index(this.buildings, building.className, building.displayName);
+      this.indexBuilding(building.className, building.displayName);
     }
     for (const schematic of Object.values(gameData.schematics)) {
       this.index(this.schematics, schematic.className, schematic.displayName);
@@ -34,6 +34,27 @@ export class Resolver {
       if (!map.has(key)) {
         map.set(key, className);
       }
+    }
+  }
+
+  /**
+   * Like {@link index}, but for buildings: the docs file carries both the real
+   * buildable (`Build_*`, with power/build data) and a dataless building
+   * descriptor (`Desc_*`) under the same display name. The exact class name
+   * always resolves to itself; for the shared display name the `Build_*`
+   * buildable wins regardless of parse order.
+   */
+  private indexBuilding(className: string, displayName: string): void {
+    this.buildings.set(className.toLowerCase(), className);
+    if (displayName === '') {
+      return;
+    }
+    const key = displayName.toLowerCase();
+    const existing = this.buildings.get(key);
+    const isBuild = className.startsWith('Build_');
+    const existingIsBuild = existing?.startsWith('Build_') ?? false;
+    if (existing === undefined || (isBuild && !existingIsBuild)) {
+      this.buildings.set(key, className);
     }
   }
 

@@ -18,6 +18,12 @@ export interface Item {
   stackSize: number;
   form: ItemForm;
   sinkPoints: number;
+  /**
+   * Energy content in MJ. For solids this is MJ per item; for fluids it is MJ
+   * per unit (1000 units = 1 m³). 0 for non-fuel items. Used to derive generator
+   * fuel-burn rates.
+   */
+  energyValue: number;
   /** True for raw resources (iron ore, water, …) that no recipe produces. */
   isResource: boolean;
 }
@@ -62,13 +68,43 @@ export interface BuildCostLine {
   amount: number;
 }
 
+/** A per-minute flow of an item into or out of a generator. */
+export interface FuelFlow {
+  itemClassName: string;
+  displayName: string;
+  perMinute: number;
+  unit: IngredientUnit;
+}
+
+/**
+ * One fuel option for a power generator, with all derived per-minute rates: the
+ * fuel burned, any supplemental resource (e.g. water), and any byproduct (e.g.
+ * nuclear waste).
+ */
+export interface GeneratorFuel {
+  fuel: FuelFlow;
+  supplemental?: FuelFlow;
+  byproduct?: FuelFlow;
+}
+
 export interface Building {
   className: string;
   displayName: string;
   description: string;
   category: string;
-  /** MW baseline. 0 when the building consumes no power. */
+  /** Constant MW draw. 0 for generators and variable-power machines. */
   powerConsumption: number;
+  /**
+   * Estimated maximum MW draw for variable-power machines (Particle Accelerator,
+   * Quantum Encoder, Converter). Present only when the machine's draw varies.
+   */
+  maxPowerConsumption?: number;
+  /** MW generated. Present only for power generators. */
+  powerProduction?: number;
+  /** True when output is variable/geyser-dependent (Geothermal Generator). */
+  variablePowerProduction?: boolean;
+  /** Fuel options and their derived rates. Present only for fuel generators. */
+  fuels?: GeneratorFuel[];
   buildCost: BuildCostLine[];
 }
 

@@ -20,6 +20,12 @@ import {
   type TotalRawInputsResult,
 } from './queries/production.js';
 import { getSchematic, listSchematics, type SchematicSummary } from './queries/schematics.js';
+import {
+  getBuilding,
+  listPowerGenerators,
+  type BuildingView,
+  type GeneratorSummary,
+} from './queries/buildings.js';
 import type { AlternateComparison, IngredientTreeResult, RecipeView } from './types.js';
 
 /** Cypher keywords that mutate data; rejected by `cypherQuery`. */
@@ -91,6 +97,14 @@ export class GraphDB implements QueryContext {
 
   public getSchematic(name: string): Schematic | undefined {
     return getSchematic(this, name);
+  }
+
+  public getBuilding(name: string): BuildingView | undefined {
+    return getBuilding(this, name);
+  }
+
+  public listPowerGenerators(): GeneratorSummary[] {
+    return listPowerGenerators(this);
   }
 
   /** Guarded read-only escape hatch. Rejects any mutating Cypher keyword. */
