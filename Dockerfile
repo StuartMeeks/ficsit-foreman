@@ -11,7 +11,7 @@
 # glibc prebuilt binary and will not load under musl.
 
 # ── Build stage ─────────────────────────────────────────────────────────────
-FROM node:22-bookworm-slim AS builder
+FROM node:26-bookworm-slim AS builder
 WORKDIR /app
 
 # Install dependencies against the workspace lockfile first (better layer caching).
@@ -25,7 +25,7 @@ COPY packages/mcp ./packages/mcp
 RUN npm run build -w @foreman/mcp && npm prune --omit=dev
 
 # ── Runtime stage ───────────────────────────────────────────────────────────
-FROM node:22-bookworm-slim AS runtime
+FROM node:26-bookworm-slim AS runtime
 ENV NODE_ENV=production \
     MCP_TRANSPORT=http \
     MCP_HTTP_HOST=0.0.0.0 \
