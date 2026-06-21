@@ -71,8 +71,11 @@ Most Satisfactory players are on Windows, so here's the full path:
    `{"status":"ok","version":"1.2.3.0"}`.
 
 **Start and stop it** any time from Docker Desktop's **Containers** tab (the `foreman`
-project), or with `docker compose stop` / `docker compose start`. **Update** to a newer
-build with `docker compose pull` then `docker compose up -d`.
+project), or with `docker compose stop` and `docker compose start` — this keeps the
+containers in place (they stay listed in Docker Desktop, just stopped). Use
+`docker compose down` only when you want to **remove** the containers; your data
+survives in the `foreman-db` volume either way. **Update** to a newer build with
+`docker compose pull` then `docker compose up -d`.
 
 ### macOS / Linux
 
