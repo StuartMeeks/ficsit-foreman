@@ -93,6 +93,35 @@ both providers without change.
 - `npm run db:deploy -w @foreman/server` — apply pending migrations (used by the
   container at startup).
 
+### Data persistence across upgrades
+
+In Docker, the database lives in the `foreman-db` **named volume** (mounted at
+`/data`), which has a lifecycle independent of the container. Your sessions and
+work orders therefore survive upgrades:
+
+| Action | Data |
+|---|---|
+| `docker compose pull` then `up -d` (recreate on a new image) | safe |
+| `docker compose stop` / `start` / `restart` | safe |
+| `docker compose down` | safe — named volumes are not removed |
+| `docker compose down -v`, or removing the volume | **deleted** |
+
+On startup the container runs `prisma migrate deploy`, which applies only pending
+migrations to the existing database in place — additive, never destructive. So a
+new release migrates your live data forward without loss; the only way to lose it
+is the explicit `-v`.
+
+**Prefer a folder you control?** Swap the named volume for a host bind mount in
+`compose.yaml` (`- ./data:/data`); the database then lives in `./data` next to the
+compose file.
+
+**Back up** the volume any time:
+
+```bash
+docker run --rm -v foreman-db:/data -v "$PWD:/backup" busybox \
+  tar czf /backup/foreman-db.tgz /data
+```
+
 ## Testing
 
 ```bash

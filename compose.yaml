@@ -52,8 +52,16 @@ services:
       # Optional model override (default claude-sonnet-4-6):
       # ANTHROPIC_MODEL: claude-opus-4-8
     volumes:
-      # Persists the SQLite database across restarts.
+      # The SQLite database lives in a named volume, so your sessions and work
+      # orders SURVIVE upgrades: `docker compose pull` + `up -d` recreates the
+      # container against the new image and re-attaches this volume. Migrations
+      # run automatically at start and are additive (never drop data). Plain
+      # `docker compose down` keeps it too — only `down -v` (or removing the
+      # volume) deletes your data.
       - foreman-db:/data
+      # Prefer a folder you control instead? Comment the line above and use a
+      # host bind mount — data then lives next to compose.yaml in ./data:
+      #   - ./data:/data
     restart: unless-stopped
 
   # ── Added in a later phase (same project, separate service) ──────────────────
@@ -63,4 +71,7 @@ services:
   #   depends_on: [server]
 
 volumes:
+  # Back up before a major upgrade if you like:
+  #   docker run --rm -v foreman-db:/data -v "$PWD:/backup" busybox \
+  #     tar czf /backup/foreman-db.tgz /data
   foreman-db:
