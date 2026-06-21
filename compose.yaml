@@ -4,13 +4,17 @@
 # below), so you start/stop it as one unit even as more services are added.
 #
 #   docker compose up -d                          # start (pulls images first time)
-#   docker compose pull && docker compose up -d   # update
-#   docker compose stop / start                   # stop / start the whole project
-#   docker compose down                           # stop and remove
+#   docker compose pull && docker compose up -d   # update to newer images
+#   docker compose stop                           # turn OFF but KEEP the containers
+#   docker compose start                          # turn them back on
+#   docker compose down                           # REMOVE containers + network
 #
-# The project groups separate services (mcp, server) under the one "foreman"
-# project so you start/stop them as a unit. The Phase 3 web UI joins the same
-# project later — see the commented placeholder at the bottom.
+# For everyday on/off use `stop` / `start` — the containers stay listed in Docker
+# Desktop (just stopped). Use `down` only when you want to remove them; your data
+# survives either way, in the `foreman-db` volume (see the volumes section).
+#
+# The project groups separate services (mcp, server, web) under the one "foreman"
+# project so you start and stop them as a unit.
 name: foreman
 
 services:
