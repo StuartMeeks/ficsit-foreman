@@ -1,0 +1,131 @@
+/*
+ * FICSIT Foreman — design tokens
+ * ──────────────────────────────────────────────────────────────────────────
+ * Single source of truth for the visual language, extracted from the north-star
+ * prototype at `design-reference/Foreman_AI_Factory_Companion.html` (built with
+ * Claude Design, 2026-06-21). The prototype is the NORTH STAR — a target for
+ * look and feel — not a template to copy markup from.
+ *
+ * The prototype hardcodes its palette inline; these tokens distil it. Phase 3
+ * components should consume these variables rather than literal hex values, so
+ * the palette stays consistent and adjustable in one place. A Tailwind theme,
+ * if used, can map onto these via `var(--…)`.
+ *
+ * Typography note: the design uses three families — IBM Plex Mono (monospace,
+ * for labels/numbers), Barlow (body sans-serif), and Barlow Condensed (condensed
+ * headings/labels). The prototype references them by name only; Phase 3 must
+ * bundle/self-host them (no CDN — see the app's CSP needs).
+ */
+
+:root {
+  /* ── Backgrounds (warm near-black, ascending depth) ───────────────────── */
+  --color-bg: #0d0c09; /* app background (core) */
+  --color-bg-deep: #0a0906; /* insets, recessed wells */
+  --color-bg-deepest: #080706; /* lowest layer, shadow fills */
+  --color-surface: #0f0e0b; /* panels / cards (core) */
+  --color-surface-raised: #161410; /* raised panel */
+  --color-surface-raised-strong: #1e1a12; /* further-raised / active panel */
+  --color-surface-hover: #201c14; /* hover / pressed surface */
+
+  /* ── Borders ──────────────────────────────────────────────────────────── */
+  --color-border: #1a1612; /* default border (core) */
+  --color-border-subtle: #161410; /* faint divider */
+  --color-border-strong: #1e1a12; /* emphasised border */
+
+  /* ── Amber accent ─────────────────────────────────────────────────────── */
+  --color-accent: #c87830; /* primary amber (core) */
+  --color-accent-bright: #d79444; /* active / glow highlight */
+  --color-accent-deep: #c08038; /* pressed / darker amber */
+  --color-accent-muted: #c89040; /* secondary amber */
+  --color-accent-glow: rgba(200, 120, 48, 0.35); /* focus ring / glow */
+  --color-accent-tint: rgba(200, 120, 48, 0.1); /* tinted fill */
+  --color-accent-tint-soft: rgba(200, 120, 48, 0.08); /* faint tinted fill */
+  --color-on-accent: #0d0c09; /* text/icon on an amber fill */
+
+  /* ── Text (warm grey scale, dim → bright) ─────────────────────────────── */
+  --color-text-dim: #60584e; /* disabled / faintest */
+  --color-text-muted: #706860; /* tertiary, captions */
+  --color-text-secondary: #908880; /* secondary text */
+  --color-text: #a8a090; /* default body text */
+  --color-text-strong: #c4bca4; /* emphasised text */
+  --color-text-bright: #cac2aa; /* headings */
+  --color-text-brightest: #ede5cd; /* warm near-white, top emphasis */
+
+  /* ── Semantic status ──────────────────────────────────────────────────── */
+  --color-success: #6aaa48; /* online / positive */
+  --color-success-bright: #80b060;
+  --color-success-deep: #5a8040;
+  --color-danger: #d05848; /* error / negative */
+  --color-danger-bright: #ff8a80;
+  --color-danger-deep: #c04030;
+  --color-danger-surface: #5c2b2e; /* danger background fill */
+
+  /* ── Typography ───────────────────────────────────────────────────────── */
+  --font-mono: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+  --font-sans: 'Barlow', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-condensed: 'Barlow Condensed', 'Barlow', sans-serif;
+
+  --font-weight-regular: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+  --font-weight-extrabold: 800;
+
+  /* Wide tracking is used heavily on mono labels/numbers. */
+  --tracking-tight: 0.08em;
+  --tracking-normal: 0.1em;
+  --tracking-wide: 0.12em;
+  --tracking-wider: 0.18em;
+  --tracking-widest: 0.22em;
+
+  /* ── Radii ────────────────────────────────────────────────────────────── */
+  --radius-xs: 1px;
+  --radius-sm: 2px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-full: 50%;
+
+  /* ════════════════════════════════════════════════════════════════════════
+   * SEMANTIC LAYER — UI roles mapped to the primitives above.
+   * Derived from the north-star screenshot (see design-reference/). Components
+   * should reference THESE role tokens, not the raw --color-* primitives, so
+   * the design intent stays legible and adjustable in one place.
+   * ════════════════════════════════════════════════════════════════════════ */
+
+  /* Surfaces & structure */
+  --surface-page: var(--color-bg); /* app / column background */
+  --surface-panel: var(--color-surface); /* work-order + rail panels */
+  --surface-raised: var(--color-surface-raised); /* the active step (only real elevation) */
+  --surface-inset: var(--color-bg-deep); /* wells, recessed numeric fields */
+  --border-hairline: var(--color-border); /* column separators, row rules */
+  --border-emphasis: var(--color-border-strong);
+
+  /* Accent — used sparingly, for "pay attention here" */
+  --accent: var(--color-accent); /* wordmark, section ticks, key numbers */
+  --accent-active-step: var(--color-accent); /* active build-step left edge + text */
+  --accent-glow: var(--color-accent-glow); /* focus ring / active glow */
+  --accent-chip-border: var(--color-accent); /* IN PROGRESS chip outline */
+
+  /* Text hierarchy */
+  --text-title: var(--color-text-brightest); /* the large WO title */
+  --text-primary: var(--color-text-strong); /* headings, primary numerals */
+  --text-body: var(--color-text); /* chat + general body */
+  --text-secondary: var(--color-text-secondary); /* objective, sub-notes */
+  --text-muted: var(--color-text-muted); /* captions, dim labels */
+  --text-label: var(--color-text-secondary); /* mono section labels (see --font-mono) */
+  --text-on-accent: var(--color-on-accent); /* text on an amber fill */
+
+  /* Status — work-order materials, cost, and live state */
+  --status-met: var(--color-success); /* material requirement satisfied (✓) — CONFIRM vs amber */
+  --status-shortfall: var(--color-danger); /* material short (✗), e.g. Concrete 0/140 */
+  --status-online: var(--color-success); /* header ONLINE pulse dot */
+  --status-in-progress: var(--color-accent); /* IN PROGRESS chip text */
+  --metric-positive: var(--color-accent); /* highlighted figures, e.g. Net power +1,000 */
+
+  /* Typography roles */
+  --font-numeric: var(--font-mono); /* all numerals + labels/chips/ids */
+  --font-heading: var(--font-condensed); /* large work-order title */
+  --font-body: var(--font-sans); /* chat, objective, notes */
+  --tracking-label: var(--tracking-wide); /* default mono-label tracking */
+  --tracking-label-loose: var(--tracking-widest); /* widest section labels */
+}
