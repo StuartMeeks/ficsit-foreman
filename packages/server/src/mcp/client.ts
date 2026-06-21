@@ -41,16 +41,12 @@ interface RawToolContent {
  * with the version they were built for.
  */
 export class McpHttpClient implements McpGateway {
-  private readonly client: Client;
-  private readonly transport: StreamableHTTPClientTransport;
-  private connected = false;
+  private client: Client | undefined;
+  private connecting: Promise<Client> | undefined;
   private cachedTools: ToolDefinition[] | undefined;
   private version = 'unknown';
 
-  public constructor(private readonly mcpUrl: string) {
-    this.client = new Client({ name: 'foreman-server', version: '0.1.0' });
-    this.transport = new StreamableHTTPClientTransport(new URL(mcpUrl));
-  }
+  public constructor(private readonly mcpUrl: string) {}
 
   public get gameVersion(): string {
     return this.version;
@@ -58,36 +54,79 @@ export class McpHttpClient implements McpGateway {
 
   /** Establishes the MCP session and reads the game data version. Idempotent. */
   public async connect(): Promise<void> {
-    if (this.connected) {
-      return;
+    await this.ensureClient();
+  }
+
+  /**
+   * Returns a connected client, opening one if needed. Concurrent callers share
+   * a single in-flight connect. A `StreamableHTTPClientTransport` cannot be
+   * restarted once started, so each attempt builds a FRESH transport+client and
+   * a failed attempt is discarded — letting a later call reconnect cleanly
+   * (e.g. after the MCP server finishes booting).
+   */
+  private async ensureClient(): Promise<Client> {
+    if (this.client !== undefined) {
+      return this.client;
     }
-    await this.client.connect(this.transport);
-    this.connected = true;
+    if (this.connecting === undefined) {
+      this.connecting = this.openClient().finally(() => {
+        this.connecting = undefined;
+      });
+    }
+    return this.connecting;
+  }
+
+  private async openClient(): Promise<Client> {
+    const client = new Client({ name: 'foreman-server', version: '0.1.0' });
+    const transport = new StreamableHTTPClientTransport(new URL(this.mcpUrl));
+    try {
+      await client.connect(transport);
+    } catch (error) {
+      // Discard the started-but-unconnected transport so the next attempt is clean.
+      await transport.close().catch(() => undefined);
+      throw error;
+    }
+    this.client = client;
     this.version = await this.fetchVersion();
     logger.info(`Connected to MCP server at ${this.mcpUrl} (game version ${this.version})`);
+    return client;
+  }
+
+  /** Drops the current client so the next call reconnects with a fresh transport. */
+  private reset(): void {
+    const client = this.client;
+    this.client = undefined;
+    if (client !== undefined) {
+      void client.close().catch(() => undefined);
+    }
   }
 
   public async listTools(): Promise<ToolDefinition[]> {
     if (this.cachedTools !== undefined) {
       return this.cachedTools;
     }
-    await this.connect();
-    const response = await this.client.listTools();
-    this.cachedTools = response.tools.map((tool) => ({
-      name: tool.name,
-      description: tool.description ?? '',
-      inputSchema: (tool.inputSchema ?? { type: 'object' }) as Record<string, unknown>,
-    }));
-    return this.cachedTools;
+    const client = await this.ensureClient();
+    try {
+      const response = await client.listTools();
+      this.cachedTools = response.tools.map((tool) => ({
+        name: tool.name,
+        description: tool.description ?? '',
+        inputSchema: (tool.inputSchema ?? { type: 'object' }) as Record<string, unknown>,
+      }));
+      return this.cachedTools;
+    } catch (error) {
+      this.reset();
+      throw error;
+    }
   }
 
   public async callTool(
     name: string,
     args: Record<string, unknown>,
   ): Promise<ToolInvocationResult> {
-    await this.connect();
     try {
-      const result = await this.client.callTool({ name, arguments: args });
+      const client = await this.ensureClient();
+      const result = await client.callTool({ name, arguments: args });
       const content = Array.isArray(result.content) ? (result.content as RawToolContent[]) : [];
       const text = content
         .filter((block) => block.type === 'text' && typeof block.text === 'string')
@@ -96,16 +135,18 @@ export class McpHttpClient implements McpGateway {
       return { text: text.length > 0 ? text : '(no output)', isError: result.isError === true };
     } catch (error) {
       logger.error(`MCP tool '${name}' failed:`, error);
+      // A transport/protocol failure poisons the connection — reconnect next time.
+      this.reset();
       return { text: `Tool '${name}' failed: ${describeError(error)}`, isError: true };
     }
   }
 
   public async close(): Promise<void> {
-    if (!this.connected) {
-      return;
+    const client = this.client;
+    this.client = undefined;
+    if (client !== undefined) {
+      await client.close();
     }
-    await this.client.close();
-    this.connected = false;
   }
 
   /** Reads the version from the MCP server's HTTP /health sibling endpoint. */
