@@ -222,3 +222,35 @@ game-data/en-US.json (gitignored).
 
 SATISFACTORY_DOCS_PATH should point to this local copy.
 Do not assume the game directory is mounted or accessible at runtime.
+
+---
+
+## Git, Commit & PR Conventions
+
+### Commits — Conventional Commits, body required
+- Format: `type(optional-scope): subject` — imperative mood, lowercase subject,
+  no trailing full stop. e.g. `feat(mcp): add HTTP transport`.
+- Allowed types: `feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`,
+  `build`, `ci`, `chore`, `revert`.
+- **A commit body is required** — explain *what* changed and *why* (wrap ~72 cols).
+- Breaking changes: `type!: subject` plus a `BREAKING CHANGE:` footer.
+- Keep the `Co-Authored-By: Claude …` trailer on Claude-authored commits.
+
+### Branches
+- Prefix by work type: `feature/<slug>`, `bugfix/<slug>`, `hotfix/<slug>`.
+- `<slug>`: lowercase, words joined by `-`, drop filler words
+  (a, an, the, to, of, for, with, and, using, …). e.g. `feature/http-transport`.
+- Never commit directly to `main` — branch first (also enforced by the repo ruleset).
+
+### Pull Requests
+- One logical change per PR; keep it small (aim < ~500 changed lines).
+- Squash-merge so `main` history stays linear; the squash commit message must
+  follow the commit convention above.
+- Update a branch from `main` with **rebase**, not a merge commit.
+- Title: use the Conventional Commit summary (e.g. `feat: add HTTP transport`).
+- Write the **complete** description at creation time, not in a later edit.
+- **AI-generated PRs must begin the body with this exact line:**
+  `🤖 AI-generated PR — Please review carefully.`
+  (Keep the `🤖 Generated with Claude Code` trailer at the end as well.)
+
+Commit titles follow [Conventional Commits 1.0.0](https://www.conventionalcommits.org/en/v1.0.0/).
