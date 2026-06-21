@@ -2,7 +2,7 @@
   "name": "foreman",
   "version": "0.1.0",
   "private": true,
-  "description": "FICSIT Foreman — AI companion for Satisfactory. Phase 1: MCP game-data server.",
+  "description": "FICSIT Foreman — AI companion for Satisfactory. MCP game-data server + foreman chat backend.",
   "license": "Apache-2.0",
   "author": "Stu",
   "workspaces": [
@@ -12,11 +12,14 @@
     "node": ">=22"
   },
   "scripts": {
+    "build": "npm run build --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "lint": "npm run lint --workspaces --if-present",
     "dev": "npm run dev -w @foreman/mcp",
-    "build": "npm run build -w @foreman/mcp",
-    "start": "npm run start -w @foreman/mcp",
-    "test": "npm run test -w @foreman/mcp",
-    "lint": "npm run lint -w @foreman/mcp",
+    "dev:mcp": "npm run dev -w @foreman/mcp",
+    "dev:server": "npm run dev -w @foreman/server",
+    "start:mcp": "npm run start -w @foreman/mcp",
+    "start:server": "npm run start -w @foreman/server",
     "inspect": "npm run inspect -w @foreman/mcp --"
   }
 }
