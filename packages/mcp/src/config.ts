@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 /** Which transport the server should expose. */
 export type TransportKind = 'stdio' | 'http';
@@ -48,7 +49,9 @@ export function lanAddresses(): string[] {
  *   1. SATISFACTORY_DOCS_PATH — full path to en-US.json
  *   2. SATISFACTORY_GAME_DIR  — install root; append CommunityResources/Docs/
  *      (en-US.json for 1.x, falling back to the pre-1.0 Docs.json)
- *   3. Neither set → no path; the server starts with empty data and a warning.
+ *   3. Bundled fallback — a copy of en-US.json committed to the repository at
+ *      `packages/mcp/data/en-US.json` (supplied by the community via PRs).
+ *   4. None available → no path; the server starts with empty data and a warning.
  */
 export interface DocsPathResolution {
   path?: string;
@@ -69,14 +72,27 @@ function expandHome(input: string): string {
   return input;
 }
 
-export function resolveDocsPath(env: NodeJS.ProcessEnv = process.env): DocsPathResolution {
+/** Location of the optional bundled fallback copy of en-US.json (`<pkg>/data/`). */
+export function bundledDocsPath(): string {
+  // This module compiles to either src/ (tsx) or dist/ — both one level under
+  // the package root, so the bundled data sits at `../data/en-US.json`.
+  const moduleDir = path.dirname(fileURLToPath(import.meta.url));
+  return path.resolve(moduleDir, '..', 'data', 'en-US.json');
+}
+
+export function resolveDocsPath(
+  env: NodeJS.ProcessEnv = process.env,
+  bundledPath: string = bundledDocsPath(),
+): DocsPathResolution {
+  const warnings: string[] = [];
+
   const direct = env['SATISFACTORY_DOCS_PATH']?.trim();
   if (direct !== undefined && direct !== '') {
     const resolved = expandHome(direct);
     if (fs.existsSync(resolved)) {
       return { path: resolved };
     }
-    return { warning: `SATISFACTORY_DOCS_PATH is set to '${resolved}' but no file exists there.` };
+    warnings.push(`SATISFACTORY_DOCS_PATH is set to '${resolved}' but no file exists there.`);
   }
 
   const gameDir = env['SATISFACTORY_GAME_DIR']?.trim();
@@ -88,13 +104,22 @@ export function resolveDocsPath(env: NodeJS.ProcessEnv = process.env): DocsPathR
         return { path: candidate };
       }
     }
+    warnings.push(
+      `SATISFACTORY_GAME_DIR is set but no ${DOCS_FILENAMES.join('/')} was found under '${docsDir}'.`,
+    );
+  }
+
+  // Fall back to the bundled copy when no local install/path is configured.
+  if (fs.existsSync(bundledPath)) {
+    const prefix = warnings.length > 0 ? `${warnings.join(' ')} ` : '';
     return {
-      warning: `SATISFACTORY_GAME_DIR is set but no ${DOCS_FILENAMES.join('/')} was found under '${docsDir}'.`,
+      path: bundledPath,
+      warning: `${prefix}Using the bundled game-data fallback (${bundledPath}); it may lag the latest game version.`,
     };
   }
 
-  return {
-    warning:
-      'Neither SATISFACTORY_DOCS_PATH nor SATISFACTORY_GAME_DIR is set; starting with empty game data.',
-  };
+  warnings.push(
+    'No game data available: set SATISFACTORY_DOCS_PATH or SATISFACTORY_GAME_DIR, or add a bundled data/en-US.json. Starting with empty game data.',
+  );
+  return { warning: warnings.join(' ') };
 }

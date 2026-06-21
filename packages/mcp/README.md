@@ -34,13 +34,14 @@ npm run build -w @foreman/mcp
 
 The server resolves the docs file in this priority order:
 
-| Variable | Meaning |
-|---|---|
-| `SATISFACTORY_DOCS_PATH` | Full path directly to `en-US.json`. Highest priority. |
-| `SATISFACTORY_GAME_DIR` | Game install root; the server appends `CommunityResources/Docs/en-US.json` (falling back to the pre-1.0 `Docs.json`). |
+| Priority | Source | Meaning |
+|---|---|---|
+| 1 | `SATISFACTORY_DOCS_PATH` | Full path directly to `en-US.json`. Highest priority. |
+| 2 | `SATISFACTORY_GAME_DIR` | Game install root; the server appends `CommunityResources/Docs/en-US.json` (falling back to the pre-1.0 `Docs.json`). |
+| 3 | Bundled fallback | A copy committed at `packages/mcp/data/en-US.json`, if present. Supplied by the community (see [CONTRIBUTING.md](../../CONTRIBUTING.md)); may lag the latest game version. |
 
-If neither is set, the server starts with an empty dataset and logs a warning (it
-never crashes). A leading `~` is expanded to your home directory.
+If none of these resolve, the server starts with an empty dataset and logs a
+warning (it never crashes). A leading `~` is expanded to your home directory.
 
 ## Running
 
