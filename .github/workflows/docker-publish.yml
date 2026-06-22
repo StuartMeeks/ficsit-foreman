@@ -1,6 +1,6 @@
-name: Docker image
+name: Docker image (mcp-game-data)
 
-# Builds the MCP server image and publishes it to GHCR on pushes to main and on
+# Builds the game-data MCP server image and publishes it to GHCR on pushes to main and on
 # version tags. To avoid rebuilding :latest on every main push, a `changes` job
 # gates the build: it always runs for tags (releases), manual runs and PRs, but
 # for a main-branch push it builds only when image-relevant files changed.
@@ -15,9 +15,8 @@ on:
   # job isn't a required check, so skipping it elsewhere blocks nothing.
   pull_request:
     paths:
-      - 'Dockerfile'
+      - 'packages/mcp-game-data/**'
       - '.dockerignore'
-      - 'packages/mcp/**'
       - 'package.json'
       - 'package-lock.json'
       - 'tsconfig.base.json'
@@ -61,7 +60,7 @@ jobs:
             exit 0
           fi
           # main push: build only if image-relevant files changed.
-          changed=$(git diff --name-only "$BEFORE" "$AFTER" | { grep -E '^(Dockerfile|\.dockerignore|packages/mcp/|package\.json|package-lock\.json|tsconfig\.base\.json|\.github/workflows/docker-publish\.yml)' || true; })
+          changed=$(git diff --name-only "$BEFORE" "$AFTER" | { grep -E '^(packages/mcp-game-data/|\.dockerignore|package\.json|package-lock\.json|tsconfig\.base\.json|\.github/workflows/docker-publish\.yml)' || true; })
           if [ -n "$changed" ]; then
             echo "build=true" >> "$GITHUB_OUTPUT"
           else
@@ -92,7 +91,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v6
         with:
-          images: ghcr.io/stuartmeeks/foreman-mcp
+          images: ghcr.io/stuartmeeks/foreman-mcp-game-data
           tags: |
             type=ref,event=branch
             type=ref,event=pr
@@ -104,6 +103,7 @@ jobs:
         uses: docker/build-push-action@v7
         with:
           context: .
+          file: packages/mcp-game-data/Dockerfile
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}

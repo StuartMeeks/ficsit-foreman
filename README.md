@@ -18,7 +18,8 @@ in one Docker Compose project.
 
 | Package | Status | Purpose |
 |---|---|---|
-| [`packages/mcp`](./packages/mcp) | **Built** | Parses `en-US.json`, loads it into an embedded Kùzu graph, exposes computed MCP tools. Works standalone with Claude Desktop. |
+| [`packages/mcp-game-data`](./packages/mcp-game-data) | **Built** | Parses `en-US.json`, loads it into an embedded Kùzu graph, exposes computed MCP tools. Works standalone with Claude Desktop. |
+| [`packages/mcp-save-game`](./packages/mcp-save-game) | **Scaffold** | Save-file parser → MCP tools exposing live pioneer progress (inventory, unlocks, collectibles). See its [SPEC.md](./packages/mcp-save-game/SPEC.md). |
 | [`packages/server`](./packages/server) | **Built** | Express backend: LLM chat proxy (Anthropic or OpenAI-compatible) with the foreman persona, MCP game-data tool use, and work-order persistence. |
 | [`packages/client`](./packages/client) | **Boilerplate** | React UI: foreman chat (streaming) with a minimal work-order/history panel. Served on port `8725`. |
 
@@ -44,9 +45,9 @@ Most Satisfactory players are on Windows, so here's the full path:
    ```yaml
    name: foreman
    services:
-     mcp:
-       image: ghcr.io/stuartmeeks/foreman-mcp:latest
-       container_name: foreman-mcp
+     mcp-game-data:
+       image: ghcr.io/stuartmeeks/foreman-mcp-game-data:latest
+       container_name: foreman-mcp-game-data
        ports:
          - "8723:8723"
        restart: unless-stopped
@@ -65,8 +66,8 @@ Most Satisfactory players are on Windows, so here's the full path:
    ```
 
    *(GUI alternative: in Docker Desktop's **Images** tab, search
-   `ghcr.io/stuartmeeks/foreman-mcp`, click **Run**, expand **Optional settings**, set the
-   name to `foreman-mcp` and the host port to `8723`.)*
+   `ghcr.io/stuartmeeks/foreman-mcp-game-data`, click **Run**, expand **Optional settings**, set the
+   name to `foreman-mcp-game-data` and the host port to `8723`.)*
 4. Confirm it's running: open **<http://localhost:8723/health>** — you should see
    `{"status":"ok","version":"1.2.3.0"}`.
 
@@ -82,7 +83,7 @@ survives in the `foreman-db` volume either way. **Update** to a newer build with
 Use the same `compose.yaml` (`docker compose up -d`), or a one-off container:
 
 ```bash
-docker run -d --name foreman-mcp -p 8723:8723 ghcr.io/stuartmeeks/foreman-mcp:latest
+docker run -d --name foreman-mcp-game-data -p 8723:8723 ghcr.io/stuartmeeks/foreman-mcp-game-data:latest
 ```
 
 > **Note:** the server speaks the MCP **Streamable-HTTP** protocol at
@@ -132,7 +133,7 @@ MCP_TRANSPORT=http npm run start
 ```
 
 To wire the server into Claude Desktop over stdio, see
-[`packages/mcp/README.md`](./packages/mcp/README.md).
+[`packages/mcp-game-data/README.md`](./packages/mcp-game-data/README.md).
 
 ---
 
@@ -140,7 +141,7 @@ To wire the server into Claude Desktop over stdio, see
 
 All optional — by default the server serves the bundled **stable** game data.
 
-**MCP server** (`packages/mcp`):
+**MCP server** (`packages/mcp-game-data`):
 
 | Variable | Description |
 |---|---|
@@ -159,7 +160,7 @@ All optional — by default the server serves the bundled **stable** game data.
 | `LLM_API_KEY` | Hosted-tier key for the chosen provider. If unset, clients pass their own via the `x-anthropic-api-key` header. |
 | `LLM_MODEL` | Model (default `claude-sonnet-4-6` / `gpt-4.1`). |
 | `LLM_BASE_URL` | OpenAI-compatible base URL (OpenAI, OpenRouter, Gemini-compat, Azure). |
-| `MCP_URL` | Where the backend reaches the MCP server (Compose: `http://mcp:8723/mcp`; bare metal default `http://127.0.0.1:8723/mcp`). |
+| `MCP_URL` | Where the backend reaches the MCP server (Compose: `http://mcp-game-data:8723/mcp`; bare metal default `http://127.0.0.1:8723/mcp`). |
 | `PORT` | Backend HTTP port (default `8724`). |
 | `DATABASE_URL` | Database connection (default `file:./dev.db`; Docker `file:/data/foreman.db`). |
 | `HISTORY_WINDOW` | Most-recent messages sent per chat request (default `20`). |
