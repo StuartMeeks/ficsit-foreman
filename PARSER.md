@@ -2,8 +2,8 @@
 
 This document describes the design and implementation requirements for:
 
-1. The `en-US.json` parser in `packages/mcp/src/parser/`
-2. The Kùzu graph load pipeline in `packages/mcp/src/graph/`
+1. The `en-US.json` parser in `packages/mcp-game-data/src/parser/`
+2. The Kùzu graph load pipeline in `packages/mcp-game-data/src/graph/`
 
 ---
 
@@ -146,7 +146,7 @@ Store `perMinute` on each `PRODUCES` and `CONSUMES` relationship in the graph. T
 **Single responsibility:** the parser converts the raw file into clean `GameData`. It has no knowledge of MCP, work orders, or the foreman. All Unreal Engine string noise is resolved here so nothing upstream ever sees it.
 
 ```
-packages/mcp/src/parser/
+packages/mcp-game-data/src/parser/
   index.ts              ← public API: parseDocsFile(filePath: string): ParseResult
   reader.ts             ← UTF-16 BOM handling, file read
   classMap.ts           ← NativeClass string → category mapping
@@ -170,7 +170,7 @@ packages/mcp/src/parser/
 The graph layer sits between the parser and the MCP tools. It is responsible for loading `GameData` into Kùzu and providing a clean query interface.
 
 ```
-packages/mcp/src/graph/
+packages/mcp-game-data/src/graph/
   index.ts              ← public API: initGraph(gameData: GameData): GraphDB
   schema.ts             ← Kùzu DDL: CREATE NODE TABLE, CREATE REL TABLE
   loader.ts             ← idempotent load from GameData (drop + reload on rebuild)
@@ -297,4 +297,4 @@ Write unit tests (Vitest) for:
 - Rubber (byproduct recipe — also produces Heavy Oil Residue)
 - Water (raw resource — no producing recipe, leaf node)
 
-Use hand-crafted fixture JSON (not the real game file) that covers all known edge cases. Tests must never depend on the real `en-US.json`. (The only tracked copy of the real file is the optional bundled runtime fallback at `packages/mcp/data/en-US.json`, supplied via PRs per `CONTRIBUTING.md`; a local working copy under `game-data/` stays gitignored.)
+Use hand-crafted fixture JSON (not the real game file) that covers all known edge cases. Tests must never depend on the real `en-US.json`. (The only tracked copy of the real file is the optional bundled runtime fallback at `packages/mcp-game-data/data/en-US.json`, supplied via PRs per `CONTRIBUTING.md`; a local working copy under `game-data/` stays gitignored.)

@@ -13,14 +13,19 @@
 # Desktop (just stopped). Use `down` only when you want to remove them; your data
 # survives either way, in the `foreman-db` volume (see the volumes section).
 #
-# The project groups separate services (mcp, server, web) under the one "foreman"
-# project so you start and stop them as a unit.
+# The project groups separate services (mcp-game-data, server, web) under the one
+# "foreman" project so you start and stop them as a unit.
 name: foreman
 
 services:
-  mcp:
-    image: ghcr.io/stuartmeeks/foreman-mcp:latest
-    container_name: foreman-mcp
+  mcp-game-data:
+    # Pull the published image, or build locally if it is not present:
+    #   docker compose up -d --build
+    image: ghcr.io/stuartmeeks/foreman-mcp-game-data:latest
+    build:
+      context: .
+      dockerfile: packages/mcp-game-data/Dockerfile
+    container_name: foreman-mcp-game-data
     ports:
       - "8723:8723"
     restart: unless-stopped
@@ -44,11 +49,11 @@ services:
       dockerfile: packages/server/Dockerfile
     container_name: foreman-server
     depends_on:
-      - mcp
+      - mcp-game-data
     ports:
       - "8724:8724"
     environment:
-      MCP_URL: http://mcp:8723/mcp
+      MCP_URL: http://mcp-game-data:8723/mcp
       DATABASE_URL: file:/data/foreman.db
       # Hosted tier: the server's own Anthropic key. Leave unset to require each
       # client to supply its own key via the x-anthropic-api-key header.
@@ -89,6 +94,30 @@ services:
       # Open http://localhost:8725 to use the foreman.
       - "8725:80"
     restart: unless-stopped
+
+  # Optional: live save-game data (pioneer progress from a .sav file).
+  # DISABLED BY DEFAULT — it only starts under the `save-game` profile, so a plain
+  # `docker compose up` ignores it. Point SAVE_FILE_PATH at your save and bring it
+  # up with the profile:
+  #   SAVE_FILE_PATH=/path/to/MySave.sav docker compose --profile save-game up -d
+  # NOTE: this package is currently a scaffold (see packages/mcp-save-game/SPEC.md);
+  # the container is wired up but not yet a running server.
+  mcp-save-game:
+    profiles: ["save-game"]
+    image: ghcr.io/stuartmeeks/foreman-mcp-save-game:latest
+    build:
+      context: .
+      dockerfile: packages/mcp-save-game/Dockerfile
+    container_name: foreman-mcp-save-game
+    ports:
+      - "8726:8726"
+    environment:
+      # Path to the .sav INSIDE the container (mount the save directory below).
+      SAVE_FILE_PATH: ${SAVE_FILE_PATH:-}
+    # volumes:
+    #   # Mount the folder holding your .sav read-only, then set SAVE_FILE_PATH to
+    #   # the in-container path, e.g. SAVE_FILE_PATH=/saves/MySave.sav:
+    #   - "C:/Users/you/AppData/Local/FactoryGame/Saved/SaveGames:/saves:ro"
 
 volumes:
   # Back up before a major upgrade if you like:

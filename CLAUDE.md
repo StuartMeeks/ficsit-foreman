@@ -42,7 +42,7 @@ Use **npm workspaces**. Each package has its own `package.json` and `tsconfig.js
 
 Phase 1 is the MCP server, parser, and graph layer only. Do not scaffold the client or server packages beyond empty placeholders with a `README.md` explaining their future purpose.
 
-### `packages/mcp`
+### `packages/mcp-game-data`
 
 Build the complete MCP server with:
 
@@ -186,7 +186,7 @@ Apache 2.0. Include a `LICENSE` file in the repo root.
 1. Full monorepo scaffold with workspace config
 2. `docker-compose.yml`, `docker-compose.prod.yml`, `.env.example`
 3. `LICENSE` (Apache 2.0)
-4. `packages/mcp` — complete and working:
+4. `packages/mcp-game-data` — complete and working:
    - Parser per `PARSER.md`
    - Kùzu graph load per `PARSER.md`
    - All MCP tools listed above
@@ -201,7 +201,7 @@ Apache 2.0. Include a `LICENSE` file in the repo root.
 ## Definition of Done for Phase 1
 
 - [ ] `docker compose up` starts the MCP server cleanly from a fresh clone
-- [ ] Bare-metal `npm run dev` also works from `packages/mcp`
+- [ ] Bare-metal `npm run dev` also works from `packages/mcp-game-data`
 - [ ] Pointed at a real Satisfactory install, all tools return accurate data
 - [ ] `ingredient_tree` returns correct flat requirements for Reinforced Iron Plate and Turbo Motor
 - [ ] `total_raw_inputs` correctly terminates at raw resource leaf nodes

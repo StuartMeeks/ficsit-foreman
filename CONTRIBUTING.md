@@ -18,7 +18,7 @@ Commit, branch, and pull-request conventions are documented in
 
 ```bash
 npm install
-npm run build      # type-check / build packages/mcp
+npm run build      # type-check / build packages/mcp-game-data
 npm run lint       # ESLint + Prettier
 npm test           # Vitest (runs on hand-crafted fixtures)
 ```
@@ -32,7 +32,7 @@ The MCP server can read game data from a local install, but it also ships
 channels are kept — the latest **stable** and the latest **experimental** build:
 
 ```
-packages/mcp/data/
+packages/mcp-game-data/data/
   stable/        en-US.json + meta.json
   experimental/  en-US.json + meta.json
 ```
@@ -47,7 +47,7 @@ When you contribute game data (a new channel snapshot or an update to one),
 follow this rule — it is enforced by the **Validate game data** CI check:
 
 > **One channel per PR.** The pull request must contain **only** the two files
-> under a single `packages/mcp/data/<channel>/` directory — its `en-US.json` and
+> under a single `packages/mcp-game-data/data/<channel>/` directory — its `en-US.json` and
 > `meta.json` — and nothing else (no code, no docs, no other channel).
 
 The check also requires that `meta.channel` matches the directory, `build` is a
@@ -61,20 +61,20 @@ How to prepare one:
 
 1. Copy `CommunityResources/Docs/en-US.json` from a game install on the relevant
    channel (it is UTF-16 LE — leave the encoding as-is; the parser handles it).
-2. Place it at `packages/mcp/data/<channel>/en-US.json` (`<channel>` =
+2. Place it at `packages/mcp-game-data/data/<channel>/en-US.json` (`<channel>` =
    `stable` or `experimental`).
-3. Add `packages/mcp/data/<channel>/meta.json` with the `gameVersion`, `build`
+3. Add `packages/mcp-game-data/data/<channel>/meta.json` with the `gameVersion`, `build`
    (from the in-game build number) and `channel`.
 4. Commit **only** those two files, e.g.:
 
    ```bash
    git checkout -b feature/update-stable-game-data
-   git add packages/mcp/data/stable/en-US.json packages/mcp/data/stable/meta.json
+   git add packages/mcp-game-data/data/stable/en-US.json packages/mcp-game-data/data/stable/meta.json
    git commit -m "chore(data): update stable game data to 1.2.3.0 (build 493833)"
    ```
 
 5. Open a PR containing only that commit.
 
 > **Note:** `en-US.json` is Satisfactory game data © Coffee Stain Studios.
-> Only the bundled channel copies under `packages/mcp/data/` are tracked; a local
+> Only the bundled channel copies under `packages/mcp-game-data/data/` are tracked; a local
 > working copy under `game-data/` is gitignored and must not be committed.

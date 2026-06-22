@@ -15,12 +15,12 @@
     "build": "npm run build --workspaces --if-present",
     "test": "npm run test --workspaces --if-present",
     "lint": "npm run lint --workspaces --if-present",
-    "dev": "npm run dev -w @foreman/mcp",
-    "dev:mcp": "npm run dev -w @foreman/mcp",
+    "dev": "npm run dev -w @foreman/mcp-game-data",
+    "dev:mcp": "npm run dev -w @foreman/mcp-game-data",
     "dev:server": "npm run dev -w @foreman/server",
     "dev:web": "npm run dev -w @foreman/client",
-    "start:mcp": "npm run start -w @foreman/mcp",
+    "start:mcp": "npm run start -w @foreman/mcp-game-data",
     "start:server": "npm run start -w @foreman/server",
-    "inspect": "npm run inspect -w @foreman/mcp --"
+    "inspect": "npm run inspect -w @foreman/mcp-game-data --"
   }
 }

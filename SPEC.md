@@ -121,7 +121,7 @@ Players can upload their save file. The foreman parses it to understand what's a
 | App DB | SQLite (dev) → Postgres (prod) | Zero setup locally; straightforward migration path |
 | ORM | Prisma | Human-readable schema, good migrations |
 | Deployment | Docker Compose (local) + Railway/Render (hosted) | Simple path from laptop to production |
-| Repo structure | Monorepo (`packages/client`, `packages/server`, `packages/mcp`) | Easy for contributors to navigate |
+| Repo structure | Monorepo (`packages/client`, `packages/server`, `packages/mcp-game-data`, `packages/mcp-save-game`) | Easy for contributors to navigate |
 
 ### Computed Answers Principle
 
@@ -363,6 +363,13 @@ The subscription tier may later include additional features (richer work order t
 - Inventory, milestone, and build state extraction
 - Foreman references actual game state in work orders
 
+> The save-file parser and its MCP tools live in their own package,
+> `packages/mcp-save-game` (a second MCP server alongside `packages/mcp-game-data`).
+> Its full technical design — architecture, the v1 Pioneer Progress tools, and the
+> save-file-format / parser build-vs-adopt tradeoffs — is in
+> [`packages/mcp-save-game/SPEC.md`](./packages/mcp-save-game/SPEC.md). See also
+> [`ROADMAP.md`](./ROADMAP.md) for its versioned plan.
+
 ### Phase 5 — Production Readiness
 - Postgres migration
 - Deploy to Railway/Render
@@ -387,7 +394,7 @@ LLM cost is a real constraint, especially for free-tier users on their own API k
 - [ ] Does `en-US.json` include alt recipe unlock status, or is that save-state only?
 - [ ] User accounts or session-only for v1? (session-only is simpler; accounts needed for cross-device and Patreon gating)
 - [ ] What's the right conversation history window size? (needs testing)
-- [ ] Save game parser: build from scratch or adopt `etothepii4/satisfactory-file-parser`?
+- [ ] Save game parser: build from scratch or adopt `etothepii4/satisfactory-file-parser`? — see the tradeoff discussion in [`packages/mcp-save-game/SPEC.md`](./packages/mcp-save-game/SPEC.md#parser-build-vs-adopt).
 
 ---
 

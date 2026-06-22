@@ -1,6 +1,6 @@
-# @foreman/mcp
+# @foreman/mcp-game-data
 
-The FICSIT Foreman MCP server. It parses Satisfactory's `en-US.json` game data, loads it
+The FICSIT Foreman game-data MCP server. It parses Satisfactory's `en-US.json` game data, loads it
 into an embedded [Kùzu](https://kuzudb.com) graph database, and exposes it as a set
 of computed, token-efficient [Model Context Protocol](https://modelcontextprotocol.io)
 tools.
@@ -27,7 +27,7 @@ From the repository root (npm workspaces):
 
 ```bash
 npm install
-npm run build -w @foreman/mcp
+npm run build -w @foreman/mcp-game-data
 ```
 
 ## Pointing it at game data
@@ -38,7 +38,7 @@ The server resolves the docs file in this priority order:
 |---|---|---|
 | 1 | `SATISFACTORY_DOCS_PATH` | Full path directly to `en-US.json`. Highest priority. |
 | 2 | `SATISFACTORY_GAME_DIR` | Game install root; the server appends `CommunityResources/Docs/en-US.json` (falling back to the pre-1.0 `Docs.json`). |
-| 3 | Bundled channel | Committed game data under `packages/mcp/data/<channel>/`, where `<channel>` is `stable` or `experimental`. Selected by `SATISFACTORY_GAME_CHANNEL` (default `stable`; falls back to the other channel if absent). Supplied via PRs — see [CONTRIBUTING.md](../../CONTRIBUTING.md). |
+| 3 | Bundled channel | Committed game data under `packages/mcp-game-data/data/<channel>/`, where `<channel>` is `stable` or `experimental`. Selected by `SATISFACTORY_GAME_CHANNEL` (default `stable`; falls back to the other channel if absent). Supplied via PRs — see [CONTRIBUTING.md](../../CONTRIBUTING.md). |
 
 If none of these resolve, the server starts with an empty dataset and logs a
 warning (it never crashes). A leading `~` is expanded to your home directory.
@@ -51,10 +51,10 @@ toggle will use.
 
 ```bash
 # Development (watch mode, runs TypeScript directly):
-SATISFACTORY_DOCS_PATH=/path/to/en-US.json npm run dev -w @foreman/mcp
+SATISFACTORY_DOCS_PATH=/path/to/en-US.json npm run dev -w @foreman/mcp-game-data
 
 # Production (after build):
-SATISFACTORY_DOCS_PATH=/path/to/en-US.json npm run start -w @foreman/mcp
+SATISFACTORY_DOCS_PATH=/path/to/en-US.json npm run start -w @foreman/mcp-game-data
 ```
 
 By default the server speaks MCP over **stdio** — there is no network port; the client
@@ -70,7 +70,7 @@ Streamable HTTP transport (stateless) and serves on `/mcp`, with a `/health` end
 ```bash
 SATISFACTORY_DOCS_PATH=/path/to/en-US.json \
 MCP_TRANSPORT=http MCP_HTTP_HOST=0.0.0.0 MCP_HTTP_PORT=8723 \
-  npm run start -w @foreman/mcp
+  npm run start -w @foreman/mcp-game-data
 # → [foreman-mcp] Listening on http://0.0.0.0:8723/mcp (health: /health)
 #   (when bound to 0.0.0.0 it also logs each reachable LAN address)
 ```
@@ -86,7 +86,7 @@ MCP_TRANSPORT=http MCP_HTTP_HOST=0.0.0.0 MCP_HTTP_PORT=8723 \
 
 ### Docker
 
-A container image (`ghcr.io/stuartmeeks/foreman-mcp`) ships the bundled stable game data
+A container image (`ghcr.io/stuartmeeks/foreman-mcp-game-data`) ships the bundled stable game data
 and defaults to HTTP on `:8723`. See [Run with Docker](../../README.md#run-with-docker) in
 the root README.
 
@@ -95,15 +95,15 @@ the root README.
 A small CLI exercises any tool directly (it prints to stdout):
 
 ```bash
-npm run inspect -w @foreman/mcp                                  # summary + tool list
-npm run inspect -w @foreman/mcp ingredient_tree '{"item":"Reinforced Iron Plate","targetPerMinute":5}'
-npm run inspect -w @foreman/mcp total_raw_inputs '{"item":"Turbo Motor","targetPerMinute":1}'
-npm run inspect -w @foreman/mcp compare_alternates '{"item":"Reinforced Iron Plate"}'
+npm run inspect -w @foreman/mcp-game-data                                  # summary + tool list
+npm run inspect -w @foreman/mcp-game-data ingredient_tree '{"item":"Reinforced Iron Plate","targetPerMinute":5}'
+npm run inspect -w @foreman/mcp-game-data total_raw_inputs '{"item":"Turbo Motor","targetPerMinute":1}'
+npm run inspect -w @foreman/mcp-game-data compare_alternates '{"item":"Reinforced Iron Plate"}'
 ```
 
 ## Wiring into Claude Desktop
 
-Build first (`npm run build -w @foreman/mcp`), then add this to your Claude Desktop
+Build first (`npm run build -w @foreman/mcp-game-data`), then add this to your Claude Desktop
 config (`claude_desktop_config.json`):
 
 ```json
@@ -111,7 +111,7 @@ config (`claude_desktop_config.json`):
   "mcpServers": {
     "foreman": {
       "command": "node",
-      "args": ["/absolute/path/to/foreman/packages/mcp/dist/index.js"],
+      "args": ["/absolute/path/to/foreman/packages/mcp-game-data/dist/index.js"],
       "env": {
         "SATISFACTORY_DOCS_PATH": "/absolute/path/to/en-US.json"
       }
@@ -168,7 +168,7 @@ correctly terminates at what the player mines.
 ## Testing
 
 ```bash
-npm run test -w @foreman/mcp
+npm run test -w @foreman/mcp-game-data
 ```
 
 Tests run against hand-crafted fixtures (`test/fixtures/`), never the real game file.
