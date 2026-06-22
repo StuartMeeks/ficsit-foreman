@@ -33,7 +33,13 @@ jobs:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
-          files=$(git diff --name-only "$BASE_SHA" "$HEAD_SHA" \
+          # Only added/modified data files count as a data update. Use
+          # --name-status with rename detection (-M) and keep just A/M entries so
+          # that moving the data directory (e.g. a package rename) does not look
+          # like a channel edit — renames (R) and deletions (D) are ignored.
+          files=$(git diff --name-status -M "$BASE_SHA" "$HEAD_SHA" \
+            | { grep -E '^[AM]\t' || true; } \
+            | cut -f2 \
             | { grep '^packages/mcp-game-data/data/' || true; } \
             | { grep -v '^packages/mcp-game-data/data/README.md$' || true; })
           if [ -n "$files" ]; then
