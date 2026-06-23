@@ -51,3 +51,19 @@ export {
   channelDocsPath,
   expandHome,
 } from './config.js';
+
+// World-location dataset (collectibles + resource nodes) + loader.
+export type {
+  WorldLocations,
+  WorldLocationsResolution,
+  Collectible,
+  ResourceNode,
+  CollectibleKind,
+  ResourceNodeKind,
+  Purity,
+} from './world/types.js';
+export {
+  loadWorldLocations,
+  emptyWorldLocations,
+  channelWorldLocationsPath,
+} from './world/index.js';

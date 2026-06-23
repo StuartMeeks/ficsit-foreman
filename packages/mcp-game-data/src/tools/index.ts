@@ -2,11 +2,25 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 
 import type { GraphDB } from '../graph/index.js';
+import type { WorldQueries } from '../world/queries.js';
 
 type ToolResult = {
   content: { type: 'text'; text: string }[];
   isError?: boolean;
 };
+
+/** Collectible kinds accepted by the world-location tools. */
+const collectibleKind = z.enum([
+  'mercerSphere',
+  'somersloop',
+  'powerSlugBlue',
+  'powerSlugYellow',
+  'powerSlugPurple',
+  'hardDrive',
+]);
+
+/** A world location in Unreal units (centimetres) — usually the pioneer's position. */
+const coord = z.object({ x: z.number(), y: z.number(), z: z.number() });
 
 /**
  * Registers every Foreman MCP tool. Tool descriptions are tight and
@@ -14,7 +28,7 @@ type ToolResult = {
  * responses are version-tagged. Tools return computed, distilled answers; the
  * recursion and aggregation happen server-side in the graph layer.
  */
-export function registerTools(server: McpServer, graph: GraphDB): void {
+export function registerTools(server: McpServer, graph: GraphDB, world: WorldQueries): void {
   const ok = (payload: object): ToolResult => ({
     content: [{ type: 'text', text: JSON.stringify({ version: graph.version, ...payload }) }],
   });
@@ -216,6 +230,54 @@ export function registerTools(server: McpServer, graph: GraphDB): void {
         };
       }
       return ok({ rows: result.rows });
+    },
+  );
+
+  server.registerTool(
+    'list_collectibles',
+    {
+      title: 'List collectibles',
+      description:
+        'World totals for each collectible kind (Mercer Spheres, Somersloops, blue/yellow/purple power slugs, hard-drive drop pods). Supply a type to also get the full coordinate list for that one kind. These are fixed world placements, not what a particular save has collected.',
+      inputSchema: { type: collectibleKind.optional() },
+    },
+    async ({ type }): Promise<ToolResult> => {
+      return ok(world.listCollectibles(type));
+    },
+  );
+
+  server.registerTool(
+    'nearest_collectibles',
+    {
+      title: 'Nearest collectibles',
+      description:
+        'The collectibles closest to a world location, nearest-first, each with its coordinates and straight-line distance. Filter by type; cap with n (default 10). Use the pioneer location as the coord to answer "what can I grab near me?".',
+      inputSchema: {
+        coord,
+        type: collectibleKind.optional(),
+        n: z.number().int().positive().optional(),
+      },
+    },
+    async ({ coord: origin, type, n }): Promise<ToolResult> => {
+      return ok({ collectibles: world.nearestCollectibles(origin, type, n) });
+    },
+  );
+
+  server.registerTool(
+    'nearest_resource_nodes',
+    {
+      title: 'Nearest resource nodes',
+      description:
+        'The resource extraction points closest to a world location, nearest-first, each with resource type, purity (impure/normal/pure), coordinates and distance. Covers ore/fluid nodes, fracking satellites and cores, and geothermal geysers. Filter by resource (name or class, e.g. "Iron Ore") and/or purity; cap with n (default 10).',
+      inputSchema: {
+        coord,
+        resource: z.string().optional(),
+        purity: z.enum(['impure', 'normal', 'pure']).optional(),
+        n: z.number().int().positive().optional(),
+      },
+    },
+    async ({ coord: origin, resource, purity, n }): Promise<ToolResult> => {
+      return ok({ nodes: world.nearestResourceNodes(origin, { resource, purity, n }) });
     },
   );
 }

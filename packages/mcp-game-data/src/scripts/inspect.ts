@@ -7,9 +7,12 @@
  *   npm run inspect ingredient_tree '{"item":"Turbo Motor","targetPerMinute":1}'
  *   npm run inspect total_raw_inputs '{"item":"Reinforced Iron Plate","targetPerMinute":5}'
  */
-import { emptyGameData, parseDocsFile } from '@foreman/game-data-core';
+import { emptyGameData, loadWorldLocations, parseDocsFile } from '@foreman/game-data-core';
 import { initGraph } from '../graph/index.js';
+import { WorldQueries } from '../world/queries.js';
 import { resolveDocsPath } from '@foreman/game-data-core';
+
+type Coord = { x: number; y: number; z: number };
 
 async function run(): Promise<void> {
   const tool = process.argv[2];
@@ -24,8 +27,17 @@ async function run(): Promise<void> {
     docsPath === undefined ? emptyGameData('unknown') : parseDocsFile(docsPath).gameData;
   const graph = await initGraph(gameData);
 
+  const { world, warning: worldWarning } = loadWorldLocations();
+  if (worldWarning !== undefined) {
+    console.error(worldWarning);
+  }
+  const worldQueries = new WorldQueries(world, gameData);
+
   const str = (key: string): string => String(args[key] ?? '');
   const num = (key: string): number => Number(args[key] ?? 0);
+  const coord = (): Coord => (args['coord'] as Coord | undefined) ?? { x: 0, y: 0, z: 0 };
+  const optKind = <T>(key: string): T | undefined =>
+    args[key] === undefined ? undefined : (args[key] as T);
 
   let result: unknown;
   switch (tool) {
@@ -72,6 +84,27 @@ async function run(): Promise<void> {
     case 'cypher_query':
       result = await graph.cypherQuery(str('query'));
       break;
+    case 'list_collectibles':
+      result = worldQueries.listCollectibles(optKind('type'));
+      break;
+    case 'nearest_collectibles':
+      result = {
+        collectibles: worldQueries.nearestCollectibles(
+          coord(),
+          optKind('type'),
+          args['n'] === undefined ? undefined : num('n'),
+        ),
+      };
+      break;
+    case 'nearest_resource_nodes':
+      result = {
+        nodes: worldQueries.nearestResourceNodes(coord(), {
+          resource: optKind('resource'),
+          purity: optKind('purity'),
+          n: args['n'] === undefined ? undefined : num('n'),
+        }),
+      };
+      break;
     default:
       result = {
         version: graph.version,
@@ -96,6 +129,9 @@ async function run(): Promise<void> {
           'get_building',
           'list_power_generators',
           'cypher_query',
+          'list_collectibles',
+          'nearest_collectibles',
+          'nearest_resource_nodes',
         ],
         usage: "npm run inspect <tool> '<json-args>'",
       };
