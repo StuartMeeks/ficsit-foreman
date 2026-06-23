@@ -1,5 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk';
 
+import { logger } from '../logger.js';
 import type { LlmProvider } from './provider.js';
 import type {
   LlmCompletionRequest,
@@ -25,13 +26,13 @@ export class AnthropicProvider implements LlmProvider {
     const stream = this.client.messages.stream({
       model: req.model,
       max_tokens: req.maxTokens,
-      system: req.system,
+      // Cache the stable prefix (render order: tools → system → messages) so it
+      // is reused across requests and across tool rounds within a turn. Two
+      // breakpoints — one on the tool list, one on system — mean a system-prompt
+      // change still reuses the tools cache.
+      system: [{ type: 'text', text: req.system, cache_control: { type: 'ephemeral' } }],
       messages: toAnthropicMessages(req.messages),
-      tools: req.tools.map((tool) => ({
-        name: tool.name,
-        description: tool.description,
-        input_schema: tool.inputSchema as Anthropic.Tool.InputSchema,
-      })),
+      tools: cacheableTools(req.tools),
     });
 
     let text = '';
@@ -41,6 +42,11 @@ export class AnthropicProvider implements LlmProvider {
     });
 
     const final = await stream.finalMessage();
+    logger.info(
+      `Anthropic usage: ${final.usage.input_tokens} input, ` +
+        `${final.usage.cache_creation_input_tokens ?? 0} cache-write, ` +
+        `${final.usage.cache_read_input_tokens ?? 0} cache-read.`,
+    );
     const toolCalls: NeutralToolCall[] = [];
     for (const block of final.content) {
       if (block.type === 'tool_use') {
@@ -74,6 +80,24 @@ export class AnthropicProvider implements LlmProvider {
       .join('')
       .trim();
   }
+}
+
+/**
+ * Maps the neutral tool definitions to Anthropic tools, placing a cache
+ * breakpoint on the last one so the whole tool list is cached as part of the
+ * stable prefix. The tool set is deterministic, so the cache holds across turns.
+ */
+function cacheableTools(tools: LlmRequest['tools']): Anthropic.Tool[] {
+  const mapped: Anthropic.Tool[] = tools.map((tool) => ({
+    name: tool.name,
+    description: tool.description,
+    input_schema: tool.inputSchema as Anthropic.Tool.InputSchema,
+  }));
+  const last = mapped[mapped.length - 1];
+  if (last !== undefined) {
+    last.cache_control = { type: 'ephemeral' };
+  }
+  return mapped;
 }
 
 /**
