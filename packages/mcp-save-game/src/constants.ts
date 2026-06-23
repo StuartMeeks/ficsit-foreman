@@ -73,10 +73,14 @@ export type CollectibleKind =
  * (e.g. blue 410, yellow 270, purple 195), so `collected = total − remaining`
  * is exact on a fully-explored save. The matchers are mutually exclusive
  * (`BP_Crystal_C` does not match `BP_Crystal_mk2_C`).
+ *
+ * `BP_WAT2_C` is the Mercer Sphere and `BP_WAT1_C` the Somersloop — confirmed by
+ * first-party asset extraction (the packaged level files carry exactly 298
+ * `BP_WAT2_C` and 106 `BP_WAT1_C` instances, matching the known world totals).
  */
 export const COLLECTIBLE_ACTORS: { kind: CollectibleKind; typePath: RegExp; label: string }[] = [
-  { kind: 'mercerSphere', typePath: /BP_WAT1_C/, label: 'Mercer Sphere' },
-  { kind: 'somersloop', typePath: /BP_WAT2_C/, label: 'Somersloop' },
+  { kind: 'mercerSphere', typePath: /BP_WAT2_C/, label: 'Mercer Sphere' },
+  { kind: 'somersloop', typePath: /BP_WAT1_C/, label: 'Somersloop' },
   { kind: 'powerSlugPurple', typePath: /BP_Crystal_mk3_C/, label: 'Purple Power Slug' },
   { kind: 'powerSlugYellow', typePath: /BP_Crystal_mk2_C/, label: 'Yellow Power Slug' },
   { kind: 'powerSlugBlue', typePath: /BP_Crystal_C/, label: 'Blue Power Slug' },

@@ -206,9 +206,9 @@ export const FIXTURE_SAVE: RawSave = makeSave({
     // Remaining (un-collected) collectibles — present actors classified by typePath,
     // placed along +x at increasing distance from the origin for proximity tests:
     // 2 Mercer Spheres, 1 Somersloop, 3 blue + 1 yellow + 1 purple slug.
-    obj(WAT1, {}, { instanceName: `${LVL}.WAT1_a`, transform: vec3(50, 0, 0) }),
-    obj(WAT1, {}, { instanceName: `${LVL}.WAT1_b`, transform: vec3(5000, 0, 0) }),
-    obj(WAT2, {}, { instanceName: `${LVL}.WAT2_a`, transform: vec3(100, 0, 0) }),
+    obj(WAT2, {}, { instanceName: `${LVL}.WAT2_a`, transform: vec3(50, 0, 0) }),
+    obj(WAT2, {}, { instanceName: `${LVL}.WAT2_b`, transform: vec3(5000, 0, 0) }),
+    obj(WAT1, {}, { instanceName: `${LVL}.WAT1_a`, transform: vec3(100, 0, 0) }),
     obj(CRYSTAL, {}, { instanceName: `${LVL}.Crystal_a`, transform: vec3(200, 0, 0) }),
     obj(CRYSTAL, {}, { instanceName: `${LVL}.Crystal_b`, transform: vec3(300, 0, 0) }),
     obj(CRYSTAL, {}, { instanceName: `${LVL}.Crystal_c`, transform: vec3(400, 0, 0) }),
