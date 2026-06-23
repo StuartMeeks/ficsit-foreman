@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { ChatColumn } from './components/ChatColumn.js';
 import { Header } from './components/Header.js';
+import { Onboarding } from './components/Onboarding.js';
 import { SettingsDialog } from './components/SettingsDialog.js';
 import { WorkOrderPanel } from './components/WorkOrderPanel.js';
 import { useForeman } from './useForeman.js';
@@ -66,6 +67,18 @@ export function App(): React.JSX.Element {
       setChatPct((p) => clampPct(p + 2));
     }
   }, []);
+
+  if (foreman.booting) {
+    return (
+      <div className="splash">
+        <span className="label">Bringing the foreman online…</span>
+      </div>
+    );
+  }
+
+  if (foreman.needsOnboarding && foreman.bootError === null) {
+    return <Onboarding onComplete={foreman.completeOnboarding} />;
+  }
 
   return (
     <div className="app">

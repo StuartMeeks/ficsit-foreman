@@ -40,10 +40,13 @@ export interface ForemanState {
   activeWorkOrder: WorkOrder | null;
   history: WorkOrder[];
   sending: boolean;
+  booting: boolean;
+  needsOnboarding: boolean;
   bootError: string | null;
   llm: LlmSettings;
   keyNeeded: boolean;
   send(text: string): void;
+  completeOnboarding(input: { personality: string; pioneerProfile: string }): Promise<void>;
   saveSettings(input: {
     personality: string;
     pioneerProfile: string;
@@ -67,12 +70,19 @@ function writeStorage(key: string, value: string): void {
   }
 }
 
+/** A session is un-onboarded until it carries a personality or pioneer profile. */
+function isUnonboarded(session: Session): boolean {
+  return session.personality.trim().length === 0 && session.pioneerProfile.trim().length === 0;
+}
+
 export function useForeman(): ForemanState {
   const [session, setSession] = useState<Session | null>(null);
   const [messages, setMessages] = useState<ChatMsg[]>([]);
   const [activeWorkOrder, setActiveWorkOrder] = useState<WorkOrder | null>(null);
   const [history, setHistory] = useState<WorkOrder[]>([]);
   const [sending, setSending] = useState(false);
+  const [booting, setBooting] = useState(true);
+  const [needsOnboarding, setNeedsOnboarding] = useState(false);
   const [bootError, setBootError] = useState<string | null>(null);
   const [llm, setLlm] = useState<LlmSettings>(() => ({
     apiKey: readStorage(API_KEY),
@@ -100,15 +110,22 @@ export function useForeman(): ForemanState {
     void (async () => {
       try {
         const existingId = readStorage(SESSION_KEY);
-        let loaded = existingId ? await getSession(existingId) : null;
-        if (loaded === null) {
-          loaded = await createSession({});
-          writeStorage(SESSION_KEY, loaded.id);
+        const loaded = existingId ? await getSession(existingId) : null;
+        // A session counts as onboarded once it carries a personality or pioneer
+        // profile. A brand-new (or never-finished) session has neither, so the
+        // pioneer is routed through onboarding before the foreman comes online.
+        // The session itself is created lazily once onboarding completes.
+        if (loaded === null || isUnonboarded(loaded)) {
+          setSession(loaded);
+          setNeedsOnboarding(true);
+          return;
         }
         setSession(loaded);
         await loadOrders(loaded.id);
       } catch (error) {
         setBootError(error instanceof Error ? error.message : 'Failed to start a session.');
+      } finally {
+        setBooting(false);
       }
     })();
   }, [loadOrders]);
@@ -173,6 +190,20 @@ export function useForeman(): ForemanState {
     [llm, loadOrders, patchMessage, sending, session],
   );
 
+  const completeOnboarding = useCallback(
+    async (input: { personality: string; pioneerProfile: string }) => {
+      // Reuse an existing empty session (e.g. one left behind by an abandoned
+      // first run) rather than orphaning it; otherwise create a fresh one.
+      const onboarded =
+        session !== null ? await patchSession(session.id, input) : await createSession(input);
+      writeStorage(SESSION_KEY, onboarded.id);
+      setSession(onboarded);
+      setNeedsOnboarding(false);
+      await loadOrders(onboarded.id);
+    },
+    [loadOrders, session],
+  );
+
   const saveSettings = useCallback(
     async (input: { personality: string; pioneerProfile: string; llm: LlmSettings }) => {
       // The user's own provider key, held only in their browser so they need not
@@ -202,10 +233,13 @@ export function useForeman(): ForemanState {
     activeWorkOrder,
     history,
     sending,
+    booting,
+    needsOnboarding,
     bootError,
     llm,
     keyNeeded,
     send,
+    completeOnboarding,
     saveSettings,
   };
 }
