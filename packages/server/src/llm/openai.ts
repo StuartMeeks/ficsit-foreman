@@ -111,10 +111,11 @@ function parseArgs(raw: string): Record<string, unknown> {
  * and o-series reasoning models reject the legacy `max_tokens` with a 400 and
  * require `max_completion_tokens`; everything else (gpt-4.1/4o, Azure,
  * OpenRouter, local Ollama, …) still takes `max_tokens`. The `(^|/)` guard
- * tolerates an OpenRouter-style `openai/gpt-5-mini` prefix. Exported for testing.
+ * tolerates an OpenRouter-style `openai/gpt-5-mini` prefix; the `[-.]` boundary
+ * tolerates a dotted minor version such as `gpt-5.4-mini`. Exported for testing.
  */
 export function tokenLimitParam(model: string, maxTokens: number): Record<string, number> {
-  return /(^|\/)(gpt-5|o[1-4])(-|$)/.test(model)
+  return /(^|\/)(gpt-5|o[1-4])([-.]|$)/.test(model)
     ? { max_completion_tokens: maxTokens }
     : { max_tokens: maxTokens };
 }

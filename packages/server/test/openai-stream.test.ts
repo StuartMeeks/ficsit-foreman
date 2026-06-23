@@ -78,8 +78,14 @@ describe('tokenLimitParam', () => {
     expect(tokenLimitParam('o1-preview', 4096)).toEqual({ max_completion_tokens: 4096 });
   });
 
+  it('handles dotted minor versions in the GPT-5 family', () => {
+    expect(tokenLimitParam('gpt-5.4-mini', 4096)).toEqual({ max_completion_tokens: 4096 });
+    expect(tokenLimitParam('gpt-5.1', 4096)).toEqual({ max_completion_tokens: 4096 });
+  });
+
   it('tolerates an OpenRouter-style provider prefix', () => {
     expect(tokenLimitParam('openai/gpt-5-mini', 2048)).toEqual({ max_completion_tokens: 2048 });
+    expect(tokenLimitParam('openai/gpt-5.4-mini', 2048)).toEqual({ max_completion_tokens: 2048 });
   });
 
   it('keeps max_tokens for gpt-4.1/4o, and OpenAI-compatible local models', () => {
