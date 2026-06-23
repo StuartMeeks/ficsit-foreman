@@ -16,6 +16,9 @@ WORKDIR /app
 
 # Install dependencies against the workspace lockfile first (better layer caching).
 COPY package.json package-lock.json tsconfig.base.json ./
+# Pin the npm version from package.json's packageManager field (consistent
+# lockfile resolution; also silences the npm update notice).
+RUN npm install -g "npm@$(node -p 'require("./package.json").packageManager.split("@")[1]')"
 COPY packages/mcp-game-data/package.json ./packages/mcp-game-data/package.json
 RUN npm ci
 
