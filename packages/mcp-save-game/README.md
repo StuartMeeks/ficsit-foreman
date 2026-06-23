@@ -62,12 +62,14 @@ running as a Docker Compose service.
 
 ### Docker / Compose
 
-A `mcp-save-game` service is defined in the repo [`compose.yaml`](../../compose.yaml)
-but **disabled by default**. It only starts under the `save-game` profile, and you
-must point `SAVE_FILE_PATH` at a save (mount the save directory read-only):
+A `mcp-save-game` service is part of the project [`compose.yaml`](../../compose.yaml),
+so `docker compose pull` / `up` include it. It runs even with no save configured
+(serving empty results). To use a save, point `SAVE_FILE_PATH` at the in-container
+`.sav` path and mount your save directory read-only (uncomment `volumes` in the
+compose file):
 
 ```bash
-SAVE_FILE_PATH=/saves/MySave.sav docker compose --profile save-game up -d
+SAVE_FILE_PATH=/saves/MySave.sav docker compose up -d
 ```
 
 ---

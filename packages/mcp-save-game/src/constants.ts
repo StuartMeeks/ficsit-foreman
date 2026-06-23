@@ -56,31 +56,47 @@ export const MAM_SCHEMATIC = /\/Research\/|Schematic_(?:MAM|Research)/i;
 /** `Schematic_3-2_C` → tier 3. */
 export const SCHEMATIC_TIER = /Schematic_(\d+)-/;
 
-/**
- * Collectible kind heuristics, matched against the picked-up actor's instance
- * name in the per-level `collectables` (destroyed-actor) list. Calibrated
- * against real saves: artifact and slug TOTALS are reliable; the finer splits
- * (sphere vs sloop, slug colour, hard drives) are approximate — exact per-type
- * counts/locations need the world-location dataset (game-data v3).
- */
-export const COLLECTIBLE_KIND = {
-  /** Mercer Spheres + Somersloops (BP_WAT1 / BP_WAT2). Reliable TOTAL (≈400 vs truth). */
-  alienArtifact: /BP_WAT/i,
-  /** Somersloop, class-prefixed. Approximate split only (regex-sensitive). */
-  somersloop: /BP_WAT2_/i,
-  powerSlug: /BP_Crystal/i,
-  dropPod: /DropPod/i,
-  crashDebris: /CrashSiteDebris|DebrisActor/i,
-  itemPickup: /ItemPickup/i,
-} as const;
+/** A collectible type the save can classify by an actor's typePath. */
+export type CollectibleKind =
+  | 'mercerSphere'
+  | 'somersloop'
+  | 'powerSlugBlue'
+  | 'powerSlugYellow'
+  | 'powerSlugPurple';
 
 /**
- * Known world totals for a fresh v1.0+ game, surfaced by `get_collectibles` as
- * reference context. These are constants (not from the save) and may vary by
- * game version or with mods.
+ * Present-actor matchers for *un-collected* collectibles, keyed on the actor's
+ * `typePath` (which is the clean class — reliable, unlike the instanceName-only
+ * `collectables` destroyed registry). A collected collectible is destroyed and
+ * absent, so what remains in the save is what's left to grab. Calibrated against
+ * a real save: remaining-actor counts matched ground truth exactly per colour
+ * (e.g. blue 410, yellow 270, purple 195), so `collected = total − remaining`
+ * is exact on a fully-explored save. The matchers are mutually exclusive
+ * (`BP_Crystal_C` does not match `BP_Crystal_mk2_C`).
  */
-export const WORLD_COLLECTIBLE_TOTALS = {
-  mercerSpheres: 298,
-  somersloops: 106,
-  dropPods: 118,
-} as const;
+export const COLLECTIBLE_ACTORS: { kind: CollectibleKind; typePath: RegExp; label: string }[] = [
+  { kind: 'mercerSphere', typePath: /BP_WAT1_C/, label: 'Mercer Sphere' },
+  { kind: 'somersloop', typePath: /BP_WAT2_C/, label: 'Somersloop' },
+  { kind: 'powerSlugPurple', typePath: /BP_Crystal_mk3_C/, label: 'Purple Power Slug' },
+  { kind: 'powerSlugYellow', typePath: /BP_Crystal_mk2_C/, label: 'Yellow Power Slug' },
+  { kind: 'powerSlugBlue', typePath: /BP_Crystal_C/, label: 'Blue Power Slug' },
+];
+// Hard-drive crash sites (BP_DropPod_C) are deliberately NOT here: looted pods
+// persist as actors (they are world structures, not destroyed pickups) and the
+// parser cannot read their looted flag on current builds, so total − remaining
+// is unreliable. Hard drives are a game-data v3 (world-locations) concern.
+
+/**
+ * Known world totals for a fresh v1.0+ game, used to derive
+ * `collected = total − remaining`. Fixed public constants (not from the save);
+ * may vary by game version or with mods. Resource nodes are NOT here — the save
+ * carries no resource type or purity for them, so they are a game-data v3
+ * (world-locations dataset) concern.
+ */
+export const WORLD_TOTALS: Record<CollectibleKind, number> = {
+  mercerSphere: 298,
+  somersloop: 106,
+  powerSlugBlue: 596,
+  powerSlugYellow: 389,
+  powerSlugPurple: 257,
+};

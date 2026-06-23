@@ -11,6 +11,15 @@ import type { RawObject, RawSave } from '../../src/parser/types.js';
 
 const LVL = 'Persistent_Level:PersistentLevel';
 
+// Collectible / resource-node actor typePaths (the clean class form the save uses).
+const WAT1 = '/Game/FactoryGame/Prototype/WAT/BP_WAT1.BP_WAT1_C';
+const WAT2 = '/Game/FactoryGame/Prototype/WAT/BP_WAT2.BP_WAT2_C';
+const CRYSTAL = '/Game/FactoryGame/Resource/Environment/Crystal/BP_Crystal.BP_Crystal_C';
+const CRYSTAL_MK2 = '/Game/FactoryGame/Resource/Environment/Crystal/BP_Crystal_mk2.BP_Crystal_mk2_C';
+const CRYSTAL_MK3 = '/Game/FactoryGame/Resource/Environment/Crystal/BP_Crystal_mk3.BP_Crystal_mk3_C';
+const DROP_POD = '/Game/FactoryGame/World/Benefit/DropPod/BP_DropPod.BP_DropPod_C';
+const RESOURCE_DEPOSIT = '/Game/FactoryGame/Resource/BP_ResourceDeposit.BP_ResourceDeposit_C';
+
 export function vec3(x: number, y: number, z: number): { translation: { x: number; y: number; z: number } } {
   return { translation: { x, y, z } };
 }
@@ -74,11 +83,7 @@ export function obj(typePath: string, properties: Record<string, unknown>, opts:
   };
 }
 
-export function makeSave(input: {
-  objects: RawObject[];
-  collectables?: string[];
-  header?: RawSave['header'];
-}): RawSave {
+export function makeSave(input: { objects: RawObject[]; header?: RawSave['header'] }): RawSave {
   return {
     header: input.header ?? {
       buildVersion: 999999,
@@ -90,7 +95,6 @@ export function makeSave(input: {
       Persistent_Level: {
         name: 'Persistent_Level',
         objects: input.objects,
-        collectables: (input.collectables ?? []).map(ref),
       },
     },
   };
@@ -198,19 +202,22 @@ export const FIXTURE_SAVE: RawSave = makeSave({
 
     // A malformed object (properties is not a record) — must be skipped, not throw.
     { typePath: '/Game/Junk/Junk.Junk_C', instanceName: `${LVL}.Junk_1`, properties: 42 },
-  ],
-  // Collected registry: 3 spheres (WAT1), 2 sloops (WAT2), 4 slugs, 1 drop pod, 1 flora.
-  collectables: [
-    `${LVL}.BP_WAT11_1`,
-    `${LVL}.BP_WAT1_C_UAID_a`,
-    `${LVL}.BP_WAT13_2`,
-    `${LVL}.BP_WAT2_C_UAID_b`,
-    `${LVL}.BP_WAT2_C_UAID_c`,
-    `${LVL}.BP_Crystal6_1`,
-    `${LVL}.BP_Crystal_mk2_1`,
-    `${LVL}.BP_Crystal_mk3_1`,
-    `${LVL}.BP_Crystal11_2`,
-    `${LVL}.BP_DropPod7`,
-    `${LVL}.BP_Shroom_1`,
+
+    // Remaining (un-collected) collectibles — present actors classified by typePath,
+    // placed along +x at increasing distance from the origin for proximity tests:
+    // 2 Mercer Spheres, 1 Somersloop, 3 blue + 1 yellow + 1 purple slug.
+    obj(WAT1, {}, { instanceName: `${LVL}.WAT1_a`, transform: vec3(50, 0, 0) }),
+    obj(WAT1, {}, { instanceName: `${LVL}.WAT1_b`, transform: vec3(5000, 0, 0) }),
+    obj(WAT2, {}, { instanceName: `${LVL}.WAT2_a`, transform: vec3(100, 0, 0) }),
+    obj(CRYSTAL, {}, { instanceName: `${LVL}.Crystal_a`, transform: vec3(200, 0, 0) }),
+    obj(CRYSTAL, {}, { instanceName: `${LVL}.Crystal_b`, transform: vec3(300, 0, 0) }),
+    obj(CRYSTAL, {}, { instanceName: `${LVL}.Crystal_c`, transform: vec3(400, 0, 0) }),
+    obj(CRYSTAL_MK2, {}, { instanceName: `${LVL}.CrystalY`, transform: vec3(250, 0, 0) }),
+    obj(CRYSTAL_MK3, {}, { instanceName: `${LVL}.CrystalP`, transform: vec3(260, 0, 0) }),
+
+    // Excluded by design: hard-drive drop pod (looted state unreliable) and the
+    // transient resource deposit. Neither must appear in progress or nearby.
+    obj(DROP_POD, {}, { instanceName: `${LVL}.DropPod_1`, transform: vec3(60, 0, 0) }),
+    obj(RESOURCE_DEPOSIT, {}, { instanceName: `${LVL}.Deposit_1`, transform: vec3(70, 0, 0) }),
   ],
 });

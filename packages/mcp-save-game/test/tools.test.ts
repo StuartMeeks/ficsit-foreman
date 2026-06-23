@@ -2,8 +2,9 @@ import { describe, expect, it } from 'vitest';
 
 import { normaliseSave } from '../src/normalise/index.js';
 import {
-  collectiblesView,
+  collectibleProgressView,
   milestones,
+  nearby,
   playerSummary,
   storageView,
   unlockedRecipes,
@@ -51,9 +52,27 @@ describe('selectors', () => {
     expect((view.containers[1]?.distance ?? 0)).toBeGreaterThan(view.containers[0]?.distance ?? 0);
   });
 
-  it('collectiblesView surfaces the limitation note', () => {
-    const c = collectiblesView(store.getState());
-    expect(c.precise).toBe(false);
-    expect(c.note).toMatch(/game-data v3/);
+  it('collectibleProgress reports per-type X/Y with a coverage note', () => {
+    const v = collectibleProgressView(store.getState());
+    const sphere = v.perType.find((c) => c.kind === 'mercerSphere');
+    expect(sphere).toMatchObject({ worldTotal: 298, remaining: 2, collected: 296 });
+    expect(v.note).toMatch(/over-counted/);
+  });
+
+  it('nearby returns collectibles nearest-first, filtered and capped', () => {
+    const origin = { x: 0, y: 0, z: 0 };
+    const all = nearby(store.getState(), origin);
+    expect(all.matchCount).toBe(8); // drop pod + resource deposit excluded
+    expect(all.items[0]).toMatchObject({ label: 'Mercer Sphere', distance: 50 }); // nearest
+
+    const spheres = nearby(store.getState(), origin, { kinds: ['mercerSphere'] });
+    expect(spheres.matchCount).toBe(2);
+
+    const within = nearby(store.getState(), origin, { radius: 1000 });
+    expect(within.matchCount).toBe(7); // excludes the far sphere at 5000
+
+    const capped = nearby(store.getState(), origin, { limit: 3 });
+    expect(capped.items).toHaveLength(3);
+    expect(capped.matchCount).toBe(8); // matchCount is the full total, before the limit
   });
 });

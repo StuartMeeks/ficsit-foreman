@@ -10,13 +10,15 @@
  *   npm run inspect get_player_state [save]   # run a tool (any of the five)
  */
 import { expandHome } from '../config.js';
+import { loadItemNames } from '../gameData.js';
 import { normaliseSave } from '../normalise/index.js';
 import { classNameFromPath } from '../normalise/classRef.js';
 import type { RawObject, RawSave } from '../parser/types.js';
 import { parseSaveFile } from '../parser/index.js';
 import {
-  collectiblesView,
+  collectibleProgressView,
   milestones,
+  nearby,
   playerSummary,
   storageView,
   unlockedRecipes,
@@ -28,7 +30,12 @@ const TOOL_RUNNERS: Record<string, (state: ReturnType<typeof loadState>) => unkn
   get_unlocked_recipes: (s) => unlockedRecipes(s),
   get_milestones: (s) => milestones(s),
   get_storage: (s) => storageView(s),
-  get_collectibles: (s) => collectiblesView(s),
+  get_collectibles: (s) => collectibleProgressView(s),
+  // Nearby uses the player's own location as the origin (when known).
+  get_nearby: (s) =>
+    s.player.location === undefined
+      ? { error: 'player location unknown in this save' }
+      : nearby(s, s.player.location),
 };
 
 function out(value: unknown): void {
@@ -55,7 +62,11 @@ function allCollectables(raw: RawSave): string[] {
 }
 
 function loadState(filePath: string): ReturnType<typeof normaliseSave>['state'] {
-  return normaliseSave(parseSaveFile(filePath, 'inspect'), new Date().toISOString()).state;
+  return normaliseSave(
+    parseSaveFile(filePath, 'inspect'),
+    new Date().toISOString(),
+    loadItemNames(),
+  ).state;
 }
 
 function histogram(paths: string[]): Map<string, number> {
@@ -140,7 +151,8 @@ function runSummary(savePath: string): void {
     milestones: state.milestones.length,
     mamResearch: state.mamResearch.length,
     assemblyPhase: state.assemblyPhase?.phase,
-    collectibles: state.collectibles,
+    collectibleProgress: state.collectibleProgress,
+    remainingCollectibles: state.remainingCollectibles.length,
     warnings: state.warnings.length,
   });
 }

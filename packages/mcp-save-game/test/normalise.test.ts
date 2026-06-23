@@ -63,15 +63,34 @@ describe('milestones + MAM + phase', () => {
 });
 
 describe('collectibles', () => {
-  it('reports reliable totals and an approximate split', () => {
-    const c = state.collectibles;
-    expect(c.totalCollected).toBe(11);
-    expect(c.reliable.alienArtifacts).toBe(5);
-    expect(c.reliable.powerSlugs).toBe(4);
-    expect(c.approximate.somersloops).toBe(2);
-    expect(c.approximate.mercerSpheres).toBe(3);
-    expect(c.approximate.dropPodsOrHardDrives).toBe(1);
-    expect(c.precise).toBe(false);
+  const byKind = Object.fromEntries(state.collectibleProgress.map((c) => [c.kind, c]));
+
+  it('derives per-type collected = worldTotal − remaining from present actors', () => {
+    expect(byKind['mercerSphere']).toMatchObject({ worldTotal: 298, remaining: 2, collected: 296 });
+    expect(byKind['somersloop']).toMatchObject({ worldTotal: 106, remaining: 1, collected: 105 });
+    expect(byKind['powerSlugBlue']).toMatchObject({ worldTotal: 596, remaining: 3, collected: 593 });
+    expect(byKind['powerSlugYellow']).toMatchObject({ remaining: 1, collected: 388 });
+    expect(byKind['powerSlugPurple']).toMatchObject({ remaining: 1, collected: 256 });
+  });
+
+  it('excludes hard-drive drop pods and transient resource deposits', () => {
+    expect(state.collectibleProgress.some((c) => String(c.kind).includes('drop'))).toBe(false);
+    // 2 spheres + 1 sloop + 3 blue + 1 yellow + 1 purple = 8 (pod + deposit excluded).
+    expect(state.remainingCollectibles).toHaveLength(8);
+    expect(state.remainingCollectibles.every((c) => c.location !== undefined)).toBe(true);
+  });
+});
+
+describe('item display names', () => {
+  it('uses real names from the provided map, humanised fallback otherwise', () => {
+    const { state: named } = normaliseSave(
+      FIXTURE_SAVE,
+      '2026-01-01T00:00:00.000Z',
+      new Map([['Desc_IronPlate_C', 'Iron Plate']]),
+    );
+    expect(named.player.inventory[0]?.displayName).toBe('Iron Plate'); // from the map
+    const sam = named.storage.dimensionalDepot.find((i) => i.itemClass === 'Desc_SAMIngot_C');
+    expect(sam?.displayName).toBeTruthy(); // not in the map → humanised, still present
   });
 });
 

@@ -1,6 +1,7 @@
+import type { CollectibleKind } from '../constants.js';
 import type {
   AssemblyPhase,
-  Collectibles,
+  CollectibleCount,
   Inventory,
   Milestone,
   SaveState,
@@ -113,8 +114,67 @@ export function storageView(state: SaveState, location?: Vec3): StorageView {
   };
 }
 
-export function collectiblesView(state: SaveState): Collectibles {
-  return state.collectibles;
+const COVERAGE_NOTE =
+  'collected = world total − remaining-in-save. Exact on a fully-explored save; ' +
+  'on an under-explored save (World-Partition cells not yet streamed in) the ' +
+  'collected figure is over-counted.';
+
+export interface CollectibleProgressView {
+  perType: CollectibleCount[];
+  note: string;
+}
+
+/** Per-type collection progress (Mercer Spheres, Somersloops, blue/yellow/purple slugs). */
+export function collectibleProgressView(state: SaveState): CollectibleProgressView {
+  return { perType: state.collectibleProgress, note: COVERAGE_NOTE };
+}
+
+export interface NearbyItem {
+  kind: CollectibleKind;
+  label: string;
+  location: Vec3;
+  distance: number;
+}
+
+export interface NearbyOptions {
+  kinds?: CollectibleKind[];
+  radius?: number;
+  limit?: number;
+}
+
+export interface NearbyResult {
+  origin: Vec3;
+  radius?: number;
+  /** Total matches (before the limit was applied). */
+  matchCount: number;
+  items: NearbyItem[];
+}
+
+const DEFAULT_NEARBY_LIMIT = 20;
+
+/**
+ * Un-collected collectibles near a world location, nearest-first. Filtered by
+ * `kinds` and `radius`, capped by `limit` (default 20).
+ */
+export function nearby(state: SaveState, origin: Vec3, options: NearbyOptions = {}): NearbyResult {
+  const limit = options.limit ?? DEFAULT_NEARBY_LIMIT;
+  let items: NearbyItem[] = state.remainingCollectibles
+    .filter(
+      (c): c is typeof c & { location: Vec3 } =>
+        c.location !== undefined && (options.kinds === undefined || options.kinds.includes(c.kind)),
+    )
+    .map((c) => ({
+      kind: c.kind,
+      label: c.label,
+      location: c.location,
+      distance: distance(origin, c.location),
+    }))
+    .sort((a, b) => a.distance - b.distance);
+  if (options.radius !== undefined) {
+    const radius = options.radius;
+    items = items.filter((i) => i.distance <= radius);
+  }
+  return { origin, radius: options.radius, matchCount: items.length, items: items.slice(0, limit) };
 }
 
 export function distance(a: Vec3, b: Vec3): number {
