@@ -22,5 +22,8 @@
     "start:mcp": "npm run start -w @foreman/mcp-game-data",
     "start:server": "npm run start -w @foreman/server",
     "inspect": "npm run inspect -w @foreman/mcp-game-data --"
+  },
+  "overrides": {
+    "@hono/node-server": "^1.19.13"
   }
 }
