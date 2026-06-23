@@ -1,0 +1,9 @@
+# The CUE4Parse clone is not vendored — clone it here per README.md.
+/CUE4Parse/
+
+# .NET build output.
+**/bin/
+**/obj/
+
+# Oodle native library downloaded at runtime.
+*.dll

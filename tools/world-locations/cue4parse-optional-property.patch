@@ -1,0 +1,19 @@
+diff --git a/CUE4Parse/MappingsProvider/Usmap/UsmapProperties.cs b/CUE4Parse/MappingsProvider/Usmap/UsmapProperties.cs
+--- a/CUE4Parse/MappingsProvider/Usmap/UsmapProperties.cs
++++ b/CUE4Parse/MappingsProvider/Usmap/UsmapProperties.cs
+@@ -54,9 +54,14 @@ public static PropertyType ParsePropertyType(FUsmapReader Ar, IReadOnlyList<stri
+                 break;
+             case EPropertyType.SetProperty:
+             case EPropertyType.ArrayProperty:
+-            case EPropertyType.OptionalProperty:
+                 innerType = ParsePropertyType(Ar, nameLut);
+                 break;
++            // CSS's shipped FactoryGame.usmap serialises OptionalProperty WITHOUT an
++            // inner-type byte (verified by raw-byte inspection of the decompressed
++            // mappings); reading one here derails every subsequent property. Treat it
++            // as terminal. Array/Set above DO carry inner types, so leave them be.
++            case EPropertyType.OptionalProperty:
++                break;
+             case EPropertyType.MapProperty:
+                 innerType = ParsePropertyType(Ar, nameLut);
+                 valueType = ParsePropertyType(Ar, nameLut);
