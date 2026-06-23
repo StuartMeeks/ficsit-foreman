@@ -140,9 +140,31 @@ tagged with the detected game version.
 | `list_schematics(tier?)` | Milestones/MAM/shop/hard-drive schematics, optionally by tier. |
 | `get_schematic(name)` | A single schematic with its full unlock list. |
 | `cypher_query(query)` | Guarded read-only Cypher escape hatch (rejects mutating keywords). |
+| `list_collectibles(type?)` | World totals per collectible kind; full coordinate list for one kind when `type` is given. |
+| `nearest_collectibles(coord, type?, n?)` | Collectibles nearest a location, with distance — "what can I grab near me?". |
+| `nearest_resource_nodes(coord, resource?, purity?, n?)` | Resource nodes nearest a location, with resource type, purity and distance. |
 
 Name resolution (display name, case-insensitive, or exact class name) is transparent —
 the foreman never needs to know internal class names.
+
+### World locations
+
+`list_collectibles`, `nearest_collectibles` and `nearest_resource_nodes` are
+backed by a static, first-party **world-location dataset** bundled in
+`@foreman/game-data-core` (`data/<channel>/world-locations.json`) — every fixed
+collectible (Mercer Spheres, Somersloops, power slugs, hard-drive drop pods) and
+resource extraction point (ore/fluid nodes, fracking satellites and cores,
+geothermal geysers) with coordinates, resource type and purity. It is loaded
+straight into memory (a flat point list plus a distance sort) rather than into
+the graph. Coordinates are Unreal world units (centimetres), matching the save
+game, so a pioneer's position is directly comparable. Override the dataset path
+with `WORLD_LOCATIONS_PATH`.
+
+The dataset was extracted from the packaged Satisfactory level files with
+[CUE4Parse](https://github.com/FabianFG/CUE4Parse) using the `FactoryGame.usmap`
+mappings Coffee Stain ships in `CommunityResources/`. Only factual coordinates
+are stored — no game assets are redistributed. Collectible counts are validated
+in CI against the known fixed world totals.
 
 ## Architecture
 

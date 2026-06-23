@@ -3,6 +3,7 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 
 import type { GraphDB } from './graph/index.js';
+import type { WorldQueries } from './world/queries.js';
 import { registerTools } from './tools/index.js';
 import { lanAddresses } from './config.js';
 import { logger } from './logger.js';
@@ -20,6 +21,7 @@ const MCP_ENDPOINT = '/mcp';
  */
 export async function startHttpServer(
   graph: GraphDB,
+  world: WorldQueries,
   host: string,
   port: number,
   serverName: string,
@@ -30,7 +32,7 @@ export async function startHttpServer(
 
   app.post(MCP_ENDPOINT, async (req, res) => {
     const server = new McpServer({ name: serverName, version: serverVersion });
-    registerTools(server, graph);
+    registerTools(server, graph, world);
     const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined });
     res.on('close', () => {
       void transport.close();

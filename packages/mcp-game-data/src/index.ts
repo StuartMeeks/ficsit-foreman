@@ -6,9 +6,15 @@ import dotenv from 'dotenv';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 
-import { emptyGameData, parseDocsFile, resolveDocsPath } from '@foreman/game-data-core';
+import {
+  emptyGameData,
+  loadWorldLocations,
+  parseDocsFile,
+  resolveDocsPath,
+} from '@foreman/game-data-core';
 import type { GameData } from '@foreman/game-data-core';
 import { initGraph } from './graph/index.js';
+import { WorldQueries } from './world/queries.js';
 import { registerTools } from './tools/index.js';
 import { resolveServerConfig } from './config.js';
 import { startHttpServer } from './http.js';
@@ -67,14 +73,30 @@ async function main(): Promise<void> {
   const graph = await initGraph(gameData);
   logStartupSummary(gameData, docsPath);
 
+  const { world, warning: worldWarning } = loadWorldLocations();
+  if (worldWarning !== undefined) {
+    logger.warn(worldWarning);
+  }
+  logger.info(
+    `World locations: collectibles=${world.collectibles.length} resourceNodes=${world.resourceNodes.length}`,
+  );
+  const worldQueries = new WorldQueries(world, gameData);
+
   const config = resolveServerConfig();
   if (config.transport === 'http') {
-    await startHttpServer(graph, config.host, config.port, SERVER_NAME, SERVER_VERSION);
+    await startHttpServer(
+      graph,
+      worldQueries,
+      config.host,
+      config.port,
+      SERVER_NAME,
+      SERVER_VERSION,
+    );
     return;
   }
 
   const server = new McpServer({ name: SERVER_NAME, version: SERVER_VERSION });
-  registerTools(server, graph);
+  registerTools(server, graph, worldQueries);
   const transport = new StdioServerTransport();
   await server.connect(transport);
   logger.info('Transport: stdio (no network port — the client talks over stdin/stdout).');
