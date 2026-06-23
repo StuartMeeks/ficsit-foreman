@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { consumeOpenAiStream, type OpenAiStreamChunk } from '../src/llm/openai.js';
+import { consumeOpenAiStream, tokenLimitParam, type OpenAiStreamChunk } from '../src/llm/openai.js';
 import type { LlmStreamEvent } from '../src/llm/types.js';
 
 async function* chunks(items: OpenAiStreamChunk[]): AsyncGenerator<OpenAiStreamChunk> {
@@ -66,5 +66,26 @@ describe('consumeOpenAiStream', () => {
       () => {},
     );
     expect(result.toolCalls).toEqual([{ id: 'y', name: 'noargs', arguments: {} }]);
+  });
+});
+
+describe('tokenLimitParam', () => {
+  it('uses max_completion_tokens for GPT-5 and o-series reasoning models', () => {
+    expect(tokenLimitParam('gpt-5-mini', 4096)).toEqual({ max_completion_tokens: 4096 });
+    expect(tokenLimitParam('gpt-5', 4096)).toEqual({ max_completion_tokens: 4096 });
+    expect(tokenLimitParam('o3', 4096)).toEqual({ max_completion_tokens: 4096 });
+    expect(tokenLimitParam('o4-mini', 4096)).toEqual({ max_completion_tokens: 4096 });
+    expect(tokenLimitParam('o1-preview', 4096)).toEqual({ max_completion_tokens: 4096 });
+  });
+
+  it('tolerates an OpenRouter-style provider prefix', () => {
+    expect(tokenLimitParam('openai/gpt-5-mini', 2048)).toEqual({ max_completion_tokens: 2048 });
+  });
+
+  it('keeps max_tokens for gpt-4.1/4o, and OpenAI-compatible local models', () => {
+    expect(tokenLimitParam('gpt-4.1-mini', 8192)).toEqual({ max_tokens: 8192 });
+    expect(tokenLimitParam('gpt-4o', 8192)).toEqual({ max_tokens: 8192 });
+    expect(tokenLimitParam('llama3.1', 8192)).toEqual({ max_tokens: 8192 });
+    expect(tokenLimitParam('qwen3:32b', 8192)).toEqual({ max_tokens: 8192 });
   });
 });
