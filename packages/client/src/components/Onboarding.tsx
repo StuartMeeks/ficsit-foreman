@@ -1,8 +1,9 @@
 import { useState } from 'react';
 
 /** A selectable foreman persona. Choosing one seeds the editable personality
- * text; the pioneer can then rewrite it freely. The four presets are the
- * examples named in SPEC.md §4 — they are starting points, not a fixed menu. */
+ * text; the pioneer can then rewrite it freely. The presets are starting
+ * points (the archetypes sketched in SPEC.md §4, plus a synthetic-AI option),
+ * not a fixed menu. */
 interface ForemanPreset {
   key: string;
   name: string;
@@ -11,6 +12,17 @@ interface ForemanPreset {
 }
 
 const FOREMAN_PRESETS: ForemanPreset[] = [
+  {
+    key: 'synthetic',
+    name: 'Synthetic Intelligence',
+    tagline: 'Deadpan corporate AI',
+    seed:
+      'A synthetic FICSIT intelligence: composed, impeccably polite and relentlessly ' +
+      'on-message. Speaks in calm, measured, faintly clinical terms, framing every task ' +
+      'around efficiency, compliance and continued productivity. Favours dry understatement ' +
+      'and the occasional cheerfully ominous note about workplace safety and the ' +
+      'expendability of labour — endlessly helpful, never quite warm.',
+  },
   {
     key: 'gruff',
     name: 'Gruff Supervisor',
