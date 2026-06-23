@@ -1,6 +1,9 @@
 # Game data (copied from a Satisfactory install — not redistributable)
 game-data/
 
+# Satisfactory save files (player data — never commit; used locally for inspect)
+*.sav
+
 # Dependencies
 node_modules/
 

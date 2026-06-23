@@ -9,8 +9,8 @@ static, version-tagged game data). This server answers *"what has this pioneer
 actually built, unlocked, and collected?"*. The two run independently and are
 consumed together by the foreman.
 
-> **Status:** scaffold. This spec defines the work; the `src/` directory is ready
-> for the v1 implementation.
+> **Status:** v1 implemented. Parser → normalise → store → tools are in place and
+> validated against real saves; see the README for usage and `npm run inspect`.
 
 ---
 
@@ -82,16 +82,22 @@ v1 implementation detail (re-parse on file mtime change is the simplest).
 |---|---|
 | `get_player_state()` | Player location, hub location, and personal inventory. |
 | `get_unlocked_recipes()` | All unlocked recipes, including alternates, flagged standard vs alternate. |
-| `get_milestones()` | Unlocked milestones grouped by tier, plus the current assembly phase. |
-| `get_storage(location?)` | Storage container inventories and dimensional depot contents; with `location`, filtered/sorted by proximity to that coordinate. |
-| `get_collectibles()` | Harvested vs available Mercer Spheres and Somersloops (locations), and visited/looted crash sites. |
+| `get_milestones()` | Unlocked milestones grouped by tier, tutorial schematics, MAM research unlocks, and the current Project Assembly phase. |
+| `get_storage(location?)` | Storage container inventories and dimensional depot contents; with `location`, sorted by proximity to that coordinate. |
+| `get_collectibles()` | Collected-collectible summary: reliable alien-artifact and power-slug totals, an approximate per-type split, and world totals for reference. |
 
-> "Available" collectibles (the *un*harvested ones) require the full world set of
-> collectible locations. That set is **world data**, not save data — it is owned by
-> `mcp-game-data` v3 (*World Locations*). v1 of this server reports what the save
-> records as harvested; `get_collectibles` returns "available" only once the
-> game-data world-location set exists to diff against. Until then it reports
-> harvested counts/locations and notes the limitation in the response.
+> **Collectibles — what the save actually records (confirmed against real saves).**
+> The save stores collected collectibles only as a per-level "collected" (destroyed-
+> actor) registry of bare instance references — there is no central counter, and the
+> references carry no type, colour, or location. Calibrated against ground truth: the
+> alien-artifact (`BP_WAT`) and power-slug (`BP_Crystal`) **totals** are reliable; the
+> Mercer/Somersloop split, slug colour, and drop-pod/hard-drive counts are
+> **approximate**. Exact per-type counts and locations — and the *un*harvested
+> complement — require the full world collectible-location set, which is **world
+> data** owned by `mcp-game-data` v3 (*World Locations*), not save data. v1 therefore
+> reports the reliable totals + an approximate split + known world totals as
+> reference, and states the limitation in the response. (Drop-pod actor bodies do not
+> fully decode on current builds, so hard-drive loot-state is likewise deferred.)
 
 ---
 
@@ -169,11 +175,15 @@ parser).
   Unreal property serialisation are non-trivial and must track game-version changes
   ourselves.
 
-**Recommendation (provisional):** start by **adopting** a well-maintained community
-parser to reach a useful v1 quickly, **behind our own `normalise` abstraction** so
-the tools never depend on its shape directly. Re-evaluate building in-house if the
-chosen library proves unmaintained or blocks a game-version update. Record the final
-decision here once v1 begins.
+**Decision (v1, 2026-06):** we **adopted** `@etothepii/satisfactory-file-parser`
+(`^4.1.0`, MIT — actively maintained, supports save versions 1.0–1.2), wrapped behind
+our own `normalise` layer (`src/parser/index.ts` is the sole importer, so a future
+swap or in-house parser is contained there). Two other implementations were consulted
+to confirm the format —
+[`SatisfactorySaveNet`](https://github.com/R3dByt3/SatisfactorySaveNet) (C#) and
+[`GreyHak/sat_sav_parse`](https://github.com/GreyHak/sat_sav_parse) (Python); all three
+agree on the structures we read. Re-evaluate building in-house if the chosen library
+becomes unmaintained or blocks a game-version update.
 
 ---
 
@@ -181,6 +191,7 @@ decision here once v1 begins.
 
 Mirror the game-data package: Vitest against **hand-crafted fixtures**, never a real
 player save in the repo. Cover normalisation (class-name resolution, coordinate and
-quantity decoding), the harvested-vs-available collectible logic, and each tool's
-computed output against known values. Keep any real `.sav` used for local testing
-out of version control (gitignored).
+quantity decoding, standard-vs-alternate recipes, collectible classification), and
+each tool's computed output against known values. Keep any real `.sav` used for local
+testing out of version control (gitignored); `npm run inspect <save>` is the
+regression check against real saves.

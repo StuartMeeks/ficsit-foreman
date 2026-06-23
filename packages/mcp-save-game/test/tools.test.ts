@@ -1,0 +1,59 @@
+import { describe, expect, it } from 'vitest';
+
+import { normaliseSave } from '../src/normalise/index.js';
+import {
+  collectiblesView,
+  milestones,
+  playerSummary,
+  storageView,
+  unlockedRecipes,
+} from '../src/query/selectors.js';
+import { SaveStore } from '../src/store/saveStore.js';
+import { FIXTURE_SAVE } from './fixtures/save.js';
+
+const { state } = normaliseSave(FIXTURE_SAVE, '2026-01-01T00:00:00.000Z');
+const store = SaveStore.fromState(state);
+
+describe('store tagging', () => {
+  it('exposes version and save name for response tagging', () => {
+    expect(store.version).toBe('build 999999 (save 60)');
+    expect(store.saveName).toBe('Fixture');
+  });
+});
+
+describe('selectors', () => {
+  it('playerSummary reports location and item count', () => {
+    const summary = playerSummary(store.getState());
+    expect(summary.itemCount).toBe(1);
+    expect(summary.location).toEqual({ x: 100, y: 200, z: 300 });
+  });
+
+  it('unlockedRecipes splits standard and alternate with counts', () => {
+    const r = unlockedRecipes(store.getState());
+    expect(r.total).toBe(2);
+    expect(r.standardCount).toBe(1);
+    expect(r.alternateCount).toBe(1);
+  });
+
+  it('milestones groups by tier and surfaces phase + MAM', () => {
+    const m = milestones(store.getState());
+    expect(m.milestonesByTier).toEqual([{ tier: 3, milestones: expect.any(Array) }]);
+    expect(m.tutorials).toHaveLength(1);
+    expect(m.assemblyPhase?.phase).toBe(2);
+    expect(m.mamResearch).toEqual(['Caterium']);
+  });
+
+  it('storageView sorts containers nearest-first when given a location', () => {
+    const view = storageView(store.getState(), { x: 0, y: 0, z: 0 });
+    expect(view.containerCount).toBe(2);
+    expect(view.containers[0]?.buildingClass).toBe('Build_StorageContainerMk1_C'); // the near one
+    expect(view.containers[0]?.distance).toBe(10);
+    expect((view.containers[1]?.distance ?? 0)).toBeGreaterThan(view.containers[0]?.distance ?? 0);
+  });
+
+  it('collectiblesView surfaces the limitation note', () => {
+    const c = collectiblesView(store.getState());
+    expect(c.precise).toBe(false);
+    expect(c.note).toMatch(/game-data v3/);
+  });
+});

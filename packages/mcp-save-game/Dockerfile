@@ -1,16 +1,12 @@
 # syntax=docker/dockerfile:1
 
-# Foreman save-game MCP server image (scaffold).
+# Foreman save-game MCP server image.
 #
-# Builds the @foreman/mcp-save-game workspace. The package is currently a v1
-# scaffold (see packages/mcp-save-game/SPEC.md) — the entry point exits
-# immediately, so this image is wired up but not yet a running server. The HTTP
-# transport, /health endpoint and HEALTHCHECK will be added with the v1 build.
-#
-# Point it at a save with SAVE_FILE_PATH (mount the save directory read-only).
-#
-# Base is glibc (bookworm-slim), not Alpine: the native `kuzu` addon ships a
-# glibc prebuilt binary and will not load under musl.
+# Builds the @foreman/mcp-save-game workspace and runs it over the HTTP
+# transport. Point it at a save with SAVE_FILE_PATH (mount the save directory
+# read-only). The parser is pure JavaScript (no native addon), so the base
+# image is unconstrained; bookworm-slim is kept for parity with the game-data
+# image.
 
 # ── Build stage ─────────────────────────────────────────────────────────────
 FROM node:22-bookworm-slim AS builder
@@ -24,8 +20,7 @@ RUN npm install -g "npm@$(node -p 'require("./package.json").packageManager.spli
 COPY packages/mcp-save-game/package.json ./packages/mcp-save-game/package.json
 RUN npm ci
 
-# Build, then drop dev dependencies so node_modules carries only runtime deps
-# (keeping the kuzu binary that was just installed for this platform).
+# Build, then drop dev dependencies so node_modules carries only runtime deps.
 COPY packages/mcp-save-game ./packages/mcp-save-game
 RUN npm run build -w @foreman/mcp-save-game && npm prune --omit=dev
 
@@ -44,5 +39,9 @@ COPY --from=builder /app/packages/mcp-save-game/dist ./packages/mcp-save-game/di
 
 USER node
 EXPOSE 8726
+
+# Health: hit the /health endpoint the HTTP transport exposes (Node 22 has fetch).
+HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
+  CMD node -e "fetch('http://127.0.0.1:'+(process.env.MCP_HTTP_PORT||8726)+'/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
 
 CMD ["node", "packages/mcp-save-game/dist/index.js"]
