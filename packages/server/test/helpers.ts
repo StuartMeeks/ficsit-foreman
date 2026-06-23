@@ -4,6 +4,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { PrismaBetterSqlite3 } from '@prisma/adapter-better-sqlite3';
 import { PrismaClient } from '@prisma/client';
 
 const packageRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -21,12 +22,13 @@ export interface TestDb {
 export async function createTestDb(): Promise<TestDb> {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'foreman-srv-test-'));
   const url = `file:${path.join(dir, 'test.db')}`;
-  execSync('npx prisma db push --skip-generate --schema=prisma/schema.prisma', {
+  execSync('npx prisma db push', {
     cwd: packageRoot,
     env: { ...process.env, DATABASE_URL: url },
     stdio: 'pipe',
   });
-  const prisma = new PrismaClient({ datasources: { db: { url } } });
+  const adapter = new PrismaBetterSqlite3({ url });
+  const prisma = new PrismaClient({ adapter });
   return {
     prisma,
     cleanup: async (): Promise<void> => {

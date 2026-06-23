@@ -12,7 +12,6 @@ generator client {
 
 datasource db {
   provider = "sqlite"
-  url      = env("DATABASE_URL")
 }
 
 // A play session. Identity is the session id (a client-held UUID); there are no

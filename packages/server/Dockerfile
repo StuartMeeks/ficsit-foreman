@@ -12,11 +12,17 @@
 # (the compose service name) and persisting to a SQLite database under /data.
 # Provide ANTHROPIC_API_KEY for the hosted tier, or let clients pass their own.
 #
-# Base is glibc (bookworm-slim), matching the Prisma query-engine prebuilt.
+# Base is glibc (bookworm-slim): Prisma 7 has no Rust query engine — it connects
+# via the better-sqlite3 driver adapter, a native addon with a glibc prebuilt.
 
 # ── Build stage ─────────────────────────────────────────────────────────────
 FROM node:22-bookworm-slim AS builder
 WORKDIR /app
+
+# bookworm-slim omits the openssl package; without it the Prisma CLI cannot
+# detect the libssl version and warns while falling back to openssl-1.1.x.
+RUN apt-get update && apt-get install -y --no-install-recommends openssl \
+    && rm -rf /var/lib/apt/lists/*
 
 # Install workspace dependencies first for better layer caching.
 COPY package.json package-lock.json tsconfig.base.json ./
@@ -37,13 +43,21 @@ ENV NODE_ENV=production \
     SYSTEM_PROMPT_PATH=/app/SYSTEM_PROMPT.md
 WORKDIR /app
 
+# openssl so the Prisma CLI (migrate deploy at start-up) detects libssl cleanly.
+RUN apt-get update && apt-get install -y --no-install-recommends openssl \
+    && rm -rf /var/lib/apt/lists/*
+
 # node_modules is copied whole (not pruned): it carries the generated Prisma
-# client, the query engine, and the Prisma CLI used to apply migrations at start.
+# client, the better-sqlite3 native addon + driver adapter, and the Prisma CLI
+# used to apply migrations at start.
 COPY package.json package-lock.json ./
 COPY packages/server/package.json ./packages/server/package.json
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/packages/server/dist ./packages/server/dist
 COPY --from=builder /app/packages/server/prisma ./packages/server/prisma
+# Prisma 7 reads the datasource URL from the config file (not schema.prisma), so
+# the migrate-deploy step at container start needs it present.
+COPY --from=builder /app/packages/server/prisma.config.ts ./packages/server/prisma.config.ts
 # The foreman system prompt is the repo-root source of truth.
 COPY SYSTEM_PROMPT.md ./SYSTEM_PROMPT.md
 
