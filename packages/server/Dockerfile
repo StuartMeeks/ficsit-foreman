@@ -26,6 +26,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends openssl \
 
 # Install workspace dependencies first for better layer caching.
 COPY package.json package-lock.json tsconfig.base.json ./
+# Pin the npm version declared in package.json's packageManager field so the
+# lockfile resolves identically here, in CI, and for local dev; also silences
+# the npm update notice (the base image bundles npm 10).
+RUN npm install -g "npm@$(node -p 'require("./package.json").packageManager.split("@")[1]')"
 COPY packages/server/package.json ./packages/server/package.json
 RUN npm ci
 
@@ -51,6 +55,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends openssl \
 # client, the better-sqlite3 native addon + driver adapter, and the Prisma CLI
 # used to apply migrations at start.
 COPY package.json package-lock.json ./
+# Pin the npm version from package.json's packageManager field (the migrate-deploy
+# step at start-up runs via npm); also silences the notice.
+RUN npm install -g "npm@$(node -p 'require("./package.json").packageManager.split("@")[1]')"
 COPY packages/server/package.json ./packages/server/package.json
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/packages/server/dist ./packages/server/dist

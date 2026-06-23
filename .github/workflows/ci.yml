@@ -26,6 +26,12 @@ jobs:
           node-version: 22
           cache: npm
 
+      # Pin the npm version declared in package.json's packageManager field so the
+      # lockfile resolves consistently with the Docker images (setup-node ships npm 10).
+      - name: Pin npm
+        run: |
+          npm install -g "npm@$(node -p 'require("./package.json").packageManager.split("@")[1]')"
+
       - name: Install dependencies
         run: npm ci
 
