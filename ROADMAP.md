@@ -7,15 +7,14 @@ They do **not** map onto the project phases in [`SPEC.md`](./SPEC.md); the phase
 describe how the product was first built end-to-end, whereas these tracks describe
 how each component grows from here.
 
-Items are aspirational and may be reordered. Where a version is marked
-*(complete)* it reflects what already ships today.
+Items are aspirational and may be reordered. Completed work is removed from this
+file rather than ticked off — so everything here is still ahead of us.
 
 ---
 
 ## GUI
 
 ### v1 — Current scope
-- Onboarding flow (personality + pioneer profile elicitation).
 - Work order panel (north-star fidelity per `SPEC.md` Phase 3).
 - Navigable work order history.
 
@@ -55,46 +54,28 @@ Items are aspirational and may be reordered. Where a version is marked
 
 ## MCP: Game Data (`packages/mcp-game-data`)
 
-### v1 — Complete
-- Items, recipes, buildings, schematics.
-- Tools: `ingredient_tree`, `total_raw_inputs`, `recipes_for`,
-  `compare_alternates`, `buildable_with`, `what_consumes`, `cypher_query`
-  (plus `get_item`, `get_recipe`, `get_building`, `list_power_generators`,
-  `list_schematics`, `get_schematic`).
-
 ### v2 — Full Production Line Costing
 - Production line from scratch **including logistics**: miners, water extractors,
   splitters, mergers, belts (by mark), pipes.
 - New tool: `full_production_line(item, targetPerMinute)` — returns production
   machines + all logistics infrastructure and their build costs.
 
-### v3 — World Locations
-- Item location data (Mercer Spheres, Somersloops, crash sites, power slugs,
-  bonus items / helmets / tapes).
-- Proximity queries: find the nearest X to a given coordinate.
-- Opportunistic pickup suggestions: "while you're there, grab these Somersloops
-  nearby".
-- Requires world coordinate data — source TBD.
+### v3 — World Locations: bonus pickups
+- Extend the world-location dataset to the pickup classes not yet extracted —
+  bonus items, helmets, tapes and other customiser/collectible pickups
+  (`FGItemPickup_Spawnable`, `BP_UnlockPickup_*`), via the existing CUE4Parse
+  extractor in `tools/world-locations/`.
+- Surface them through the existing `list_collectibles` / `nearest_collectibles`
+  tools (new collectible kinds), with the counts validated like the others.
 
 ---
 
 ## MCP: Save Game (`packages/mcp-save-game`)
 
-A new package: **save file → parser → MCP server.** It exposes the pioneer's
-actual progress (location, inventory, unlocks, collectibles) so the foreman can
-issue orders grounded in reality rather than assumption. Full technical detail
-lives in [`packages/mcp-save-game/SPEC.md`](./packages/mcp-save-game/SPEC.md).
-
-### v1 — Pioneer Progress
-- Player location (x, y, z) and hub location.
-- Player inventory, storage container inventories (with container location), and
-  dimensional depot contents.
-- Unlocked recipes (standard and alternate), MAM research unlocks, milestone
-  unlocks by tier, and current part assembly phase.
-- Collectibles: harvested Mercer Spheres and Somersloops (locations), and
-  visited/looted crash sites.
-- Tools: `get_player_state`, `get_unlocked_recipes`, `get_milestones`,
-  `get_storage(location?)`, `get_collectibles`.
+**save file → parser → MCP server.** Exposes the pioneer's actual progress
+(location, inventory, unlocks, collectibles) so the foreman can issue orders
+grounded in reality rather than assumption. Full technical detail lives in
+[`packages/mcp-save-game/SPEC.md`](./packages/mcp-save-game/SPEC.md).
 
 ### v2 — Power
 - Generators (type, fuel, output, location).
