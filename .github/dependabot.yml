@@ -34,9 +34,16 @@ updates:
         patterns:
           - "*"
 
-  # Base image used by the Dockerfile.
+  # Base images used by the per-package Dockerfiles. The Dockerfiles live under
+  # packages/*/Dockerfile (there is none at the repo root), and the docker
+  # updater does not recurse — so the directories must point at each package, or
+  # base-image updates are never detected.
   - package-ecosystem: "docker"
-    directory: "/"
+    directories:
+      - "/packages/server"
+      - "/packages/client"
+      - "/packages/mcp-game-data"
+      - "/packages/mcp-save-game"
     schedule:
       interval: "monthly"
       time: "08:00"
