@@ -1,0 +1,116 @@
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+/**
+ * Resolves the path to the docs file (`en-US.json`) from the environment, in
+ * priority order:
+ *   1. SATISFACTORY_DOCS_PATH — full path to en-US.json
+ *   2. SATISFACTORY_GAME_DIR  — install root; append CommunityResources/Docs/
+ *      (en-US.json for 1.x, falling back to the pre-1.0 Docs.json)
+ *   3. Bundled channel — committed game data under `<game-data-core>/data/<channel>/`,
+ *      where <channel> is `stable` or `experimental`, selected by
+ *      SATISFACTORY_GAME_CHANNEL (default `stable`; falls back to the other
+ *      channel if the requested one is absent).
+ *   4. None available → no path; the caller starts with empty data and a warning.
+ */
+export interface DocsPathResolution {
+  path?: string;
+  warning?: string;
+}
+
+/** Satisfactory release channels Foreman bundles game data for. */
+export type GameChannel = 'stable' | 'experimental';
+export const GAME_CHANNELS: readonly GameChannel[] = ['stable', 'experimental'];
+const DEFAULT_CHANNEL: GameChannel = 'stable';
+
+const DOCS_SUBPATH = ['CommunityResources', 'Docs'];
+const DOCS_FILENAMES = ['en-US.json', 'Docs.json'];
+
+/** Expands a leading `~` to the user's home directory. */
+export function expandHome(input: string): string {
+  if (input === '~') {
+    return os.homedir();
+  }
+  if (input.startsWith('~/')) {
+    return path.join(os.homedir(), input.slice(2));
+  }
+  return input;
+}
+
+/** Root directory holding the bundled per-channel game data (`<pkg>/data`). */
+export function bundledDataDir(): string {
+  // This module compiles to either src/ (tsx) or dist/ — both one level under
+  // the package root, so the bundled data sits at `../data`.
+  const moduleDir = path.dirname(fileURLToPath(import.meta.url));
+  return path.resolve(moduleDir, '..', 'data');
+}
+
+/** Path to a channel's bundled en-US.json (whether or not it exists). */
+export function channelDocsPath(dataDir: string, channel: GameChannel): string {
+  return path.join(dataDir, channel, 'en-US.json');
+}
+
+function parseChannel(raw: string | undefined): GameChannel | undefined {
+  const value = raw?.trim().toLowerCase();
+  return GAME_CHANNELS.find((channel) => channel === value);
+}
+
+export function resolveDocsPath(
+  env: NodeJS.ProcessEnv = process.env,
+  dataDir: string = bundledDataDir(),
+): DocsPathResolution {
+  const warnings: string[] = [];
+
+  const direct = env['SATISFACTORY_DOCS_PATH']?.trim();
+  if (direct !== undefined && direct !== '') {
+    const resolved = expandHome(direct);
+    if (fs.existsSync(resolved)) {
+      return { path: resolved };
+    }
+    warnings.push(`SATISFACTORY_DOCS_PATH is set to '${resolved}' but no file exists there.`);
+  }
+
+  const gameDir = env['SATISFACTORY_GAME_DIR']?.trim();
+  if (gameDir !== undefined && gameDir !== '') {
+    const docsDir = path.join(expandHome(gameDir), ...DOCS_SUBPATH);
+    for (const filename of DOCS_FILENAMES) {
+      const candidate = path.join(docsDir, filename);
+      if (fs.existsSync(candidate)) {
+        return { path: candidate };
+      }
+    }
+    warnings.push(
+      `SATISFACTORY_GAME_DIR is set but no ${DOCS_FILENAMES.join('/')} was found under '${docsDir}'.`,
+    );
+  }
+
+  // Fall back to bundled channel data. Prefer the requested channel, then the
+  // other, so the server still starts if only one channel has been supplied.
+  const rawChannel = env['SATISFACTORY_GAME_CHANNEL']?.trim();
+  const requested = parseChannel(rawChannel);
+  if (rawChannel !== undefined && rawChannel !== '' && requested === undefined) {
+    warnings.push(
+      `SATISFACTORY_GAME_CHANNEL='${rawChannel}' is invalid (use ${GAME_CHANNELS.join('|')}); defaulting to ${DEFAULT_CHANNEL}.`,
+    );
+  }
+  const channel = requested ?? DEFAULT_CHANNEL;
+  const preference: GameChannel[] = [channel, ...GAME_CHANNELS.filter((c) => c !== channel)];
+  for (const candidateChannel of preference) {
+    const candidate = channelDocsPath(dataDir, candidateChannel);
+    if (fs.existsSync(candidate)) {
+      const prefix = warnings.length > 0 ? `${warnings.join(' ')} ` : '';
+      const note = candidateChannel === channel ? '' : ` (requested '${channel}' is unavailable)`;
+      return {
+        path: candidate,
+        warning: `${prefix}Using bundled ${candidateChannel} game data${note}.`,
+      };
+    }
+  }
+
+  warnings.push(
+    `No game data available: set SATISFACTORY_DOCS_PATH or SATISFACTORY_GAME_DIR, or add bundled data under packages/game-data-core/data/{${GAME_CHANNELS.join(',')}}/. Starting with empty game data.`,
+  );
+  return { warning: warnings.join(' ') };
+}

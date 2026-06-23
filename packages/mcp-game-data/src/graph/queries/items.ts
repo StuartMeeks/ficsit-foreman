@@ -1,4 +1,4 @@
-import type { Item } from '../../parser/types.js';
+import type { Item } from '@foreman/game-data-core';
 import { type QueryContext, itemByClass } from '../context.js';
 import { rows } from '../run.js';
 

@@ -1,6 +1,6 @@
 import type { Connection } from 'kuzu';
 
-import type { GameData } from '../parser/types.js';
+import type { GameData } from '@foreman/game-data-core';
 import { NODE_TABLES, REL_TABLES } from './schema.js';
 
 /**

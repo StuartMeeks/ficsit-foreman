@@ -1,7 +1,7 @@
 import type { Connection } from 'kuzu';
 
-import type { GameData, IngredientUnit, Item } from '../parser/types.js';
-import { humaniseClassName } from '../parser/normalise/classRef.js';
+import type { GameData, IngredientUnit, Item } from '@foreman/game-data-core';
+import { humaniseClassName } from '@foreman/game-data-core';
 import type { Resolver } from './resolve.js';
 
 /** Everything a query function needs. Implemented by `GraphDB`. */
