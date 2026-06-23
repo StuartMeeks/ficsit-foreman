@@ -100,8 +100,8 @@ services:
   # `docker compose up` ignores it. Point SAVE_FILE_PATH at your save and bring it
   # up with the profile:
   #   SAVE_FILE_PATH=/path/to/MySave.sav docker compose --profile save-game up -d
-  # NOTE: this package is currently a scaffold (see packages/mcp-save-game/SPEC.md);
-  # the container is wired up but not yet a running server.
+  # It exposes the pioneer's live progress (location, inventories, unlocks,
+  # collectibles) as MCP tools on port 8726.
   mcp-save-game:
     profiles: ["save-game"]
     image: ghcr.io/stuartmeeks/foreman-mcp-save-game:latest

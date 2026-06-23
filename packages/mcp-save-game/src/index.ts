@@ -1,18 +1,57 @@
-// FICSIT Foreman — save-game MCP server (scaffold).
-//
-// This package is a placeholder ready for the v1 implementation described in
-// SPEC.md: parse a Satisfactory save file → normalised JSON → MCP tools
-// (get_player_state, get_unlocked_recipes, get_milestones, get_storage,
-// get_collectibles).
-//
-// Nothing is implemented yet. The entry point logs that it is a stub and exits
-// so the workspace builds cleanly; it deliberately does not start a server.
+#!/usr/bin/env node
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-const SAVE_FILE_PATH = process.env['SAVE_FILE_PATH'];
+import dotenv from 'dotenv';
+import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 
-process.stderr.write(
-  '[foreman-mcp-save-game] Not yet implemented — this is a v1 scaffold. ' +
-    `SAVE_FILE_PATH=${SAVE_FILE_PATH ?? '(unset)'}. See packages/mcp-save-game/SPEC.md.\n`,
-);
+import { resolveSavePath, resolveServerConfig } from './config.js';
+import { startHttpServer } from './http.js';
+import { logger } from './logger.js';
+import { SaveStore } from './store/saveStore.js';
+import { registerTools } from './tools/index.js';
 
-process.exit(0);
+const SERVER_NAME = 'foreman-mcp-save-game';
+const SERVER_VERSION = '0.1.0';
+
+/** Loads `.env` from the package dir and the workspace root (cwd-independent). */
+function loadEnv(): void {
+  const here = path.dirname(fileURLToPath(import.meta.url));
+  // dist/ or src/ → package root is one up; workspace root is three up.
+  dotenv.config({ path: path.resolve(here, '..', '.env') });
+  dotenv.config({ path: path.resolve(here, '..', '..', '..', '.env') });
+  dotenv.config(); // also honour a .env in the current working directory
+}
+
+function buildStore(): SaveStore {
+  const { path: savePath, warning } = resolveSavePath();
+  if (warning !== undefined) {
+    logger.warn(warning);
+  }
+  const store = new SaveStore(savePath);
+  logger.info(`Save source: ${savePath ?? '(none — running with an empty state)'}`);
+  return store;
+}
+
+async function main(): Promise<void> {
+  loadEnv();
+  const store = buildStore();
+
+  const config = resolveServerConfig();
+  if (config.transport === 'http') {
+    await startHttpServer(store, config.host, config.port, SERVER_NAME, SERVER_VERSION);
+    return;
+  }
+
+  const server = new McpServer({ name: SERVER_NAME, version: SERVER_VERSION });
+  registerTools(server, store);
+  const transport = new StdioServerTransport();
+  await server.connect(transport);
+  logger.info('Transport: stdio (no network port — the client talks over stdin/stdout).');
+}
+
+main().catch((error: unknown) => {
+  logger.error('Fatal error during startup:', error);
+  process.exit(1);
+});

@@ -10,10 +10,9 @@ the game made?"* from the static game data, this server answers *"what has this
 pioneer actually built, unlocked, and collected?"* from their live save. Together
 they let the foreman issue orders grounded in reality rather than assumption.
 
-> **Status: scaffold.** The package layout, spec, and Docker/compose wiring are in
-> place; the parser and tools are the v1 deliverable. See [`SPEC.md`](./SPEC.md)
-> for the full technical design and the save-file-format tradeoffs. The current
-> entry point is a stub that exits immediately.
+> **Status: v1.** Parses a save and serves five read-only tools over stdio or
+> HTTP. See [`SPEC.md`](./SPEC.md) for the technical design and the
+> save-file-format decision. Use `npm run inspect <save>` to inspect a real save.
 
 ---
 
@@ -33,8 +32,10 @@ SAVE_FILE_PATH=/path/to/MySave.sav npm run dev -w @foreman/mcp-save-game
 ```
 
 A leading `~` is expanded to your home directory. If `SAVE_FILE_PATH` is unset
-the server starts with no save loaded (once v1 lands, it will log a warning and
-expose empty results rather than crashing — mirroring the game-data server).
+the server logs a warning and starts with no save loaded — tools return empty
+results rather than crashing (mirroring the game-data server). The save is
+re-parsed automatically when its mtime changes, so progress shows up as you play
+without a restart.
 
 ## Install & build
 
@@ -71,30 +72,65 @@ SAVE_FILE_PATH=/saves/MySave.sav docker compose --profile save-game up -d
 
 ---
 
-## Tools (v1 — planned)
+## Tools (v1)
 
-All tools are read-only and report the parsed save's game version.
+All tools are read-only and tag every response with the detected game version and
+save name. They return computed, distilled answers — not raw save dumps.
 
 | Tool | Description |
 |---|---|
-| `get_player_state()` | Player location (x, y, z), hub location, and the player's personal inventory (item, quantity). |
-| `get_unlocked_recipes()` | All unlocked recipes, **including alternates**, distinguishing standard from alternate. |
-| `get_milestones()` | Unlocked milestones grouped by tier, plus the current part-assembly phase. |
-| `get_storage(location?)` | Storage container inventories (item, quantity, container location) and dimensional depot contents; optionally filtered by proximity to a coordinate. |
-| `get_collectibles()` | Harvested vs available Mercer Spheres and Somersloops (with locations), and visited/looted crash sites. |
+| `get_player_state()` | Player location (x, y, z), HUB location, and the personal inventory (aggregated per item). |
+| `get_unlocked_recipes()` | All unlocked recipes, split into standard and alternate, with counts. |
+| `get_milestones()` | Unlocked milestones grouped by tier, tutorial schematics, MAM research unlocks, and the current Project Assembly (Space Elevator) phase. |
+| `get_storage(location?)` | Storage container contents and the dimensional depot; pass a `{x,y,z}` location to sort containers nearest-first. |
+| `get_collectibles()` | Collected-collectible summary: reliable alien-artifact and power-slug totals, an approximate per-type split, and world totals for reference. See the note below. |
+
+> **Collectibles are approximate by design.** The save records collected
+> collectibles as a per-level destroyed-actor registry of bare references — no
+> central counter, no per-item type/location. Alien-artifact and power-slug
+> *totals* are reliable; the Mercer/Somersloop split and drop-pod/hard-drive counts
+> are best-effort. Exact per-type counts and locations need the world-location
+> dataset (game-data v3). Every `get_collectibles` response carries a `note`
+> explaining this.
 
 Later versions add power (`v2`) and production-line (`v3`) tools — see
 [`SPEC.md`](./SPEC.md) and the repo [`ROADMAP.md`](../../ROADMAP.md).
 
-## Architecture (planned)
+## Inspecting a real save
+
+`npm run inspect` is a debug CLI (separate from the server) for confirming the
+class names in `src/constants.ts` against a real save:
+
+```bash
+SAVE_FILE_PATH=~/saves/My.sav npm run inspect -w @foreman/mcp-save-game            # overview
+npm run inspect -w @foreman/mcp-save-game -- typepaths ~/saves/My.sav              # typePath histogram
+npm run inspect -w @foreman/mcp-save-game -- props RecipeManager ~/saves/My.sav    # property keys of matches
+npm run inspect -w @foreman/mcp-save-game -- get_player_state ~/saves/My.sav       # run a tool
+npm run inspect -w @foreman/mcp-save-game -- diff ~/saves/A.sav ~/saves/B.sav      # collectables delta
+```
+
+## Architecture
 
 ```
 save file (.sav, custom binary)
-   → parser            decode binary → raw objects
-   → normalise         raw objects → clean, typed PlayerState / Inventory / Unlocks / Collectibles
-   → MCP tools         computed, version-tagged answers (zod schemas)
+   → parser       adapter over @etothepii/satisfactory-file-parser → RawSave (sole library boundary)
+   → normalise    RawSave → clean, typed SaveState (player, storage, recipes, milestones, collectibles)
+   → store        holds the SaveState; re-parses lazily when the file's mtime changes
+   → selectors    pure, computed read functions (proximity sort, tier grouping, …)
+   → MCP tools    version-tagged answers over stdio or HTTP
 ```
 
 The same principle as the game-data server applies: **tools return computed,
 distilled answers — not raw save dumps.** A save file is large; the value is in
-extracting the few facts the foreman needs.
+extracting the few facts the foreman needs. Every Unreal class name and property
+key we match on lives in one place, `src/constants.ts`.
+
+## Attribution
+
+This server **adopts** [`@etothepii/satisfactory-file-parser`](https://github.com/etothepii4/satisfactory-file-parser)
+(MIT) to decode the binary `.sav` format — credit and thanks to *etothepii* for
+maintaining it. The save-format understanding was cross-checked against two other
+open-source parsers: [`SatisfactorySaveNet`](https://github.com/R3dByt3/SatisfactorySaveNet)
+(C#, by *R3dByt3*) and [`GreyHak/sat_sav_parse`](https://github.com/GreyHak/sat_sav_parse)
+(Python, by *GreyHak*). Thanks to all three projects and the Satisfactory modding
+community whose format documentation made this possible.
