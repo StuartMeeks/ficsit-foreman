@@ -2,7 +2,7 @@
 // Validates bundled game-data pull requests.
 //
 // A game-data PR must:
-//   - touch only files under a single packages/mcp-game-data/data/<channel>/ directory,
+//   - touch only files under a single packages/game-data-core/data/<channel>/ directory,
 //     where <channel> is `stable` or `experimental`;
 //   - contain that channel's en-US.json and a well-formed meta.json
 //     ({ gameVersion: string, build: positive int, channel: <dir name> });
@@ -15,7 +15,7 @@ import { execSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 
-const DATA_DIR = 'packages/mcp-game-data/data';
+const DATA_DIR = 'packages/game-data-core/data';
 const CHANNELS = ['stable', 'experimental'];
 
 const baseSha = process.env.BASE_SHA;

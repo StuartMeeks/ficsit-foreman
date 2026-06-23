@@ -1,4 +1,4 @@
-import type { Schematic } from '../../parser/types.js';
+import type { Schematic } from '@foreman/game-data-core';
 import type { QueryContext } from '../context.js';
 
 export interface SchematicSummary {

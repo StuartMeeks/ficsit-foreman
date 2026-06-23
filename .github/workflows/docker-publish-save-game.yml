@@ -1,27 +1,27 @@
-name: Docker image (mcp-game-data)
+name: Docker image (mcp-save-game)
 
-# Builds the game-data MCP server image and publishes it to GHCR on pushes to main and on
-# version tags. To avoid rebuilding :latest on every main push, a `changes` job
-# gates the build: it always runs for tags (releases), manual runs and PRs, but
-# for a main-branch push it builds only when image-relevant files changed.
-# (A `paths:` filter on the push trigger can't be used here — it would also
-# filter tag pushes, which must always publish.)
+# Builds the save-game MCP server image and publishes it to GHCR on pushes to main
+# and on version tags. Mirrors docker-publish.yml: a `changes` job gates the build
+# so :latest is not rebuilt on every main push — it always runs for tags, manual
+# runs and PRs, but for a main-branch push only when image-relevant files changed.
+#
+# The game-data-core path is included because the save-game image depends on the
+# @foreman/game-data-core workspace package (for display-name resolution) from the
+# world-locations work onward; a core change must rebuild this image too.
 
 on:
   push:
     branches: [main]
     tags: ['v*']
-  # On PRs, only run when something that affects the image changes — the docker
-  # job isn't a required check, so skipping it elsewhere blocks nothing.
   pull_request:
     paths:
-      - 'packages/mcp-game-data/**'
+      - 'packages/mcp-save-game/**'
       - 'packages/game-data-core/**'
       - '.dockerignore'
       - 'package.json'
       - 'package-lock.json'
       - 'tsconfig.base.json'
-      - '.github/workflows/docker-publish.yml'
+      - '.github/workflows/docker-publish-save-game.yml'
   workflow_dispatch:
 
 permissions:
@@ -61,7 +61,7 @@ jobs:
             exit 0
           fi
           # main push: build only if image-relevant files changed.
-          changed=$(git diff --name-only "$BEFORE" "$AFTER" | { grep -E '^(packages/mcp-game-data/|packages/game-data-core/|\.dockerignore|package\.json|package-lock\.json|tsconfig\.base\.json|\.github/workflows/docker-publish\.yml)' || true; })
+          changed=$(git diff --name-only "$BEFORE" "$AFTER" | { grep -E '^(packages/mcp-save-game/|packages/game-data-core/|\.dockerignore|package\.json|package-lock\.json|tsconfig\.base\.json|\.github/workflows/docker-publish-save-game\.yml)' || true; })
           if [ -n "$changed" ]; then
             echo "build=true" >> "$GITHUB_OUTPUT"
           else
@@ -92,7 +92,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v6
         with:
-          images: ghcr.io/stuartmeeks/foreman-mcp-game-data
+          images: ghcr.io/stuartmeeks/foreman-mcp-save-game
           tags: |
             type=ref,event=branch
             type=ref,event=pr
@@ -104,7 +104,7 @@ jobs:
         uses: docker/build-push-action@v7
         with:
           context: .
-          file: packages/mcp-game-data/Dockerfile
+          file: packages/mcp-save-game/Dockerfile
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}

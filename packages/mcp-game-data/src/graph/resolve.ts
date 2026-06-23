@@ -1,4 +1,4 @@
-import type { GameData } from '../parser/types.js';
+import type { GameData } from '@foreman/game-data-core';
 
 /**
  * Resolves a user-supplied name (display name, case-insensitive, or exact class

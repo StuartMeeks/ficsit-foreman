@@ -1,4 +1,4 @@
-import type { GameData, Ingredient, Recipe } from '../../parser/types.js';
+import type { GameData, Ingredient, Recipe } from '@foreman/game-data-core';
 import { type QueryContext, machineForRecipe, round } from '../context.js';
 import { rows } from '../run.js';
 import type {

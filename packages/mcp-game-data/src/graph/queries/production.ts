@@ -1,4 +1,4 @@
-import type { IngredientUnit } from '../../parser/types.js';
+import type { IngredientUnit } from '@foreman/game-data-core';
 import {
   type QueryContext,
   displayForItem,

@@ -1,4 +1,4 @@
-import type { Building, GeneratorFuel } from '../../parser/types.js';
+import type { Building, GeneratorFuel } from '@foreman/game-data-core';
 import type { QueryContext } from '../context.js';
 import { displayForItem } from '../context.js';
 

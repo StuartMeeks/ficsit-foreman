@@ -7,9 +7,9 @@
  *   npm run inspect ingredient_tree '{"item":"Turbo Motor","targetPerMinute":1}'
  *   npm run inspect total_raw_inputs '{"item":"Reinforced Iron Plate","targetPerMinute":5}'
  */
-import { emptyGameData, parseDocsFile } from '../parser/index.js';
+import { emptyGameData, parseDocsFile } from '@foreman/game-data-core';
 import { initGraph } from '../graph/index.js';
-import { resolveDocsPath } from '../config.js';
+import { resolveDocsPath } from '@foreman/game-data-core';
 
 async function run(): Promise<void> {
   const tool = process.argv[2];

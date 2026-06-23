@@ -1,7 +1,7 @@
 name: Validate game data
 
 # Guards bundled game-data pull requests: a data PR must touch only one
-# packages/mcp-game-data/data/<channel>/ directory, ship a well-formed meta.json, and bump
+# packages/game-data-core/data/<channel>/ directory, ship a well-formed meta.json, and bump
 # that channel's build above the current one.
 #
 # This can be a *required* status check: the `detect` job always runs and, when a
@@ -40,8 +40,8 @@ jobs:
           files=$(git diff --name-status -M "$BASE_SHA" "$HEAD_SHA" \
             | { grep -E '^[AM]\t' || true; } \
             | cut -f2 \
-            | { grep '^packages/mcp-game-data/data/' || true; } \
-            | { grep -v '^packages/mcp-game-data/data/README.md$' || true; })
+            | { grep '^packages/game-data-core/data/' || true; } \
+            | { grep -v '^packages/game-data-core/data/README.md$' || true; })
           if [ -n "$files" ]; then
             echo "changed=true" >> "$GITHUB_OUTPUT"
           else

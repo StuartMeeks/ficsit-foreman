@@ -6,11 +6,11 @@ import dotenv from 'dotenv';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 
-import { emptyGameData, parseDocsFile } from './parser/index.js';
-import type { GameData } from './parser/types.js';
+import { emptyGameData, parseDocsFile, resolveDocsPath } from '@foreman/game-data-core';
+import type { GameData } from '@foreman/game-data-core';
 import { initGraph } from './graph/index.js';
 import { registerTools } from './tools/index.js';
-import { resolveDocsPath, resolveServerConfig } from './config.js';
+import { resolveServerConfig } from './config.js';
 import { startHttpServer } from './http.js';
 import { logger } from './logger.js';
 

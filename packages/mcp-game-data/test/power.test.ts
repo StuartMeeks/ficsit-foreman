@@ -2,16 +2,18 @@ import { fileURLToPath } from 'node:url';
 
 import { beforeAll, describe, expect, it } from 'vitest';
 
-import { parseDocsFile } from '../src/parser/index.js';
+import { parseDocsFile } from '@foreman/game-data-core';
 import { GraphDB, initGraph } from '../src/graph/index.js';
-import type { GeneratorFuel } from '../src/parser/types.js';
+import type { GeneratorFuel } from '@foreman/game-data-core';
 
 /**
  * Power correctness is critical, so these assert against the committed bundled
  * stable data (real game numbers), not a fixture. Every figure is a known-good
  * in-game value — a future data update that breaks the maths will fail here.
  */
-const dataPath = fileURLToPath(new URL('../data/stable/en-US.json', import.meta.url));
+const dataPath = fileURLToPath(
+  new URL('../../game-data-core/data/stable/en-US.json', import.meta.url),
+);
 
 let graph: GraphDB;
 
