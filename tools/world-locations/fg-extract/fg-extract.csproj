@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!--
+      CUE4Parse is NOT vendored (it is ~36 MB). Clone it as a sibling at
+      tools/world-locations/CUE4Parse (gitignored) and apply the patch — see
+      README.md. Adjust this path if you clone it elsewhere.
+    -->
+    <ProjectReference Include="..\CUE4Parse\CUE4Parse\CUE4Parse.csproj" />
+  </ItemGroup>
+
+</Project>
