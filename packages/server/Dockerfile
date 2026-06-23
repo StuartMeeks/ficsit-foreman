@@ -19,6 +19,11 @@
 FROM node:22-bookworm-slim AS builder
 WORKDIR /app
 
+# bookworm-slim omits the openssl package; without it the Prisma CLI cannot
+# detect the libssl version and warns while falling back to openssl-1.1.x.
+RUN apt-get update && apt-get install -y --no-install-recommends openssl \
+    && rm -rf /var/lib/apt/lists/*
+
 # Install workspace dependencies first for better layer caching.
 COPY package.json package-lock.json tsconfig.base.json ./
 COPY packages/server/package.json ./packages/server/package.json
@@ -37,6 +42,10 @@ ENV NODE_ENV=production \
     DATABASE_URL=file:/data/foreman.db \
     SYSTEM_PROMPT_PATH=/app/SYSTEM_PROMPT.md
 WORKDIR /app
+
+# openssl so the Prisma CLI (migrate deploy at start-up) detects libssl cleanly.
+RUN apt-get update && apt-get install -y --no-install-recommends openssl \
+    && rm -rf /var/lib/apt/lists/*
 
 # node_modules is copied whole (not pruned): it carries the generated Prisma
 # client, the better-sqlite3 native addon + driver adapter, and the Prisma CLI
