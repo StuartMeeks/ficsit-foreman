@@ -107,6 +107,19 @@ function parseArgs(raw: string): Record<string, unknown> {
 }
 
 /**
+ * Picks the output-token-limit parameter for the model. OpenAI's GPT-5 family
+ * and o-series reasoning models reject the legacy `max_tokens` with a 400 and
+ * require `max_completion_tokens`; everything else (gpt-4.1/4o, Azure,
+ * OpenRouter, local Ollama, …) still takes `max_tokens`. The `(^|/)` guard
+ * tolerates an OpenRouter-style `openai/gpt-5-mini` prefix. Exported for testing.
+ */
+export function tokenLimitParam(model: string, maxTokens: number): Record<string, number> {
+  return /(^|\/)(gpt-5|o[1-4])(-|$)/.test(model)
+    ? { max_completion_tokens: maxTokens }
+    : { max_tokens: maxTokens };
+}
+
+/**
  * Adapter for any OpenAI Chat Completions-compatible API (OpenAI, Azure,
  * OpenRouter, Google's OpenAI-compatible endpoint, …). The base URL selects the
  * provider; the rest of the surface is identical.
@@ -124,7 +137,7 @@ export class OpenAiCompatibleProvider implements LlmProvider {
   ): Promise<LlmTurnResult> {
     const stream = await this.client.chat.completions.create({
       model: req.model,
-      max_tokens: req.maxTokens,
+      ...tokenLimitParam(req.model, req.maxTokens),
       messages: toOpenAiMessages(req.system, req.messages),
       tools: req.tools.map((tool) => ({
         type: 'function' as const,
@@ -138,7 +151,7 @@ export class OpenAiCompatibleProvider implements LlmProvider {
   public async complete(req: LlmCompletionRequest): Promise<string> {
     const response = await this.client.chat.completions.create({
       model: req.model,
-      max_tokens: req.maxTokens,
+      ...tokenLimitParam(req.model, req.maxTokens),
       messages: [
         { role: 'system', content: req.system },
         { role: 'user', content: req.userText },
