@@ -25,7 +25,8 @@
     "inspect": "npm run inspect -w @foreman/mcp-game-data --"
   },
   "overrides": {
-    "@hono/node-server": "^1.19.13"
+    "@hono/node-server": "^1.19.13",
+    "tar": "^7.5.16"
   },
   "packageManager": "npm@11.17.0"
 }
