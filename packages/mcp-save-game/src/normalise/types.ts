@@ -5,6 +5,8 @@
  * (no game-data lookup; this server does not duplicate the game-data graph).
  */
 
+import type { CollectibleKind } from '../constants.js';
+
 export interface Vec3 {
   x: number;
   y: number;
@@ -57,34 +59,29 @@ export interface AssemblyPhase {
 }
 
 /**
- * Collected-collectible figures. The save records a per-level "collected"
- * (destroyed-actor) registry whose entries don't reliably encode type. Calibrated
- * against real saves: artifact and slug TOTALS are reliable; the per-type split is
- * approximate, and exact per-type counts/locations need the world dataset
- * (game-data v3 World Locations). `precise` is therefore always false in v1.
+ * One un-collected collectible still present in the save, with its world
+ * location. Collected ones are destroyed (absent), so this is "what's left to
+ * grab, and where".
  */
-export interface Collectibles {
-  /** Total entries in the collected registry (all kinds, incl. flora/pickups). */
-  totalCollected: number;
-  /** Counts that match ground truth closely. */
-  reliable: {
-    alienArtifacts: number;
-    powerSlugs: number;
-  };
-  /** Best-effort splits — may be off by a handful; do not treat as exact. */
-  approximate: {
-    mercerSpheres: number;
-    somersloops: number;
-    dropPodsOrHardDrives: number;
-  };
-  /** Known world totals for a fresh v1.0+ game, for reference (not from the save). */
-  worldTotals: {
-    mercerSpheres: number;
-    somersloops: number;
-    dropPods: number;
-  };
-  precise: false;
-  note: string;
+export interface RemainingCollectible {
+  kind: CollectibleKind;
+  label: string;
+  location?: Vec3;
+}
+
+/**
+ * Per-type collection progress. `collected = max(0, worldTotal − remaining)`,
+ * where `remaining` is the count of un-collected actors of that type present in
+ * the save. Exact on a fully-explored save; on an under-explored one (World
+ * Partition cells not yet streamed in) `collected` is over-counted — surfaced
+ * via the tool's coverage note.
+ */
+export interface CollectibleCount {
+  kind: CollectibleKind;
+  label: string;
+  worldTotal: number;
+  remaining: number;
+  collected: number;
 }
 
 export interface SaveState {
@@ -104,7 +101,10 @@ export interface SaveState {
   /** Unlocked MAM research-tree names. */
   mamResearch: string[];
   assemblyPhase?: AssemblyPhase;
-  collectibles: Collectibles;
+  /** Per-type collection progress (Mercer Spheres, Somersloops, slugs, hard drives). */
+  collectibleProgress: CollectibleCount[];
+  /** Un-collected collectibles still in the save, with locations (for proximity). */
+  remainingCollectibles: RemainingCollectible[];
   /** Non-fatal issues collected during normalisation. */
   warnings: string[];
 }
@@ -120,14 +120,8 @@ export function emptySaveState(version: string, saveName: string, parsedAt: stri
     recipes: [],
     milestones: [],
     mamResearch: [],
-    collectibles: {
-      totalCollected: 0,
-      reliable: { alienArtifacts: 0, powerSlugs: 0 },
-      approximate: { mercerSpheres: 0, somersloops: 0, dropPodsOrHardDrives: 0 },
-      worldTotals: { mercerSpheres: 0, somersloops: 0, dropPods: 0 },
-      precise: false,
-      note: 'No save loaded.',
-    },
+    collectibleProgress: [],
+    remainingCollectibles: [],
     warnings: [],
   };
 }

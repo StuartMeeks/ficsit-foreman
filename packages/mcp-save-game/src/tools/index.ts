@@ -2,8 +2,9 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 
 import {
-  collectiblesView,
+  collectibleProgressView,
   milestones,
+  nearby,
   playerSummary,
   storageView,
   unlockedRecipes,
@@ -16,6 +17,13 @@ type ToolResult = {
 };
 
 const vec3Schema = z.object({ x: z.number(), y: z.number(), z: z.number() });
+const collectibleKindSchema = z.enum([
+  'mercerSphere',
+  'somersloop',
+  'powerSlugBlue',
+  'powerSlugYellow',
+  'powerSlugPurple',
+]);
 
 /**
  * Registers the v1 save-game tools. Descriptions are tight and model-facing —
@@ -82,9 +90,27 @@ export function registerTools(server: McpServer, store: SaveStore): void {
     {
       title: 'Get collectibles',
       description:
-        'Collected-collectible summary: reliable alien-artifact and power-slug totals, approximate Mercer/Somersloop and hard-drive splits, and world totals for reference. Read the note — exact per-type counts and locations require world-location data not yet available.',
+        'Per-type collection progress — for each kind (Mercer Sphere, Somersloop, blue/yellow/purple power slug): how many of the world total remain uncollected in this save and how many are collected. Exact on a fully-explored save; read the note (under-explored saves over-count collected). Hard drives and resource nodes are not covered yet (the save cannot reliably classify them).',
       inputSchema: {},
     },
-    async (): Promise<ToolResult> => ok({ collectibles: collectiblesView(store.getState()) }),
+    async (): Promise<ToolResult> =>
+      ok({ collectibles: collectibleProgressView(store.getState()) }),
+  );
+
+  server.registerTool(
+    'get_nearby',
+    {
+      title: 'Get nearby collectibles',
+      description:
+        'Un-collected collectibles near a world location, nearest-first, each with its coordinates and distance. Filter by kinds (mercerSphere, somersloop, powerSlugBlue/Yellow/Purple), cap by radius and limit (default 20). Use the player location from get_player_state as the origin to answer "what can I grab near me?".',
+      inputSchema: {
+        location: vec3Schema,
+        kinds: z.array(collectibleKindSchema).optional(),
+        radius: z.number().positive().optional(),
+        limit: z.number().int().positive().max(200).optional(),
+      },
+    },
+    async ({ location, kinds, radius, limit }): Promise<ToolResult> =>
+      ok({ nearby: nearby(store.getState(), location, { kinds, radius, limit }) }),
   );
 }

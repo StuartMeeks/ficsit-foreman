@@ -95,15 +95,14 @@ services:
       - "8725:80"
     restart: unless-stopped
 
-  # Optional: live save-game data (pioneer progress from a .sav file).
-  # DISABLED BY DEFAULT — it only starts under the `save-game` profile, so a plain
-  # `docker compose up` ignores it. Point SAVE_FILE_PATH at your save and bring it
-  # up with the profile:
-  #   SAVE_FILE_PATH=/path/to/MySave.sav docker compose --profile save-game up -d
-  # It exposes the pioneer's live progress (location, inventories, unlocks,
-  # collectibles) as MCP tools on port 8726.
+  # Live save-game data (pioneer progress from a .sav file) on port 8726.
+  # A first-class service of the project, so `docker compose pull`/`up` include it.
+  # It runs even with no save configured — it logs a warning and serves empty
+  # results rather than failing — so it is safe to leave running. To use it, set
+  # SAVE_FILE_PATH to the .sav path INSIDE the container and mount your save
+  # directory read-only (uncomment `volumes` below), e.g.:
+  #   SAVE_FILE_PATH=/saves/MySave.sav docker compose up -d
   mcp-save-game:
-    profiles: ["save-game"]
     image: ghcr.io/stuartmeeks/foreman-mcp-save-game:latest
     build:
       context: .
