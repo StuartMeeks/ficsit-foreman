@@ -24,11 +24,16 @@ alongside the `mcp` service.
   `x-anthropic-api-key` header (and may pick provider/model in the chat body).
   Hosted tier — the server uses its own `LLM_API_KEY`. The header wins when both
   are present.
-- **Work orders.** The foreman issues and closes orders via the `create_work_order`
-  and `complete_work_order` tools; the same records are also exposed over REST.
-  Sequence numbers are per-session and monotonic (WO-001, WO-002, …) and only one
-  order is `active` at a time — issuing a new one supersedes (abandons) the
-  current one.
+- **Work orders (v2).** Stateful, auditable records with a plan/execution split —
+  see the canonical [`WORK_ORDER_SPEC.md`](../../WORK_ORDER_SPEC.md). The foreman
+  drives the plan via tools (`create_work_order`, `revise_work_order`,
+  `block`/`unblock`/`supersede`, `create_child_work_order`) and may only
+  `propose_completion` — **completion is Pioneer-only** (via REST/UI). Creating an
+  order no longer abandons the current one; supersession is explicit. Sequence
+  numbers are per-session and monotonic (WO-001, …); at most one order is `active`
+  at a time, though non-terminal orders may coexist (a blocked parent + an active
+  child). Plan edits write acknowledged **revision snapshots**; execution changes
+  (checklists, machine counts, hours) append to an **audit trail**.
 - **Windowed history.** Only the most recent N messages (default 20) are sent
   with each request.
 
@@ -42,26 +47,36 @@ All routes are under `/api`. The session id is a client-held UUID.
 | `GET` | `/api/sessions/:id` | Fetch a session. |
 | `PATCH` | `/api/sessions/:id` | Update personality and/or pioneer profile (effective next message). |
 | `POST` | `/api/sessions/:id/chat` | Send a message; streams the response over SSE. |
-| `POST` | `/api/sessions/:id/work-orders` | Create a work order (supersedes the active one). |
+| `POST` | `/api/sessions/:id/work-orders` | Create a work order (starts in `new`; does not abandon others). |
 | `GET` | `/api/sessions/:id/work-orders` | Full work-order history. |
 | `GET` | `/api/sessions/:id/work-orders/active` | The current active order (404 if none). |
-| `GET` | `/api/sessions/:id/work-orders/:woId` | A single order. |
-| `PATCH` | `/api/sessions/:id/work-orders/:woId` | Update — complete, abandon, add adaptations or feedback. |
+| `GET` | `/api/sessions/:id/work-orders/:woId` | A single order (also `/children`, `/parent`). |
+| `PATCH` | `…/work-orders/:woId/plan` | Foreman plan edit (writes a revision). |
+| `POST` | `…/work-orders/:woId/transitions` | Lifecycle action: start/pause/resume/block/unblock/complete/force-complete/cancel/supersede. |
+| `PATCH` | `…/work-orders/:woId/materials\|steps\|machines/:itemId` | Pioneer execution updates (check/uncheck, built count). |
+| `POST` | `…/work-orders/:woId/hours` · `/acknowledge` · `/revert` | Log hours, acknowledge a revision, revert to a revision. |
+| `GET` | `…/work-orders/:woId/audit` · `/revisions` · `/revisions/diff` | Audit trail, revision history, field-level diff. |
 | `GET` | `/health` | Liveness + model/MCP/game-version info. |
+
+The full work-order surface (every transition, required fields, and actor rules)
+is specified in [`WORK_ORDER_SPEC.md`](../../WORK_ORDER_SPEC.md).
 
 ### Chat SSE events
 
 The chat endpoint streams named events: `text` (`{ delta }`), `tool_use`
-(`{ name }`), `work_order` (the full order, when one is created or closed),
-`done` (`{ ok }`), and `error` (`{ message }`).
+(`{ name }`), `work_order` (the full order, whenever the foreman creates, revises,
+or otherwise changes one), `done` (`{ ok }`), and `error` (`{ message }`).
 
 ## Configuration
 
-See the root [`.env.example`](../../.env.example) for the full list. Key
-variables: `ANTHROPIC_API_KEY` (optional hosted key), `ANTHROPIC_MODEL`
-(default `claude-sonnet-4-6`), `MCP_URL` (default `http://127.0.0.1:8723/mcp`),
-`DATABASE_URL` (default `file:./dev.db`), `PORT` (default `8724`),
-`HISTORY_WINDOW` (default `20`).
+See the root [`.env.example`](../../.env.example) for the full, commented list.
+Key variables: `LLM_PROVIDER` (`anthropic` default, or `openai`), `LLM_API_KEY`
+(optional hosted key; `ANTHROPIC_API_KEY`/`OPENAI_API_KEY` honoured too),
+`LLM_MODEL` (default `claude-sonnet-4-6`), `LLM_BASE_URL` (OpenAI-compatible
+endpoint), `MCP_URL` (default `http://127.0.0.1:8723/mcp`), `SAVE_MCP_URL`
+(optional — merges the save-game MCP's tools so the foreman can read player
+location and remaining collectibles), `DATABASE_URL` (default `file:./dev.db`),
+`PORT` (default `8724`), `HISTORY_WINDOW` (default `20`).
 
 ## Running
 

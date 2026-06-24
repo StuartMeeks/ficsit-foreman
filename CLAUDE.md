@@ -2,6 +2,15 @@
 
 Read `SPEC.md` and `PARSER.md` in full before writing any code. Every architectural decision in this prompt traces back to those documents.
 
+> **⚠️ Status — read before treating the phase sections below as "to build".**
+> This is the original bootstrap prompt. Much of it is now **history**:
+> - **Phase 1 (game-data MCP)** and **Phase 2 (backend & foreman chat)** are complete and merged.
+> - The **save-game MCP** (`packages/mcp-save-game`) and the **world-location dataset** (collectibles + resource nodes, with `list_collectibles` / `nearest_*` tools) have shipped — neither is a future item or a spike.
+> - **Work Orders v2** superseded the minimal model described in the Phase 2 section below. The current, canonical design — states, plan/execution split, revision snapshots, audit trail, parent/child orders, Pioneer-only completion — lives in [`WORK_ORDER_SPEC.md`](./WORK_ORDER_SPEC.md). Ignore the old `status: active|completed|abandoned` / `requiredItems` / `tier` schema cited further down.
+> - **Phase 3 (React client, `packages/client`)** is in progress.
+>
+> The **Stack**, **Code Standards**, **Dev Environment Note**, and **Git, Commit & PR Conventions** sections remain current and authoritative. For live, per-component plans see [`ROADMAP.md`](./ROADMAP.md).
+
 ---
 
 ## What We're Building

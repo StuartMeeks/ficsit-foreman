@@ -19,9 +19,9 @@ in one Docker Compose project.
 | Package | Status | Purpose |
 |---|---|---|
 | [`packages/mcp-game-data`](./packages/mcp-game-data) | **Built** | Parses `en-US.json`, loads it into an embedded Kùzu graph, exposes computed MCP tools. Works standalone with Claude Desktop. |
-| [`packages/mcp-save-game`](./packages/mcp-save-game) | **Scaffold** | Save-file parser → MCP tools exposing live pioneer progress (inventory, unlocks, collectibles). See its [SPEC.md](./packages/mcp-save-game/SPEC.md). |
-| [`packages/server`](./packages/server) | **Built** | Express backend: LLM chat proxy (Anthropic or OpenAI-compatible) with the foreman persona, MCP game-data tool use, and work-order persistence. |
-| [`packages/client`](./packages/client) | **Boilerplate** | React UI: foreman chat (streaming) with a minimal work-order/history panel. Served on port `8725`. |
+| [`packages/mcp-save-game`](./packages/mcp-save-game) | **Built (v1)** | Save-file parser → MCP tools exposing live pioneer state (location, inventory, unlocks, milestones, remaining collectibles). The backend merges it in when `SAVE_MCP_URL` is set. See its [SPEC.md](./packages/mcp-save-game/SPEC.md). |
+| [`packages/server`](./packages/server) | **Built** | Express backend: LLM chat proxy (Anthropic or OpenAI-compatible) with the foreman persona, MCP tool use, and stateful work-order persistence (see [`WORK_ORDER_SPEC.md`](./WORK_ORDER_SPEC.md)). |
+| [`packages/client`](./packages/client) | **In progress** | React UI (Phase 3): foreman chat (streaming), active work-order panel, history, and onboarding/settings. Served on port `8725`. |
 
 > FICSIT Foreman runs as a **Docker Compose project** named `foreman`: the MCP server and
 > backend are separate services in the one project (the web UI joins later), so Docker
@@ -160,7 +160,8 @@ All optional — by default the server serves the bundled **stable** game data.
 | `LLM_API_KEY` | Hosted-tier key for the chosen provider. If unset, clients pass their own via the `x-anthropic-api-key` header. |
 | `LLM_MODEL` | Model (default `claude-sonnet-4-6` / `gpt-4.1`). |
 | `LLM_BASE_URL` | OpenAI-compatible base URL (OpenAI, OpenRouter, Gemini-compat, Azure). |
-| `MCP_URL` | Where the backend reaches the MCP server (Compose: `http://mcp-game-data:8723/mcp`; bare metal default `http://127.0.0.1:8723/mcp`). |
+| `MCP_URL` | Where the backend reaches the game-data MCP server (Compose: `http://mcp-game-data:8723/mcp`; bare metal default `http://127.0.0.1:8723/mcp`). |
+| `SAVE_MCP_URL` | Optional save-game MCP endpoint. When set, its tools (player location, remaining collectibles, unlocks, inventory) are merged into the foreman's tool surface for location-aware opportunities. Unset = game-data tools only. |
 | `PORT` | Backend HTTP port (default `8724`). |
 | `DATABASE_URL` | Database connection (default `file:./dev.db`; Docker `file:/data/foreman.db`). |
 | `HISTORY_WINDOW` | Most-recent messages sent per chat request (default `20`). |

@@ -78,8 +78,8 @@ Like the personality string, the generated pioneer profile is editable freeform 
 
 The interaction between the two blocks is intentional: a gruff foreman with a first-time player should still be gruff, but shouldn't assume knowledge. A warm mentor with a veteran can engage peer-to-peer. Personality sets the voice; pioneer profile sets the register.
 
-### 5. Save Game Awareness *(Phase 4)*
-Players can upload their save file. The foreman parses it to understand what's actually been built, what resources are available, and what milestones have been unlocked — giving orders that reflect reality rather than assumption.
+### 5. Save Game Awareness
+The save-game MCP server (`packages/mcp-save-game`, v1 shipped) parses a Satisfactory `.sav` to expose the pioneer's live state — location, inventory, unlocked recipes, milestones, and which collectibles remain. When the backend is pointed at it (`SAVE_MCP_URL`), the foreman reads that state so orders and opportunities reflect reality rather than assumption. Richer save-driven UX (in-app upload, verification) is ongoing — see [`ROADMAP.md`](./ROADMAP.md).
 
 ---
 
@@ -199,72 +199,55 @@ Tools are high-level and return computed answers. The dataset is tiny (~hundreds
 | `get_schematic(name)` | Resolve a single schematic by displayName or className; returns its full unlock list |
 | `get_building(name)` | Resolve a building/machine; returns power draw (or max for variable machines), build cost, and — for generators — MW output with per-fuel burn, water and byproduct rates |
 | `list_power_generators()` | Every power generator with MW output and full fuel/water/byproduct rates per fuel option |
+| `list_collectibles(type?)` | Counts (and, for one type, positions) of world collectibles — Mercer Spheres, Somersloops, power slugs, hard-drive pods |
+| `nearest_collectibles(origin, type?, n?)` | The N collectibles nearest a world position, by straight-line distance |
+| `nearest_resource_nodes(origin, …)` | The N resource nodes nearest a position, with purity, optionally filtered by resource |
 | `cypher_query(query)` | Guarded read-only escape hatch; rejects mutating keywords (CREATE/DELETE/SET/MERGE/DROP/…) |
 
 Name resolution (displayName or className) is handled transparently — the foreman never needs to know internal class names.
 
+The world-location tools (`list_collectibles`, `nearest_*`) are backed by a static, first-party dataset bundled with the game-data package; see [`packages/game-data-core/data/README.md`](./packages/game-data-core/data/README.md). A **second MCP server**, `packages/mcp-save-game`, exposes this save/player's live state (location, inventory, unlocked recipes, milestones, *remaining* collectibles); see [`packages/mcp-save-game/README.md`](./packages/mcp-save-game/README.md). The backend merges both servers into one tool surface for the foreman.
+
 ---
 
-## Work Order Schema
+## Work Orders
 
-Work orders are structured data, not prose. This keeps generation cheap and rendering consistent.
+Work orders are structured, stateful, auditable records — not prose. The complete
+design (data model, state machine, revisions, audit trail, parent/child orders,
+opportunities) is the canonical **[`WORK_ORDER_SPEC.md`](./WORK_ORDER_SPEC.md)**;
+this section is a summary.
 
-Work orders are numbered sequentially (WO-001, WO-002, …) so the history list is human-readable at a glance. When a work order is completed, the foreman writes a short `completionSummary` and captures the pioneer's feedback on what they enjoyed and what they didn't. This feedback is carried forward as influence on future work orders — the foreman uses it to shape the character of what it assigns next.
+Key properties:
 
-```typescript
-interface WorkOrder {
-  id: string;
-  sequenceNumber: number;      // Display as WO-001, WO-002, etc.
-  status: 'active' | 'completed' | 'abandoned';
-  version: string;             // Game version this order was built for
-  issuedAt: string;            // ISO timestamp
-  completedAt?: string;        // Set when status → completed or abandoned
+- **Sequential numbering** (WO-001, WO-002, …) for a human-readable history.
+- **A state machine** — `new → active → completed`, plus `paused`, `blocked`, and
+  the terminal `cancelled` / `superseded`. At most one order is `active` at a time.
+- **Plan vs execution are separate.** The Foreman owns the plan (goal, build steps,
+  materials, machines, recipes, expected outputs, opportunities); the Pioneer owns
+  execution (checklists, machine built counts, logged hours). Plan edits are
+  snapshotted as **revisions** the Pioneer acknowledges; execution history lives in
+  an append-only **audit trail**. Reverting restores a plan without discarding
+  progress.
+- **Discriminated expected output** — a power plant leads with megawatts, not its
+  coal/water throughput.
+- **Completion is Pioneer-only** — the Foreman may *propose* completion but never
+  closes an order itself.
+- **Parent/child relationships** — e.g. a prerequisite hard-drive hunt that, on
+  completion, auto-unblocks its blocked parent.
 
-  title: string;               // e.g. "Establish Iron Ingot Line"
-  objective: string;           // One sentence. What done looks like.
+### Pioneer feedback
 
-  tier: number;                // Satisfactory milestone tier (0–9)
-  estimatedDuration: string;   // e.g. "20–30 minutes"
+Completion optionally captures what the pioneer enjoyed and what felt tedious —
+qualitative, low-friction input the Foreman carries forward to shape later orders
+(de-prioritising belt-shuffling for someone who flags logistics as unfun; finding
+reasons to send an explorer out). It is not a rating system; it is a moment to
+reflect that reinforces the sense of progress that combats burnout.
 
-  requiredItems: LineItem[];   // What the player needs to have on hand
-  buildSteps: string[];        // Ordered, plain-language instructions
+### History view
 
-  expectedOutput: {
-    item: string;
-    perMinute: number;
-  }[];
-
-  notes?: string;              // Optional foreman commentary issued with the order
-  adaptations?: string[];      // Logged mid-order changes (power crisis, bottleneck, etc.)
-  completionSummary?: string;  // Written by the foreman on close-out. What was actually achieved.
-
-  pioneerFeedback?: {
-    enjoyedAspects: string[];  // What the pioneer found fun — captured at close-out
-    didNotEnjoy: string[];     // What felt tedious, frustrating, or unfun
-    freeformNotes?: string;    // Optional open-ended comment from the pioneer
-  };
-}
-
-interface LineItem {
-  item: string;
-  quantity: number;
-  unit: string;                // "units", "per minute", etc.
-}
-```
-
-### Pioneer Feedback
-
-When closing out a work order, the foreman asks the pioneer two simple questions: what did you enjoy about that, and what didn't you enjoy? The answers are stored on the work order and carried forward as context when the foreman plans the next assignment.
-
-This is not a rating system. It is qualitative input — free-form, low friction. The foreman uses it to notice patterns over time: if the pioneer consistently flags logistics work as unfun, the foreman deprioritises belt-shuffling tasks where it has a choice. If the pioneer lights up every time they explore, the foreman finds reasons to send them out.
-
-The feedback mechanism also gives the pioneer a moment to reflect at the end of each session, which reinforces the sense of progress and accomplishment that combats burnout.
-
-### History View Requirements
-
-The UI must support navigating the full work order history. The history list shows: sequence number, title, status, and completion date. Selecting a completed work order displays the full order detail including `completionSummary`, any logged `adaptations`, and the pioneer's feedback. This gives the player a readable record of their playthrough — what was built, when, what went sideways, and how it felt.
-
-Only one work order is `active` at a time. The active order is always visible in the main UI panel without navigation.
+The UI navigates the full order history (sequence number, title, state, completion
+date); selecting an order shows its detail, revisions, and audit trail — a readable
+record of the playthrough. The active order is always visible without navigation.
 
 ---
 
@@ -335,6 +318,11 @@ The subscription tier may later include additional features (richer work order t
 
 ## Phase Plan
 
+> **Status:** Phases 1 (game-data MCP) and 2 (backend & foreman chat) are complete
+> and merged. Phase 3 (web UI) is in progress. The save-game MCP from Phase 4 has
+> shipped v1 ahead of schedule. [`ROADMAP.md`](./ROADMAP.md) tracks live,
+> per-component version plans; the phases below are the original sequencing.
+
 ### Phase 1 — MCP Server & Graph Data Layer
 - Parse `en-US.json` from local game install
 - Load into embedded Kùzu graph database
@@ -391,10 +379,10 @@ LLM cost is a real constraint, especially for free-tier users on their own API k
 
 ## Open Questions
 
-- [ ] Does `en-US.json` include alt recipe unlock status, or is that save-state only?
 - [ ] User accounts or session-only for v1? (session-only is simpler; accounts needed for cross-device and Patreon gating)
-- [ ] What's the right conversation history window size? (needs testing)
-- [ ] Save game parser: build from scratch or adopt `etothepii4/satisfactory-file-parser`? — see the tradeoff discussion in [`packages/mcp-save-game/SPEC.md`](./packages/mcp-save-game/SPEC.md#parser-build-vs-adopt).
+- [ ] What's the right conversation history window size? (configurable via `HISTORY_WINDOW`, default 20 — the right default still needs tuning in practice)
+
+*(Resolved: alt-recipe unlock status is save-state, surfaced by the save-game MCP's `get_unlocked_recipes`; the save parser adopted `@etothepii4/satisfactory-file-parser` — see [`packages/mcp-save-game/SPEC.md`](./packages/mcp-save-game/SPEC.md).)*
 
 ---
 
