@@ -171,7 +171,7 @@ export function workOrderToolDefinitions(): ToolDefinition[] {
     {
       name: CREATE_WORK_ORDER,
       description:
-        'Issue a new work order to the pioneer. A specific, single-session task with everything needed to start. It starts in the `new` state for the pioneer to begin; it does NOT abandon any existing order (use supersede_work_order for that). Resolve alternate recipe choices and use the game-data + save-game tools for accurate materials, rates, locations, and opportunities before issuing.',
+        'Issue a NEW work order — a specific, single-session task with everything needed to start. Use this ONLY for genuinely new work. To change the order the pioneer is already on (add/edit a step, swap a recipe, adjust counts, change the goal), call revise_work_order instead — do NOT create a second order. It starts in the `new` state for the pioneer to begin; it does NOT abandon any existing order (use supersede_work_order for that). Resolve alternate recipe choices and use the game-data + save-game tools for accurate materials, rates, locations, and opportunities before issuing.',
       inputSchema: {
         type: 'object',
         properties: planProperties,
@@ -193,7 +193,7 @@ export function workOrderToolDefinitions(): ToolDefinition[] {
     {
       name: REVISE_WORK_ORDER,
       description:
-        "Revise an existing order's plan (any plan fields). Creates a new revision the pioneer must acknowledge; their checklist progress is preserved. Provide a changeSummary describing what changed and why.",
+        "Revise the current order's plan (any plan fields). Defaults to the order the pioneer is on — use this whenever they ask to adjust, add to, or change the active work order, rather than issuing a new one. Creates a new revision the pioneer acknowledges; their checklist progress is preserved. Provide a changeSummary describing what changed and why.",
       inputSchema: {
         type: 'object',
         properties: {
@@ -459,14 +459,14 @@ async function handleCreateChild(
   }
   let parentId = parsed.data.parentWorkOrderId;
   if (parentId === undefined) {
-    const active = await deps.workOrders.getActive(sessionId);
-    if (active === undefined) {
+    const current = await deps.workOrders.getCurrent(sessionId);
+    if (current === undefined) {
       return {
-        text: 'No parentWorkOrderId given and no active order to parent to.',
+        text: 'No parentWorkOrderId given and no current order to parent to.',
         isError: true,
       };
     }
-    parentId = active.id;
+    parentId = current.id;
   }
   const order = await deps.workOrders.create(
     sessionId,
@@ -480,7 +480,7 @@ async function handleCreateChild(
   };
 }
 
-/** Resolves the target order id (explicit, or the session's active order). */
+/** Resolves the target order id (explicit, or the session's current order). */
 async function resolveTargetId(
   deps: WorkOrderToolDeps,
   sessionId: string,
@@ -489,11 +489,13 @@ async function resolveTargetId(
   if (explicitId !== undefined) {
     return { id: explicitId };
   }
-  const active = await deps.workOrders.getActive(sessionId);
-  if (active === undefined) {
-    return { error: 'No workOrderId given and no active work order in this session.' };
+  // The "current" order — active, or the latest non-terminal — so the foreman can
+  // act on an order it just issued (which is `new`, not yet `active`).
+  const current = await deps.workOrders.getCurrent(sessionId);
+  if (current === undefined) {
+    return { error: 'No workOrderId given and no current work order in this session.' };
   }
-  return { id: active.id };
+  return { id: current.id };
 }
 
 /** Maps a service outcome to a tool outcome, rendering failures as error text. */
