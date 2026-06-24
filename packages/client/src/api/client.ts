@@ -14,6 +14,10 @@ import type {
 
 const API_KEY_HEADER = 'x-anthropic-api-key';
 
+// Auth is a HttpOnly session cookie, so every request must be credentialed for
+// the backend to recognise the signed-in user.
+const CREDENTIALS: RequestCredentials = 'include';
+
 function jsonHeaders(apiKey?: string): Record<string, string> {
   const headers: Record<string, string> = { 'content-type': 'application/json' };
   if (apiKey !== undefined && apiKey.length > 0) {
@@ -40,6 +44,7 @@ export async function createSession(input: CreateSessionInput): Promise<Session>
   const response = await fetch('/api/sessions', {
     method: 'POST',
     headers: jsonHeaders(),
+    credentials: CREDENTIALS,
     body: JSON.stringify(input),
   });
   if (!response.ok) {
@@ -49,8 +54,28 @@ export async function createSession(input: CreateSessionInput): Promise<Session>
 }
 
 export async function getSession(id: string): Promise<Session | null> {
-  const response = await fetch(`/api/sessions/${id}`);
-  if (response.status === 404) {
+  const response = await fetch(`/api/sessions/${id}`, { credentials: CREDENTIALS });
+  if (response.status === 404 || response.status === 403) {
+    return null;
+  }
+  if (!response.ok) {
+    throw new Error(await readError(response));
+  }
+  return (await response.json()) as Session;
+}
+
+/**
+ * Claims a pre-accounts anonymous session (the local `foreman.sessionId`) for
+ * the signed-in user on first login. Returns the session if claimed or already
+ * owned; null if it no longer exists or belongs to another user.
+ */
+export async function claimSession(id: string): Promise<Session | null> {
+  const response = await fetch(`/api/sessions/${id}/claim`, {
+    method: 'POST',
+    headers: jsonHeaders(),
+    credentials: CREDENTIALS,
+  });
+  if (response.status === 404 || response.status === 403) {
     return null;
   }
   if (!response.ok) {
@@ -66,6 +91,7 @@ export async function patchSession(
   const response = await fetch(`/api/sessions/${id}`, {
     method: 'PATCH',
     headers: jsonHeaders(),
+    credentials: CREDENTIALS,
     body: JSON.stringify(patch),
   });
   if (!response.ok) {
@@ -75,7 +101,9 @@ export async function patchSession(
 }
 
 export async function getActiveWorkOrder(sessionId: string): Promise<WorkOrder | null> {
-  const response = await fetch(`/api/sessions/${sessionId}/work-orders/active`);
+  const response = await fetch(`/api/sessions/${sessionId}/work-orders/active`, {
+    credentials: CREDENTIALS,
+  });
   if (response.status === 404) {
     return null;
   }
@@ -86,7 +114,9 @@ export async function getActiveWorkOrder(sessionId: string): Promise<WorkOrder |
 }
 
 export async function listWorkOrders(sessionId: string): Promise<WorkOrder[]> {
-  const response = await fetch(`/api/sessions/${sessionId}/work-orders`);
+  const response = await fetch(`/api/sessions/${sessionId}/work-orders`, {
+    credentials: CREDENTIALS,
+  });
   if (!response.ok) {
     throw new Error(await readError(response));
   }
@@ -105,6 +135,7 @@ async function send<T>(url: string, method: string, body?: unknown): Promise<T> 
   const response = await fetch(url, {
     method,
     headers: jsonHeaders(),
+    credentials: CREDENTIALS,
     ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
   });
   if (!response.ok) {
@@ -114,7 +145,7 @@ async function send<T>(url: string, method: string, body?: unknown): Promise<T> 
 }
 
 async function getJson<T>(url: string): Promise<T> {
-  const response = await fetch(url);
+  const response = await fetch(url, { credentials: CREDENTIALS });
   if (!response.ok) {
     throw new Error(await readError(response));
   }
@@ -262,6 +293,7 @@ export async function streamChat(
     response = await fetch(`/api/sessions/${sessionId}/chat`, {
       method: 'POST',
       headers: jsonHeaders(apiKey),
+      credentials: CREDENTIALS,
       body: JSON.stringify(body),
     });
   } catch {

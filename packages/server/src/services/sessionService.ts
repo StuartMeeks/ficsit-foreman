@@ -4,8 +4,10 @@ import type { PrismaClient, Session as SessionRow } from '@prisma/client';
 
 import type { ChatMessage, Session } from '../types.js';
 
-/** Optional initial values when creating a session. */
+/** Initial values when creating a session. Owned by the authenticated user. */
 export interface CreateSessionInput {
+  /** Owning user (Better Auth user id). */
+  userId: string;
   /** Client-held session id. Generated if omitted. */
   id?: string;
   personality?: string;
@@ -17,6 +19,11 @@ export interface UpdateSessionInput {
   personality?: string;
   pioneerProfile?: string;
 }
+
+/** Outcome of claiming a pre-accounts anonymous session for a user. */
+export type ClaimResult =
+  | { ok: true; session: Session }
+  | { ok: false; reason: 'notFound' | 'owned' };
 
 /**
  * Session lifecycle and message history. A session is the unit of identity in
@@ -30,6 +37,7 @@ export class SessionService {
     const row = await this.prisma.session.create({
       data: {
         id: input.id ?? randomUUID(),
+        userId: input.userId,
         personality: input.personality ?? '',
         pioneerProfile: input.pioneerProfile ?? '',
       },
@@ -40,6 +48,48 @@ export class SessionService {
   public async get(id: string): Promise<Session | undefined> {
     const row = await this.prisma.session.findUnique({ where: { id } });
     return row === null ? undefined : rowToSession(row);
+  }
+
+  /** All sessions owned by a user, most recently updated first. */
+  public async listForUser(userId: string): Promise<Session[]> {
+    const rows = await this.prisma.session.findMany({
+      where: { userId },
+      orderBy: { updatedAt: 'desc' },
+    });
+    return rows.map(rowToSession);
+  }
+
+  /**
+   * Ownership of a session without exposing it. Returns the owning user id
+   * (null for an unclaimed pre-accounts session), or undefined if no such
+   * session exists. Used by the ownership middleware.
+   */
+  public async findOwnerId(id: string): Promise<{ userId: string | null } | undefined> {
+    const row = await this.prisma.session.findUnique({
+      where: { id },
+      select: { userId: true },
+    });
+    return row === null ? undefined : { userId: row.userId };
+  }
+
+  /**
+   * Claims a pre-accounts anonymous session (userId still null) for a user, so
+   * the browser's existing local session survives first sign-in. Idempotent if
+   * the caller already owns it; refuses a session owned by someone else.
+   */
+  public async claim(id: string, userId: string): Promise<ClaimResult> {
+    const row = await this.prisma.session.findUnique({ where: { id } });
+    if (row === null) {
+      return { ok: false, reason: 'notFound' };
+    }
+    if (row.userId !== null && row.userId !== userId) {
+      return { ok: false, reason: 'owned' };
+    }
+    if (row.userId === userId) {
+      return { ok: true, session: rowToSession(row) };
+    }
+    const updated = await this.prisma.session.update({ where: { id }, data: { userId } });
+    return { ok: true, session: rowToSession(updated) };
   }
 
   public async update(id: string, patch: UpdateSessionInput): Promise<Session | undefined> {

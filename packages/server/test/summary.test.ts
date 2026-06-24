@@ -4,10 +4,11 @@ import { SummaryService } from '../src/llm/summary.js';
 import type { LlmCompletionRequest, LlmRuntimeConfig } from '../src/llm/types.js';
 import type { LlmProvider, LlmProviderFactory } from '../src/llm/provider.js';
 import { SessionService } from '../src/services/sessionService.js';
-import { createTestDb, type TestDb } from './helpers.js';
+import { createTestDb, createTestUser, type TestDb } from './helpers.js';
 
 let db: TestDb;
 let sessions: SessionService;
+let userId: string;
 
 const config = { historyWindow: 5 };
 
@@ -39,6 +40,7 @@ function fakeFactory(text = 'A concise session summary.'): {
 beforeAll(async () => {
   db = await createTestDb();
   sessions = new SessionService(db.prisma);
+  userId = await createTestUser(db.prisma);
 });
 
 afterAll(async () => {
@@ -46,7 +48,7 @@ afterAll(async () => {
 });
 
 async function seedMessages(count: number): Promise<string> {
-  const session = await sessions.create({});
+  const session = await sessions.create({ userId });
   for (let i = 1; i <= count; i += 1) {
     await sessions.appendMessage(session.id, i % 2 === 1 ? 'user' : 'assistant', `msg-${i}`);
   }

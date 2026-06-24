@@ -7,9 +7,10 @@ import type { McpGateway, ToolDefinition, ToolInvocationResult } from '../src/mc
 import { SessionService } from '../src/services/sessionService.js';
 import { WorkOrderService } from '../src/services/workOrderService.js';
 import type { WorkOrder } from '../src/types.js';
-import { createTestDb, type TestDb } from './helpers.js';
+import { createTestDb, createTestUser, type TestDb } from './helpers.js';
 
 let db: TestDb;
+let userId: string;
 
 const validWorkOrderInput = {
   title: 'Establish Iron Plate Line',
@@ -59,6 +60,7 @@ function fakeMcp(): McpGateway & { calls: { name: string; args: Record<string, u
 
 beforeAll(async () => {
   db = await createTestDb();
+  userId = await createTestUser(db.prisma);
 });
 
 afterAll(async () => {
@@ -70,7 +72,11 @@ describe('runChat tool-use loop', () => {
     const sessions = new SessionService(db.prisma);
     const workOrders = new WorkOrderService(db.prisma);
     const mcp = fakeMcp();
-    const session = await sessions.create({ personality: 'Gruff', pioneerProfile: 'Veteran' });
+    const session = await sessions.create({
+      userId,
+      personality: 'Gruff',
+      pioneerProfile: 'Veteran',
+    });
     await sessions.appendMessage(session.id, 'user', 'Get me started on iron.');
 
     const provider = new FakeLlmProvider([
@@ -124,7 +130,7 @@ describe('runChat tool-use loop', () => {
   it('returns immediately when the first turn has no tool use', async () => {
     const sessions = new SessionService(db.prisma);
     const workOrders = new WorkOrderService(db.prisma);
-    const session = await sessions.create({});
+    const session = await sessions.create({ userId });
     await sessions.appendMessage(session.id, 'user', 'Hello.');
 
     const provider = new FakeLlmProvider([

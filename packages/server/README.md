@@ -18,6 +18,10 @@ alongside `mcp-game-data` (and optionally `mcp-save-game`).
   (OpenAI, OpenRouter, Gemini-compat, Azure) via a base URL — see the provider
   seam below. `LLM_PROVIDER` selects the default; a client can override per
   request.
+- **Accounts.** Using the app requires an account. [Better Auth](https://better-auth.com)
+  (mounted at `/api/auth/*`) provides email + password with HttpOnly-cookie sessions;
+  every play session and its data is scoped to a user. The pioneer's own LLM key still
+  stays client-side. See `BETTER_AUTH_*` in `.env.example`.
 - **Foreman persona.** Loads `SYSTEM_PROMPT.md` once at startup and substitutes
   the session's `{{PERSONALITY}}` and `{{PIONEER_PROFILE}}` per request.
 - **Two key tiers.** Free tier — the client passes its own provider key in the
@@ -39,12 +43,19 @@ alongside `mcp-game-data` (and optionally `mcp-save-game`).
 
 ## API
 
-All routes are under `/api`. The session id is a client-held UUID.
+All routes are under `/api`. **Authentication is required** — Better Auth owns
+`/api/auth/*` (email + password; HttpOnly-cookie sessions), and every
+`/api/sessions*` route rejects unauthenticated requests with 401. Sessions are
+owned by a user: reads/updates of a session you don't own return 403. Send requests
+with credentials (cookies) included.
 
 | Method | Path | Purpose |
 |---|---|---|
-| `POST` | `/api/sessions` | Create a session (optionally seed personality/profile). |
-| `GET` | `/api/sessions/:id` | Fetch a session. |
+| `POST`/`GET` | `/api/auth/*` | Better Auth: sign-up/sign-in (email), sign-out, session. |
+| `POST` | `/api/sessions` | Create a session owned by the caller (optionally seed personality/profile). |
+| `GET` | `/api/sessions` | List the caller's own sessions. |
+| `GET` | `/api/sessions/:id` | Fetch a session you own. |
+| `POST` | `/api/sessions/:id/claim` | Claim a pre-accounts anonymous session on first login. |
 | `PATCH` | `/api/sessions/:id` | Update personality and/or pioneer profile (effective next message). |
 | `POST` | `/api/sessions/:id/chat` | Send a message; streams the response over SSE. |
 | `POST` | `/api/sessions/:id/work-orders` | Create a work order (starts in `new`; does not abandon others). |
@@ -75,7 +86,9 @@ Key variables: `LLM_PROVIDER` (`anthropic` default, or `openai`), `LLM_API_KEY`
 `LLM_MODEL` (default `claude-sonnet-4-6`), `LLM_BASE_URL` (OpenAI-compatible
 endpoint), `MCP_URL` (default `http://127.0.0.1:8723/mcp`), `SAVE_MCP_URL`
 (optional — merges the save-game MCP's tools so the foreman can read player
-location and remaining collectibles), `DATABASE_URL` (default `file:./dev.db`),
+location and remaining collectibles), `DATABASE_URL` (default `file:./dev.db`;
+set a `postgresql://` URL and switch the schema's datasource provider for prod),
+`BETTER_AUTH_SECRET` (signs session cookies — **set this in any real deployment**),
 `PORT` (default `8724`), `HISTORY_WINDOW` (default `20`).
 
 ## Running

@@ -1,10 +1,17 @@
 interface HeaderProps {
   sessionId: string | null;
+  userEmail: string | null;
   onOpenSettings: () => void;
+  onSignOut: () => void;
 }
 
-/** Global header: wordmark, session indicator, live dot, settings. */
-export function Header({ sessionId, onOpenSettings }: HeaderProps): React.JSX.Element {
+/** Global header: wordmark, session indicator, live dot, settings, sign-out. */
+export function Header({
+  sessionId,
+  userEmail,
+  onOpenSettings,
+  onSignOut,
+}: HeaderProps): React.JSX.Element {
   const shortId = sessionId !== null ? sessionId.slice(0, 8) : '—';
   return (
     <header className="header">
@@ -13,6 +20,7 @@ export function Header({ sessionId, onOpenSettings }: HeaderProps): React.JSX.El
         FOREMAN
       </div>
       <div className="spacer" />
+      {userEmail !== null ? <span className="label">{userEmail}</span> : null}
       <span className="label">SESSION {shortId}</span>
       <span className="status">
         <span className="pulse-dot" aria-hidden="true" />
@@ -20,6 +28,9 @@ export function Header({ sessionId, onOpenSettings }: HeaderProps): React.JSX.El
       </span>
       <button type="button" className="icon-button" onClick={onOpenSettings}>
         Settings
+      </button>
+      <button type="button" className="icon-button" onClick={onSignOut}>
+        Sign out
       </button>
     </header>
   );
