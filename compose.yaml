@@ -55,12 +55,12 @@ services:
     environment:
       MCP_URL: http://mcp-game-data:8723/mcp
       DATABASE_URL: file:/data/foreman.db
-      # Accounts (#63). BETTER_AUTH_SECRET signs session cookies — SET THIS to a
-      # long random string in any real deployment (e.g. `openssl rand -base64 32`);
-      # without it Better Auth uses an insecure development fallback. BETTER_AUTH_URL
-      # is the public origin the app is served from (needed for correct cookies
-      # behind a proxy); AUTH_TRUSTED_ORIGINS is an optional comma-separated allow
-      # list for credentialed cross-origin requests.
+      # Accounts. BETTER_AUTH_SECRET signs session cookies. Leave it unset and the
+      # server generates one on first start and persists it in the /data volume
+      # (sessions survive restarts); set it explicitly only for multi-instance or
+      # Postgres deployments. BETTER_AUTH_URL is the public origin the app is served
+      # from (needed for correct cookies behind a proxy); AUTH_TRUSTED_ORIGINS is an
+      # optional comma-separated allow list for credentialed cross-origin requests.
       BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:-}
       BETTER_AUTH_URL: ${BETTER_AUTH_URL:-}
       AUTH_TRUSTED_ORIGINS: ${AUTH_TRUSTED_ORIGINS:-}

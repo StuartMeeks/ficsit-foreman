@@ -28,3 +28,6 @@ npm-debug.log*
 .DS_Store
 .idea/
 .vscode/
+
+# Auto-generated Better Auth signing secret (persisted next to the DB)
+.better-auth-secret
