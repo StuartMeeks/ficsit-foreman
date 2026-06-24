@@ -91,6 +91,39 @@ function parseTrustedOrigins(raw: string | undefined): string[] {
 }
 
 /**
+ * Trusted origins, resolved per request. Better Auth rejects any state-changing
+ * request whose `Origin` is not trusted (CSRF protection). Behind a reverse
+ * proxy the server cannot reliably reconstruct its own public origin — the
+ * scheme, host and port are the proxy's to know — so rather than guess (and
+ * reject the browser's legitimate Origin with a 403), we trust the request's own
+ * `Origin` **only when its host matches the host the request was addressed to**.
+ * That is a genuine same-origin request, which is all this app ever makes (the
+ * SPA and the API share one origin through the nginx proxy). A cross-site
+ * `Origin` fails the host match and is still rejected. Any explicit
+ * `AUTH_TRUSTED_ORIGINS` are always included.
+ */
+export function resolveTrustedOrigins(request?: Request): string[] {
+  const configured = parseTrustedOrigins(process.env['AUTH_TRUSTED_ORIGINS']);
+  const origin = request?.headers.get('origin');
+  if (origin === null || origin === undefined || origin.length === 0) {
+    return configured;
+  }
+  const forwardedHost = request?.headers.get('x-forwarded-host')?.split(',')[0]?.trim();
+  const host =
+    forwardedHost !== undefined && forwardedHost.length > 0
+      ? forwardedHost
+      : (request?.headers.get('host') ?? '');
+  try {
+    if (host.length > 0 && new URL(origin).host === host) {
+      return [...configured, origin];
+    }
+  } catch {
+    // Malformed Origin header — fall back to the configured list.
+  }
+  return configured;
+}
+
+/**
  * Builds the Better Auth instance over a given Prisma client. Email + password
  * is the primary first factor; passkey / two-factor plugins are added in the
  * MFA slice (#63 Slice 2).
@@ -116,7 +149,7 @@ export function createAuth(prisma: PrismaClient) {
     secret: resolveAuthSecret(),
     baseURL: process.env['BETTER_AUTH_URL'],
     basePath: '/api/auth',
-    trustedOrigins: parseTrustedOrigins(process.env['AUTH_TRUSTED_ORIGINS']),
+    trustedOrigins: resolveTrustedOrigins,
     database: prismaAdapter(prisma, { provider: providerFor(process.env['DATABASE_URL']) }),
     emailAndPassword: { enabled: true },
     session: { modelName: 'authSession' },
