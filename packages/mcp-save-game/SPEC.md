@@ -51,9 +51,8 @@ game-data graph.
 | `MCP_TRANSPORT` | `stdio` (default) or `http`. |
 | `MCP_HTTP_HOST` / `MCP_HTTP_PORT` | Bind host/port for http mode (default `0.0.0.0:8726`). |
 
-The server should watch `SAVE_FILE_PATH` (or re-parse on demand) so the foreman
-sees progress as the pioneer plays, without a restart. Exact reload strategy is a
-v1 implementation detail (re-parse on file mtime change is the simplest).
+The server re-parses on file **mtime change**, so the foreman sees progress as the
+pioneer plays without a restart.
 
 ---
 
@@ -132,8 +131,7 @@ v1 implementation detail (re-parse on file mtime change is the simplest).
 ## Save File Format
 
 Satisfactory save files (`.sav`) are a **custom binary format** authored by Coffee
-Stain Studios. Key characteristics (to be confirmed against the target game version
-during v1):
+Stain Studios. Key characteristics (confirmed against real saves in v1):
 
 - A header (save version, build version, session name, play time, etc.) followed by
   a body of **chunked, zlib-compressed** data.
@@ -145,45 +143,24 @@ during v1):
 - The format **changes between game versions** — any parser must be version-aware and
   degrade gracefully (warn-and-skip) on unknown structures, like the game-data parser.
 
-### Parser: build vs adopt
+### Parser
 
-There are two routes to a working parser. This decision should be made at the start
-of v1.
-
-**Option A — adopt a community parser** (e.g.
-[`@etothepii/satisfactory-file-parser`](https://www.npmjs.com/package/@etothepii/satisfactory-file-parser),
-repo `etothepii4/satisfactory-file-parser`).
-
-- ✅ Fastest path to a working v1; the hard binary/zlib/property decoding is done.
-- ✅ Community-maintained against new game versions (when active).
-- ⚠️ **Evaluate maintenance status before adopting:** recent commits, issue/PR
-  responsiveness, support for the current game version, release cadence, typings
-  quality, and licence compatibility (we ship Apache-2.0). A parser that lags game
-  updates becomes a liability the moment players patch.
-- ⚠️ External dependency surface and API churn; we would wrap it behind our own
-  `normalise` layer so a future swap doesn't ripple into the tools.
-
-**Option B — build our own parser** (in the spirit of the hand-written game-data
-parser).
-
-- ✅ No third-party dependency; full control over version handling and error
-  philosophy; consistent with the "no third-party parsing libraries" stance in the
-  root spec.
-- ✅ We only need to decode the slices we use (player, inventories, schematic
-  manager, collectibles) — not the entire save.
-- ⚠️ Substantial up-front effort: binary framing, zlib chunk decompression, and
-  Unreal property serialisation are non-trivial and must track game-version changes
-  ourselves.
-
-**Decision (v1, 2026-06):** we **adopted** `@etothepii/satisfactory-file-parser`
-(`^4.1.0`, MIT — actively maintained, supports save versions 1.0–1.2), wrapped behind
-our own `normalise` layer (`src/parser/index.ts` is the sole importer, so a future
-swap or in-house parser is contained there). Two other implementations were consulted
-to confirm the format —
+v1 **adopts** [`@etothepii/satisfactory-file-parser`](https://www.npmjs.com/package/@etothepii/satisfactory-file-parser)
+(`^4.1.0`, MIT — actively maintained, supports save versions 1.0–1.2) to decode the
+binary format, wrapped behind our own `normalise` layer (`src/parser/index.ts` is the
+sole importer, so a future swap or in-house parser stays contained there). The format
+was cross-checked against two other implementations —
 [`SatisfactorySaveNet`](https://github.com/R3dByt3/SatisfactorySaveNet) (C#) and
-[`GreyHak/sat_sav_parse`](https://github.com/GreyHak/sat_sav_parse) (Python); all three
-agree on the structures we read. Re-evaluate building in-house if the chosen library
-becomes unmaintained or blocks a game-version update.
+[`GreyHak/sat_sav_parse`](https://github.com/GreyHak/sat_sav_parse) (Python) — which
+agree on the structures we read.
+
+**Why adopt** rather than hand-write (as the game-data parser is): the binary framing,
+zlib chunk decompression, and Unreal property serialisation are substantial to build
+and must track game-version changes, so a maintained library was the fastest path to a
+working v1. The trade-off is an external dependency that becomes a liability the moment
+it stops tracking game updates — hence the `normalise` wrapper and this trigger:
+**re-evaluate building in-house if the library becomes unmaintained or blocks a
+game-version update.**
 
 ---
 
