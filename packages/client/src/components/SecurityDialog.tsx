@@ -1,3 +1,4 @@
+import { QRCodeSVG } from 'qrcode.react';
 import { useState } from 'react';
 
 import { disableTwoFactor, enableTwoFactor, verifyTotp } from '../api/auth.js';
@@ -25,8 +26,10 @@ function secretFromUri(totpURI: string): string {
  * Account security: enrol or remove two-factor authentication (TOTP + single-use
  * recovery codes). Enrolment is a three-step flow — confirm password, scan/enter
  * the secret and save the recovery codes, then verify a code to switch it on.
- * The pioneer's authenticator app holds the TOTP secret; we render it for manual
- * entry (no external QR service — the app ships no third-party network calls).
+ * The pioneer scans the QR with their authenticator app, or enters the secret
+ * manually. The QR is rendered locally from the `otpauth://` URI (qrcode.react,
+ * inline SVG) — no external QR service, keeping the app free of third-party
+ * network calls.
  */
 export function SecurityDialog({
   twoFactorEnabled,
@@ -171,11 +174,17 @@ export function SecurityDialog({
             }}
           >
             <p className="hint">
-              Add this secret to your authenticator app, then enter the 6-digit code it shows to
-              switch on two-factor.
+              Scan this with your authenticator app (or enter the key manually), then enter the
+              6-digit code it shows to switch on two-factor.
             </p>
             <div className="field">
-              <label>Setup key</label>
+              <label>Scan QR code</label>
+              <div className="qr-box">
+                <QRCodeSVG value={totpURI} size={176} marginSize={2} />
+              </div>
+            </div>
+            <div className="field">
+              <label>Or enter this key manually</label>
               <code className="secret-block">{secretFromUri(totpURI)}</code>
             </div>
             <div className="field">
