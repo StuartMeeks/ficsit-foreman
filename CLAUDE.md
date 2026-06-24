@@ -17,7 +17,7 @@ packages/
   server/           Express backend: LLM proxy (SSE), sessions, work orders, MCP gateway
                     (the foreman system prompt lives here: SYSTEM_PROMPT.md)
   client/           React + Vite web UI (chat + work-order cockpit)
-docs/               product.md · architecture.md · work-orders.md
+docs/               product.md · architecture.md · work-orders.md · playthroughs.md
 ```
 
 ## Where to find what
@@ -27,6 +27,7 @@ docs/               product.md · architecture.md · work-orders.md
 | The product — problem, vision, features | [`docs/product.md`](./docs/product.md) |
 | How it fits together — services, MCP boundary, graph, deployment | [`docs/architecture.md`](./docs/architecture.md) |
 | The work-order design (states, revisions, audit, plan/execution split) | [`docs/work-orders.md`](./docs/work-orders.md) |
+| The session/playthrough & foreman model (design) | [`docs/playthroughs.md`](./docs/playthroughs.md) |
 | The game-data parser & class-map design | [`packages/game-data-core/PARSER.md`](./packages/game-data-core/PARSER.md) |
 | The foreman persona (runtime prompt) | [`packages/server/SYSTEM_PROMPT.md`](./packages/server/SYSTEM_PROMPT.md) |
 | A package's usage, tools, and setup | that package's `README.md` |
