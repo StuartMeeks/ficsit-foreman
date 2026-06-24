@@ -116,7 +116,9 @@ export function AuthScreen({
               }}
             >
               <div className="field">
-                <label htmlFor="auth-code">{useBackup ? 'Recovery code' : 'Authenticator code'}</label>
+                <label htmlFor="auth-code">
+                  {useBackup ? 'Recovery code' : 'Authenticator code'}
+                </label>
                 <input
                   id="auth-code"
                   type="text"
@@ -161,84 +163,84 @@ export function AuthScreen({
             </p>
           </section>
         ) : (
-        <section className="onboarding-step">
-          <span className="label">{isSignUp ? 'Create account' : 'Sign in'}</span>
-          <h1 className="onboarding-title">
-            {isSignUp ? 'Sign up for duty.' : 'Welcome back, pioneer.'}
-          </h1>
-          <p className="onboarding-lede">
-            {isSignUp
-              ? 'Create an account to keep your sessions, work orders and chat history together and to hand.'
-              : 'Sign in to pick up where you left off.'}
-          </p>
+          <section className="onboarding-step">
+            <span className="label">{isSignUp ? 'Create account' : 'Sign in'}</span>
+            <h1 className="onboarding-title">
+              {isSignUp ? 'Sign up for duty.' : 'Welcome back, pioneer.'}
+            </h1>
+            <p className="onboarding-lede">
+              {isSignUp
+                ? 'Create an account to keep your sessions, work orders and chat history together and to hand.'
+                : 'Sign in to pick up where you left off.'}
+            </p>
 
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              void submit();
-            }}
-          >
-            {isSignUp ? (
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                void submit();
+              }}
+            >
+              {isSignUp ? (
+                <div className="field">
+                  <label htmlFor="auth-name">Name</label>
+                  <input
+                    id="auth-name"
+                    type="text"
+                    autoComplete="name"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                  />
+                </div>
+              ) : null}
+
               <div className="field">
-                <label htmlFor="auth-name">Name</label>
+                <label htmlFor="auth-email">Email</label>
                 <input
-                  id="auth-name"
-                  type="text"
-                  autoComplete="name"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
+                  id="auth-email"
+                  type="email"
+                  autoComplete="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
                 />
               </div>
-            ) : null}
 
-            <div className="field">
-              <label htmlFor="auth-email">Email</label>
-              <input
-                id="auth-email"
-                type="email"
-                autoComplete="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-              />
-            </div>
+              <div className="field">
+                <label htmlFor="auth-password">Password</label>
+                <input
+                  id="auth-password"
+                  type="password"
+                  autoComplete={isSignUp ? 'new-password' : 'current-password'}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                />
+              </div>
 
-            <div className="field">
-              <label htmlFor="auth-password">Password</label>
-              <input
-                id="auth-password"
-                type="password"
-                autoComplete={isSignUp ? 'new-password' : 'current-password'}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-              />
-            </div>
+              {error !== null ? <p className="err">{error}</p> : null}
 
-            {error !== null ? <p className="err">{error}</p> : null}
+              <div className="onboarding-actions">
+                <button type="submit" className="send" disabled={!canSubmit}>
+                  {submitting
+                    ? isSignUp
+                      ? 'Creating account'
+                      : 'Signing in'
+                    : isSignUp
+                      ? 'Create account'
+                      : 'Sign in'}
+                </button>
+              </div>
+            </form>
 
-            <div className="onboarding-actions">
-              <button type="submit" className="send" disabled={!canSubmit}>
-                {submitting
-                  ? isSignUp
-                    ? 'Creating account'
-                    : 'Signing in'
-                  : isSignUp
-                    ? 'Create account'
-                    : 'Sign in'}
+            <p className="auth-switch">
+              {isSignUp ? 'Already have an account?' : 'New here?'}{' '}
+              <button
+                type="button"
+                className="link-button"
+                onClick={() => switchMode(isSignUp ? 'signin' : 'signup')}
+              >
+                {isSignUp ? 'Sign in' : 'Create an account'}
               </button>
-            </div>
-          </form>
-
-          <p className="auth-switch">
-            {isSignUp ? 'Already have an account?' : 'New here?'}{' '}
-            <button
-              type="button"
-              className="link-button"
-              onClick={() => switchMode(isSignUp ? 'signin' : 'signup')}
-            >
-              {isSignUp ? 'Sign in' : 'Create an account'}
-            </button>
-          </p>
-        </section>
+            </p>
+          </section>
         )}
       </div>
     </div>

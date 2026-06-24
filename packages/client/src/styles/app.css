@@ -1219,6 +1219,23 @@ button:disabled {
   text-decoration: underline;
 }
 
+/* Monospace block for a TOTP setup key / recovery codes — selectable, wraps. */
+.secret-block {
+  display: block;
+  font-family: var(--font-numeric);
+  font-size: 13px;
+  line-height: 1.7;
+  letter-spacing: 0.04em;
+  white-space: pre-wrap;
+  word-break: break-all;
+  user-select: all;
+  background: var(--surface-inset);
+  border: 1px solid var(--border-hairline);
+  border-radius: var(--radius-sm);
+  color: var(--text-body);
+  padding: 9px 11px;
+}
+
 /* Inline checkbox + label row (e.g. "trust this device"). */
 .checkbox-row {
   display: flex;

@@ -4,6 +4,7 @@ import { AuthScreen } from './components/AuthScreen.js';
 import { ChatColumn } from './components/ChatColumn.js';
 import { Header } from './components/Header.js';
 import { Onboarding } from './components/Onboarding.js';
+import { SecurityDialog } from './components/SecurityDialog.js';
 import { SettingsDialog } from './components/SettingsDialog.js';
 import { WorkOrderPanel } from './components/WorkOrderPanel.js';
 import { useForeman } from './useForeman.js';
@@ -31,6 +32,7 @@ function initialSplit(): number {
 export function App(): React.JSX.Element {
   const foreman = useForeman();
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [securityOpen, setSecurityOpen] = useState(false);
   const [chatPct, setChatPct] = useState(initialSplit);
   const mainRef = useRef<HTMLElement>(null);
   const dragging = useRef(false);
@@ -108,6 +110,7 @@ export function App(): React.JSX.Element {
         sessionId={foreman.session?.id ?? null}
         userEmail={foreman.user?.email ?? null}
         onOpenSettings={() => setSettingsOpen(true)}
+        onOpenSecurity={() => setSecurityOpen(true)}
         onSignOut={() => void foreman.signOut()}
       />
 
@@ -157,6 +160,14 @@ export function App(): React.JSX.Element {
           llm={foreman.llm}
           onClose={() => setSettingsOpen(false)}
           onSave={foreman.saveSettings}
+        />
+      ) : null}
+
+      {securityOpen ? (
+        <SecurityDialog
+          twoFactorEnabled={foreman.user?.twoFactorEnabled ?? false}
+          onClose={() => setSecurityOpen(false)}
+          onChanged={foreman.refreshUser}
         />
       ) : null}
     </div>

@@ -2,6 +2,7 @@ interface HeaderProps {
   sessionId: string | null;
   userEmail: string | null;
   onOpenSettings: () => void;
+  onOpenSecurity: () => void;
   onSignOut: () => void;
 }
 
@@ -10,6 +11,7 @@ export function Header({
   sessionId,
   userEmail,
   onOpenSettings,
+  onOpenSecurity,
   onSignOut,
 }: HeaderProps): React.JSX.Element {
   const shortId = sessionId !== null ? sessionId.slice(0, 8) : '—';
@@ -28,6 +30,9 @@ export function Header({
       </span>
       <button type="button" className="icon-button" onClick={onOpenSettings}>
         Settings
+      </button>
+      <button type="button" className="icon-button" onClick={onOpenSecurity}>
+        Security
       </button>
       <button type="button" className="icon-button" onClick={onSignOut}>
         Sign out
