@@ -2,11 +2,11 @@
 
 The FICSIT Foreman backend — the Express service that sits between the web client
 and the LLM provider. It runs the foreman persona, streams chat responses, calls
-the Phase 1 MCP server for accurate game data, and persists sessions and work
-orders.
+the game-data (and optional save-game) MCP server for accurate game data, and
+persists sessions and work orders.
 
 It runs as the `server` service in the `foreman` Docker Compose project,
-alongside the `mcp` service.
+alongside `mcp-game-data` (and optionally `mcp-save-game`).
 
 ## What it does
 
