@@ -92,9 +92,10 @@ function firstNonEmpty(...values: (string | undefined)[]): string | undefined {
 
 /**
  * Locates the foreman system prompt. Priority: SYSTEM_PROMPT_PATH env override,
- * then a copy bundled beside the package (Docker image), then the repo-root
- * source of truth (local dev). Returns the first that exists, else the package
- * path so the caller's read error is explicit.
+ * then the copy in the server package (`packages/server/SYSTEM_PROMPT.md`, also
+ * what the Docker image copies in). A legacy repo-root location is kept as a
+ * last-resort fallback. Returns the first that exists, else the package path so
+ * the caller's read error is explicit.
  */
 export function resolveSystemPromptPath(env: NodeJS.ProcessEnv = process.env): string {
   const here = path.dirname(fileURLToPath(import.meta.url));
@@ -103,7 +104,7 @@ export function resolveSystemPromptPath(env: NodeJS.ProcessEnv = process.env): s
   const candidates = [
     env['SYSTEM_PROMPT_PATH']?.trim(),
     path.join(packageRoot, 'SYSTEM_PROMPT.md'),
-    path.resolve(packageRoot, '..', '..', 'SYSTEM_PROMPT.md'),
+    path.resolve(packageRoot, '..', '..', 'SYSTEM_PROMPT.md'), // legacy repo-root fallback
   ].filter((candidate): candidate is string => candidate !== undefined && candidate.length > 0);
 
   for (const candidate of candidates) {

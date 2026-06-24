@@ -78,8 +78,8 @@ COPY --from=builder /app/packages/server/prisma ./packages/server/prisma
 # Prisma 7 reads the datasource URL from the config file (not schema.prisma), so
 # the migrate-deploy step at container start needs it present.
 COPY --from=builder /app/packages/server/prisma.config.ts ./packages/server/prisma.config.ts
-# The foreman system prompt is the repo-root source of truth.
-COPY SYSTEM_PROMPT.md ./SYSTEM_PROMPT.md
+# The foreman system prompt lives in the server package (loaded at runtime).
+COPY packages/server/SYSTEM_PROMPT.md ./SYSTEM_PROMPT.md
 
 # Writable data dir for the SQLite database; the named volume inherits this
 # ownership on first creation so the unprivileged user can write.

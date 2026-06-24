@@ -1,6 +1,7 @@
 # @foreman/mcp-game-data
 
-The FICSIT Foreman game-data MCP server. It parses Satisfactory's `en-US.json` game data, loads it
+The FICSIT Foreman game-data MCP server. It loads Satisfactory's `en-US.json` game
+data — parsed by the shared [`@foreman/game-data-core`](../game-data-core) package —
 into an embedded [Kùzu](https://kuzudb.com) graph database, and exposes it as a set
 of computed, token-efficient [Model Context Protocol](https://modelcontextprotocol.io)
 tools.
@@ -87,8 +88,8 @@ MCP_TRANSPORT=http MCP_HTTP_HOST=0.0.0.0 MCP_HTTP_PORT=8723 \
 ### Docker
 
 A container image (`ghcr.io/stuartmeeks/foreman-mcp-game-data`) ships the bundled stable game data
-and defaults to HTTP on `:8723`. See [Run with Docker](../../README.md#run-with-docker) in
-the root README.
+and defaults to HTTP on `:8723`. See [Quick start (Docker)](../../README.md#quick-start-docker--recommended)
+in the root README.
 
 ## Inspecting without an MCP client
 
@@ -168,14 +169,19 @@ in CI against the known fixed world totals.
 
 ## Architecture
 
+The `en-US.json` parser, shared types, and bundled game data live in
+[`@foreman/game-data-core`](../game-data-core) (see its `PARSER.md`); this package
+consumes its `GameData` and builds the graph + tools on top.
+
 ```
 src/
-  parser/    en-US.json → clean GameData (UTF-16, Unreal string encodings, fluids, …)
   graph/     GameData → in-memory Kùzu graph + query layer
+  world/     world-location queries (collectibles, resource nodes; distance sort)
   tools/     MCP tool registration (zod schemas, version-tagged responses)
   config.ts  docs-path resolution
-  logger.ts  stderr-only logging
+  http.ts    opt-in Streamable HTTP transport
   index.ts   server entry (stdio transport)
+  scripts/   the `inspect` CLI
 ```
 
 **Where recursion happens.** `ingredient_tree`, `total_raw_inputs` and `buildable_with`

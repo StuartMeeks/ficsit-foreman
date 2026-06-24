@@ -2,11 +2,11 @@
 
 The FICSIT Foreman backend — the Express service that sits between the web client
 and the LLM provider. It runs the foreman persona, streams chat responses, calls
-the Phase 1 MCP server for accurate game data, and persists sessions and work
-orders.
+the game-data (and optional save-game) MCP server for accurate game data, and
+persists sessions and work orders.
 
 It runs as the `server` service in the `foreman` Docker Compose project,
-alongside the `mcp` service.
+alongside `mcp-game-data` (and optionally `mcp-save-game`).
 
 ## What it does
 
@@ -25,7 +25,7 @@ alongside the `mcp` service.
   Hosted tier — the server uses its own `LLM_API_KEY`. The header wins when both
   are present.
 - **Work orders (v2).** Stateful, auditable records with a plan/execution split —
-  see the canonical [`WORK_ORDER_SPEC.md`](../../WORK_ORDER_SPEC.md). The foreman
+  see the canonical [`docs/work-orders.md`](../../docs/work-orders.md). The foreman
   drives the plan via tools (`create_work_order`, `revise_work_order`,
   `block`/`unblock`/`supersede`, `create_child_work_order`) and may only
   `propose_completion` — **completion is Pioneer-only** (via REST/UI). Creating an
@@ -59,7 +59,7 @@ All routes are under `/api`. The session id is a client-held UUID.
 | `GET` | `/health` | Liveness + model/MCP/game-version info. |
 
 The full work-order surface (every transition, required fields, and actor rules)
-is specified in [`WORK_ORDER_SPEC.md`](../../WORK_ORDER_SPEC.md).
+is specified in [`docs/work-orders.md`](../../docs/work-orders.md).
 
 ### Chat SSE events
 

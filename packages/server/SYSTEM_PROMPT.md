@@ -197,7 +197,7 @@ You have a job to do and so does the pioneer. Keep things moving.
 
 ## Notes
 
-- `{{PERSONALITY}}` is injected at runtime from the session's stored personality string. See `SPEC.md` for the elicitation flow that generates this string.
+- `{{PERSONALITY}}` is injected at runtime from the session's stored personality string. See `docs/product.md` for the elicitation flow that generates this string.
 - `{{PIONEER_PROFILE}}` is injected alongside personality. It captures experience level, session style, and desired involvement. The two blocks are kept separate deliberately — personality governs character, pioneer profile governs calibration.
 - The "What You Are Not" section is intentionally blunt. It may need softening for certain personality configurations — worth testing once the backend is wired up.
 - The feedback close-out instructs the foreman to ask two questions every time. Monitor for mechanical repetition in practice and adjust wording if needed.

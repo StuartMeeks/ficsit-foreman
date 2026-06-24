@@ -1,5 +1,5 @@
 /**
- * Kùzu DDL. Node and relationship tables mirror the schema in SPEC.md.
+ * Kùzu DDL. Node and relationship tables mirror the graph schema in docs/architecture.md.
  * `perMinute` is stored on PRODUCES/CONSUMES so production-rate queries are
  * trivially cheap (computed once at load, never at query time).
  */

@@ -297,4 +297,4 @@ Write unit tests (Vitest) for:
 - Rubber (byproduct recipe — also produces Heavy Oil Residue)
 - Water (raw resource — no producing recipe, leaf node)
 
-Use hand-crafted fixture JSON (not the real game file) that covers all known edge cases. Tests must never depend on the real `en-US.json`. (The only tracked copy of the real file is the optional bundled runtime fallback at `packages/game-data-core/data/en-US.json`, supplied via PRs per `CONTRIBUTING.md`; a local working copy under `game-data/` stays gitignored.)
+Use hand-crafted fixture JSON (not the real game file) that covers all known edge cases. Tests must never depend on the real `en-US.json`. (The only tracked copy of the real file is the optional bundled runtime fallback at `packages/game-data-core/data/<channel>/en-US.json`, supplied via PRs per `CONTRIBUTING.md`; a local working copy under `game-data/` stays gitignored.)

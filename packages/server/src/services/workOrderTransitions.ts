@@ -1,7 +1,7 @@
 import type { TerminalWorkOrderState, WorkOrderActor, WorkOrderState } from '../types.js';
 
 /**
- * The work-order state machine, per WORK_ORDER_SPEC.md. Transitions are
+ * The work-order state machine, per docs/work-orders.md. Transitions are
  * validated against BOTH the current state and the requesting actor. Actor is a
  * correctness guardrail asserted by call site (Foreman = tool call, Pioneer =
  * REST/UI) — it is not authenticated.

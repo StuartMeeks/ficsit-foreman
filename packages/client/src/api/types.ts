@@ -1,5 +1,5 @@
 // API types, mirroring the @foreman/server contracts the client talks to
-// (Work Orders v2 — see WORK_ORDER_SPEC.md).
+// (Work Orders v2 — see docs/work-orders.md).
 
 export type WorkOrderState =
   | 'new'

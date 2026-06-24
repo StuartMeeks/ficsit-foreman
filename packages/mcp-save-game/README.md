@@ -56,9 +56,9 @@ SAVE_FILE_PATH=/path/to/MySave.sav npm run dev -w @foreman/mcp-save-game
 SAVE_FILE_PATH=/path/to/MySave.sav npm run start -w @foreman/mcp-save-game
 ```
 
-Like the game-data server, v1 will default to MCP over **stdio** and offer an
-opt-in HTTP transport (`MCP_TRANSPORT=http`, `MCP_HTTP_PORT` default `8726`) for
-running as a Docker Compose service.
+Like the game-data server, it defaults to MCP over **stdio** and offers an opt-in
+HTTP transport (`MCP_TRANSPORT=http`, `MCP_HTTP_PORT` default `8726`) for running
+as a Docker Compose service.
 
 ### Docker / Compose
 
