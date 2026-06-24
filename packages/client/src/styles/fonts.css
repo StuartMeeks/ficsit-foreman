@@ -1,0 +1,15 @@
+/* Self-hosted fonts — bundled by Vite from @fontsource, served same-origin (no
+ * CDN, satisfying the app's CSP). Only the weights the design tokens use are
+ * imported, to keep the bundle lean. Families: Barlow (body), Barlow Condensed
+ * (headings), IBM Plex Mono (labels/numerals). */
+@import '@fontsource/barlow/400.css';
+@import '@fontsource/barlow/500.css';
+@import '@fontsource/barlow/600.css';
+@import '@fontsource/barlow/700.css';
+@import '@fontsource/barlow-condensed/600.css';
+@import '@fontsource/barlow-condensed/700.css';
+@import '@fontsource/barlow-condensed/800.css';
+@import '@fontsource/ibm-plex-mono/400.css';
+@import '@fontsource/ibm-plex-mono/500.css';
+@import '@fontsource/ibm-plex-mono/600.css';
+@import '@fontsource/ibm-plex-mono/700.css';

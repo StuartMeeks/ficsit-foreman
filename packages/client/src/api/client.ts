@@ -3,7 +3,14 @@
 // the backend, so there is no CORS and no base URL to configure.
 
 import { parseSseStream } from './sse.js';
-import type { Session, WorkOrder } from './types.js';
+import type {
+  Session,
+  WorkOrder,
+  WorkOrderAction,
+  WorkOrderAuditEvent,
+  WorkOrderRevision,
+  WorkOrderRevisionDiff,
+} from './types.js';
 
 const API_KEY_HEADER = 'x-anthropic-api-key';
 
@@ -84,6 +91,132 @@ export async function listWorkOrders(sessionId: string): Promise<WorkOrder[]> {
     throw new Error(await readError(response));
   }
   return (await response.json()) as WorkOrder[];
+}
+
+// ── Work-order v2 mutations & reads ─────────────────────────────────────────
+// All mutating endpoints return the updated WorkOrder; callers swap it into
+// local state in place. Failures (409 conflict, 403 actor, 400 requirement)
+// surface as a thrown Error carrying the server's message.
+
+const wo = (sessionId: string, id: string): string =>
+  `/api/sessions/${sessionId}/work-orders/${id}`;
+
+async function send<T>(url: string, method: string, body?: unknown): Promise<T> {
+  const response = await fetch(url, {
+    method,
+    headers: jsonHeaders(),
+    ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
+  });
+  if (!response.ok) {
+    throw new Error(await readError(response));
+  }
+  return (await response.json()) as T;
+}
+
+async function getJson<T>(url: string): Promise<T> {
+  const response = await fetch(url);
+  if (!response.ok) {
+    throw new Error(await readError(response));
+  }
+  return (await response.json()) as T;
+}
+
+/** Extra fields a transition may require (block reason, completion summary, …). */
+export interface TransitionOptions {
+  blockedReason?: string;
+  blockedResolutionHint?: string;
+  resolutionNote?: string;
+  cancellationReason?: string;
+  supersededByWorkOrderId?: string;
+  supersededReason?: string;
+  forceCompletionReason?: string;
+  incompleteItemSummary?: string;
+  completionSummary?: string;
+}
+
+export async function transitionWorkOrder(
+  sessionId: string,
+  id: string,
+  action: WorkOrderAction,
+  options: TransitionOptions = {},
+): Promise<WorkOrder> {
+  return send<WorkOrder>(`${wo(sessionId, id)}/transitions`, 'POST', {
+    action,
+    actor: 'Pioneer',
+    ...options,
+  });
+}
+
+export async function setMaterialChecked(
+  sessionId: string,
+  id: string,
+  materialId: string,
+  checked: boolean,
+): Promise<WorkOrder> {
+  return send<WorkOrder>(`${wo(sessionId, id)}/materials/${materialId}`, 'PATCH', { checked });
+}
+
+export async function setStepChecked(
+  sessionId: string,
+  id: string,
+  stepId: string,
+  checked: boolean,
+): Promise<WorkOrder> {
+  return send<WorkOrder>(`${wo(sessionId, id)}/steps/${stepId}`, 'PATCH', { checked });
+}
+
+export async function setMachineBuiltCount(
+  sessionId: string,
+  id: string,
+  machineId: string,
+  builtCount: number,
+): Promise<WorkOrder> {
+  return send<WorkOrder>(`${wo(sessionId, id)}/machines/${machineId}`, 'PATCH', { builtCount });
+}
+
+export async function logHours(sessionId: string, id: string, hours: number): Promise<WorkOrder> {
+  return send<WorkOrder>(`${wo(sessionId, id)}/hours`, 'POST', { hours });
+}
+
+export async function acknowledgeRevision(
+  sessionId: string,
+  id: string,
+  revisionNumber?: number,
+): Promise<WorkOrder> {
+  return send<WorkOrder>(`${wo(sessionId, id)}/acknowledge`, 'POST', { revisionNumber });
+}
+
+export async function revertToRevision(
+  sessionId: string,
+  id: string,
+  revisionNumber: number,
+): Promise<WorkOrder> {
+  return send<WorkOrder>(`${wo(sessionId, id)}/revert`, 'POST', { revisionNumber });
+}
+
+export async function getAuditTrail(sessionId: string, id: string): Promise<WorkOrderAuditEvent[]> {
+  return getJson<WorkOrderAuditEvent[]>(`${wo(sessionId, id)}/audit`);
+}
+
+export async function getRevisions(sessionId: string, id: string): Promise<WorkOrderRevision[]> {
+  return getJson<WorkOrderRevision[]>(`${wo(sessionId, id)}/revisions`);
+}
+
+export async function getRevisionDiff(
+  sessionId: string,
+  id: string,
+  from?: number,
+  to?: number,
+): Promise<WorkOrderRevisionDiff> {
+  const params = new URLSearchParams();
+  if (from !== undefined) {
+    params.set('from', String(from));
+  }
+  if (to !== undefined) {
+    params.set('to', String(to));
+  }
+  const qs = params.toString();
+  return getJson<WorkOrderRevisionDiff>(`${wo(sessionId, id)}/revisions/diff${qs ? `?${qs}` : ''}`);
 }
 
 /** Per-request LLM override (effective only when an API key is supplied). */
