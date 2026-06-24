@@ -5,6 +5,8 @@ import {
   signIn as apiSignIn,
   signOut as apiSignOut,
   signUp as apiSignUp,
+  verifyBackupCode as apiVerifyBackupCode,
+  verifyTotp as apiVerifyTotp,
   type AuthUser,
 } from './api/auth.js';
 import {
@@ -59,8 +61,13 @@ export type AuthStatus = 'loading' | 'anon' | 'authed';
 export interface ForemanState {
   authStatus: AuthStatus;
   user: AuthUser | null;
-  signIn(email: string, password: string): Promise<void>;
+  /** Resolves `{ twoFactorRequired }`; when true, call {@link verifyTwoFactor}. */
+  signIn(email: string, password: string): Promise<{ twoFactorRequired: boolean }>;
   signUp(name: string, email: string, password: string): Promise<void>;
+  verifyTwoFactor(code: string, trustDevice: boolean): Promise<void>;
+  verifyBackupCode(code: string, trustDevice: boolean): Promise<void>;
+  /** Re-reads the current user (e.g. after enabling/disabling MFA). */
+  refreshUser(): Promise<void>;
   signOut(): Promise<void>;
   session: Session | null;
   messages: ChatMsg[];
@@ -242,7 +249,27 @@ export function useForeman(): ForemanState {
 
   const signIn = useCallback(
     async (email: string, password: string) => {
-      await enterApp(await apiSignIn(email, password));
+      const result = await apiSignIn(email, password);
+      if (result.kind === 'twoFactor') {
+        // MFA enabled: hold here until the second factor is verified.
+        return { twoFactorRequired: true };
+      }
+      await enterApp(result.user);
+      return { twoFactorRequired: false };
+    },
+    [enterApp],
+  );
+
+  const verifyTwoFactor = useCallback(
+    async (code: string, trustDevice: boolean) => {
+      await enterApp(await apiVerifyTotp(code, trustDevice));
+    },
+    [enterApp],
+  );
+
+  const verifyBackupCode = useCallback(
+    async (code: string, trustDevice: boolean) => {
+      await enterApp(await apiVerifyBackupCode(code, trustDevice));
     },
     [enterApp],
   );
@@ -253,6 +280,10 @@ export function useForeman(): ForemanState {
     },
     [enterApp],
   );
+
+  const refreshUser = useCallback(async () => {
+    setUser(await fetchCurrentUser());
+  }, []);
 
   const signOut = useCallback(async () => {
     await apiSignOut();
@@ -402,6 +433,9 @@ export function useForeman(): ForemanState {
     user,
     signIn,
     signUp,
+    verifyTwoFactor,
+    verifyBackupCode,
+    refreshUser,
     signOut,
     session,
     messages,
