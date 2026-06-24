@@ -119,7 +119,12 @@ export function App(): React.JSX.Element {
           onPointerUp={onPointerUp}
           onKeyDown={onKeyDown}
         />
-        <WorkOrderPanel active={foreman.activeWorkOrder} history={foreman.history} />
+        <WorkOrderPanel
+          sessionId={foreman.session?.id ?? null}
+          current={foreman.currentOrder}
+          history={foreman.history}
+          actions={foreman.workOrders}
+        />
       </main>
 
       {settingsOpen ? (

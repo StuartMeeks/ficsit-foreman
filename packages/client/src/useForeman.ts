@@ -1,15 +1,27 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import {
+  acknowledgeRevision,
   createSession,
-  getActiveWorkOrder,
   getSession,
   listWorkOrders,
+  logHours,
   patchSession,
+  revertToRevision,
+  setMachineBuiltCount,
+  setMaterialChecked,
+  setStepChecked,
   streamChat,
+  transitionWorkOrder,
   type ClientLlmConfig,
+  type TransitionOptions,
 } from './api/client.js';
-import type { Session, WorkOrder } from './api/types.js';
+import {
+  TERMINAL_STATES,
+  type Session,
+  type WorkOrder,
+  type WorkOrderAction,
+} from './api/types.js';
 
 const SESSION_KEY = 'foreman.sessionId';
 const API_KEY = 'foreman.apiKey';
@@ -37,8 +49,10 @@ export interface LlmSettings {
 export interface ForemanState {
   session: Session | null;
   messages: ChatMsg[];
-  activeWorkOrder: WorkOrder | null;
+  /** The order the work-order panel should display (active, else latest). */
+  currentOrder: WorkOrder | null;
   history: WorkOrder[];
+  workOrders: WorkOrderActions;
   sending: boolean;
   booting: boolean;
   needsOnboarding: boolean;
@@ -75,11 +89,45 @@ function isUnonboarded(session: Session): boolean {
   return session.personality.trim().length === 0 && session.pioneerProfile.trim().length === 0;
 }
 
+function isTerminal(order: WorkOrder): boolean {
+  return TERMINAL_STATES.includes(order.state);
+}
+
+/**
+ * The order the panel should show. A newly-issued order is `new` (not `active`),
+ * so we can't rely on the /active endpoint alone: prefer the active order, then
+ * the latest non-terminal one, then simply the latest (so a just-completed order
+ * stays on screen in its terminal state).
+ */
+function pickCurrent(history: WorkOrder[]): WorkOrder | null {
+  if (history.length === 0) {
+    return null;
+  }
+  const bySeqDesc = [...history].sort((a, b) => b.sequenceNumber - a.sequenceNumber);
+  return (
+    bySeqDesc.find((o) => o.state === 'active') ??
+    bySeqDesc.find((o) => !isTerminal(o)) ??
+    bySeqDesc[0] ??
+    null
+  );
+}
+
+/** Pioneer-driven work-order mutations. Each swaps the updated order into state. */
+export interface WorkOrderActions {
+  transition(id: string, action: WorkOrderAction, options?: TransitionOptions): Promise<void>;
+  setMaterial(id: string, materialId: string, checked: boolean): Promise<void>;
+  setStep(id: string, stepId: string, checked: boolean): Promise<void>;
+  setMachine(id: string, machineId: string, builtCount: number): Promise<void>;
+  acknowledge(id: string, revisionNumber?: number): Promise<void>;
+  revert(id: string, revisionNumber: number): Promise<void>;
+  logHours(id: string, hours: number): Promise<void>;
+}
+
 export function useForeman(): ForemanState {
   const [session, setSession] = useState<Session | null>(null);
   const [messages, setMessages] = useState<ChatMsg[]>([]);
-  const [activeWorkOrder, setActiveWorkOrder] = useState<WorkOrder | null>(null);
   const [history, setHistory] = useState<WorkOrder[]>([]);
+  const currentOrder = useMemo(() => pickCurrent(history), [history]);
   const [sending, setSending] = useState(false);
   const [booting, setBooting] = useState(true);
   const [needsOnboarding, setNeedsOnboarding] = useState(false);
@@ -94,12 +142,20 @@ export function useForeman(): ForemanState {
   const booted = useRef(false);
 
   const loadOrders = useCallback(async (sessionId: string) => {
-    const [active, all] = await Promise.all([
-      getActiveWorkOrder(sessionId),
-      listWorkOrders(sessionId),
-    ]);
-    setActiveWorkOrder(active);
-    setHistory(all);
+    setHistory(await listWorkOrders(sessionId));
+  }, []);
+
+  /** Swap a mutated order into history in place (no full refetch / flicker). */
+  const replaceOrder = useCallback((updated: WorkOrder) => {
+    setHistory((prev) => {
+      const idx = prev.findIndex((o) => o.id === updated.id);
+      if (idx === -1) {
+        return [...prev, updated];
+      }
+      const next = prev.slice();
+      next[idx] = updated;
+      return next;
+    });
   }, []);
 
   useEffect(() => {
@@ -167,7 +223,9 @@ export function useForeman(): ForemanState {
             prev.map((m) => (m.id === assistantId ? { ...m, tools: [...m.tools, name] } : m)),
           ),
         onWorkOrder: (order) => {
-          setActiveWorkOrder(order.status === 'active' ? order : null);
+          // The foreman created/revised an order; reflect it immediately and
+          // refetch the list so a freshly-issued order joins the history.
+          replaceOrder(order);
           void loadOrders(sessionId);
         },
         onError: (message) => {
@@ -187,8 +245,40 @@ export function useForeman(): ForemanState {
           setSending(false);
         });
     },
-    [llm, loadOrders, patchMessage, sending, session],
+    [llm, loadOrders, patchMessage, replaceOrder, sending, session],
   );
+
+  const workOrders = useMemo<WorkOrderActions>(() => {
+    const sid = (): string => {
+      if (session === null) {
+        throw new Error('No active session.');
+      }
+      return session.id;
+    };
+    return {
+      transition: async (id, action, options) => {
+        replaceOrder(await transitionWorkOrder(sid(), id, action, options));
+      },
+      setMaterial: async (id, materialId, checked) => {
+        replaceOrder(await setMaterialChecked(sid(), id, materialId, checked));
+      },
+      setStep: async (id, stepId, checked) => {
+        replaceOrder(await setStepChecked(sid(), id, stepId, checked));
+      },
+      setMachine: async (id, machineId, builtCount) => {
+        replaceOrder(await setMachineBuiltCount(sid(), id, machineId, builtCount));
+      },
+      acknowledge: async (id, revisionNumber) => {
+        replaceOrder(await acknowledgeRevision(sid(), id, revisionNumber));
+      },
+      revert: async (id, revisionNumber) => {
+        replaceOrder(await revertToRevision(sid(), id, revisionNumber));
+      },
+      logHours: async (id, hours) => {
+        replaceOrder(await logHours(sid(), id, hours));
+      },
+    };
+  }, [replaceOrder, session]);
 
   const completeOnboarding = useCallback(
     async (input: { personality: string; pioneerProfile: string }) => {
@@ -230,8 +320,9 @@ export function useForeman(): ForemanState {
   return {
     session,
     messages,
-    activeWorkOrder,
+    currentOrder,
     history,
+    workOrders,
     sending,
     booting,
     needsOnboarding,
