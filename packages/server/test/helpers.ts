@@ -1,4 +1,5 @@
 import { execSync } from 'node:child_process';
+import { randomUUID } from 'node:crypto';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -36,4 +37,19 @@ export async function createTestDb(): Promise<TestDb> {
       fs.rmSync(dir, { recursive: true, force: true });
     },
   };
+}
+
+/**
+ * Inserts a Better Auth user row directly, returning its id. Service-level tests
+ * need a real owner to satisfy the `Session.userId` foreign key without going
+ * through the HTTP auth flow.
+ */
+export async function createTestUser(
+  prisma: PrismaClient,
+  email = `user-${randomUUID()}@test.local`,
+): Promise<string> {
+  const user = await prisma.user.create({
+    data: { id: randomUUID(), name: 'Test User', email, emailVerified: true },
+  });
+  return user.id;
 }

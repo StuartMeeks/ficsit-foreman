@@ -1,9 +1,16 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import {
+  fetchCurrentUser,
+  signIn as apiSignIn,
+  signOut as apiSignOut,
+  signUp as apiSignUp,
+  type AuthUser,
+} from './api/auth.js';
+import {
   acknowledgeRevision,
+  claimSession,
   createSession,
-  getSession,
   listWorkOrders,
   logHours,
   patchSession,
@@ -46,7 +53,15 @@ export interface LlmSettings {
   baseUrl: string;
 }
 
+/** Whether the auth check is still running, finished signed-out, or signed-in. */
+export type AuthStatus = 'loading' | 'anon' | 'authed';
+
 export interface ForemanState {
+  authStatus: AuthStatus;
+  user: AuthUser | null;
+  signIn(email: string, password: string): Promise<void>;
+  signUp(name: string, email: string, password: string): Promise<void>;
+  signOut(): Promise<void>;
   session: Session | null;
   messages: ChatMsg[];
   /** The order the work-order panel should display (active, else latest). */
@@ -124,6 +139,8 @@ export interface WorkOrderActions {
 }
 
 export function useForeman(): ForemanState {
+  const [authStatus, setAuthStatus] = useState<AuthStatus>('loading');
+  const [user, setUser] = useState<AuthUser | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [messages, setMessages] = useState<ChatMsg[]>([]);
   const [history, setHistory] = useState<WorkOrder[]>([]);
@@ -158,6 +175,30 @@ export function useForeman(): ForemanState {
     });
   }, []);
 
+  /**
+   * Resolves the signed-in user's working session. The browser may hold a local
+   * session id from before sign-in (or a prior visit); we claim it for the user
+   * (idempotent if already theirs), and fall through to onboarding if it is gone
+   * or belongs to someone else. A session counts as onboarded once it carries a
+   * personality or pioneer profile; the session itself is created lazily when
+   * onboarding completes.
+   */
+  const loadSession = useCallback(async () => {
+    const existingId = readStorage(SESSION_KEY);
+    const loaded = existingId ? await claimSession(existingId) : null;
+    if (loaded === null) {
+      writeStorage(SESSION_KEY, '');
+    }
+    if (loaded === null || isUnonboarded(loaded)) {
+      setSession(loaded);
+      setNeedsOnboarding(true);
+      return;
+    }
+    setSession(loaded);
+    setNeedsOnboarding(false);
+    await loadOrders(loaded.id);
+  }, [loadOrders]);
+
   useEffect(() => {
     if (booted.current) {
       return;
@@ -165,26 +206,65 @@ export function useForeman(): ForemanState {
     booted.current = true;
     void (async () => {
       try {
-        const existingId = readStorage(SESSION_KEY);
-        const loaded = existingId ? await getSession(existingId) : null;
-        // A session counts as onboarded once it carries a personality or pioneer
-        // profile. A brand-new (or never-finished) session has neither, so the
-        // pioneer is routed through onboarding before the foreman comes online.
-        // The session itself is created lazily once onboarding completes.
-        if (loaded === null || isUnonboarded(loaded)) {
-          setSession(loaded);
-          setNeedsOnboarding(true);
+        const current = await fetchCurrentUser();
+        if (current === null) {
+          setAuthStatus('anon');
           return;
         }
-        setSession(loaded);
-        await loadOrders(loaded.id);
+        setUser(current);
+        setAuthStatus('authed');
+        await loadSession();
       } catch (error) {
         setBootError(error instanceof Error ? error.message : 'Failed to start a session.');
       } finally {
         setBooting(false);
       }
     })();
-  }, [loadOrders]);
+  }, [loadSession]);
+
+  /** Runs the post-authentication session load, surfacing boot errors. */
+  const enterApp = useCallback(
+    async (current: AuthUser) => {
+      setUser(current);
+      setAuthStatus('authed');
+      setBootError(null);
+      setBooting(true);
+      try {
+        await loadSession();
+      } catch (error) {
+        setBootError(error instanceof Error ? error.message : 'Failed to start a session.');
+      } finally {
+        setBooting(false);
+      }
+    },
+    [loadSession],
+  );
+
+  const signIn = useCallback(
+    async (email: string, password: string) => {
+      await enterApp(await apiSignIn(email, password));
+    },
+    [enterApp],
+  );
+
+  const signUp = useCallback(
+    async (name: string, email: string, password: string) => {
+      await enterApp(await apiSignUp(name, email, password));
+    },
+    [enterApp],
+  );
+
+  const signOut = useCallback(async () => {
+    await apiSignOut();
+    setUser(null);
+    setAuthStatus('anon');
+    setSession(null);
+    setMessages([]);
+    setHistory([]);
+    setNeedsOnboarding(false);
+    setBootError(null);
+    // The local session id is kept so the next sign-in reclaims the same session.
+  }, []);
 
   const patchMessage = useCallback((id: string, patch: Partial<ChatMsg>) => {
     setMessages((prev) => prev.map((m) => (m.id === id ? { ...m, ...patch } : m)));
@@ -318,6 +398,11 @@ export function useForeman(): ForemanState {
   );
 
   return {
+    authStatus,
+    user,
+    signIn,
+    signUp,
+    signOut,
     session,
     messages,
     currentOrder,

@@ -163,7 +163,9 @@ All optional — by default the server serves the bundled **stable** game data.
 | `MCP_URL` | Where the backend reaches the game-data MCP server (Compose: `http://mcp-game-data:8723/mcp`; bare metal default `http://127.0.0.1:8723/mcp`). |
 | `SAVE_MCP_URL` | Optional save-game MCP endpoint. When set, its tools (player location, remaining collectibles, unlocks, inventory) are merged into the foreman's tool surface for location-aware opportunities. Unset = game-data tools only. |
 | `PORT` | Backend HTTP port (default `8724`). |
-| `DATABASE_URL` | Database connection (default `file:./dev.db`; Docker `file:/data/foreman.db`). |
+| `DATABASE_URL` | Database connection (default `file:./dev.db`; Docker `file:/data/foreman.db`). For Postgres, use a `postgresql://` URL and switch the schema's datasource provider. |
+| `BETTER_AUTH_SECRET` | Signs account session cookies. **Set this to a long random string in any real deployment** (`openssl rand -base64 32`); a dev fallback is used if unset. |
+| `BETTER_AUTH_URL` | Public origin the app is served from (for correct cookies behind a proxy). Optional; derived from the request if unset. |
 | `HISTORY_WINDOW` | Most-recent messages sent per chat request (default `20`). |
 
 > The legacy `ANTHROPIC_*` variables still work when `LLM_PROVIDER` is `anthropic`.

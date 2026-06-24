@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 import dotenv from 'dotenv';
 
 import { buildApp } from './app.js';
+import { createAuth } from './auth.js';
 import { resolveServerConfig } from './config.js';
 import { disconnectDb, prisma } from './db.js';
 import type { AppDeps } from './deps.js';
@@ -58,6 +59,7 @@ async function main(): Promise<void> {
   const sessions = new SessionService(prisma);
   const deps: AppDeps = {
     config,
+    auth: createAuth(prisma),
     sessions,
     workOrders: new WorkOrderService(prisma),
     mcp,

@@ -50,8 +50,25 @@ gateway** merges both into one tool surface for the foreman (see
 | Graph DB | Kùzu (embedded, in-process) | Recursive production queries are cheap; no daemon/infra |
 | App DB | SQLite (dev) → Postgres (prod) | Zero local setup; clean migration path |
 | ORM | Prisma | Readable schema, good migrations |
+| Auth | Better Auth (self-hosted) | Email+password now, passkeys/TOTP next; HttpOnly-cookie sessions; Prisma adapter |
 | Deployment | Docker Compose (local) + Railway/Render (hosted) | Laptop → production with the same images |
 | Repo | Monorepo (`game-data-core`, `mcp-game-data`, `mcp-save-game`, `server`, `client`) | Easy to navigate |
+
+## Accounts & identity
+
+Using the app requires an account. Identity is a **user** (email + password as the
+first factor), managed by [Better Auth](https://better-auth.com) mounted at
+`/api/auth/*` with **HttpOnly-cookie** sessions — no auth token is exposed to client
+JavaScript. Every play **session** (and through it its messages and work orders) is
+scoped to a `userId`; the API rejects unauthenticated calls (401) and cross-user
+access (403). The pioneer's own LLM API key stays **client-side** as before — it is
+never sent to or stored by the server beyond the per-request header it authorises.
+
+Better Auth owns four tables (`user`, `account`, `verification`, and its session
+table, mapped to **`AuthSession`** so it does not collide with our domain `Session`).
+On first sign-in the browser's existing pre-accounts session is **claimed** for the
+new user, so anonymous work done before signing up is not lost. Opt-in MFA (passkeys
+and TOTP + recovery codes, with a 30-day "trust this device") is the next slice.
 
 ## Computed-answers principle
 

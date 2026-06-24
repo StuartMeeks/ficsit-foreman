@@ -1,14 +1,16 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { SessionService } from '../src/services/sessionService.js';
-import { createTestDb, type TestDb } from './helpers.js';
+import { createTestDb, createTestUser, type TestDb } from './helpers.js';
 
 let db: TestDb;
 let service: SessionService;
+let userId: string;
 
 beforeAll(async () => {
   db = await createTestDb();
   service = new SessionService(db.prisma);
+  userId = await createTestUser(db.prisma);
 });
 
 afterAll(async () => {
@@ -17,20 +19,28 @@ afterAll(async () => {
 
 describe('SessionService', () => {
   it('creates a session with a generated id and stored strings', async () => {
-    const session = await service.create({ personality: 'Gruff', pioneerProfile: 'Veteran' });
+    const session = await service.create({
+      userId,
+      personality: 'Gruff',
+      pioneerProfile: 'Veteran',
+    });
     expect(session.id).toMatch(/[0-9a-f-]{36}/);
     expect(session.personality).toBe('Gruff');
     expect(session.pioneerProfile).toBe('Veteran');
   });
 
   it('honours a client-supplied id', async () => {
-    const session = await service.create({ id: 'fixed-id' });
+    const session = await service.create({ userId, id: 'fixed-id' });
     expect(session.id).toBe('fixed-id');
     expect(await service.get('fixed-id')).toBeDefined();
   });
 
   it('updates personality without clobbering the profile', async () => {
-    const created = await service.create({ personality: 'Calm', pioneerProfile: 'First playthrough' });
+    const created = await service.create({
+      userId,
+      personality: 'Calm',
+      pioneerProfile: 'First playthrough',
+    });
     const updated = await service.update(created.id, { personality: 'Drill sergeant' });
     expect(updated?.personality).toBe('Drill sergeant');
     expect(updated?.pioneerProfile).toBe('First playthrough');
@@ -41,7 +51,7 @@ describe('SessionService', () => {
   });
 
   it('windows recent messages in chronological order', async () => {
-    const session = await service.create({});
+    const session = await service.create({ userId });
     for (let i = 1; i <= 25; i += 1) {
       await service.appendMessage(session.id, i % 2 === 1 ? 'user' : 'assistant', `msg-${i}`);
     }

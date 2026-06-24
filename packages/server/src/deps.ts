@@ -1,3 +1,4 @@
+import type { Auth } from './auth.js';
 import type { ServerConfig } from './config.js';
 import type { LlmProviderFactory } from './llm/provider.js';
 import type { SummaryService } from './llm/summary.js';
@@ -8,6 +9,8 @@ import type { WorkOrderService } from './services/workOrderService.js';
 /** Everything the HTTP layer needs, assembled once at startup. */
 export interface AppDeps {
   config: ServerConfig;
+  /** The Better Auth instance (owns /api/auth/* and session resolution). */
+  auth: Auth;
   sessions: SessionService;
   workOrders: WorkOrderService;
   mcp: McpGateway;

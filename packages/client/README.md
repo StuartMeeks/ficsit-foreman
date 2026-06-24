@@ -5,17 +5,21 @@ runs as the `web` service in the `foreman` Docker Compose project, served by
 nginx, which reverse-proxies `/api` to the backend so the browser uses a single
 origin (no CORS).
 
-> **Phase 3 status: in progress.** Foreman chat (session + streaming), the active
-> **work-order cockpit** (built to the [Work Orders v2](../../docs/work-orders.md)
-> model), and onboarding/settings are in place. The visual language lives in
-> [`design-tokens.css`](./design-tokens.css) (the canonical palette + type), with
-> Barlow / Barlow Condensed / IBM Plex Mono self-hosted (no CDN).
+> **Phase 3 status: in progress.** Account sign-in/up, foreman chat (session +
+> streaming), the active **work-order cockpit** (built to the
+> [Work Orders v2](../../docs/work-orders.md) model), and onboarding/settings are in
+> place. The visual language lives in [`design-tokens.css`](./design-tokens.css)
+> (the canonical palette + type), with Barlow / Barlow Condensed / IBM Plex Mono
+> self-hosted (no CDN).
 
 ## What works
 
-- **Foreman chat** — creates a session automatically, streams the foreman's
-  reply token-by-token over SSE, and shows tool calls (game-data + work-order
-  tools) as inline chips.
+- **Accounts** — an email + password sign-in / sign-up gate stands before onboarding.
+  Sessions are HttpOnly cookies (the client stores no auth token); on first sign-in
+  the browser's existing anonymous session is claimed for the new account. Sign-out
+  lives in the header. The BYO LLM key stays in the browser as before.
+- **Foreman chat** — streams the foreman's reply token-by-token over SSE, and shows
+  tool calls (game-data + work-order tools) as inline chips.
 - **Work-order cockpit** — the active order rendered to the v2 model: state badge,
   plan-revised banner with a field-level diff + acknowledge, blocked banner,
   foreman completion suggestion, build-step and material checklists, machine built

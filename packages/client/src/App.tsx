@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
+import { AuthScreen } from './components/AuthScreen.js';
 import { ChatColumn } from './components/ChatColumn.js';
 import { Header } from './components/Header.js';
 import { Onboarding } from './components/Onboarding.js';
@@ -68,6 +69,20 @@ export function App(): React.JSX.Element {
     }
   }, []);
 
+  // Auth check still running: hold on the splash before deciding what to show.
+  if (foreman.authStatus === 'loading') {
+    return (
+      <div className="splash">
+        <span className="label">Checking your credentials…</span>
+      </div>
+    );
+  }
+
+  // Signed out: the account gate stands before everything else.
+  if (foreman.authStatus === 'anon') {
+    return <AuthScreen onSignIn={foreman.signIn} onSignUp={foreman.signUp} />;
+  }
+
   if (foreman.booting) {
     return (
       <div className="splash">
@@ -84,7 +99,9 @@ export function App(): React.JSX.Element {
     <div className="app">
       <Header
         sessionId={foreman.session?.id ?? null}
+        userEmail={foreman.user?.email ?? null}
         onOpenSettings={() => setSettingsOpen(true)}
+        onSignOut={() => void foreman.signOut()}
       />
 
       {foreman.keyNeeded ? (
