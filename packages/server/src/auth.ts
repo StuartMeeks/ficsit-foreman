@@ -153,6 +153,10 @@ export function createAuth(prisma: PrismaClient) {
     database: prismaAdapter(prisma, { provider: providerFor(process.env['DATABASE_URL']) }),
     emailAndPassword: { enabled: true },
     session: { modelName: 'authSession' },
+    // The app sits behind the nginx reverse proxy, which forwards the client
+    // address as X-Forwarded-For; trust it so rate limiting buckets per client
+    // rather than falling back to one shared bucket.
+    advanced: { ipAddress: { ipAddressHeaders: ['x-forwarded-for'] } },
     // Opt-in MFA: TOTP authenticator apps + single-use backup/recovery codes.
     // `trustDeviceMaxAge` defaults to 30 days ("trust this device"), so a verified
     // device skips the second factor for that window.
