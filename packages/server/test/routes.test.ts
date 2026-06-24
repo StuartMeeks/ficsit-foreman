@@ -115,6 +115,7 @@ describe('HTTP routes', () => {
     expect(res.status).toBe(401);
   });
 
+
   it('creates and updates a session', async () => {
     const session = await createSession({ personality: 'Calm' });
     const res = await fetch(`${baseUrl}/api/sessions/${session.id}`, {
