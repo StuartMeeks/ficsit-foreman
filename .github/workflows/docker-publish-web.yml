@@ -16,6 +16,8 @@ on:
       - 'package-lock.json'
       - 'tsconfig.base.json'
       - '.github/workflows/docker-publish-web.yml'
+      # Doc-only changes (the client README) don't affect the image.
+      - '!**/*.md'
   workflow_dispatch:
 
 permissions:
@@ -55,7 +57,9 @@ jobs:
             exit 0
           fi
           # main push: build only if web-image-relevant files changed.
-          changed=$(git diff --name-only "$BEFORE" "$AFTER" | { grep -E '^(packages/client/|package\.json|package-lock\.json|tsconfig\.base\.json|\.github/workflows/docker-publish-web\.yml)' || true; })
+          changed=$(git diff --name-only "$BEFORE" "$AFTER" \
+            | { grep -E '^(packages/client/|package\.json|package-lock\.json|tsconfig\.base\.json|\.github/workflows/docker-publish-web\.yml)' || true; } \
+            | { grep -vE '\.md$' || true; })
           if [ -n "$changed" ]; then
             echo "build=true" >> "$GITHUB_OUTPUT"
           else
