@@ -12,8 +12,6 @@ on:
   pull_request:
     paths:
       - 'packages/client/**'
-      - 'package.json'
-      - 'package-lock.json'
       - 'tsconfig.base.json'
       - '.github/workflows/docker-publish-web.yml'
       # Doc-only changes (the client README) don't affect the image.
@@ -56,9 +54,11 @@ jobs:
             echo "build=true" >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          # main push: build only if web-image-relevant files changed.
+          # main push: build only if web-image-relevant files changed. A dependency
+          # change is captured via packages/client/package.json; the root
+          # package.json/lock are deliberately not listed (no rebuild-everything).
           changed=$(git diff --name-only "$BEFORE" "$AFTER" \
-            | { grep -E '^(packages/client/|package\.json|package-lock\.json|tsconfig\.base\.json|\.github/workflows/docker-publish-web\.yml)' || true; } \
+            | { grep -E '^(packages/client/|tsconfig\.base\.json|\.github/workflows/docker-publish-web\.yml)' || true; } \
             | { grep -vE '\.md$' || true; })
           if [ -n "$changed" ]; then
             echo "build=true" >> "$GITHUB_OUTPUT"

@@ -18,10 +18,8 @@ on:
       - 'packages/mcp-game-data/**'
       - 'packages/game-data-core/**'
       - '.dockerignore'
-      - 'package.json'
-      - 'package-lock.json'
       - 'tsconfig.base.json'
-      - '.github/workflows/docker-publish.yml'
+      - '.github/workflows/docker-publish-game-data.yml'
       # Doc-only changes (READMEs, PARSER.md, …) don't affect the image.
       - '!**/*.md'
   workflow_dispatch:
@@ -62,9 +60,12 @@ jobs:
             echo "build=true" >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          # main push: build only if image-relevant files changed.
+          # main push: build only if image-relevant files changed. A dependency
+          # change is captured via the relevant package's own package.json (under
+          # packages/**); the root package.json/lock are deliberately NOT listed,
+          # so a change to one package no longer rebuilds every image.
           changed=$(git diff --name-only "$BEFORE" "$AFTER" \
-            | { grep -E '^(packages/mcp-game-data/|packages/game-data-core/|\.dockerignore|package\.json|package-lock\.json|tsconfig\.base\.json|\.github/workflows/docker-publish\.yml)' || true; } \
+            | { grep -E '^(packages/mcp-game-data/|packages/game-data-core/|\.dockerignore|tsconfig\.base\.json|\.github/workflows/docker-publish-game-data\.yml)' || true; } \
             | { grep -vE '\.md$' || true; })
           if [ -n "$changed" ]; then
             echo "build=true" >> "$GITHUB_OUTPUT"
