@@ -7,6 +7,7 @@ import {
   BLOCK_WORK_ORDER,
   CREATE_WORK_ORDER,
   PROPOSE_COMPLETION,
+  REVISE_WORK_ORDER,
   handleWorkOrderTool,
   isWorkOrderTool,
   workOrderToolDefinitions,
@@ -88,6 +89,31 @@ describe('handleWorkOrderTool', () => {
     expect(outcome.isError).toBe(true);
     expect(outcome.workOrder).toBeUndefined();
     expect(await deps.workOrders.list(session)).toHaveLength(0);
+  });
+
+  it('revises the current order in place rather than creating a new one', async () => {
+    const session = await seedSession();
+    const created = await handleWorkOrderTool(session, CREATE_WORK_ORDER, validCreateInput, deps);
+    // No Start — the order is still `new`. Revise must still target it.
+    const outcome = await handleWorkOrderTool(
+      session,
+      REVISE_WORK_ORDER,
+      { goal: 'Smelt 45 iron ingots per minute.', changeSummary: 'Bumped target.' },
+      deps,
+    );
+    expect(outcome.isError).toBe(false);
+    expect(outcome.workOrder?.id).toBe(created.workOrder?.id);
+    expect(outcome.workOrder?.sequenceNumber).toBe(1);
+    expect(outcome.workOrder?.currentRevision).toBe(2);
+    expect(await deps.workOrders.list(session)).toHaveLength(1);
+  });
+
+  it('proposes completion of a new (unstarted) order', async () => {
+    const session = await seedSession();
+    await handleWorkOrderTool(session, CREATE_WORK_ORDER, validCreateInput, deps);
+    const outcome = await handleWorkOrderTool(session, PROPOSE_COMPLETION, {}, deps);
+    expect(outcome.isError).toBe(false);
+    expect(outcome.workOrder?.state).toBe('new');
   });
 
   it('proposes completion of the active order without completing it', async () => {

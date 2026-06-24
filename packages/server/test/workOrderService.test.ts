@@ -85,6 +85,23 @@ describe('WorkOrderService — creation & numbering', () => {
     });
     expect(fetched?.version).toBe('1.2.3.0');
   });
+
+  it('does not flag the initial issue as an unacknowledged revision', async () => {
+    const session = await seedSession();
+    const order = await service.create(session, sampleInput('Fresh'), '1.0.0');
+    expect(order.currentRevision).toBe(1);
+    expect(order.hasUnacknowledgedRevision).toBe(false);
+  });
+
+  it('getCurrent finds a new (unstarted) order, and prefers the active one', async () => {
+    const session = await seedSession();
+    const a = await service.create(session, sampleInput('A'), '1.0.0');
+    // Nothing active yet — getCurrent still resolves the freshly-issued order.
+    expect((await service.getCurrent(session))?.id).toBe(a.id);
+    const b = await service.create(session, sampleInput('B'), '1.0.0');
+    await service.transition(session, b.id, 'Start', 'Pioneer');
+    expect((await service.getCurrent(session))?.id).toBe(b.id);
+  });
 });
 
 describe('WorkOrderService — transitions', () => {

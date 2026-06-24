@@ -174,6 +174,10 @@ export class WorkOrderService {
           blockedReason: input.blockedReason ?? null,
           blockedResolutionHint: input.blockedResolutionHint ?? null,
           currentRevision: 1,
+          // The original issue is implicitly acknowledged — it is the first plan,
+          // not a revision for the Pioneer to review. Only later revisions
+          // (currentRevision > lastAcknowledgedRevision) raise the banner.
+          lastAcknowledgedRevision: 1,
           parentWorkOrderId: input.parentWorkOrderId ?? null,
           relationshipToParent: input.relationshipToParent ?? null,
         },
@@ -213,6 +217,26 @@ export class WorkOrderService {
   public async getActive(sessionId: string): Promise<WorkOrder | undefined> {
     const row = await this.prisma.workOrder.findFirst({ where: { sessionId, state: 'active' } });
     return row === null ? undefined : this.hydrate(row);
+  }
+
+  /**
+   * The order the foreman should act on by default: the active one, else the
+   * latest non-terminal order. A freshly-issued order is `new` (not `active`)
+   * until the Pioneer starts it, so `getActive` alone would miss it — which left
+   * the foreman unable to revise/complete an order it had only just issued.
+   */
+  public async getCurrent(sessionId: string): Promise<WorkOrder | undefined> {
+    const active = await this.prisma.workOrder.findFirst({
+      where: { sessionId, state: 'active' },
+    });
+    if (active !== null) {
+      return this.hydrate(active);
+    }
+    const latest = await this.prisma.workOrder.findFirst({
+      where: { sessionId, state: { in: ['new', 'paused', 'blocked'] } },
+      orderBy: { sequenceNumber: 'desc' },
+    });
+    return latest === null ? undefined : this.hydrate(latest);
   }
 
   /** A single order by id, scoped to its session. */
