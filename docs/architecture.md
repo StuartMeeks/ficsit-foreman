@@ -1,7 +1,8 @@
 # FICSIT Foreman — Architecture
 
 How the system fits together. For the product "why", see [`product.md`](./product.md);
-for the work-order feature, [`work-orders.md`](./work-orders.md); for the parser,
+for the work-order feature, [`work-orders.md`](./work-orders.md); for the session/playthrough &
+foreman model (design), [`playthroughs.md`](./playthroughs.md); for the parser,
 [`packages/game-data-core/PARSER.md`](../packages/game-data-core/PARSER.md).
 
 ---
