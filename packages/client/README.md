@@ -7,10 +7,9 @@ origin (no CORS).
 
 > **Phase 3 status: in progress.** Foreman chat (session + streaming), the active
 > **work-order cockpit** (built to the [Work Orders v2](../../docs/work-orders.md)
-> model), and onboarding/settings are in place. The visual language follows the
-> north star in [`design-reference/`](./design-reference/) via
-> [`design-tokens.css`](./design-tokens.css), with Barlow / Barlow Condensed / IBM
-> Plex Mono self-hosted (no CDN).
+> model), and onboarding/settings are in place. The visual language lives in
+> [`design-tokens.css`](./design-tokens.css) (the canonical palette + type), with
+> Barlow / Barlow Condensed / IBM Plex Mono self-hosted (no CDN).
 
 ## What works
 

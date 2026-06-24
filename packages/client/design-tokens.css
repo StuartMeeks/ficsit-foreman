@@ -1,20 +1,18 @@
 /*
  * FICSIT Foreman — design tokens
  * ──────────────────────────────────────────────────────────────────────────
- * Single source of truth for the visual language, extracted from the north-star
- * prototype at `design-reference/Foreman_AI_Factory_Companion.html` (built with
- * Claude Design, 2026-06-21). The prototype is the NORTH STAR — a target for
- * look and feel — not a template to copy markup from.
+ * Single source of truth for the visual language, distilled from the original
+ * Claude Design north-star prototype (since removed — this file is now the
+ * canonical reference for the palette and type).
  *
- * The prototype hardcodes its palette inline; these tokens distil it. Phase 3
- * components should consume these variables rather than literal hex values, so
+ * Components should consume these variables rather than literal hex values, so
  * the palette stays consistent and adjustable in one place. A Tailwind theme,
  * if used, can map onto these via `var(--…)`.
  *
  * Typography note: the design uses three families — IBM Plex Mono (monospace,
  * for labels/numbers), Barlow (body sans-serif), and Barlow Condensed (condensed
- * headings/labels). The prototype references them by name only; Phase 3 must
- * bundle/self-host them (no CDN — see the app's CSP needs).
+ * headings/labels). They are self-hosted via `@fontsource` (no CDN — see the
+ * app's CSP needs).
  */
 
 :root {
@@ -87,7 +85,7 @@
 
   /* ════════════════════════════════════════════════════════════════════════
    * SEMANTIC LAYER — UI roles mapped to the primitives above.
-   * Derived from the north-star screenshot (see design-reference/). Components
+   * Derived from the original north-star prototype. Components
    * should reference THESE role tokens, not the raw --color-* primitives, so
    * the design intent stays legible and adjustable in one place.
    * ════════════════════════════════════════════════════════════════════════ */
