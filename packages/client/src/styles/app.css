@@ -1236,6 +1236,16 @@ button:disabled {
   padding: 9px 11px;
 }
 
+/* Light panel framing the TOTP QR so it scans cleanly on the dark theme. */
+.qr-box {
+  display: inline-flex;
+  align-self: flex-start;
+  padding: 12px;
+  background: #ffffff;
+  border-radius: var(--radius-sm);
+  line-height: 0;
+}
+
 /* Inline checkbox + label row (e.g. "trust this device"). */
 .checkbox-row {
   display: flex;
