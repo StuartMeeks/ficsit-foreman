@@ -3,18 +3,127 @@ import { z } from 'zod';
 /**
  * Shared zod schemas for request bodies and tool inputs. Centralised so the
  * REST routes and the foreman's work-order tools validate against identical
- * shapes.
+ * shapes. Mirrors the types in types.ts and WORK_ORDER_SPEC.md.
  */
 
-export const lineItemSchema = z.object({
-  item: z.string(),
-  quantity: z.number(),
-  unit: z.string(),
+// --- Plan building blocks --------------------------------------------------
+
+export const coordinatesSchema = z.object({
+  x: z.number(),
+  y: z.number(),
+  z: z.number().optional(),
 });
 
-export const expectedOutputSchema = z.object({
-  item: z.string(),
+export const machineRequirementSchema = z.object({
+  id: z.string().optional(),
+  machineName: z.string().min(1),
+  requiredCount: z.number().int().min(0),
+  builtCount: z.number().int().min(0).optional(),
+  recipeName: z.string().optional(),
+  notes: z.string().optional(),
+});
+
+export const materialRequirementSchema = z.object({
+  id: z.string().optional(),
+  itemName: z.string().min(1),
+  requiredQuantity: z.number().min(0),
+  checked: z.boolean().optional(),
+  notes: z.string().optional(),
+});
+
+export const workOrderStepSchema = z.object({
+  id: z.string().optional(),
+  title: z.string().min(1),
+  description: z.string().optional(),
+  checked: z.boolean().optional(),
+  order: z.number().int().optional(),
+});
+
+export const recipeItemRateSchema = z.object({
+  itemName: z.string().min(1),
   perMinute: z.number(),
+});
+
+export const recipeAssignmentSchema = z.object({
+  id: z.string().optional(),
+  machineName: z.string().min(1),
+  recipeName: z.string().min(1),
+  inputItems: z.array(recipeItemRateSchema).optional(),
+  outputItems: z.array(recipeItemRateSchema).optional(),
+  notes: z.string().optional(),
+});
+
+export const expectedOutputSchema = z.discriminatedUnion('kind', [
+  z.object({
+    kind: z.literal('item'),
+    item: z.string().min(1),
+    perMinute: z.number(),
+    unit: z.string().optional(),
+  }),
+  z.object({ kind: z.literal('power'), megawatts: z.number() }),
+  z.object({ kind: z.literal('unlock'), schematic: z.string().min(1) }),
+  z.object({ kind: z.literal('infrastructure'), description: z.string().min(1) }),
+]);
+
+export const locationRecommendationSchema = z.object({
+  summary: z.string().min(1),
+  coordinates: coordinatesSchema.optional(),
+  relativeToPlayer: z.string().optional(),
+  rationale: z.string().optional(),
+});
+
+export const resourceNodeReferenceSchema = z.object({
+  id: z.string().optional(),
+  resourceName: z.string().min(1),
+  purity: z.enum(['impure', 'normal', 'pure']).optional(),
+  coordinates: coordinatesSchema.optional(),
+  distanceFromPlayer: z.number().optional(),
+  distanceFromWorkOrderLocation: z.number().optional(),
+  notes: z.string().optional(),
+});
+
+const collectibleKindSchema = z.enum([
+  'mercerSphere',
+  'somersloop',
+  'powerSlugBlue',
+  'powerSlugYellow',
+  'powerSlugPurple',
+  'hardDrive',
+]);
+
+export const collectibleOpportunitySchema = z.object({
+  id: z.string().optional(),
+  kind: collectibleKindSchema,
+  coordinates: coordinatesSchema.optional(),
+  distance: z.number().optional(),
+  reason: z.string().optional(),
+  optional: z.boolean(),
+});
+
+export const opportunitiesSchema = z.object({
+  nearbyCollectiblesFromPlayer: z.array(collectibleOpportunitySchema).optional(),
+  nearbyCollectiblesFromWorkOrderLocation: z.array(collectibleOpportunitySchema).optional(),
+  overclockingOptions: z
+    .array(
+      z.object({
+        target: z.string().min(1),
+        recommendation: z.string().min(1),
+        powerShardCount: z.number().int().optional(),
+        expectedEffect: z.string().optional(),
+        notes: z.string().optional(),
+      }),
+    )
+    .optional(),
+  awesomeShopSuggestions: z
+    .array(
+      z.object({
+        itemName: z.string().min(1),
+        reason: z.string().min(1),
+        priority: z.enum(['low', 'medium', 'high']).optional(),
+      }),
+    )
+    .optional(),
+  notes: z.array(z.string()).optional(),
 });
 
 export const pioneerFeedbackSchema = z.object({
@@ -23,34 +132,158 @@ export const pioneerFeedbackSchema = z.object({
   freeformNotes: z.string().optional(),
 });
 
-export const workOrderCreateSchema = z.object({
+const relationshipTypeSchema = z.enum([
+  'prerequisite',
+  'exploration',
+  'hard_drive_hunt',
+  'mam_research',
+  'resource_gathering',
+  'infrastructure_support',
+  'corrective_action',
+]);
+
+// --- Plan input (create / revise) ------------------------------------------
+
+/** The shared plan fields. Used by create (required title+goal) and revise. */
+const planFields = {
   title: z.string().min(1),
-  objective: z.string().min(1),
-  tier: z.number().int().min(0).max(9),
-  estimatedDuration: z.string().min(1),
-  requiredItems: z.array(lineItemSchema),
-  buildSteps: z.array(z.string()),
-  expectedOutput: z.array(expectedOutputSchema),
-  notes: z.string().optional(),
+  goal: z.string().min(1),
+  objective: z.string().optional(),
+  strategicSignificance: z.string().optional(),
+  successCondition: z.string().optional(),
+  tier: z.number().int().min(0).max(9).optional(),
+  notes: z.array(z.string()).optional(),
+  locationRecommendation: locationRecommendationSchema.optional(),
+  resourceNodes: z.array(resourceNodeReferenceSchema).optional(),
+  machines: z.array(machineRequirementSchema).optional(),
+  buildMaterials: z.array(materialRequirementSchema).optional(),
+  recipes: z.array(recipeAssignmentSchema).optional(),
+  expectedOutputs: z.array(expectedOutputSchema).optional(),
+  buildSteps: z.array(workOrderStepSchema).optional(),
+  opportunities: opportunitiesSchema.optional(),
+  blockedReason: z.string().optional(),
+  blockedResolutionHint: z.string().optional(),
+};
+
+export const workOrderCreateSchema = z.object({
+  ...planFields,
+  parentWorkOrderId: z.string().optional(),
+  relationshipToParent: relationshipTypeSchema.optional(),
 });
 
-export const workOrderCompleteSchema = z.object({
-  completionSummary: z.string().min(1),
-  adaptations: z.array(z.string()).optional(),
+/** Plan patch: every field optional, but at least one must be present. */
+export const workOrderPlanPatchSchema = z
+  .object({
+    title: planFields.title.optional(),
+    goal: planFields.goal.optional(),
+    objective: planFields.objective,
+    strategicSignificance: planFields.strategicSignificance,
+    successCondition: planFields.successCondition,
+    tier: planFields.tier,
+    notes: planFields.notes,
+    locationRecommendation: planFields.locationRecommendation,
+    resourceNodes: planFields.resourceNodes,
+    machines: planFields.machines,
+    buildMaterials: planFields.buildMaterials,
+    recipes: planFields.recipes,
+    expectedOutputs: planFields.expectedOutputs,
+    buildSteps: planFields.buildSteps,
+    opportunities: planFields.opportunities,
+    blockedReason: planFields.blockedReason,
+    blockedResolutionHint: planFields.blockedResolutionHint,
+    reason: z.string().optional(),
+    changeSummary: z.string().optional(),
+  })
+  .refine((patch) => Object.keys(patch).length > 0, {
+    message: 'At least one plan field must be provided.',
+  });
+
+// --- Transitions & execution -----------------------------------------------
+
+const actorSchema = z.enum(['Pioneer', 'Foreman', 'System']);
+
+export const transitionSchema = z.object({
+  action: z.enum([
+    'Start',
+    'Pause',
+    'Resume',
+    'Block',
+    'Unblock',
+    'Complete',
+    'ForceComplete',
+    'Cancel',
+    'Supersede',
+  ]),
+  actor: actorSchema.optional(),
+  blockedReason: z.string().optional(),
+  blockedResolutionHint: z.string().optional(),
+  resolutionNote: z.string().optional(),
+  cancellationReason: z.string().optional(),
+  supersededByWorkOrderId: z.string().optional(),
+  supersededReason: z.string().optional(),
+  forceCompletionReason: z.string().optional(),
+  incompleteItemSummary: z.string().optional(),
+  completionSummary: z.string().optional(),
   pioneerFeedback: pioneerFeedbackSchema.optional(),
 });
 
-export const workOrderUpdateSchema = z
-  .object({
-    status: z.enum(['active', 'completed', 'abandoned']).optional(),
-    notes: z.string().optional(),
-    adaptations: z.array(z.string()).optional(),
-    completionSummary: z.string().optional(),
-    pioneerFeedback: pioneerFeedbackSchema.optional(),
-  })
-  .refine((patch) => Object.keys(patch).length > 0, {
-    message: 'At least one field must be provided.',
-  });
+export const materialCheckSchema = z.object({ checked: z.boolean() });
+export const stepCheckSchema = z.object({ checked: z.boolean() });
+export const machineCountSchema = z.object({ builtCount: z.number().int().min(0) });
+export const logHoursSchema = z.object({ hours: z.number().positive() });
+export const acknowledgeSchema = z.object({
+  revisionNumber: z.number().int().positive().optional(),
+});
+export const revertSchema = z.object({ revisionNumber: z.number().int().positive() });
+
+// --- Foreman tool inputs ---------------------------------------------------
+
+/** Most foreman mutation tools target a specific order or default to active. */
+export const proposeCompletionSchema = z.object({
+  workOrderId: z.string().optional(),
+  note: z.string().optional(),
+});
+
+export const blockToolSchema = z.object({
+  workOrderId: z.string().optional(),
+  blockedReason: z.string().min(1),
+  blockedResolutionHint: z.string().min(1),
+});
+
+export const unblockToolSchema = z.object({
+  workOrderId: z.string().optional(),
+  resolutionNote: z.string().min(1),
+});
+
+export const supersedeToolSchema = z.object({
+  workOrderId: z.string().optional(),
+  supersededByWorkOrderId: z.string().min(1),
+  supersededReason: z.string().min(1),
+});
+
+export const reviseToolSchema = z.object({
+  workOrderId: z.string().optional(),
+  ...{
+    title: planFields.title.optional(),
+    goal: planFields.goal.optional(),
+    objective: planFields.objective,
+    strategicSignificance: planFields.strategicSignificance,
+    successCondition: planFields.successCondition,
+    tier: planFields.tier,
+    notes: planFields.notes,
+    locationRecommendation: planFields.locationRecommendation,
+    resourceNodes: planFields.resourceNodes,
+    machines: planFields.machines,
+    buildMaterials: planFields.buildMaterials,
+    recipes: planFields.recipes,
+    expectedOutputs: planFields.expectedOutputs,
+    buildSteps: planFields.buildSteps,
+    opportunities: planFields.opportunities,
+  },
+  changeSummary: z.string().optional(),
+});
+
+// --- Sessions & chat (unchanged) -------------------------------------------
 
 export const createSessionSchema = z.object({
   id: z.string().min(1).optional(),

@@ -12,7 +12,9 @@ import { logger } from './logger.js';
 import { loadSystemPromptTemplate } from './anthropic/systemPrompt.js';
 import { createProvider } from './llm/factory.js';
 import { SummaryService } from './llm/summary.js';
+import { McpAggregateGateway } from './mcp/aggregateGateway.js';
 import { McpHttpClient } from './mcp/client.js';
+import type { McpGateway } from './mcp/client.js';
 import { SessionService } from './services/sessionService.js';
 import { WorkOrderService } from './services/workOrderService.js';
 
@@ -31,18 +33,27 @@ async function main(): Promise<void> {
   const systemPromptTemplate = loadSystemPromptTemplate(config.systemPromptPath);
   logger.info(`Loaded system prompt from ${config.systemPromptPath}`);
 
-  const mcp = new McpHttpClient(config.mcpUrl);
-  // Attempt an eager connection so the game version is known and tool listing is
-  // warm. The MCP server may not be up yet — that is not fatal; tools reconnect
-  // on demand the first time the foreman calls one.
-  try {
-    await mcp.connect();
-  } catch (error) {
-    logger.warn(
-      `Could not reach MCP server at ${config.mcpUrl} yet — will retry on first use.`,
-      error,
-    );
-  }
+  // Game-data is the primary MCP server; the optional save-game server is merged
+  // in when SAVE_MCP_URL is set so the foreman can read player location and
+  // remaining collectibles for location-aware opportunities.
+  const gameDataMcp = new McpHttpClient(config.mcpUrl);
+  const saveMcp =
+    config.saveMcpUrl !== undefined ? new McpHttpClient(config.saveMcpUrl) : undefined;
+  const mcpClients = saveMcp !== undefined ? [gameDataMcp, saveMcp] : [gameDataMcp];
+  const mcp: McpGateway =
+    saveMcp !== undefined ? new McpAggregateGateway(gameDataMcp, [saveMcp]) : gameDataMcp;
+
+  // Attempt eager connections so the game version is known and tool listing is
+  // warm. A server may not be up yet — that is not fatal; tools reconnect on
+  // demand the first time the foreman calls one.
+  await Promise.all(
+    mcpClients.map((client, index) =>
+      client.connect().catch((error: unknown) => {
+        const url = index === 0 ? config.mcpUrl : config.saveMcpUrl;
+        logger.warn(`Could not reach MCP server at ${url} yet — will retry on first use.`, error);
+      }),
+    ),
+  );
 
   const sessions = new SessionService(prisma);
   const deps: AppDeps = {
@@ -58,9 +69,11 @@ async function main(): Promise<void> {
   const app = buildApp(deps);
   const server = app.listen(config.port, config.host, () => {
     logger.info(`Listening on http://${config.host}:${config.port} (health: /health)`);
+    const mcpSummary =
+      config.saveMcpUrl !== undefined ? `${config.mcpUrl} + ${config.saveMcpUrl}` : config.mcpUrl;
     logger.info(
       `LLM: ${config.providerKind} (${config.model})${config.baseUrl !== undefined ? ` @ ${config.baseUrl}` : ''} | ` +
-        `MCP: ${config.mcpUrl} | history window: ${config.historyWindow}`,
+        `MCP: ${mcpSummary} | history window: ${config.historyWindow}`,
     );
     if (config.hostedApiKey === undefined) {
       logger.warn(
@@ -72,7 +85,9 @@ async function main(): Promise<void> {
   const shutdown = (signal: string): void => {
     logger.info(`Received ${signal}; shutting down.`);
     server.close(() => {
-      void Promise.allSettled([mcp.close(), disconnectDb()]).then(() => process.exit(0));
+      void Promise.allSettled([...mcpClients.map((client) => client.close()), disconnectDb()]).then(
+        () => process.exit(0),
+      );
     });
   };
   process.on('SIGTERM', () => shutdown('SIGTERM'));

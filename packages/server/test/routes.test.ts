@@ -25,12 +25,10 @@ const stubMcp: McpGateway = {
 
 const workOrderBody = {
   title: 'Iron Plate Line',
-  objective: 'Make plates.',
-  tier: 1,
-  estimatedDuration: '15 minutes',
-  requiredItems: [{ item: 'Iron Ingot', quantity: 30, unit: 'per minute' }],
-  buildSteps: ['Place constructors'],
-  expectedOutput: [{ item: 'Iron Plate', perMinute: 20 }],
+  goal: 'Make 20 plates per minute.',
+  buildMaterials: [{ itemName: 'Iron Ingot', requiredQuantity: 30 }],
+  buildSteps: [{ title: 'Place constructors' }],
+  expectedOutputs: [{ kind: 'item', item: 'Iron Plate', perMinute: 20 }],
 };
 
 beforeAll(async () => {
@@ -103,7 +101,7 @@ describe('HTTP routes', () => {
     expect(res.status).toBe(400);
   });
 
-  it('creates, lists, and reads the active work order', async () => {
+  it('creates a new order, lists it, then starts it to become active', async () => {
     const session = await createSession();
     const create = await fetch(`${baseUrl}/api/sessions/${session.id}/work-orders`, {
       method: 'POST',
@@ -111,35 +109,62 @@ describe('HTTP routes', () => {
       body: JSON.stringify(workOrderBody),
     });
     expect(create.status).toBe(201);
-    const order = (await create.json()) as { sequenceNumber: number; version: string };
+    const order = (await create.json()) as {
+      id: string;
+      sequenceNumber: number;
+      version: string;
+      state: string;
+    };
     expect(order.sequenceNumber).toBe(1);
     expect(order.version).toBe('1.2.3.0');
+    expect(order.state).toBe('new');
 
     const list = await fetch(`${baseUrl}/api/sessions/${session.id}/work-orders`);
     expect(((await list.json()) as unknown[]).length).toBe(1);
 
+    const start = await fetch(
+      `${baseUrl}/api/sessions/${session.id}/work-orders/${order.id}/transitions`,
+      {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ action: 'Start', actor: 'Pioneer' }),
+      },
+    );
+    expect(start.status).toBe(200);
+
     const active = await fetch(`${baseUrl}/api/sessions/${session.id}/work-orders/active`);
     expect(active.status).toBe(200);
-    expect(((await active.json()) as { status: string }).status).toBe('active');
+    expect(((await active.json()) as { state: string }).state).toBe('active');
   });
 
-  it('supersedes the active order on a second create', async () => {
+  it('does not supersede the previous order on a second create (one active max)', async () => {
     const session = await createSession();
-    const post = async (title: string): Promise<void> => {
-      await fetch(`${baseUrl}/api/sessions/${session.id}/work-orders`, {
+    const post = async (title: string): Promise<{ id: string }> => {
+      const res = await fetch(`${baseUrl}/api/sessions/${session.id}/work-orders`, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ ...workOrderBody, title }),
       });
+      return res.json() as Promise<{ id: string }>;
     };
-    await post('First');
+    const first = await post('First');
+    await fetch(`${baseUrl}/api/sessions/${session.id}/work-orders/${first.id}/transitions`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ action: 'Start', actor: 'Pioneer' }),
+    });
     await post('Second');
+
+    // First is still active (not superseded); Second sits in `new`.
     const active = await fetch(`${baseUrl}/api/sessions/${session.id}/work-orders/active`);
-    expect(((await active.json()) as { title: string }).title).toBe('Second');
-    const list = (await (await fetch(`${baseUrl}/api/sessions/${session.id}/work-orders`)).json()) as {
-      status: string;
+    expect(((await active.json()) as { title: string }).title).toBe('First');
+    const list = (await (
+      await fetch(`${baseUrl}/api/sessions/${session.id}/work-orders`)
+    ).json()) as {
+      state: string;
     }[];
-    expect(list.filter((o) => o.status === 'active')).toHaveLength(1);
+    expect(list).toHaveLength(2);
+    expect(list.filter((o) => o.state === 'active')).toHaveLength(1);
   });
 
   it('404s the active endpoint when nothing is active', async () => {
