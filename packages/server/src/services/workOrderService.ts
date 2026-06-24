@@ -115,7 +115,7 @@ export type WorkOrderOutcome =
   | { ok: false; reason: FailureReason; message: string };
 
 /**
- * Persistence and lifecycle for work orders (v2), per WORK_ORDER_SPEC.md.
+ * Persistence and lifecycle for work orders (v2), per docs/work-orders.md.
  *
  * Key invariants:
  * - Sequence numbers are per-session and monotonic (rendered WO-001, …).

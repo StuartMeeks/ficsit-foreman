@@ -20,7 +20,7 @@ import {
  * /api/sessions/:sessionId/work-orders. The plan is edited via /plan (Foreman),
  * lifecycle via /transitions, and execution progress via the materials/steps/
  * machines/hours endpoints (Pioneer). `mergeParams` exposes the parent
- * :sessionId. See WORK_ORDER_SPEC.md.
+ * :sessionId. See docs/work-orders.md.
  */
 export function workOrdersRouter(deps: AppDeps): Router {
   const router = Router({ mergeParams: true });

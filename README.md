@@ -20,7 +20,7 @@ in one Docker Compose project.
 |---|---|---|
 | [`packages/mcp-game-data`](./packages/mcp-game-data) | **Built** | Parses `en-US.json`, loads it into an embedded Kùzu graph, exposes computed MCP tools. Works standalone with Claude Desktop. |
 | [`packages/mcp-save-game`](./packages/mcp-save-game) | **Built (v1)** | Save-file parser → MCP tools exposing live pioneer state (location, inventory, unlocks, milestones, remaining collectibles). The backend merges it in when `SAVE_MCP_URL` is set. See its [SPEC.md](./packages/mcp-save-game/SPEC.md). |
-| [`packages/server`](./packages/server) | **Built** | Express backend: LLM chat proxy (Anthropic or OpenAI-compatible) with the foreman persona, MCP tool use, and stateful work-order persistence (see [`WORK_ORDER_SPEC.md`](./WORK_ORDER_SPEC.md)). |
+| [`packages/server`](./packages/server) | **Built** | Express backend: LLM chat proxy (Anthropic or OpenAI-compatible) with the foreman persona, MCP tool use, and stateful work-order persistence (see [`docs/work-orders.md`](./docs/work-orders.md)). |
 | [`packages/client`](./packages/client) | **In progress** | React UI (Phase 3): foreman chat (streaming), active work-order panel, history, and onboarding/settings. Served on port `8725`. |
 
 > FICSIT Foreman runs as a **Docker Compose project** named `foreman`: the MCP server and
@@ -196,7 +196,7 @@ bundled channel (`SATISFACTORY_GAME_CHANNEL`) → empty dataset with a warning. 
 Contributions are welcome — see [`CONTRIBUTING.md`](./CONTRIBUTING.md) for the workflow
 and conventions, including how to supply bundled `en-US.json` game-data updates. Planned
 work and open design questions live in the [issue tracker](https://github.com/StuartMeeks/ficsit-foreman/issues);
-the parser and graph design are documented in [`PARSER.md`](./PARSER.md).
+the parser and graph design are documented in [`PARSER.md`](./packages/game-data-core/PARSER.md).
 
 ## Licence
 

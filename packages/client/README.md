@@ -8,7 +8,7 @@ origin (no CORS).
 > **Phase 3 status: in progress.** A working conversation with the foreman
 > (session + streaming chat), an active work-order panel, a history list, and
 > onboarding/settings are in place. The work-order panel is currently minimal and
-> is being **reworked against the Work Orders v2 model** ([`WORK_ORDER_SPEC.md`](../../WORK_ORDER_SPEC.md))
+> is being **reworked against the Work Orders v2 model** ([`docs/work-orders.md`](../../docs/work-orders.md))
 > — states, checklists, machine counters, revisions, and opportunities. The visual
 > language follows the north star in [`design-reference/`](./design-reference/) via
 > [`design-tokens.css`](./design-tokens.css).
@@ -54,7 +54,7 @@ alongside it.
   Mono, Barlow, and Barlow Condensed — these should be self-hosted (no CDN) in a
   later pass.
 - The work-order panel is being rebuilt against the Work Orders v2 model
-  ([`WORK_ORDER_SPEC.md`](../../WORK_ORDER_SPEC.md)). The prototype's per-step and
+  ([`docs/work-orders.md`](../../docs/work-orders.md)). The prototype's per-step and
   per-material progress (`2/6`, ✓/✗) is now directly supported — v2 checklists
   carry stable ids and checked state, so the panel can render and mutate them via
   the work-order REST endpoints.

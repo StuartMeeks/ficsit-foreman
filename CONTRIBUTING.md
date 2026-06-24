@@ -5,25 +5,50 @@ code, docs, and game-data updates are all welcome.
 
 ## Conventions
 
-Commit, branch, and pull-request conventions are documented in
-[`CLAUDE.md`](./CLAUDE.md) (see **Git, Commit & PR Conventions**). In short:
+This file is the single home for our conventions (`CLAUDE.md` points here).
 
-- **Commits** follow [Conventional Commits](https://www.conventionalcommits.org/)
-  (`type(scope): subject`) with a body explaining what and why.
-- **Branches** are prefixed `feature/`, `bugfix/`, or `hotfix/` with a kebab-case slug.
-- **Pull requests** are one logical change each, squash-merged, with a complete
-  description written at creation time.
+### Commits — Conventional Commits, body required
+- Format `type(optional-scope): subject` — imperative, lowercase subject, no
+  trailing full stop (e.g. `feat(server): add HTTP transport`).
+- Allowed types: `feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`,
+  `build`, `ci`, `chore`, `revert`.
+- **A body is required** — explain *what* changed and *why* (wrap ~72 cols).
+- Breaking changes: `type!: subject` plus a `BREAKING CHANGE:` footer.
+
+### Branches
+- Prefix by work type: `feature/<slug>`, `bugfix/<slug>`, `hotfix/<slug>`.
+- `<slug>`: lowercase, words joined by `-`, drop filler words.
+- **Never commit directly to `main`** — branch first (also enforced by a ruleset).
+
+### Pull requests
+- One logical change per PR; keep it small (aim < ~500 changed lines).
+- **Squash-merge** so `main` stays linear; the squash message follows the commit
+  convention above.
+- Update a branch from `main` with **rebase**, not a merge commit.
+- Title: the Conventional Commit summary. Write the **complete** description at
+  creation time, not in a later edit.
+- AI-generated PRs must begin the body with: `🤖 AI-generated PR — Please review
+  carefully.`
+
+### Code standards
+- Always use curly braces, even for single-line `if`/`else`/loops.
+- Explicit return types on all exported functions.
+- No `any` — use `unknown` and narrow it.
+- Errors are logged with context, never silently swallowed.
+- Parser warnings are collected into `parseWarnings[]`, not thrown.
+- **British English** in all comments and documentation.
 
 ## Development
 
 ```bash
 npm install
-npm run build      # type-check / build packages/mcp-game-data
+npm run build      # type-check / build the workspaces
 npm run lint       # ESLint + Prettier
-npm test           # Vitest (runs on hand-crafted fixtures)
+npm test           # Vitest
 ```
 
 CI (`build` + `lint` + `test`) runs on every PR and must pass before merge.
+Docker image builds run only when image-relevant files change.
 
 ## Supplying game data (`en-US.json`)
 

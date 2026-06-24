@@ -1,6 +1,6 @@
 /**
  * Shared API types for the FICSIT Foreman backend. The WorkOrder shape mirrors
- * WORK_ORDER_SPEC.md (the canonical Work Orders v2 design) and is what crosses
+ * docs/work-orders.md (the canonical Work Orders v2 design) and is what crosses
  * the HTTP API and the foreman's work-order tools. The database stores its
  * complex fields as JSON-encoded TEXT (see prisma/schema.prisma); the work-order
  * service does the marshalling.

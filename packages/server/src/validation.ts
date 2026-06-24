@@ -3,7 +3,7 @@ import { z } from 'zod';
 /**
  * Shared zod schemas for request bodies and tool inputs. Centralised so the
  * REST routes and the foreman's work-order tools validate against identical
- * shapes. Mirrors the types in types.ts and WORK_ORDER_SPEC.md.
+ * shapes. Mirrors the types in types.ts and docs/work-orders.md.
  */
 
 // --- Plan building blocks --------------------------------------------------

@@ -24,7 +24,7 @@ save file (.sav)  ──▶  parser  ──▶  normalised JSON  ──▶  MCP 
 1. **Parser** — decode the custom binary save format (see *Save File Format* below)
    into raw, structured objects.
 2. **Normalise** — resolve Unreal class names to clean item/recipe identifiers
-   (reusing the conventions established in `PARSER.md`), convert coordinates and
+   (reusing the conventions established in `../game-data-core/PARSER.md`), convert coordinates and
    quantities into typed records, and discard save noise. The output is a clean,
    serialisable `SaveState` model.
 3. **MCP tools** — expose computed, distilled answers over the normalised model.
