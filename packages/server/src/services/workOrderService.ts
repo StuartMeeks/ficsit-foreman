@@ -1,85 +1,203 @@
-import type { PrismaClient, WorkOrder as WorkOrderRow } from '@prisma/client';
+import { randomUUID } from 'node:crypto';
+
+import type {
+  Prisma,
+  PrismaClient,
+  WorkOrder as WorkOrderRow,
+  WorkOrderAuditEvent as AuditRow,
+  WorkOrderRevision as RevisionRow,
+} from '@prisma/client';
 
 import type {
   ExpectedOutput,
-  LineItem,
+  LocationRecommendation,
+  MachineRequirement,
+  MaterialRequirement,
   PioneerFeedback,
+  RecipeAssignment,
+  ResourceNodeReference,
   WorkOrder,
-  WorkOrderStatus,
+  WorkOrderAuditEvent,
+  WorkOrderAuditEventType,
+  WorkOrderActor,
+  WorkOrderFieldChange,
+  WorkOrderOpportunities,
+  WorkOrderPlanSnapshot,
+  WorkOrderRelationshipType,
+  WorkOrderRevision,
+  WorkOrderRevisionDiff,
+  WorkOrderState,
+  WorkOrderStep,
 } from '../types.js';
+import {
+  transitionEventType,
+  validateTransition,
+  type WorkOrderAction,
+} from './workOrderTransitions.js';
 
-/** Fields the foreman (or client) supplies when issuing a new work order. */
-export interface CreateWorkOrderInput {
-  title: string;
-  objective: string;
-  tier: number;
-  estimatedDuration: string;
-  requiredItems: LineItem[];
-  buildSteps: string[];
-  expectedOutput: ExpectedOutput[];
+/** A checklist item as supplied to create/revise — ids are generated if absent. */
+export interface MachineRequirementInput {
+  id?: string;
+  machineName: string;
+  requiredCount: number;
+  builtCount?: number;
+  recipeName?: string;
   notes?: string;
 }
-
-/** Fields that may be patched on an existing order (close-out, feedback). */
-export interface UpdateWorkOrderInput {
-  status?: WorkOrderStatus;
+export interface MaterialRequirementInput {
+  id?: string;
+  itemName: string;
+  requiredQuantity: number;
+  checked?: boolean;
   notes?: string;
-  adaptations?: string[];
+}
+export interface WorkOrderStepInput {
+  id?: string;
+  title: string;
+  description?: string;
+  checked?: boolean;
+  order?: number;
+}
+
+/** Plan fields the Foreman supplies when issuing or revising an order. */
+export interface WorkOrderPlanInput {
+  title: string;
+  goal: string;
+  objective?: string;
+  strategicSignificance?: string;
+  successCondition?: string;
+  tier?: number;
+  notes?: string[];
+  locationRecommendation?: LocationRecommendation;
+  resourceNodes?: ResourceNodeReference[];
+  machines?: MachineRequirementInput[];
+  buildMaterials?: MaterialRequirementInput[];
+  recipes?: RecipeAssignment[];
+  expectedOutputs?: ExpectedOutput[];
+  buildSteps?: WorkOrderStepInput[];
+  opportunities?: WorkOrderOpportunities;
+  blockedReason?: string;
+  blockedResolutionHint?: string;
+}
+
+export interface CreateWorkOrderInput extends WorkOrderPlanInput {
+  parentWorkOrderId?: string;
+  relationshipToParent?: WorkOrderRelationshipType;
+}
+
+/** A plan patch: any subset of plan fields. Omitted fields are left unchanged. */
+export type UpdatePlanInput = Partial<WorkOrderPlanInput>;
+
+/** Extra payload carried by a state transition (per-action required fields). */
+export interface TransitionOptions {
+  blockedReason?: string;
+  blockedResolutionHint?: string;
+  resolutionNote?: string;
+  cancellationReason?: string;
+  supersededByWorkOrderId?: string;
+  supersededReason?: string;
+  forceCompletionReason?: string;
+  incompleteItemSummary?: string;
   completionSummary?: string;
   pioneerFeedback?: PioneerFeedback;
 }
 
+export type FailureReason =
+  | 'notFound'
+  | 'terminal'
+  | 'state'
+  | 'actor'
+  | 'requirement'
+  | 'conflict';
+
+export type WorkOrderOutcome =
+  | { ok: true; order: WorkOrder }
+  | { ok: false; reason: FailureReason; message: string };
+
 /**
- * Persistence and lifecycle for work orders. Enforces the two SPEC.md
- * invariants: per-session monotonic sequence numbers (rendered WO-001, …) and
- * at most one `active` order per session. Issuing a new order while one is
- * active is a normal operation — the existing active order is abandoned, not
- * rejected; the foreman narrates that transition in chat.
+ * Persistence and lifecycle for work orders (v2), per WORK_ORDER_SPEC.md.
+ *
+ * Key invariants:
+ * - Sequence numbers are per-session and monotonic (rendered WO-001, …).
+ * - At most one `active` order per session, but multiple non-terminal orders may
+ *   coexist (a blocked parent + an active child). Creating an order no longer
+ *   supersedes the current one — supersession is explicit.
+ * - Plan vs execution are separate: plan changes write a new plan-only revision
+ *   snapshot and bump `currentRevision`; execution mutations (check/uncheck,
+ *   built count, hours) append an audit event ONLY. Reverting restores a plan
+ *   and merges current execution state forward by stable id.
  */
 export class WorkOrderService {
   public constructor(private readonly prisma: PrismaClient) {}
 
-  /**
-   * Creates a new active work order. Any currently-active order for the session
-   * is transitioned to `abandoned` first. The whole operation runs in a
-   * transaction so the single-active invariant cannot be violated by a race.
-   */
+  // --- Creation ------------------------------------------------------------
+
+  /** Issues a new work order in the `new` state with an initial revision. */
   public async create(
     sessionId: string,
     input: CreateWorkOrderInput,
     version: string,
+    actor: WorkOrderActor = 'Foreman',
   ): Promise<WorkOrder> {
-    const row = await this.prisma.$transaction(async (tx): Promise<WorkOrderRow> => {
-      await tx.workOrder.updateMany({
-        where: { sessionId, status: 'active' },
-        data: { status: 'abandoned', completedAt: new Date() },
-      });
+    const machines = normaliseMachines(input.machines ?? []);
+    const buildMaterials = normaliseMaterials(input.buildMaterials ?? []);
+    const buildSteps = normaliseSteps(input.buildSteps ?? []);
 
+    const row = await this.prisma.$transaction(async (tx): Promise<WorkOrderRow> => {
       const aggregate = await tx.workOrder.aggregate({
         where: { sessionId },
         _max: { sequenceNumber: true },
       });
       const nextSequence = (aggregate._max.sequenceNumber ?? 0) + 1;
 
-      return tx.workOrder.create({
+      const created = await tx.workOrder.create({
         data: {
           sessionId,
           sequenceNumber: nextSequence,
-          status: 'active',
+          state: 'new',
           version,
           title: input.title,
-          objective: input.objective,
-          tier: input.tier,
-          estimatedDuration: input.estimatedDuration,
-          requiredItems: JSON.stringify(input.requiredItems),
-          buildSteps: JSON.stringify(input.buildSteps),
-          expectedOutput: JSON.stringify(input.expectedOutput),
-          notes: input.notes ?? null,
+          goal: input.goal,
+          objective: input.objective ?? null,
+          strategicSignificance: input.strategicSignificance ?? null,
+          successCondition: input.successCondition ?? null,
+          tier: input.tier ?? null,
+          notes: toJsonOrNull(input.notes),
+          locationRecommendation: toJsonOrNull(input.locationRecommendation),
+          resourceNodes: toJsonOrNull(input.resourceNodes),
+          machines: JSON.stringify(machines),
+          buildMaterials: JSON.stringify(buildMaterials),
+          recipes: JSON.stringify(input.recipes ?? []),
+          expectedOutputs: JSON.stringify(input.expectedOutputs ?? []),
+          buildSteps: JSON.stringify(buildSteps),
+          opportunities: toJsonOrNull(input.opportunities),
+          blockedReason: input.blockedReason ?? null,
+          blockedResolutionHint: input.blockedResolutionHint ?? null,
+          currentRevision: 1,
+          parentWorkOrderId: input.parentWorkOrderId ?? null,
+          relationshipToParent: input.relationshipToParent ?? null,
         },
       });
+
+      await this.writeRevision(tx, created.id, 1, actor, planSnapshotFromRow(created), {
+        changeSummary: 'Work order issued.',
+      });
+      await this.appendAudit(tx, created.id, actor, 'work_order_created', {
+        revisionNumber: 1,
+      });
+      if (created.parentWorkOrderId !== null) {
+        await this.appendAudit(tx, created.parentWorkOrderId, actor, 'child_work_order_created', {
+          note: `Child ${formatWorkOrderLabel(created.sequenceNumber)} created.`,
+          details: { childWorkOrderId: created.id },
+        });
+      }
+      return created;
     });
-    return rowToWorkOrder(row);
+
+    return this.hydrate(row);
   }
+
+  // --- Reads ---------------------------------------------------------------
 
   /** All work orders for a session, oldest first (history order). */
   public async list(sessionId: string): Promise<WorkOrder[]> {
@@ -87,120 +205,1131 @@ export class WorkOrderService {
       where: { sessionId },
       orderBy: { sequenceNumber: 'asc' },
     });
-    return rows.map(rowToWorkOrder);
+    const childIds = childIdMap(rows);
+    return rows.map((row) => rowToWorkOrder(row, childIds.get(row.id) ?? []));
   }
 
   /** The session's current active order, or undefined if none. */
   public async getActive(sessionId: string): Promise<WorkOrder | undefined> {
-    const row = await this.prisma.workOrder.findFirst({
-      where: { sessionId, status: 'active' },
-    });
-    return row === null ? undefined : rowToWorkOrder(row);
+    const row = await this.prisma.workOrder.findFirst({ where: { sessionId, state: 'active' } });
+    return row === null ? undefined : this.hydrate(row);
   }
 
   /** A single order by id, scoped to its session. */
   public async get(sessionId: string, id: string): Promise<WorkOrder | undefined> {
     const row = await this.prisma.workOrder.findFirst({ where: { id, sessionId } });
-    return row === null ? undefined : rowToWorkOrder(row);
+    return row === null ? undefined : this.hydrate(row);
   }
 
-  /**
-   * Patches an existing order — used for close-out (complete/abandon, summary,
-   * adaptations, pioneer feedback) by both the REST route and the foreman's
-   * `complete_work_order` tool. Moving to a terminal status stamps `completedAt`.
-   */
-  public async update(
+  /** Direct children of an order, oldest first. */
+  public async getChildren(sessionId: string, id: string): Promise<WorkOrder[]> {
+    const rows = await this.prisma.workOrder.findMany({
+      where: { sessionId, parentWorkOrderId: id },
+      orderBy: { sequenceNumber: 'asc' },
+    });
+    return Promise.all(rows.map((row) => this.hydrate(row)));
+  }
+
+  /** The parent of an order, or undefined if it has none. */
+  public async getParent(sessionId: string, id: string): Promise<WorkOrder | undefined> {
+    const row = await this.prisma.workOrder.findFirst({ where: { id, sessionId } });
+    if (row === null || row.parentWorkOrderId === null) {
+      return undefined;
+    }
+    return this.get(sessionId, row.parentWorkOrderId);
+  }
+
+  public async getAuditTrail(sessionId: string, id: string): Promise<WorkOrderAuditEvent[]> {
+    const exists = await this.prisma.workOrder.findFirst({ where: { id, sessionId } });
+    if (exists === null) {
+      return [];
+    }
+    const rows = await this.prisma.workOrderAuditEvent.findMany({
+      where: { workOrderId: id },
+      orderBy: { timestamp: 'asc' },
+    });
+    return rows.map(auditRowToEvent);
+  }
+
+  public async getRevisions(sessionId: string, id: string): Promise<WorkOrderRevision[]> {
+    const exists = await this.prisma.workOrder.findFirst({ where: { id, sessionId } });
+    if (exists === null) {
+      return [];
+    }
+    const rows = await this.prisma.workOrderRevision.findMany({
+      where: { workOrderId: id },
+      orderBy: { revisionNumber: 'asc' },
+    });
+    return rows.map(revisionRowToRevision);
+  }
+
+  public async getRevision(
     sessionId: string,
     id: string,
-    patch: UpdateWorkOrderInput,
-  ): Promise<WorkOrder | undefined> {
-    const existing = await this.prisma.workOrder.findFirst({ where: { id, sessionId } });
-    if (existing === null) {
+    revisionNumber: number,
+  ): Promise<WorkOrderRevision | undefined> {
+    const exists = await this.prisma.workOrder.findFirst({ where: { id, sessionId } });
+    if (exists === null) {
       return undefined;
     }
-
-    const movingToTerminal =
-      patch.status !== undefined && patch.status !== 'active' && existing.status === 'active';
-
-    const row = await this.prisma.workOrder.update({
-      where: { id },
-      data: {
-        status: patch.status ?? existing.status,
-        completedAt: movingToTerminal ? new Date() : existing.completedAt,
-        notes: patch.notes ?? existing.notes,
-        adaptations:
-          patch.adaptations !== undefined
-            ? JSON.stringify(patch.adaptations)
-            : existing.adaptations,
-        completionSummary: patch.completionSummary ?? existing.completionSummary,
-        pioneerFeedback:
-          patch.pioneerFeedback !== undefined
-            ? JSON.stringify(patch.pioneerFeedback)
-            : existing.pioneerFeedback,
-      },
+    const row = await this.prisma.workOrderRevision.findFirst({
+      where: { workOrderId: id, revisionNumber },
     });
-    return rowToWorkOrder(row);
+    return row === null ? undefined : revisionRowToRevision(row);
   }
 
   /**
-   * Closes out the session's active order as completed. Convenience for the
-   * foreman's `complete_work_order` tool. Returns undefined if there is no
-   * active order to close.
+   * Field-level diff between two plan revisions (for the "plan revised" banner).
+   * Defaults to the latest change: `to` = currentRevision, `from` = to − 1.
+   * Returns undefined if the order or either revision is missing.
    */
-  public async completeActive(
+  public async diffRevisions(
     sessionId: string,
-    patch: Omit<UpdateWorkOrderInput, 'status'>,
-  ): Promise<WorkOrder | undefined> {
-    const active = await this.prisma.workOrder.findFirst({
-      where: { sessionId, status: 'active' },
-    });
-    if (active === null) {
+    id: string,
+    fromRevision?: number,
+    toRevision?: number,
+  ): Promise<WorkOrderRevisionDiff | undefined> {
+    const order = await this.prisma.workOrder.findFirst({ where: { id, sessionId } });
+    if (order === null) {
       return undefined;
     }
-    return this.update(sessionId, active.id, { ...patch, status: 'completed' });
+    const to = toRevision ?? order.currentRevision;
+    const from = fromRevision ?? Math.max(1, to - 1);
+    const [fromRow, toRow] = await Promise.all([
+      this.prisma.workOrderRevision.findFirst({ where: { workOrderId: id, revisionNumber: from } }),
+      this.prisma.workOrderRevision.findFirst({ where: { workOrderId: id, revisionNumber: to } }),
+    ]);
+    if (fromRow === null || toRow === null) {
+      return undefined;
+    }
+    const before = parseJson<WorkOrderPlanSnapshot | null>(fromRow.planSnapshot, null);
+    const after = parseJson<WorkOrderPlanSnapshot | null>(toRow.planSnapshot, null);
+    if (before === null || after === null) {
+      return undefined;
+    }
+    return { fromRevision: from, toRevision: to, changes: diffSnapshots(before, after) };
+  }
+
+  // --- State transitions ---------------------------------------------------
+
+  /**
+   * Applies a state transition, validating against the current state and actor.
+   * Enforces the single-active invariant when entering `active`. Sets the
+   * relevant operational timestamp and appends an audit event. Required
+   * per-action fields (block reason, cancellation reason, …) are checked here.
+   */
+  public async transition(
+    sessionId: string,
+    id: string,
+    action: WorkOrderAction,
+    actor: WorkOrderActor,
+    opts: TransitionOptions = {},
+  ): Promise<WorkOrderOutcome> {
+    return this.prisma.$transaction(async (tx): Promise<WorkOrderOutcome> => {
+      const row = await tx.workOrder.findFirst({ where: { id, sessionId } });
+      if (row === null) {
+        return notFound();
+      }
+      const current = row.state as WorkOrderState;
+      const result = validateTransition(current, action, actor);
+      if (!result.ok) {
+        return { ok: false, reason: result.reason, message: result.message };
+      }
+
+      const missing = missingRequirement(action, opts);
+      if (missing !== undefined) {
+        return { ok: false, reason: 'requirement', message: missing };
+      }
+
+      // Single-active invariant: only one `active` order per session.
+      if (result.to === 'active') {
+        const otherActive = await tx.workOrder.findFirst({
+          where: { sessionId, state: 'active', id: { not: id } },
+        });
+        if (otherActive !== null) {
+          return {
+            ok: false,
+            reason: 'conflict',
+            message: `Another work order (${formatWorkOrderLabel(otherActive.sequenceNumber)}) is already active. Pause or close it first.`,
+          };
+        }
+      }
+
+      const now = new Date();
+      const data: Prisma.WorkOrderUpdateInput = { state: result.to };
+      const details: Record<string, unknown> = {};
+
+      switch (action) {
+        case 'Start':
+          if (row.startedAt === null) {
+            data.startedAt = now;
+          }
+          break;
+        case 'Pause':
+          data.pausedAt = now;
+          break;
+        case 'Block':
+          data.blockedAt = now;
+          data.blockedReason = opts.blockedReason ?? null;
+          data.blockedResolutionHint = opts.blockedResolutionHint ?? null;
+          details.blockedReason = opts.blockedReason;
+          details.blockedResolutionHint = opts.blockedResolutionHint;
+          break;
+        case 'Unblock':
+          data.blockedReason = null;
+          data.blockedResolutionHint = null;
+          details.resolutionNote = opts.resolutionNote;
+          break;
+        case 'Complete':
+        case 'ForceComplete':
+          data.completedAt = now;
+          if (opts.completionSummary !== undefined) {
+            data.completionSummary = opts.completionSummary;
+          }
+          if (opts.pioneerFeedback !== undefined) {
+            data.pioneerFeedback = JSON.stringify(opts.pioneerFeedback);
+          }
+          if (action === 'ForceComplete') {
+            details.forceCompletionReason = opts.forceCompletionReason;
+            details.incompleteItemSummary = opts.incompleteItemSummary;
+          }
+          break;
+        case 'Cancel':
+          details.cancellationReason = opts.cancellationReason;
+          break;
+        case 'Supersede':
+          details.supersededByWorkOrderId = opts.supersededByWorkOrderId;
+          details.supersededReason = opts.supersededReason;
+          break;
+        default:
+          break;
+      }
+
+      const updated = await tx.workOrder.update({ where: { id }, data });
+      await this.appendAudit(
+        tx,
+        id,
+        actor,
+        transitionEventType(action) as WorkOrderAuditEventType,
+        {
+          note: opts.resolutionNote,
+          details: Object.keys(details).length > 0 ? details : undefined,
+        },
+      );
+
+      // Auto-unblock the parent when a child completes and resolves its block.
+      if (
+        (action === 'Complete' || action === 'ForceComplete') &&
+        updated.parentWorkOrderId !== null
+      ) {
+        await this.onChildCompleted(tx, sessionId, updated);
+      }
+
+      return { ok: true, order: await this.hydrateTx(tx, updated) };
+    });
+  }
+
+  // --- Plan revision -------------------------------------------------------
+
+  /**
+   * Applies a Foreman plan edit: merges the patch over the current plan, merges
+   * execution state forward by stable id for any replaced checklist, writes a
+   * new plan-only revision snapshot, bumps `currentRevision`, and appends a
+   * `work_order_revised` audit event. Non-terminal orders only.
+   */
+  public async updatePlan(
+    sessionId: string,
+    id: string,
+    patch: UpdatePlanInput,
+    actor: WorkOrderActor = 'Foreman',
+    meta: { reason?: string; changeSummary?: string } = {},
+  ): Promise<WorkOrderOutcome> {
+    return this.prisma.$transaction(async (tx): Promise<WorkOrderOutcome> => {
+      const row = await tx.workOrder.findFirst({ where: { id, sessionId } });
+      if (row === null) {
+        return notFound();
+      }
+      if (isTerminalState(row.state)) {
+        return {
+          ok: false,
+          reason: 'terminal',
+          message: `Work order is ${row.state} (terminal) and cannot be revised.`,
+        };
+      }
+
+      const data: Prisma.WorkOrderUpdateInput = {};
+      assignPlainPlanFields(data, patch);
+
+      // Checklists merge execution state forward by id when replaced.
+      if (patch.machines !== undefined) {
+        data.machines = JSON.stringify(
+          mergeMachines(normaliseMachines(patch.machines), parseMachines(row.machines)),
+        );
+      }
+      if (patch.buildMaterials !== undefined) {
+        data.buildMaterials = JSON.stringify(
+          mergeMaterials(
+            normaliseMaterials(patch.buildMaterials),
+            parseMaterials(row.buildMaterials),
+          ),
+        );
+      }
+      if (patch.buildSteps !== undefined) {
+        data.buildSteps = JSON.stringify(
+          mergeSteps(normaliseSteps(patch.buildSteps), parseSteps(row.buildSteps)),
+        );
+      }
+
+      const previousRevision = row.currentRevision;
+      const nextRevision = previousRevision + 1;
+      data.currentRevision = nextRevision;
+
+      const updated = await tx.workOrder.update({ where: { id }, data });
+      await this.writeRevision(tx, id, nextRevision, actor, planSnapshotFromRow(updated), {
+        reason: meta.reason,
+        changeSummary: meta.changeSummary,
+      });
+      await this.appendAudit(tx, id, actor, 'work_order_revised', {
+        revisionNumber: nextRevision,
+        previousRevisionNumber: previousRevision,
+        note: meta.changeSummary,
+      });
+      // More specific audit events alongside the generic revision, so the trail
+      // distinguishes a recipe swap or a build-plan adaptation at a glance.
+      if (patch.recipes !== undefined) {
+        await this.appendAudit(tx, id, actor, 'recipe_choice_changed', {
+          revisionNumber: nextRevision,
+          note: meta.changeSummary,
+        });
+      }
+      if (
+        patch.machines !== undefined ||
+        patch.buildMaterials !== undefined ||
+        patch.buildSteps !== undefined ||
+        patch.expectedOutputs !== undefined
+      ) {
+        await this.appendAudit(tx, id, actor, 'build_plan_adapted', {
+          revisionNumber: nextRevision,
+          note: meta.changeSummary,
+        });
+      }
+
+      return { ok: true, order: await this.hydrateTx(tx, updated) };
+    });
+  }
+
+  /** Marks the current (or a given) revision acknowledged by the Pioneer. */
+  public async acknowledgeRevision(
+    sessionId: string,
+    id: string,
+    revisionNumber?: number,
+    actor: WorkOrderActor = 'Pioneer',
+  ): Promise<WorkOrderOutcome> {
+    return this.prisma.$transaction(async (tx): Promise<WorkOrderOutcome> => {
+      const row = await tx.workOrder.findFirst({ where: { id, sessionId } });
+      if (row === null) {
+        return notFound();
+      }
+      const ack = revisionNumber ?? row.currentRevision;
+      const updated = await tx.workOrder.update({
+        where: { id },
+        data: { lastAcknowledgedRevision: ack },
+      });
+      await this.appendAudit(tx, id, actor, 'revision_acknowledged', { revisionNumber: ack });
+      return { ok: true, order: await this.hydrateTx(tx, updated) };
+    });
+  }
+
+  /**
+   * Reverts a non-terminal order to a previous plan revision. Restores the
+   * plan ONLY: a new revision is created carrying the target snapshot, and the
+   * Pioneer's execution state (checked flags, built counts, hours) is merged
+   * forward by id and preserved. History is never deleted.
+   */
+  public async revertToRevision(
+    sessionId: string,
+    id: string,
+    revisionNumber: number,
+    actor: WorkOrderActor = 'Pioneer',
+  ): Promise<WorkOrderOutcome> {
+    return this.prisma.$transaction(async (tx): Promise<WorkOrderOutcome> => {
+      const row = await tx.workOrder.findFirst({ where: { id, sessionId } });
+      if (row === null) {
+        return notFound();
+      }
+      if (isTerminalState(row.state)) {
+        return {
+          ok: false,
+          reason: 'terminal',
+          message: `Work order is ${row.state} (terminal) and cannot be reverted.`,
+        };
+      }
+      const target = await tx.workOrderRevision.findFirst({
+        where: { workOrderId: id, revisionNumber },
+      });
+      if (target === null) {
+        return { ok: false, reason: 'notFound', message: `Revision ${revisionNumber} not found.` };
+      }
+
+      const snapshot = parseJson<WorkOrderPlanSnapshot | null>(target.planSnapshot, null);
+      if (snapshot === null) {
+        return { ok: false, reason: 'state', message: 'Stored snapshot could not be read.' };
+      }
+
+      const previousRevision = row.currentRevision;
+      const nextRevision = previousRevision + 1;
+
+      const data: Prisma.WorkOrderUpdateInput = {
+        title: snapshot.title,
+        goal: snapshot.goal,
+        objective: snapshot.objective ?? null,
+        strategicSignificance: snapshot.strategicSignificance ?? null,
+        successCondition: snapshot.successCondition ?? null,
+        tier: snapshot.tier ?? null,
+        notes: toJsonOrNull(snapshot.notes),
+        locationRecommendation: toJsonOrNull(snapshot.locationRecommendation),
+        resourceNodes: toJsonOrNull(snapshot.resourceNodes),
+        recipes: JSON.stringify(snapshot.recipes ?? []),
+        expectedOutputs: JSON.stringify(snapshot.expectedOutputs ?? []),
+        opportunities: toJsonOrNull(snapshot.opportunities),
+        blockedReason: snapshot.blockedReason ?? null,
+        blockedResolutionHint: snapshot.blockedResolutionHint ?? null,
+        relationshipToParent: snapshot.relationshipToParent ?? null,
+        // Merge execution state forward from the live row by stable id.
+        machines: JSON.stringify(
+          mergeMachines(machinesFromDefs(snapshot.machines), parseMachines(row.machines)),
+        ),
+        buildMaterials: JSON.stringify(
+          mergeMaterials(
+            materialsFromDefs(snapshot.buildMaterials),
+            parseMaterials(row.buildMaterials),
+          ),
+        ),
+        buildSteps: JSON.stringify(
+          mergeSteps(stepsFromDefs(snapshot.buildSteps), parseSteps(row.buildSteps)),
+        ),
+        currentRevision: nextRevision,
+      };
+
+      const updated = await tx.workOrder.update({ where: { id }, data });
+      await this.writeRevision(tx, id, nextRevision, actor, planSnapshotFromRow(updated), {
+        reason: `Reverted to revision ${revisionNumber}.`,
+        changeSummary: `Restored plan from revision ${revisionNumber}; execution progress preserved.`,
+      });
+      await this.appendAudit(tx, id, actor, 'reverted_to_revision', {
+        revisionNumber: nextRevision,
+        previousRevisionNumber: previousRevision,
+        note: `Restored plan from revision ${revisionNumber}.`,
+        details: { restoredFromRevision: revisionNumber },
+      });
+      return { ok: true, order: await this.hydrateTx(tx, updated) };
+    });
+  }
+
+  // --- Execution mutations (audit-only, no revision) -----------------------
+
+  public async setMaterialChecked(
+    sessionId: string,
+    id: string,
+    materialId: string,
+    checked: boolean,
+    actor: WorkOrderActor = 'Pioneer',
+  ): Promise<WorkOrderOutcome> {
+    return this.mutateChecklist(sessionId, id, actor, (row) => {
+      const items = parseMaterials(row.buildMaterials);
+      const item = items.find((m) => m.id === materialId);
+      if (item === undefined) {
+        return { error: `Material '${materialId}' not found.` };
+      }
+      item.checked = checked;
+      return {
+        data: { buildMaterials: JSON.stringify(items) },
+        eventType: checked ? 'material_checked' : 'material_unchecked',
+        details: { materialId, itemName: item.itemName },
+      };
+    });
+  }
+
+  public async setStepChecked(
+    sessionId: string,
+    id: string,
+    stepId: string,
+    checked: boolean,
+    actor: WorkOrderActor = 'Pioneer',
+  ): Promise<WorkOrderOutcome> {
+    return this.mutateChecklist(sessionId, id, actor, (row) => {
+      const items = parseSteps(row.buildSteps);
+      const item = items.find((s) => s.id === stepId);
+      if (item === undefined) {
+        return { error: `Step '${stepId}' not found.` };
+      }
+      item.checked = checked;
+      return {
+        data: { buildSteps: JSON.stringify(items) },
+        eventType: checked ? 'step_checked' : 'step_unchecked',
+        details: { stepId, title: item.title },
+      };
+    });
+  }
+
+  public async setMachineBuiltCount(
+    sessionId: string,
+    id: string,
+    machineId: string,
+    builtCount: number,
+    actor: WorkOrderActor = 'Pioneer',
+  ): Promise<WorkOrderOutcome> {
+    return this.mutateChecklist(sessionId, id, actor, (row) => {
+      const items = parseMachines(row.machines);
+      const item = items.find((m) => m.id === machineId);
+      if (item === undefined) {
+        return { error: `Machine '${machineId}' not found.` };
+      }
+      const previous = item.builtCount;
+      item.builtCount = builtCount;
+      return {
+        data: { machines: JSON.stringify(items) },
+        eventType: 'machine_built_count_changed',
+        details: { machineId, machineName: item.machineName, from: previous, to: builtCount },
+      };
+    });
+  }
+
+  /** Adds to the manually-logged hours total. */
+  public async logHours(
+    sessionId: string,
+    id: string,
+    hours: number,
+    actor: WorkOrderActor = 'Pioneer',
+  ): Promise<WorkOrderOutcome> {
+    return this.mutateChecklist(sessionId, id, actor, (row) => {
+      const total = (row.hoursLogged ?? 0) + hours;
+      return {
+        data: { hoursLogged: total },
+        eventType: 'hours_logged',
+        details: { added: hours, total },
+      };
+    });
+  }
+
+  /**
+   * The Foreman proposes completion (Option A) — it records the suggestion but
+   * does NOT complete the order. Only the Pioneer may complete.
+   */
+  public async proposeCompletion(
+    sessionId: string,
+    id: string,
+    note?: string,
+    actor: WorkOrderActor = 'Foreman',
+  ): Promise<WorkOrderOutcome> {
+    return this.prisma.$transaction(async (tx): Promise<WorkOrderOutcome> => {
+      const row = await tx.workOrder.findFirst({ where: { id, sessionId } });
+      if (row === null) {
+        return notFound();
+      }
+      if (isTerminalState(row.state)) {
+        return {
+          ok: false,
+          reason: 'terminal',
+          message: `Work order is ${row.state} (terminal).`,
+        };
+      }
+      await this.appendAudit(tx, id, actor, 'completion_proposed', { note });
+      return { ok: true, order: await this.hydrateTx(tx, row) };
+    });
+  }
+
+  // --- Internals -----------------------------------------------------------
+
+  private async mutateChecklist(
+    sessionId: string,
+    id: string,
+    actor: WorkOrderActor,
+    apply: (row: WorkOrderRow) =>
+      | { error: string }
+      | {
+          data: Prisma.WorkOrderUpdateInput;
+          eventType: WorkOrderAuditEventType;
+          details?: unknown;
+        },
+  ): Promise<WorkOrderOutcome> {
+    return this.prisma.$transaction(async (tx): Promise<WorkOrderOutcome> => {
+      const row = await tx.workOrder.findFirst({ where: { id, sessionId } });
+      if (row === null) {
+        return notFound();
+      }
+      if (isTerminalState(row.state)) {
+        return {
+          ok: false,
+          reason: 'terminal',
+          message: `Work order is ${row.state} (terminal); execution state is locked.`,
+        };
+      }
+      const result = apply(row);
+      if ('error' in result) {
+        return { ok: false, reason: 'notFound', message: result.error };
+      }
+      const updated = await tx.workOrder.update({ where: { id }, data: result.data });
+      await this.appendAudit(tx, id, actor, result.eventType, { details: result.details });
+      return { ok: true, order: await this.hydrateTx(tx, updated) };
+    });
+  }
+
+  /** Auto-unblock the parent when a child completes (with audit on the parent). */
+  private async onChildCompleted(
+    tx: Prisma.TransactionClient,
+    sessionId: string,
+    child: WorkOrderRow,
+  ): Promise<void> {
+    if (child.parentWorkOrderId === null) {
+      return;
+    }
+    const parent = await tx.workOrder.findFirst({
+      where: { id: child.parentWorkOrderId, sessionId },
+    });
+    if (parent === null) {
+      return;
+    }
+    await this.appendAudit(tx, parent.id, 'System', 'child_work_order_completed', {
+      note: `Child ${formatWorkOrderLabel(child.sequenceNumber)} completed.`,
+      details: { childWorkOrderId: child.id },
+    });
+    if (parent.state !== 'blocked') {
+      return;
+    }
+    // Only auto-unblock when no other order is currently active.
+    const otherActive = await tx.workOrder.findFirst({
+      where: { sessionId, state: 'active', id: { not: parent.id } },
+    });
+    if (otherActive !== null) {
+      return;
+    }
+    await tx.workOrder.update({
+      where: { id: parent.id },
+      data: { state: 'active', blockedReason: null, blockedResolutionHint: null },
+    });
+    await this.appendAudit(tx, parent.id, 'System', 'unblocked', {
+      note: `Auto-unblocked: child ${formatWorkOrderLabel(child.sequenceNumber)} resolved the blocker.`,
+      details: { childWorkOrderId: child.id },
+    });
+  }
+
+  private async writeRevision(
+    tx: Prisma.TransactionClient,
+    workOrderId: string,
+    revisionNumber: number,
+    createdBy: WorkOrderActor,
+    snapshot: WorkOrderPlanSnapshot,
+    meta: { reason?: string; changeSummary?: string } = {},
+  ): Promise<void> {
+    await tx.workOrderRevision.create({
+      data: {
+        workOrderId,
+        revisionNumber,
+        createdBy,
+        reason: meta.reason ?? null,
+        changeSummary: meta.changeSummary ?? null,
+        planSnapshot: JSON.stringify(snapshot),
+      },
+    });
+  }
+
+  private async appendAudit(
+    tx: Prisma.TransactionClient,
+    workOrderId: string,
+    actor: WorkOrderActor,
+    eventType: WorkOrderAuditEventType,
+    extra: {
+      revisionNumber?: number;
+      previousRevisionNumber?: number;
+      note?: string;
+      details?: unknown;
+    } = {},
+  ): Promise<void> {
+    await tx.workOrderAuditEvent.create({
+      data: {
+        workOrderId,
+        actor,
+        eventType,
+        revisionNumber: extra.revisionNumber ?? null,
+        previousRevisionNumber: extra.previousRevisionNumber ?? null,
+        note: extra.note ?? null,
+        details: extra.details === undefined ? null : JSON.stringify(extra.details),
+      },
+    });
+  }
+
+  /** Maps a row to the API shape, fetching derived child ids. */
+  private async hydrate(row: WorkOrderRow): Promise<WorkOrder> {
+    const children = await this.prisma.workOrder.findMany({
+      where: { parentWorkOrderId: row.id },
+      select: { id: true },
+    });
+    return rowToWorkOrder(
+      row,
+      children.map((c) => c.id),
+    );
+  }
+
+  private async hydrateTx(tx: Prisma.TransactionClient, row: WorkOrderRow): Promise<WorkOrder> {
+    const children = await tx.workOrder.findMany({
+      where: { parentWorkOrderId: row.id },
+      select: { id: true },
+    });
+    return rowToWorkOrder(
+      row,
+      children.map((c) => c.id),
+    );
   }
 }
+
+// --- Required-field validation per action ----------------------------------
+
+function missingRequirement(action: WorkOrderAction, opts: TransitionOptions): string | undefined {
+  switch (action) {
+    case 'Block':
+      if (!opts.blockedReason || !opts.blockedResolutionHint) {
+        return 'Block requires blockedReason and blockedResolutionHint.';
+      }
+      break;
+    case 'Unblock':
+      if (!opts.resolutionNote) {
+        return 'Unblock requires a resolutionNote.';
+      }
+      break;
+    case 'Cancel':
+      if (!opts.cancellationReason) {
+        return 'Cancel requires a cancellationReason.';
+      }
+      break;
+    case 'Supersede':
+      if (!opts.supersededByWorkOrderId || !opts.supersededReason) {
+        return 'Supersede requires supersededByWorkOrderId and supersededReason.';
+      }
+      break;
+    case 'ForceComplete':
+      if (!opts.forceCompletionReason || !opts.incompleteItemSummary) {
+        return 'ForceComplete requires forceCompletionReason and incompleteItemSummary.';
+      }
+      break;
+    default:
+      break;
+  }
+  return undefined;
+}
+
+// --- Pure mapping & normalisation helpers -----------------------------------
 
 /** Renders a sequence number as the human-readable WO-001 form. */
 export function formatWorkOrderLabel(sequenceNumber: number): string {
   return `WO-${String(sequenceNumber).padStart(3, '0')}`;
 }
 
-/** Maps a database row to the API WorkOrder shape, decoding JSON-encoded fields. */
-export function rowToWorkOrder(row: WorkOrderRow): WorkOrder {
+function isTerminalState(state: string): boolean {
+  return state === 'completed' || state === 'cancelled' || state === 'superseded';
+}
+
+function notFound(): WorkOrderOutcome {
+  return { ok: false, reason: 'notFound', message: 'Work order not found.' };
+}
+
+function normaliseMachines(input: MachineRequirementInput[]): MachineRequirement[] {
+  return input.map((m) => ({
+    id: m.id ?? randomUUID(),
+    machineName: m.machineName,
+    requiredCount: m.requiredCount,
+    builtCount: m.builtCount ?? 0,
+    ...(m.recipeName !== undefined ? { recipeName: m.recipeName } : {}),
+    ...(m.notes !== undefined ? { notes: m.notes } : {}),
+  }));
+}
+
+function normaliseMaterials(input: MaterialRequirementInput[]): MaterialRequirement[] {
+  return input.map((m) => ({
+    id: m.id ?? randomUUID(),
+    itemName: m.itemName,
+    requiredQuantity: m.requiredQuantity,
+    checked: m.checked ?? false,
+    ...(m.notes !== undefined ? { notes: m.notes } : {}),
+  }));
+}
+
+function normaliseSteps(input: WorkOrderStepInput[]): WorkOrderStep[] {
+  return input.map((s, index) => ({
+    id: s.id ?? randomUUID(),
+    title: s.title,
+    checked: s.checked ?? false,
+    order: s.order ?? index,
+    ...(s.description !== undefined ? { description: s.description } : {}),
+  }));
+}
+
+/** Carry execution state forward by id: incoming defs, existing checked/counts. */
+function mergeMachines(
+  incoming: MachineRequirement[],
+  existing: MachineRequirement[],
+): MachineRequirement[] {
+  const byId = new Map(existing.map((m) => [m.id, m]));
+  return incoming.map((m) => ({ ...m, builtCount: byId.get(m.id)?.builtCount ?? m.builtCount }));
+}
+
+function mergeMaterials(
+  incoming: MaterialRequirement[],
+  existing: MaterialRequirement[],
+): MaterialRequirement[] {
+  const byId = new Map(existing.map((m) => [m.id, m]));
+  return incoming.map((m) => ({ ...m, checked: byId.get(m.id)?.checked ?? m.checked }));
+}
+
+function mergeSteps(incoming: WorkOrderStep[], existing: WorkOrderStep[]): WorkOrderStep[] {
+  const byId = new Map(existing.map((s) => [s.id, s]));
+  return incoming.map((s) => ({ ...s, checked: byId.get(s.id)?.checked ?? s.checked }));
+}
+
+function machinesFromDefs(defs: WorkOrderPlanSnapshot['machines']): MachineRequirement[] {
+  return defs.map((d) => ({ ...d, builtCount: 0 }));
+}
+function materialsFromDefs(defs: WorkOrderPlanSnapshot['buildMaterials']): MaterialRequirement[] {
+  return defs.map((d) => ({ ...d, checked: false }));
+}
+function stepsFromDefs(defs: WorkOrderPlanSnapshot['buildSteps']): WorkOrderStep[] {
+  return defs.map((d) => ({ ...d, checked: false }));
+}
+
+function assignPlainPlanFields(data: Prisma.WorkOrderUpdateInput, patch: UpdatePlanInput): void {
+  if (patch.title !== undefined) {
+    data.title = patch.title;
+  }
+  if (patch.goal !== undefined) {
+    data.goal = patch.goal;
+  }
+  if (patch.objective !== undefined) {
+    data.objective = patch.objective;
+  }
+  if (patch.strategicSignificance !== undefined) {
+    data.strategicSignificance = patch.strategicSignificance;
+  }
+  if (patch.successCondition !== undefined) {
+    data.successCondition = patch.successCondition;
+  }
+  if (patch.tier !== undefined) {
+    data.tier = patch.tier;
+  }
+  if (patch.notes !== undefined) {
+    data.notes = toJsonOrNull(patch.notes);
+  }
+  if (patch.locationRecommendation !== undefined) {
+    data.locationRecommendation = toJsonOrNull(patch.locationRecommendation);
+  }
+  if (patch.resourceNodes !== undefined) {
+    data.resourceNodes = toJsonOrNull(patch.resourceNodes);
+  }
+  if (patch.recipes !== undefined) {
+    data.recipes = JSON.stringify(patch.recipes);
+  }
+  if (patch.expectedOutputs !== undefined) {
+    data.expectedOutputs = JSON.stringify(patch.expectedOutputs);
+  }
+  if (patch.opportunities !== undefined) {
+    data.opportunities = toJsonOrNull(patch.opportunities);
+  }
+  if (patch.blockedReason !== undefined) {
+    data.blockedReason = patch.blockedReason;
+  }
+  if (patch.blockedResolutionHint !== undefined) {
+    data.blockedResolutionHint = patch.blockedResolutionHint;
+  }
+}
+
+function parseMachines(raw: string): MachineRequirement[] {
+  return parseJson<MachineRequirement[]>(raw, []);
+}
+function parseMaterials(raw: string): MaterialRequirement[] {
+  return parseJson<MaterialRequirement[]>(raw, []);
+}
+function parseSteps(raw: string): WorkOrderStep[] {
+  return parseJson<WorkOrderStep[]>(raw, []);
+}
+
+/** Derives a plan-only snapshot from a stored row (strips execution state). */
+function planSnapshotFromRow(row: WorkOrderRow): WorkOrderPlanSnapshot {
+  const machines = parseMachines(row.machines).map((m) => {
+    const def: WorkOrderPlanSnapshot['machines'][number] = {
+      id: m.id,
+      machineName: m.machineName,
+      requiredCount: m.requiredCount,
+    };
+    if (m.recipeName !== undefined) {
+      def.recipeName = m.recipeName;
+    }
+    if (m.notes !== undefined) {
+      def.notes = m.notes;
+    }
+    return def;
+  });
+  const buildMaterials = parseMaterials(row.buildMaterials).map((m) => {
+    const def: WorkOrderPlanSnapshot['buildMaterials'][number] = {
+      id: m.id,
+      itemName: m.itemName,
+      requiredQuantity: m.requiredQuantity,
+    };
+    if (m.notes !== undefined) {
+      def.notes = m.notes;
+    }
+    return def;
+  });
+  const buildSteps = parseSteps(row.buildSteps).map((s) => {
+    const def: WorkOrderPlanSnapshot['buildSteps'][number] = {
+      id: s.id,
+      title: s.title,
+      order: s.order,
+    };
+    if (s.description !== undefined) {
+      def.description = s.description;
+    }
+    return def;
+  });
+
+  const snapshot: WorkOrderPlanSnapshot = {
+    title: row.title,
+    goal: row.goal,
+    machines,
+    buildMaterials,
+    buildSteps,
+    recipes: parseJson<RecipeAssignment[]>(row.recipes, []),
+    expectedOutputs: parseJson<ExpectedOutput[]>(row.expectedOutputs, []),
+  };
+  if (row.objective !== null) {
+    snapshot.objective = row.objective;
+  }
+  if (row.strategicSignificance !== null) {
+    snapshot.strategicSignificance = row.strategicSignificance;
+  }
+  if (row.successCondition !== null) {
+    snapshot.successCondition = row.successCondition;
+  }
+  if (row.tier !== null) {
+    snapshot.tier = row.tier;
+  }
+  if (row.notes !== null) {
+    snapshot.notes = parseJson<string[]>(row.notes, []);
+  }
+  if (row.locationRecommendation !== null) {
+    const loc = parseJson<LocationRecommendation | null>(row.locationRecommendation, null);
+    if (loc !== null) {
+      snapshot.locationRecommendation = loc;
+    }
+  }
+  if (row.resourceNodes !== null) {
+    snapshot.resourceNodes = parseJson<ResourceNodeReference[]>(row.resourceNodes, []);
+  }
+  if (row.opportunities !== null) {
+    const opp = parseJson<WorkOrderOpportunities | null>(row.opportunities, null);
+    if (opp !== null) {
+      snapshot.opportunities = opp;
+    }
+  }
+  if (row.blockedReason !== null) {
+    snapshot.blockedReason = row.blockedReason;
+  }
+  if (row.blockedResolutionHint !== null) {
+    snapshot.blockedResolutionHint = row.blockedResolutionHint;
+  }
+  if (row.relationshipToParent !== null) {
+    snapshot.relationshipToParent = row.relationshipToParent as WorkOrderRelationshipType;
+  }
+  if (row.parentWorkOrderId !== null) {
+    snapshot.parentWorkOrderId = row.parentWorkOrderId;
+  }
+  return snapshot;
+}
+
+/** Maps a database row to the API WorkOrder shape, decoding JSON fields. */
+export function rowToWorkOrder(row: WorkOrderRow, childWorkOrderIds: string[] = []): WorkOrder {
   const order: WorkOrder = {
     id: row.id,
     sequenceNumber: row.sequenceNumber,
-    status: row.status as WorkOrderStatus,
     version: row.version,
-    issuedAt: row.issuedAt.toISOString(),
+    state: row.state as WorkOrderState,
     title: row.title,
-    objective: row.objective,
-    tier: row.tier,
-    estimatedDuration: row.estimatedDuration,
-    requiredItems: parseJson<LineItem[]>(row.requiredItems, []),
-    buildSteps: parseJson<string[]>(row.buildSteps, []),
-    expectedOutput: parseJson<ExpectedOutput[]>(row.expectedOutput, []),
+    goal: row.goal,
+    machines: parseMachines(row.machines),
+    buildMaterials: parseMaterials(row.buildMaterials),
+    recipes: parseJson<RecipeAssignment[]>(row.recipes, []),
+    expectedOutputs: parseJson<ExpectedOutput[]>(row.expectedOutputs, []),
+    buildSteps: parseSteps(row.buildSteps),
+    currentRevision: row.currentRevision,
+    hasUnacknowledgedRevision: row.currentRevision > (row.lastAcknowledgedRevision ?? 0),
+    childWorkOrderIds,
+    createdAt: row.createdAt.toISOString(),
+    updatedAt: row.updatedAt.toISOString(),
   };
+  if (row.objective !== null) {
+    order.objective = row.objective;
+  }
+  if (row.strategicSignificance !== null) {
+    order.strategicSignificance = row.strategicSignificance;
+  }
+  if (row.successCondition !== null) {
+    order.successCondition = row.successCondition;
+  }
+  if (row.tier !== null) {
+    order.tier = row.tier;
+  }
+  if (row.notes !== null) {
+    order.notes = parseJson<string[]>(row.notes, []);
+  }
+  if (row.locationRecommendation !== null) {
+    const loc = parseJson<LocationRecommendation | null>(row.locationRecommendation, null);
+    if (loc !== null) {
+      order.locationRecommendation = loc;
+    }
+  }
+  if (row.resourceNodes !== null) {
+    order.resourceNodes = parseJson<ResourceNodeReference[]>(row.resourceNodes, []);
+  }
+  if (row.opportunities !== null) {
+    const opp = parseJson<WorkOrderOpportunities | null>(row.opportunities, null);
+    if (opp !== null) {
+      order.opportunities = opp;
+    }
+  }
+  if (row.blockedReason !== null) {
+    order.blockedReason = row.blockedReason;
+  }
+  if (row.blockedResolutionHint !== null) {
+    order.blockedResolutionHint = row.blockedResolutionHint;
+  }
+  if (row.startedAt !== null) {
+    order.startedAt = row.startedAt.toISOString();
+  }
+  if (row.pausedAt !== null) {
+    order.pausedAt = row.pausedAt.toISOString();
+  }
+  if (row.blockedAt !== null) {
+    order.blockedAt = row.blockedAt.toISOString();
+  }
   if (row.completedAt !== null) {
     order.completedAt = row.completedAt.toISOString();
   }
-  if (row.notes !== null) {
-    order.notes = row.notes;
-  }
-  if (row.adaptations !== null) {
-    order.adaptations = parseJson<string[]>(row.adaptations, []);
+  if (row.hoursLogged !== null) {
+    order.hoursLogged = row.hoursLogged;
   }
   if (row.completionSummary !== null) {
     order.completionSummary = row.completionSummary;
   }
   if (row.pioneerFeedback !== null) {
-    const feedback = parseJson<PioneerFeedback | undefined>(row.pioneerFeedback, undefined);
-    if (feedback !== undefined) {
+    const feedback = parseJson<PioneerFeedback | null>(row.pioneerFeedback, null);
+    if (feedback !== null) {
       order.pioneerFeedback = feedback;
     }
   }
+  if (row.lastAcknowledgedRevision !== null) {
+    order.lastAcknowledgedRevision = row.lastAcknowledgedRevision;
+  }
+  if (row.parentWorkOrderId !== null) {
+    order.parentWorkOrderId = row.parentWorkOrderId;
+  }
+  if (row.relationshipToParent !== null) {
+    order.relationshipToParent = row.relationshipToParent as WorkOrderRelationshipType;
+  }
   return order;
+}
+
+function auditRowToEvent(row: AuditRow): WorkOrderAuditEvent {
+  const event: WorkOrderAuditEvent = {
+    id: row.id,
+    workOrderId: row.workOrderId,
+    timestamp: row.timestamp.toISOString(),
+    actor: row.actor as WorkOrderActor,
+    eventType: row.eventType as WorkOrderAuditEventType,
+  };
+  if (row.revisionNumber !== null) {
+    event.revisionNumber = row.revisionNumber;
+  }
+  if (row.previousRevisionNumber !== null) {
+    event.previousRevisionNumber = row.previousRevisionNumber;
+  }
+  if (row.note !== null) {
+    event.note = row.note;
+  }
+  if (row.details !== null) {
+    event.details = parseJson<unknown>(row.details, undefined);
+  }
+  return event;
+}
+
+function revisionRowToRevision(row: RevisionRow): WorkOrderRevision {
+  const revision: WorkOrderRevision = {
+    id: row.id,
+    workOrderId: row.workOrderId,
+    revisionNumber: row.revisionNumber,
+    createdAt: row.createdAt.toISOString(),
+    createdBy: row.createdBy as WorkOrderActor,
+    planSnapshot: parseJson<WorkOrderPlanSnapshot>(row.planSnapshot, {} as WorkOrderPlanSnapshot),
+  };
+  if (row.reason !== null) {
+    revision.reason = row.reason;
+  }
+  if (row.changeSummary !== null) {
+    revision.changeSummary = row.changeSummary;
+  }
+  return revision;
+}
+
+/** Builds parentId → child-id[] for a batch of rows (avoids N+1 in list()). */
+function childIdMap(rows: WorkOrderRow[]): Map<string, string[]> {
+  const map = new Map<string, string[]>();
+  for (const row of rows) {
+    if (row.parentWorkOrderId !== null) {
+      const list = map.get(row.parentWorkOrderId) ?? [];
+      list.push(row.id);
+      map.set(row.parentWorkOrderId, list);
+    }
+  }
+  return map;
+}
+
+/** Plan fields compared by the revision diff, in display order. */
+const DIFF_FIELDS: readonly (keyof WorkOrderPlanSnapshot)[] = [
+  'title',
+  'goal',
+  'objective',
+  'strategicSignificance',
+  'successCondition',
+  'tier',
+  'notes',
+  'locationRecommendation',
+  'resourceNodes',
+  'machines',
+  'buildMaterials',
+  'recipes',
+  'expectedOutputs',
+  'buildSteps',
+  'opportunities',
+  'blockedReason',
+  'blockedResolutionHint',
+  'relationshipToParent',
+];
+
+/** Field-level diff of two plan snapshots: one entry per field that differs. */
+function diffSnapshots(
+  before: WorkOrderPlanSnapshot,
+  after: WorkOrderPlanSnapshot,
+): WorkOrderFieldChange[] {
+  const changes: WorkOrderFieldChange[] = [];
+  for (const field of DIFF_FIELDS) {
+    const a = before[field];
+    const b = after[field];
+    if (JSON.stringify(a ?? null) !== JSON.stringify(b ?? null)) {
+      changes.push({ field, before: a ?? null, after: b ?? null });
+    }
+  }
+  return changes;
+}
+
+function toJsonOrNull(value: unknown): string | null {
+  return value === undefined || value === null ? null : JSON.stringify(value);
 }
 
 function parseJson<T>(raw: string, fallback: T): T {

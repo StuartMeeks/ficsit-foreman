@@ -13,12 +13,10 @@ let db: TestDb;
 
 const validWorkOrderInput = {
   title: 'Establish Iron Plate Line',
-  objective: 'Make 20 plates per minute.',
-  tier: 1,
-  estimatedDuration: '15 minutes',
-  requiredItems: [{ item: 'Iron Ingot', quantity: 30, unit: 'per minute' }],
-  buildSteps: ['Place constructors'],
-  expectedOutput: [{ item: 'Iron Plate', perMinute: 20 }],
+  goal: 'Make 20 plates per minute.',
+  buildMaterials: [{ itemName: 'Iron Ingot', requiredQuantity: 30 }],
+  buildSteps: [{ title: 'Place constructors' }],
+  expectedOutputs: [{ kind: 'item', item: 'Iron Plate', perMinute: 20 }],
 };
 
 /** A scripted provider: returns queued turns, emitting their text as a delta. */
@@ -90,7 +88,8 @@ describe('runChat tool-use loop', () => {
     ]);
 
     const deps: ChatDeps = {
-      systemPromptTemplate: 'You are the Foreman. <p>{{PERSONALITY}}</p> <q>{{PIONEER_PROFILE}}</q>',
+      systemPromptTemplate:
+        'You are the Foreman. <p>{{PERSONALITY}}</p> <q>{{PIONEER_PROFILE}}</q>',
       historyWindow: 20,
       sessions,
       workOrders,
@@ -114,7 +113,7 @@ describe('runChat tool-use loop', () => {
     expect(orders).toHaveLength(1);
     const stored = await workOrders.list(session.id);
     expect(stored).toHaveLength(1);
-    expect(stored[0]?.status).toBe('active');
+    expect(stored[0]?.state).toBe('new');
     expect(stored[0]?.version).toBe('1.2.3.0');
 
     // Personality was substituted into the system prompt the provider received.

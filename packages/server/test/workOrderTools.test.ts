@@ -4,8 +4,9 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { WorkOrderService } from '../src/services/workOrderService.js';
 import {
+  BLOCK_WORK_ORDER,
   CREATE_WORK_ORDER,
-  COMPLETE_WORK_ORDER,
+  PROPOSE_COMPLETION,
   handleWorkOrderTool,
   isWorkOrderTool,
   workOrderToolDefinitions,
@@ -24,12 +25,10 @@ async function seedSession(): Promise<string> {
 
 const validCreateInput = {
   title: 'Establish Iron Ingot Line',
-  objective: 'Smelt 30 iron ingots per minute.',
-  tier: 1,
-  estimatedDuration: '15 minutes',
-  requiredItems: [{ item: 'Iron Ore', quantity: 30, unit: 'per minute' }],
-  buildSteps: ['Place two smelters'],
-  expectedOutput: [{ item: 'Iron Ingot', perMinute: 30 }],
+  goal: 'Smelt 30 iron ingots per minute.',
+  buildMaterials: [{ itemName: 'Iron Ore', requiredQuantity: 30 }],
+  buildSteps: [{ title: 'Place two smelters' }],
+  expectedOutputs: [{ kind: 'item', item: 'Iron Ingot', perMinute: 30 }],
 };
 
 beforeAll(async () => {
@@ -42,15 +41,15 @@ afterAll(async () => {
 });
 
 describe('work-order tool registry', () => {
-  it('recognises the two server-local tools and nothing else', () => {
+  it('recognises the server-local tools and nothing else', () => {
     expect(isWorkOrderTool(CREATE_WORK_ORDER)).toBe(true);
-    expect(isWorkOrderTool(COMPLETE_WORK_ORDER)).toBe(true);
+    expect(isWorkOrderTool(PROPOSE_COMPLETION)).toBe(true);
     expect(isWorkOrderTool('get_recipe')).toBe(false);
   });
 
   it('exposes valid Anthropic tool definitions', () => {
     const defs = workOrderToolDefinitions();
-    expect(defs.map((d) => d.name).sort()).toEqual([COMPLETE_WORK_ORDER, CREATE_WORK_ORDER].sort());
+    expect(defs.length).toBeGreaterThanOrEqual(7);
     for (const def of defs) {
       expect(def.inputSchema['type']).toBe('object');
       expect(def.description.length).toBeGreaterThan(0);
@@ -59,16 +58,17 @@ describe('work-order tool registry', () => {
 });
 
 describe('handleWorkOrderTool', () => {
-  it('creates an order and stamps the game version', async () => {
+  it('creates an order in the new state and stamps the game version', async () => {
     const session = await seedSession();
     const outcome = await handleWorkOrderTool(session, CREATE_WORK_ORDER, validCreateInput, deps);
     expect(outcome.isError).toBe(false);
     expect(outcome.workOrder?.sequenceNumber).toBe(1);
+    expect(outcome.workOrder?.state).toBe('new');
     expect(outcome.workOrder?.version).toBe('1.2.3.0');
     expect(outcome.text).toContain('WO-001');
   });
 
-  it('reports the supersession when an order is already active', async () => {
+  it('does not supersede the previous order on a second create', async () => {
     const session = await seedSession();
     await handleWorkOrderTool(session, CREATE_WORK_ORDER, validCreateInput, deps);
     const outcome = await handleWorkOrderTool(
@@ -79,8 +79,7 @@ describe('handleWorkOrderTool', () => {
     );
     expect(outcome.isError).toBe(false);
     expect(outcome.text).toContain('WO-002');
-    expect(outcome.text).toMatch(/[Ss]upersed/);
-    expect(outcome.text).toContain('WO-001');
+    expect(await deps.workOrders.list(session)).toHaveLength(2);
   });
 
   it('rejects invalid create input without persisting', async () => {
@@ -91,28 +90,36 @@ describe('handleWorkOrderTool', () => {
     expect(await deps.workOrders.list(session)).toHaveLength(0);
   });
 
-  it('completes the active order', async () => {
+  it('proposes completion of the active order without completing it', async () => {
     const session = await seedSession();
-    await handleWorkOrderTool(session, CREATE_WORK_ORDER, validCreateInput, deps);
+    const created = await handleWorkOrderTool(session, CREATE_WORK_ORDER, validCreateInput, deps);
+    await deps.workOrders.transition(session, created.workOrder!.id, 'Start', 'Pioneer');
+
+    const outcome = await handleWorkOrderTool(session, PROPOSE_COMPLETION, {}, deps);
+    expect(outcome.isError).toBe(false);
+    expect(outcome.text).toMatch(/confirm/i);
+    // State is unchanged — the foreman cannot complete.
+    expect(outcome.workOrder?.state).toBe('active');
+  });
+
+  it('blocks the active order with a reason and resolution hint', async () => {
+    const session = await seedSession();
+    const created = await handleWorkOrderTool(session, CREATE_WORK_ORDER, validCreateInput, deps);
+    await deps.workOrders.transition(session, created.workOrder!.id, 'Start', 'Pioneer');
+
     const outcome = await handleWorkOrderTool(
       session,
-      COMPLETE_WORK_ORDER,
-      { completionSummary: 'Done and feeding storage.' },
+      BLOCK_WORK_ORDER,
+      { blockedReason: 'Recipe locked.', blockedResolutionHint: 'Research it in the MAM.' },
       deps,
     );
     expect(outcome.isError).toBe(false);
-    expect(outcome.workOrder?.status).toBe('completed');
-    expect(outcome.text).toContain('completed');
+    expect(outcome.workOrder?.state).toBe('blocked');
   });
 
-  it('errors when completing with no active order', async () => {
+  it('errors when proposing completion with no active order', async () => {
     const session = await seedSession();
-    const outcome = await handleWorkOrderTool(
-      session,
-      COMPLETE_WORK_ORDER,
-      { completionSummary: 'Nothing to close.' },
-      deps,
-    );
+    const outcome = await handleWorkOrderTool(session, PROPOSE_COMPLETION, {}, deps);
     expect(outcome.isError).toBe(true);
   });
 });

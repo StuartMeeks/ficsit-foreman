@@ -47,33 +47,103 @@ model Message {
   @@index([sessionId, createdAt])
 }
 
-// A work order. Mirrors the WorkOrder interface in SPEC.md. Sequence numbers are
-// per-session and monotonic (rendered WO-001, WO-002, …). Only one order per
-// session may be `active` at a time — enforced in the service layer.
+// A work order. Mirrors the WorkOrder interface in WORK_ORDER_SPEC.md (Work
+// Orders v2). Sequence numbers are per-session and monotonic (rendered WO-001,
+// WO-002, …). At most one order per session may be `active` at a time, but
+// multiple non-terminal orders may coexist (e.g. a blocked parent + an active
+// child) — enforced in the service layer.
+//
+// Plan vs execution are separated: plan fields (Foreman-owned) are snapshotted
+// into WorkOrderRevision on every plan change; execution fields (Pioneer-owned —
+// checked flags inside the checklists, machine built counts, hoursLogged) live
+// only here and their history is the WorkOrderAuditEvent trail, never snapshots.
 model WorkOrder {
-  id             String   @id @default(uuid())
+  id             String  @id @default(uuid())
   sessionId      String
-  session        Session  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  session        Session @relation(fields: [sessionId], references: [id], onDelete: Cascade)
   sequenceNumber Int
-  status         String // 'active' | 'completed' | 'abandoned'
+  state          String // WorkOrderState: new|active|paused|blocked|completed|cancelled|superseded
   version        String // game data version this order was built for
-  issuedAt       DateTime @default(now())
-  completedAt    DateTime?
 
-  title             String
-  objective         String
-  tier              Int
-  estimatedDuration String
+  // Plan — Foreman-owned. Complex fields are JSON-encoded TEXT (portable
+  // SQLite→Postgres). Checklist JSON carries stable ids + execution state.
+  title                 String
+  goal                  String
+  objective             String?
+  strategicSignificance String?
+  successCondition      String?
+  tier                  Int?
+  notes                 String? // JSON string[] of foreman build notes
+  locationRecommendation String? // JSON LocationRecommendation
+  resourceNodes          String? // JSON ResourceNodeReference[]
+  machines               String  @default("[]") // JSON MachineRequirement[]
+  buildMaterials         String  @default("[]") // JSON MaterialRequirement[]
+  recipes                String  @default("[]") // JSON RecipeAssignment[]
+  expectedOutputs        String  @default("[]") // JSON ExpectedOutput[]
+  buildSteps             String  @default("[]") // JSON WorkOrderStep[]
+  opportunities          String? // JSON WorkOrderOpportunities
+  blockedReason          String?
+  blockedResolutionHint  String?
 
-  requiredItems  String // JSON-encoded LineItem[]
-  buildSteps     String // JSON-encoded string[]
-  expectedOutput String // JSON-encoded { item: string; perMinute: number }[]
-
-  notes             String?
-  adaptations       String? // JSON-encoded string[]
+  // Execution — Pioneer-owned.
+  startedAt         DateTime?
+  pausedAt          DateTime?
+  blockedAt         DateTime?
+  completedAt       DateTime?
+  hoursLogged       Float?
   completionSummary String?
-  pioneerFeedback   String? // JSON-encoded { enjoyedAspects, didNotEnjoy, freeformNotes? }
+  pioneerFeedback   String? // JSON PioneerFeedback
+
+  // Revision / acknowledgement (plan revisions only).
+  currentRevision         Int  @default(1)
+  lastAcknowledgedRevision Int?
+
+  // Relationships. Children are derived by querying parentWorkOrderId.
+  parentWorkOrderId    String?
+  relationshipToParent String? // WorkOrderRelationshipType
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  revisions   WorkOrderRevision[]
+  auditEvents WorkOrderAuditEvent[]
 
   @@unique([sessionId, sequenceNumber])
-  @@index([sessionId, status])
+  @@index([sessionId, state])
+  @@index([parentWorkOrderId])
+}
+
+// A full plan snapshot, written on every plan change (and on revert). Stores
+// plan fields ONLY — never execution state. Append-only; revert copies a prior
+// snapshot into a new revision rather than mutating history.
+model WorkOrderRevision {
+  id             String    @id @default(uuid())
+  workOrderId    String
+  workOrder      WorkOrder @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
+  revisionNumber Int
+  createdAt      DateTime  @default(now())
+  createdBy      String // WorkOrderActor
+  reason         String?
+  changeSummary  String?
+  planSnapshot   String // JSON WorkOrderPlanSnapshot
+
+  @@unique([workOrderId, revisionNumber])
+  @@index([workOrderId])
+}
+
+// Append-only audit trail. Every mutating operation appends one of these;
+// execution mutations append here WITHOUT writing a revision snapshot.
+model WorkOrderAuditEvent {
+  id                     String    @id @default(uuid())
+  workOrderId            String
+  workOrder              WorkOrder @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
+  timestamp              DateTime  @default(now())
+  actor                  String // WorkOrderActor
+  eventType              String // WorkOrderAuditEventType
+  revisionNumber         Int?
+  previousRevisionNumber Int?
+  note                   String?
+  details                String? // JSON
+
+  @@index([workOrderId, timestamp])
 }

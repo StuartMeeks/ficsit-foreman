@@ -30,8 +30,17 @@ COPY package.json package-lock.json tsconfig.base.json ./
 # lockfile resolves identically here, in CI, and for local dev; also silences
 # the npm update notice (the base image bundles npm 10).
 RUN npm install -g "npm@$(node -p 'require("./package.json").packageManager.split("@")[1]')"
+# Both package.json manifests must be present so npm ci wires the workspace
+# symlink: the server depends on @foreman/game-data-core (shared types).
+COPY packages/game-data-core/package.json ./packages/game-data-core/package.json
 COPY packages/server/package.json ./packages/server/package.json
 RUN npm ci
+
+# Build the shared core first so the @foreman/game-data-core import resolves,
+# then verify the workspace symlink.
+COPY packages/game-data-core ./packages/game-data-core
+RUN npm run build -w @foreman/game-data-core
+RUN node -e "require.resolve('@foreman/game-data-core')"
 
 # Build: generate the Prisma client and compile TypeScript.
 COPY packages/server ./packages/server
@@ -59,7 +68,11 @@ COPY package.json package-lock.json ./
 # step at start-up runs via npm); also silences the notice.
 RUN npm install -g "npm@$(node -p 'require("./package.json").packageManager.split("@")[1]')"
 COPY packages/server/package.json ./packages/server/package.json
+# Core's manifest + compiled output so the @foreman/game-data-core workspace
+# symlink in node_modules resolves (the server uses it for shared types only).
+COPY packages/game-data-core/package.json ./packages/game-data-core/package.json
 COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/packages/game-data-core/dist ./packages/game-data-core/dist
 COPY --from=builder /app/packages/server/dist ./packages/server/dist
 COPY --from=builder /app/packages/server/prisma ./packages/server/prisma
 # Prisma 7 reads the datasource URL from the config file (not schema.prisma), so
