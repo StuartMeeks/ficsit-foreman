@@ -1,7 +1,7 @@
 name: Docker image (mcp-save-game)
 
 # Builds the save-game MCP server image and publishes it to GHCR on pushes to main
-# and on version tags. Mirrors docker-publish.yml: a `changes` job gates the build
+# and on version tags. Mirrors docker-publish-game-data.yml: a `changes` job gates the build
 # so :latest is not rebuilt on every main push — it always runs for tags, manual
 # runs and PRs, but for a main-branch push only when image-relevant files changed.
 #
@@ -18,8 +18,6 @@ on:
       - 'packages/mcp-save-game/**'
       - 'packages/game-data-core/**'
       - '.dockerignore'
-      - 'package.json'
-      - 'package-lock.json'
       - 'tsconfig.base.json'
       - '.github/workflows/docker-publish-save-game.yml'
       # Doc-only changes don't affect the image.
@@ -62,9 +60,11 @@ jobs:
             echo "build=true" >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          # main push: build only if image-relevant files changed.
+          # main push: build only if image-relevant files changed. A dependency
+          # change is captured via packages/mcp-save-game/package.json; the root
+          # package.json/lock are deliberately not listed (no rebuild-everything).
           changed=$(git diff --name-only "$BEFORE" "$AFTER" \
-            | { grep -E '^(packages/mcp-save-game/|packages/game-data-core/|\.dockerignore|package\.json|package-lock\.json|tsconfig\.base\.json|\.github/workflows/docker-publish-save-game\.yml)' || true; } \
+            | { grep -E '^(packages/mcp-save-game/|packages/game-data-core/|\.dockerignore|tsconfig\.base\.json|\.github/workflows/docker-publish-save-game\.yml)' || true; } \
             | { grep -vE '\.md$' || true; })
           if [ -n "$changed" ]; then
             echo "build=true" >> "$GITHUB_OUTPUT"

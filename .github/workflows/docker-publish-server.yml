@@ -15,8 +15,8 @@ on:
   pull_request:
     paths:
       - 'packages/server/**'
-      - 'package.json'
-      - 'package-lock.json'
+      # The server image bundles @foreman/game-data-core.
+      - 'packages/game-data-core/**'
       - 'tsconfig.base.json'
       - '.github/workflows/docker-publish-server.yml'
       # Doc-only changes (incl. package READMEs) don't affect the image…
@@ -62,9 +62,11 @@ jobs:
             exit 0
           fi
           # main push: build only if server-image-relevant files changed —
-          # excluding docs (*.md), except the prompt the image bakes in.
+          # excluding docs (*.md), except the prompt the image bakes in. A dependency
+          # change is captured via packages/server/package.json; the root
+          # package.json/lock are deliberately not listed (no rebuild-everything).
           changed=$(git diff --name-only "$BEFORE" "$AFTER" \
-            | { grep -E '^(packages/server/|package\.json|package-lock\.json|tsconfig\.base\.json|\.github/workflows/docker-publish-server\.yml)' || true; } \
+            | { grep -E '^(packages/server/|packages/game-data-core/|tsconfig\.base\.json|\.github/workflows/docker-publish-server\.yml)' || true; } \
             | { grep -vE '\.md$' || true; })
           if git diff --name-only "$BEFORE" "$AFTER" | grep -qE '^packages/server/SYSTEM_PROMPT\.md$'; then
             changed="${changed} packages/server/SYSTEM_PROMPT.md"
