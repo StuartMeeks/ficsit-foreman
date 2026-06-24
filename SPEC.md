@@ -79,7 +79,7 @@ Like the personality string, the generated pioneer profile is editable freeform 
 The interaction between the two blocks is intentional: a gruff foreman with a first-time player should still be gruff, but shouldn't assume knowledge. A warm mentor with a veteran can engage peer-to-peer. Personality sets the voice; pioneer profile sets the register.
 
 ### 5. Save Game Awareness
-The save-game MCP server (`packages/mcp-save-game`, v1 shipped) parses a Satisfactory `.sav` to expose the pioneer's live state — location, inventory, unlocked recipes, milestones, and which collectibles remain. When the backend is pointed at it (`SAVE_MCP_URL`), the foreman reads that state so orders and opportunities reflect reality rather than assumption. Richer save-driven UX (in-app upload, verification) is ongoing — see [`ROADMAP.md`](./ROADMAP.md).
+The save-game MCP server (`packages/mcp-save-game`, v1 shipped) parses a Satisfactory `.sav` to expose the pioneer's live state — location, inventory, unlocked recipes, milestones, and which collectibles remain. When the backend is pointed at it (`SAVE_MCP_URL`), the foreman reads that state so orders and opportunities reflect reality rather than assumption. Richer save-driven UX (in-app upload, verification) is ongoing — tracked in the [issue tracker](https://github.com/StuartMeeks/ficsit-foreman/issues).
 
 ---
 
@@ -320,8 +320,8 @@ The subscription tier may later include additional features (richer work order t
 
 > **Status:** Phases 1 (game-data MCP) and 2 (backend & foreman chat) are complete
 > and merged. Phase 3 (web UI) is in progress. The save-game MCP from Phase 4 has
-> shipped v1 ahead of schedule. [`ROADMAP.md`](./ROADMAP.md) tracks live,
-> per-component version plans; the phases below are the original sequencing.
+> shipped v1 ahead of schedule. The [issue tracker](https://github.com/StuartMeeks/ficsit-foreman/issues)
+> tracks live, per-component work; the phases below are the original sequencing.
 
 ### Phase 1 — MCP Server & Graph Data Layer
 - Parse `en-US.json` from local game install
@@ -356,7 +356,7 @@ The subscription tier may later include additional features (richer work order t
 > Its full technical design — architecture, the v1 Pioneer Progress tools, and the
 > save-file-format / parser build-vs-adopt tradeoffs — is in
 > [`packages/mcp-save-game/SPEC.md`](./packages/mcp-save-game/SPEC.md). See also
-> [`ROADMAP.md`](./ROADMAP.md) for its versioned plan.
+> the [issue tracker](https://github.com/StuartMeeks/ficsit-foreman/issues) for its versioned plan.
 
 ### Phase 5 — Production Readiness
 - Postgres migration
@@ -379,8 +379,7 @@ LLM cost is a real constraint, especially for free-tier users on their own API k
 
 ## Open Questions
 
-- [ ] User accounts or session-only for v1? (session-only is simpler; accounts needed for cross-device and Patreon gating)
-- [ ] What's the right conversation history window size? (configurable via `HISTORY_WINDOW`, default 20 — the right default still needs tuning in practice)
+Open design questions are tracked as [`question`-labelled issues](https://github.com/StuartMeeks/ficsit-foreman/issues?q=is%3Aissue+is%3Aopen+label%3Aquestion) in the issue tracker.
 
 *(Resolved: alt-recipe unlock status is save-state, surfaced by the save-game MCP's `get_unlocked_recipes`; the save parser adopted `@etothepii4/satisfactory-file-parser` — see [`packages/mcp-save-game/SPEC.md`](./packages/mcp-save-game/SPEC.md).)*
 

@@ -9,7 +9,7 @@ Read `SPEC.md` and `PARSER.md` in full before writing any code. Every architectu
 > - **Work Orders v2** superseded the minimal model described in the Phase 2 section below. The current, canonical design — states, plan/execution split, revision snapshots, audit trail, parent/child orders, Pioneer-only completion — lives in [`WORK_ORDER_SPEC.md`](./WORK_ORDER_SPEC.md). Ignore the old `status: active|completed|abandoned` / `requiredItems` / `tier` schema cited further down.
 > - **Phase 3 (React client, `packages/client`)** is in progress.
 >
-> The **Stack**, **Code Standards**, **Dev Environment Note**, and **Git, Commit & PR Conventions** sections remain current and authoritative. For live, per-component plans see [`ROADMAP.md`](./ROADMAP.md).
+> The **Stack**, **Code Standards**, **Dev Environment Note**, and **Git, Commit & PR Conventions** sections remain current and authoritative. For live, per-component plans see the [issue tracker](https://github.com/StuartMeeks/ficsit-foreman/issues).
 
 ---
 

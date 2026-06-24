@@ -96,7 +96,7 @@ save name. They return computed, distilled answers — not raw save dumps.
 > explaining this.
 
 Later versions add power (`v2`) and production-line (`v3`) tools — see
-[`SPEC.md`](./SPEC.md) and the repo [`ROADMAP.md`](../../ROADMAP.md).
+[`SPEC.md`](./SPEC.md) and the [issue tracker](https://github.com/StuartMeeks/ficsit-foreman/issues).
 
 ## Inspecting a real save
 
