@@ -22,6 +22,8 @@ on:
       - 'package-lock.json'
       - 'tsconfig.base.json'
       - '.github/workflows/docker-publish-save-game.yml'
+      # Doc-only changes don't affect the image.
+      - '!**/*.md'
   workflow_dispatch:
 
 permissions:
@@ -61,7 +63,9 @@ jobs:
             exit 0
           fi
           # main push: build only if image-relevant files changed.
-          changed=$(git diff --name-only "$BEFORE" "$AFTER" | { grep -E '^(packages/mcp-save-game/|packages/game-data-core/|\.dockerignore|package\.json|package-lock\.json|tsconfig\.base\.json|\.github/workflows/docker-publish-save-game\.yml)' || true; })
+          changed=$(git diff --name-only "$BEFORE" "$AFTER" \
+            | { grep -E '^(packages/mcp-save-game/|packages/game-data-core/|\.dockerignore|package\.json|package-lock\.json|tsconfig\.base\.json|\.github/workflows/docker-publish-save-game\.yml)' || true; } \
+            | { grep -vE '\.md$' || true; })
           if [ -n "$changed" ]; then
             echo "build=true" >> "$GITHUB_OUTPUT"
           else
