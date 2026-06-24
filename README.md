@@ -194,9 +194,9 @@ bundled channel (`SATISFACTORY_GAME_CHANNEL`) → empty dataset with a warning. 
 ## Contributing
 
 Contributions are welcome — see [`CONTRIBUTING.md`](./CONTRIBUTING.md) for the workflow
-and conventions, including how to supply bundled `en-US.json` game-data updates. The open
-design questions live at the bottom of [`SPEC.md`](./SPEC.md), and the parser and graph
-design are documented in [`PARSER.md`](./PARSER.md).
+and conventions, including how to supply bundled `en-US.json` game-data updates. Planned
+work and open design questions live in the [issue tracker](https://github.com/StuartMeeks/ficsit-foreman/issues);
+the parser and graph design are documented in [`PARSER.md`](./PARSER.md).
 
 ## Licence
 
