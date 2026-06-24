@@ -1,6 +1,72 @@
+import { randomBytes } from 'node:crypto';
+import fs from 'node:fs';
+import path from 'node:path';
+
 import type { PrismaClient } from '@prisma/client';
 import { betterAuth } from 'better-auth';
 import { prismaAdapter } from 'better-auth/adapters/prisma';
+
+import { logger } from './logger.js';
+
+const SECRET_FILE = '.better-auth-secret';
+
+/**
+ * Where an auto-generated secret is persisted: alongside a `file:` SQLite
+ * database (so it lives in the same data volume and survives restarts), or the
+ * working directory otherwise.
+ */
+function secretFilePath(databaseUrl: string | undefined): string {
+  const url = databaseUrl?.trim() ?? '';
+  if (url.startsWith('file:')) {
+    const dbPath = url.slice('file:'.length);
+    return path.join(path.dirname(path.resolve(dbPath)), SECRET_FILE);
+  }
+  return path.resolve(process.cwd(), SECRET_FILE);
+}
+
+/**
+ * Resolves the Better Auth signing secret. An explicit `BETTER_AUTH_SECRET`
+ * always wins. Otherwise — so a self-hosted deployment keeps "just working"
+ * rather than crash-looping on Better Auth's production default-secret guard — a
+ * strong secret is generated once and persisted next to the database, stable
+ * across restarts so existing sessions survive. Operators should still set
+ * `BETTER_AUTH_SECRET` explicitly for multi-instance or Postgres deployments.
+ */
+function resolveAuthSecret(): string {
+  const explicit = process.env['BETTER_AUTH_SECRET']?.trim();
+  if (explicit !== undefined && explicit.length > 0) {
+    return explicit;
+  }
+  // Tests run with isProduction=false, so the default-secret guard never fires;
+  // return a fixed value rather than writing a file into the working tree.
+  if (process.env['NODE_ENV'] === 'test') {
+    return 'foreman-test-secret-not-for-production-0123456789';
+  }
+  const file = secretFilePath(process.env['DATABASE_URL']);
+  try {
+    if (fs.existsSync(file)) {
+      const existing = fs.readFileSync(file, 'utf8').trim();
+      if (existing.length > 0) {
+        return existing;
+      }
+    }
+    const generated = randomBytes(32).toString('base64url');
+    fs.mkdirSync(path.dirname(file), { recursive: true });
+    fs.writeFileSync(file, generated, { mode: 0o600 });
+    logger.warn(
+      `BETTER_AUTH_SECRET is not set; generated one and persisted it at ${file}. ` +
+        'Set BETTER_AUTH_SECRET to manage it yourself (required for multi-instance or Postgres deployments).',
+    );
+    return generated;
+  } catch (error) {
+    logger.warn(
+      'BETTER_AUTH_SECRET is not set and a persistent secret could not be written; ' +
+        'falling back to an ephemeral secret (sessions reset on restart). Set BETTER_AUTH_SECRET.',
+      error,
+    );
+    return randomBytes(32).toString('base64url');
+  }
+}
 
 /**
  * Maps the database URL to the Prisma provider Better Auth's adapter expects.
@@ -46,7 +112,7 @@ function parseTrustedOrigins(raw: string | undefined): string[] {
  */
 export function createAuth(prisma: PrismaClient) {
   return betterAuth({
-    secret: process.env['BETTER_AUTH_SECRET'],
+    secret: resolveAuthSecret(),
     baseURL: process.env['BETTER_AUTH_URL'],
     basePath: '/api/auth',
     trustedOrigins: parseTrustedOrigins(process.env['AUTH_TRUSTED_ORIGINS']),

@@ -88,7 +88,8 @@ endpoint), `MCP_URL` (default `http://127.0.0.1:8723/mcp`), `SAVE_MCP_URL`
 (optional — merges the save-game MCP's tools so the foreman can read player
 location and remaining collectibles), `DATABASE_URL` (default `file:./dev.db`;
 set a `postgresql://` URL and switch the schema's datasource provider for prod),
-`BETTER_AUTH_SECRET` (signs session cookies — **set this in any real deployment**),
+`BETTER_AUTH_SECRET` (signs session cookies; auto-generated + persisted if unset —
+set it explicitly for multi-instance/Postgres),
 `PORT` (default `8724`), `HISTORY_WINDOW` (default `20`).
 
 ## Running

@@ -164,7 +164,7 @@ All optional — by default the server serves the bundled **stable** game data.
 | `SAVE_MCP_URL` | Optional save-game MCP endpoint. When set, its tools (player location, remaining collectibles, unlocks, inventory) are merged into the foreman's tool surface for location-aware opportunities. Unset = game-data tools only. |
 | `PORT` | Backend HTTP port (default `8724`). |
 | `DATABASE_URL` | Database connection (default `file:./dev.db`; Docker `file:/data/foreman.db`). For Postgres, use a `postgresql://` URL and switch the schema's datasource provider. |
-| `BETTER_AUTH_SECRET` | Signs account session cookies. **Set this to a long random string in any real deployment** (`openssl rand -base64 32`); a dev fallback is used if unset. |
+| `BETTER_AUTH_SECRET` | Signs account session cookies. If unset, the server generates one on first start and persists it in the data volume (single-node deployments work out of the box). Set it explicitly (`openssl rand -base64 32`) for multi-instance or Postgres deployments. |
 | `BETTER_AUTH_URL` | Public origin the app is served from (for correct cookies behind a proxy). Optional; derived from the request if unset. |
 | `HISTORY_WINDOW` | Most-recent messages sent per chat request (default `20`). |
 
