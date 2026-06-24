@@ -1,6 +1,7 @@
 import type { PrismaClient } from '@prisma/client';
 import { betterAuth } from 'better-auth';
 import { prismaAdapter } from 'better-auth/adapters/prisma';
+import { twoFactor } from 'better-auth/plugins';
 
 /**
  * Maps the database URL to the Prisma provider Better Auth's adapter expects.
@@ -53,6 +54,10 @@ export function createAuth(prisma: PrismaClient) {
     database: prismaAdapter(prisma, { provider: providerFor(process.env['DATABASE_URL']) }),
     emailAndPassword: { enabled: true },
     session: { modelName: 'authSession' },
+    // Opt-in MFA: TOTP authenticator apps + single-use backup/recovery codes.
+    // `trustDeviceMaxAge` defaults to 30 days ("trust this device"), so a verified
+    // device skips the second factor for that window.
+    plugins: [twoFactor({ issuer: 'FICSIT Foreman' })],
   });
 }
 

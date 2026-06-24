@@ -160,16 +160,18 @@ model WorkOrderAuditEvent {
 // first factor; passkey/two-factor tables are added in the MFA slice.
 
 model User {
-  id            String   @id
-  name          String
-  email         String   @unique
-  emailVerified Boolean  @default(false)
-  image         String?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id               String   @id
+  name             String
+  email            String   @unique
+  emailVerified    Boolean  @default(false)
+  image            String?
+  twoFactorEnabled Boolean? @default(false)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 
   authSessions AuthSession[]
   accounts     Account[]
+  twoFactors   TwoFactor[]
   sessions     Session[] // the user's play sessions
 
   @@map("user")
@@ -222,4 +224,19 @@ model Verification {
 
   @@index([identifier])
   @@map("verification")
+}
+
+// Two-factor (MFA) secret + backup codes for a user. Written by the twoFactor
+// plugin when the pioneer enrols TOTP; one row per user.
+model TwoFactor {
+  id          String  @id
+  secret      String
+  backupCodes String
+  verified    Boolean @default(true)
+  userId      String
+  user        User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([secret])
+  @@index([userId])
+  @@map("twoFactor")
 }

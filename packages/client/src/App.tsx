@@ -80,7 +80,14 @@ export function App(): React.JSX.Element {
 
   // Signed out: the account gate stands before everything else.
   if (foreman.authStatus === 'anon') {
-    return <AuthScreen onSignIn={foreman.signIn} onSignUp={foreman.signUp} />;
+    return (
+      <AuthScreen
+        onSignIn={foreman.signIn}
+        onSignUp={foreman.signUp}
+        onVerifyTotp={foreman.verifyTwoFactor}
+        onVerifyBackupCode={foreman.verifyBackupCode}
+      />
+    );
   }
 
   if (foreman.booting) {

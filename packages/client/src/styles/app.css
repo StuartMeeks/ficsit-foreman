@@ -1219,6 +1219,22 @@ button:disabled {
   text-decoration: underline;
 }
 
+/* Inline checkbox + label row (e.g. "trust this device"). */
+.checkbox-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+  font-size: 13px;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.checkbox-row input {
+  width: auto;
+  margin: 0;
+}
+
 /* Pioneer-profile questions: a label and a segmented single-select. */
 .question {
   margin-top: 20px;
