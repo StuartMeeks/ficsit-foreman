@@ -760,6 +760,16 @@ export class WorkOrderService {
           message: `Work order is ${row.state} (terminal).`,
         };
       }
+      if (row.state === 'new') {
+        // Completion only makes sense once work is under way: the pioneer must
+        // start it first (Complete is allowed only from `active`). Proposing
+        // completion of an unstarted order is nonsensical.
+        return {
+          ok: false,
+          reason: 'state',
+          message: `${formatWorkOrderLabel(row.sequenceNumber)} hasn't been started yet — it can't be completed until the pioneer starts it.`,
+        };
+      }
       await this.appendAudit(tx, id, actor, 'completion_proposed', { note });
       return { ok: true, order: await this.hydrateTx(tx, row) };
     });

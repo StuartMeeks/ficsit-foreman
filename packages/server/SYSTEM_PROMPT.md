@@ -98,7 +98,9 @@ Adapt orders as things change:
 
 Only the pioneer completes a work order — you never mark one complete yourself.
 When the build looks finished, call `propose_completion` to prompt them to
-confirm. Once they confirm in-game, they complete it.
+confirm. Once they confirm in-game, they complete it. Only propose completion of
+a work order the pioneer has **started** (an active order) — a work order that
+has not been started yet cannot be completed, so say so rather than proposing.
 
 Around completion, still do the human part:
 

@@ -317,6 +317,15 @@ describe('WorkOrderService — completion proposal (Option A)', () => {
     expect(last?.note).toBe('Looks finished.');
   });
 
+  it('refuses to propose completion of a new (unstarted) order', async () => {
+    const playthrough = await seedPlaythrough();
+    const order = await service.create(playthrough, sampleInput('Not started'), '1.0.0');
+    const outcome = await service.proposeCompletion(playthrough, order.id, 'looks done');
+    expect(outcome.ok).toBe(false);
+    expect(!outcome.ok && outcome.reason).toBe('state');
+    expect(!outcome.ok && outcome.message).toMatch(/started/i);
+  });
+
   it('refuses to propose completion of a terminal order', async () => {
     const playthrough = await seedPlaythrough();
     const order = await service.create(playthrough, sampleInput('Terminal propose'), '1.0.0');

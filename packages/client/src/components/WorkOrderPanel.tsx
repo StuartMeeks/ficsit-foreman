@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 import { getAuditTrail, getRevisionDiff, getRevisions } from '../api/client.js';
 import type {
@@ -75,6 +75,7 @@ export function WorkOrderPanel({
   const [error, setError] = useState<string | null>(null);
   const [forceWarn, setForceWarn] = useState(false);
   const [proposeDismissed, setProposeDismissed] = useState(false);
+  const forceWarnRef = useRef<HTMLDivElement>(null);
 
   const id = current?.id ?? null;
 
@@ -84,6 +85,15 @@ export function WorkOrderPanel({
     setProposeDismissed(false);
     setError(null);
   }, [id]);
+
+  // The force-complete confirmation lives at the bottom of the controls, often
+  // below the fold — bring it into view when it opens so "Complete anyway" is
+  // visible without manual scrolling.
+  useEffect(() => {
+    if (forceWarn) {
+      forceWarnRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+  }, [forceWarn]);
 
   // Pull the audit trail, revisions, and (when unacknowledged) the field diff for
   // the current order. Re-runs whenever the order object changes (any mutation).
@@ -531,7 +541,7 @@ export function WorkOrderPanel({
         {!terminal ? (
           <div className="controls">
             {forceWarn ? (
-              <div className="force-warn">
+              <div className="force-warn" ref={forceWarnRef}>
                 <span className="label">Incomplete work order</span>
                 <ul>
                   {incompleteSteps.length > 0 ? (
