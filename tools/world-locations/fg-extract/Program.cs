@@ -168,6 +168,10 @@ var json = JsonSerializer.Serialize(dataset, new JsonSerializerOptions
     WriteIndented = true,
     Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
 });
+// Always write LF, even though this tool runs on Windows (where the indented
+// serialiser emits CRLF). The committed dataset is LF; emitting it directly
+// keeps `git diff`/status clean before .gitattributes normalisation kicks in.
+json = json.Replace("\r\n", "\n");
 File.WriteAllText(outPath, json);
 
 Console.WriteLine("=== COUNTS ===");
