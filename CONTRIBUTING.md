@@ -30,6 +30,16 @@ This file is the single home for our conventions (`CLAUDE.md` points here).
 - AI-generated PRs must begin the body with: `🤖 AI-generated PR — Please review
   carefully.`
 
+### Issues
+When you open an issue, label it and slot it onto the roadmap:
+- **One type label** — `enhancement` (a feature or capability), `bug`,
+  `documentation`, or `question` (an open decision to settle).
+- **At least one `area:` label** for the package(s) it touches — `area:client`,
+  `area:server`, `area:mcp-game-data`, `area:mcp-save-game`.
+- **A milestone**, so it lands on the roadmap (e.g. *Foundation — accounts &
+  persistence*, *Save subsystem*, *App features*, *Game-data MCP*). If none fits,
+  leave it unset and explain why in the body.
+
 ### Code standards
 - Always use curly braces, even for single-line `if`/`else`/loops.
 - Explicit return types on all exported functions.
