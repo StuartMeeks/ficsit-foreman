@@ -940,6 +940,33 @@ button:disabled {
   padding: 20px;
 }
 
+/* A modal opened from within another dialog (e.g. new-foreman over Settings):
+   sit above the dialog that spawned it. */
+.nested-overlay {
+  z-index: 10;
+}
+
+/* Account menu: right-aligned (it sits at the far end of the header) with a
+   display-only email row. Reuses the playthrough switcher's dropdown styles. */
+.user-menu .switcher-menu {
+  left: auto;
+  right: 0;
+}
+
+.user-menu-email {
+  padding: 7px 9px;
+  font-size: 12px;
+  color: var(--text-muted);
+  word-break: break-all;
+}
+
+/* A divider within a settings section (e.g. pioneer profile under foreman). */
+.settings-subsection {
+  margin-top: 22px;
+  padding-top: 18px;
+  border-top: 1px solid var(--border-hairline);
+}
+
 .dialog {
   background: var(--surface-panel);
   border: 1px solid var(--border-emphasis);

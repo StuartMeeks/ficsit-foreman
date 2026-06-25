@@ -89,7 +89,7 @@ export function SecurityDialog({
   };
 
   return (
-    <div className="overlay" onClick={onClose}>
+    <div className="overlay nested-overlay" onClick={onClose}>
       <div
         className="dialog"
         role="dialog"

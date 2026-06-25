@@ -2,6 +2,8 @@ import { useRef, useState } from 'react';
 
 import type { Foreman } from '../api/types.js';
 import type { NewPlaythroughInput } from '../useForeman.js';
+import { NewForemanModal } from './NewForemanModal.js';
+import { PioneerProfileFields } from './PioneerProfile.js';
 
 interface NewPlaythroughModalProps {
   foremen: Foreman[];
@@ -10,12 +12,12 @@ interface NewPlaythroughModalProps {
   onClose: () => void;
 }
 
-const CREATE_NEW = '__new__';
-
 /**
  * Lightweight "new playthrough" flow: name it, pick (or create) a foreman,
  * optionally drop in a `.sav` (the name defaults from the save when left blank),
- * and optionally describe the pioneer's play style for this run.
+ * and optionally describe the pioneer's play style for this run. Creating a
+ * foreman opens the shared preset-first modal, so a foreman is born the same way
+ * here as in onboarding and Settings.
  */
 export function NewPlaythroughModal({
   foremen,
@@ -24,10 +26,8 @@ export function NewPlaythroughModal({
   onClose,
 }: NewPlaythroughModalProps): React.JSX.Element {
   const [name, setName] = useState('');
-  // Default to creating a foreman when the user has none yet.
-  const [foremanChoice, setForemanChoice] = useState(foremen[0]?.id ?? CREATE_NEW);
-  const [newForemanName, setNewForemanName] = useState('');
-  const [newForemanPersonality, setNewForemanPersonality] = useState('');
+  const [foremanChoice, setForemanChoice] = useState(foremen[0]?.id ?? '');
+  const [addingForeman, setAddingForeman] = useState(false);
   const [pioneerProfile, setPioneerProfile] = useState('');
   const [saveFile, setSaveFile] = useState<File | null>(null);
   const [dragging, setDragging] = useState(false);
@@ -35,8 +35,7 @@ export function NewPlaythroughModal({
   const [error, setError] = useState<string | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
 
-  const creatingForeman = foremanChoice === CREATE_NEW;
-  const canCreate = creatingForeman ? newForemanName.trim().length > 0 : foremanChoice.length > 0;
+  const canCreate = foremanChoice.length > 0;
 
   const pickFile = (files: FileList | null): void => {
     const file = files?.[0];
@@ -49,16 +48,8 @@ export function NewPlaythroughModal({
     setSubmitting(true);
     setError(null);
     try {
-      const foremanId = creatingForeman
-        ? (
-            await onCreateForeman({
-              name: newForemanName.trim(),
-              personality: newForemanPersonality,
-            })
-          ).id
-        : foremanChoice;
       await onCreate({
-        foremanId,
+        foremanId: foremanChoice,
         name: name.trim() || undefined,
         pioneerProfile: pioneerProfile.trim() || undefined,
         saveFile: saveFile ?? undefined,
@@ -66,7 +57,6 @@ export function NewPlaythroughModal({
       onClose();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not create the playthrough.');
-    } finally {
       setSubmitting(false);
     }
   };
@@ -98,43 +88,25 @@ export function NewPlaythroughModal({
 
         <div className="field">
           <label htmlFor="pt-foreman">Foreman</label>
-          <select
-            id="pt-foreman"
-            value={foremanChoice}
-            onChange={(e) => setForemanChoice(e.target.value)}
-          >
-            {foremen.map((f) => (
-              <option key={f.id} value={f.id}>
-                {f.name}
-              </option>
-            ))}
-            <option value={CREATE_NEW}>+ Create new foreman…</option>
-          </select>
+          {foremen.length > 0 ? (
+            <select
+              id="pt-foreman"
+              value={foremanChoice}
+              onChange={(e) => setForemanChoice(e.target.value)}
+            >
+              {foremen.map((f) => (
+                <option key={f.id} value={f.id}>
+                  {f.name}
+                </option>
+              ))}
+            </select>
+          ) : (
+            <span className="hint">No foremen yet — create one to get started.</span>
+          )}
+          <button type="button" className="icon-button" onClick={() => setAddingForeman(true)}>
+            + New foreman
+          </button>
         </div>
-
-        {creatingForeman ? (
-          <>
-            <div className="field">
-              <label htmlFor="pt-fname">New foreman name</label>
-              <input
-                id="pt-fname"
-                value={newForemanName}
-                onChange={(e) => setNewForemanName(e.target.value)}
-                placeholder="e.g. ADA"
-                autoComplete="off"
-              />
-            </div>
-            <div className="field">
-              <label htmlFor="pt-fpersona">New foreman personality</label>
-              <textarea
-                id="pt-fpersona"
-                value={newForemanPersonality}
-                onChange={(e) => setNewForemanPersonality(e.target.value)}
-                placeholder="e.g. Gruff, no-nonsense shift boss who respects competence."
-              />
-            </div>
-          </>
-        ) : null}
 
         <div className="field">
           <label htmlFor="pt-save">Save file (optional)</label>
@@ -176,14 +148,9 @@ export function NewPlaythroughModal({
           />
         </div>
 
-        <div className="field">
-          <label htmlFor="pt-profile">Pioneer profile (optional)</label>
-          <textarea
-            id="pt-profile"
-            value={pioneerProfile}
-            onChange={(e) => setPioneerProfile(e.target.value)}
-            placeholder="e.g. Returning player, goal-oriented, wants direction but room to build."
-          />
+        <div className="settings-section">
+          <p className="hint">Optionally describe your play style for this run.</p>
+          <PioneerProfileFields value={pioneerProfile} onChange={setPioneerProfile} />
         </div>
 
         {error !== null ? <p className="err">{error}</p> : null}
@@ -201,6 +168,14 @@ export function NewPlaythroughModal({
             {submitting ? 'Creating' : 'Create'}
           </button>
         </div>
+
+        {addingForeman ? (
+          <NewForemanModal
+            onCreate={onCreateForeman}
+            onCreated={(f) => setForemanChoice(f.id)}
+            onClose={() => setAddingForeman(false)}
+          />
+        ) : null}
       </div>
     </div>
   );

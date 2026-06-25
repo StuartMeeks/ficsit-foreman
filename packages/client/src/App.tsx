@@ -6,7 +6,6 @@ import { Header } from './components/Header.js';
 import { NewPlaythroughModal } from './components/NewPlaythroughModal.js';
 import { Onboarding } from './components/Onboarding.js';
 import { PlaythroughSwitcher } from './components/PlaythroughSwitcher.js';
-import { SecurityDialog } from './components/SecurityDialog.js';
 import { SettingsDialog } from './components/SettingsDialog.js';
 import { WorkOrderPanel } from './components/WorkOrderPanel.js';
 import { useForeman } from './useForeman.js';
@@ -34,7 +33,6 @@ function initialSplit(): number {
 export function App(): React.JSX.Element {
   const foreman = useForeman();
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [securityOpen, setSecurityOpen] = useState(false);
   const [newOpen, setNewOpen] = useState(false);
   const [chatPct, setChatPct] = useState(initialSplit);
   const mainRef = useRef<HTMLElement>(null);
@@ -120,9 +118,9 @@ export function App(): React.JSX.Element {
             onDelete={(id) => void foreman.removePlaythrough(id)}
           />
         }
+        userName={foreman.user?.name ?? null}
         userEmail={foreman.user?.email ?? null}
         onOpenSettings={() => setSettingsOpen(true)}
-        onOpenSecurity={() => setSecurityOpen(true)}
         onSignOut={() => void foreman.signOut()}
       />
 
@@ -171,12 +169,14 @@ export function App(): React.JSX.Element {
           playthrough={foreman.playthrough}
           foremen={foreman.foremen}
           llm={foreman.llm}
+          twoFactorEnabled={foreman.user?.twoFactorEnabled ?? false}
           onClose={() => setSettingsOpen(false)}
           onSave={foreman.saveSettings}
           onAddForeman={foreman.addForeman}
           onEditForeman={foreman.editForeman}
           onRemoveForeman={foreman.removeForeman}
           onUseForeman={foreman.setPlaythroughForeman}
+          onRefreshUser={foreman.refreshUser}
         />
       ) : null}
 
@@ -186,14 +186,6 @@ export function App(): React.JSX.Element {
           onCreateForeman={foreman.addForeman}
           onCreate={foreman.newPlaythrough}
           onClose={() => setNewOpen(false)}
-        />
-      ) : null}
-
-      {securityOpen ? (
-        <SecurityDialog
-          twoFactorEnabled={foreman.user?.twoFactorEnabled ?? false}
-          onClose={() => setSecurityOpen(false)}
-          onChanged={foreman.refreshUser}
         />
       ) : null}
     </div>
