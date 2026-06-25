@@ -6,6 +6,7 @@ import { Header } from './components/Header.js';
 import { NewPlaythroughModal } from './components/NewPlaythroughModal.js';
 import { Onboarding } from './components/Onboarding.js';
 import { PlaythroughSwitcher } from './components/PlaythroughSwitcher.js';
+import { SaveDropZone } from './components/SaveDropZone.js';
 import { SettingsDialog } from './components/SettingsDialog.js';
 import { WorkOrderPanel } from './components/WorkOrderPanel.js';
 import { useForeman } from './useForeman.js';
@@ -116,6 +117,12 @@ export function App(): React.JSX.Element {
             onNew={() => setNewOpen(true)}
             onRename={(id, name) => void foreman.renamePlaythrough(id, name)}
             onDelete={(id) => void foreman.removePlaythrough(id)}
+          />
+        }
+        saveDrop={
+          <SaveDropZone
+            onUpload={foreman.uploadCurrentSave}
+            disabled={foreman.playthrough === null}
           />
         }
         userName={foreman.user?.name ?? null}

@@ -118,6 +118,8 @@ export interface ForemanState {
   // Playthrough management (switcher + new-playthrough modal).
   switchPlaythrough(id: string): Promise<void>;
   newPlaythrough(input: NewPlaythroughInput): Promise<void>;
+  /** Upload (replace) the active playthrough's save, then refresh it. */
+  uploadCurrentSave(file: File): Promise<void>;
   renamePlaythrough(id: string, name: string): Promise<void>;
   removePlaythrough(id: string): Promise<void>;
   /** Swap the foreman attached to the active playthrough. */
@@ -588,6 +590,20 @@ export function useForeman(): ForemanState {
     [activate, foremen, upsertPlaythrough],
   );
 
+  const uploadCurrentSave = useCallback(
+    async (file: File) => {
+      if (playthrough === null) {
+        return;
+      }
+      await uploadSave(playthrough.id, file);
+      // Re-fetch so the refreshed save metadata is reflected in state + the list.
+      const fresh = (await getPlaythrough(playthrough.id)) ?? playthrough;
+      setPlaythrough(fresh);
+      upsertPlaythrough(fresh);
+    },
+    [playthrough, upsertPlaythrough],
+  );
+
   const renamePlaythrough = useCallback(
     async (id: string, name: string) => {
       const updated = await patchPlaythrough(id, { name });
@@ -684,6 +700,7 @@ export function useForeman(): ForemanState {
     saveSettings,
     switchPlaythrough,
     newPlaythrough,
+    uploadCurrentSave,
     renamePlaythrough,
     removePlaythrough,
     setPlaythroughForeman,
