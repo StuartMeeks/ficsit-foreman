@@ -42,11 +42,12 @@ shipped v1. Live, per-component work is tracked in the
 
 ## Conventions
 
-All commit / branch / PR / code-standard conventions live in
+All commit / branch / PR / issue / code-standard conventions live in
 [`CONTRIBUTING.md`](./CONTRIBUTING.md) — follow them exactly. In brief: Conventional
 Commits with a required body; `feature/`-style branches; never commit to `main`;
 squash-merge; British English in comments and docs; AI-generated PRs open with the
-`🤖 AI-generated PR` line.
+`🤖 AI-generated PR` line. When filing an issue, give it a type label, an `area:`
+label and a milestone.
 
 ## Dev environment note
 
