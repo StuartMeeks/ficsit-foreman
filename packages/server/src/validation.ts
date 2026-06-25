@@ -299,8 +299,20 @@ export const updateForemanSchema = z
     message: 'Provide name and/or personality.',
   });
 
+/**
+ * A client-suppliable id (e.g. a playthrough id when claiming a pre-accounts
+ * playthrough). Restricted to a filename-safe charset because the playthrough id
+ * becomes part of an on-disk save path — disallowing `/`, `\` and `.` forecloses
+ * path traversal at the boundary. Covers Prisma cuids and UUIDs.
+ */
+const safeClientIdSchema = z
+  .string()
+  .min(1)
+  .max(128)
+  .regex(/^[A-Za-z0-9_-]+$/, 'Must contain only letters, digits, hyphen or underscore.');
+
 export const createPlaythroughSchema = z.object({
-  id: z.string().min(1).optional(),
+  id: safeClientIdSchema.optional(),
   foremanId: z.string().min(1),
   name: z.string().optional(),
   pioneerProfile: z.string().optional(),

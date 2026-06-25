@@ -355,6 +355,28 @@ describe('HTTP routes', () => {
     expect(res.status).toBe(400);
   });
 
+  it('rejects creating a playthrough with a path-traversal id', async () => {
+    // A client may supply the id (to claim a pre-accounts playthrough); a crafted
+    // one must not be accepted, since the id becomes part of an on-disk save path.
+    const foremanId = await createForeman();
+    const res = await fetch(`${baseUrl}/api/playthroughs`, {
+      method: 'POST',
+      headers: authHeaders(),
+      body: JSON.stringify({ id: '../../../../tmp/evil', foremanId }),
+    });
+    expect(res.status).toBe(400);
+  });
+
+  it('save path resolution refuses to escape the data directory', () => {
+    const saves = new SaveService(db.prisma, stubMcp, saveDir);
+    // Sound ids resolve to a flat file inside the data dir.
+    expect(saves.savePathFor('abc123')).toBe(path.join(saveDir, 'abc123.sav'));
+    // Traversal / separators are rejected before any filesystem access.
+    for (const bad of ['../escape', '../../etc/passwd', 'a/b']) {
+      expect(() => saves.savePathFor(bad)).toThrow(/unsafe save path/i);
+    }
+  });
+
   it('deletes a playthrough and its work orders', async () => {
     const playthrough = await createPlaythrough();
     await fetch(`${baseUrl}/api/playthroughs/${playthrough.id}/work-orders`, {
