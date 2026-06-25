@@ -356,22 +356,50 @@ export interface Save {
 }
 
 /**
- * A non-fatal advisory surfaced on the upload response. Additive shape carries
- * the build-version mismatch now; play-time-regression and same-game ambiguity
- * (#76 later slices) reuse it.
+ * A non-fatal advisory surfaced on the upload/preview response. `build_mismatch`
+ * = the save's build differs from the loaded game data; `playtime_regressed` =
+ * an uploaded save has less play time than the one it replaces.
  */
 export interface SaveWarning {
-  kind: 'build_mismatch';
+  kind: 'build_mismatch' | 'playtime_regressed';
   message: string;
-  /** Build the save was written by. */
+  /** Build the save was written by (build_mismatch). */
   saveBuild?: number;
-  /** Build the loaded game data was extracted from. */
+  /** Build the loaded game data was extracted from (build_mismatch). */
   gameDataBuild?: number;
 }
 
 /** Response of the save-upload route: the stored save plus any advisories. */
 export interface SaveUploadResult {
   save: Save;
+  warnings: SaveWarning[];
+}
+
+/** Header identity parsed from a save — drives same-game matching + warnings. */
+export interface SaveIdentity {
+  saveName?: string;
+  sessionName?: string;
+  mapName?: string;
+  buildVersion?: number;
+  saveVersion?: number;
+  playDurationSeconds?: number;
+}
+
+/** A playthrough whose current save matches an uploaded save's identity. */
+export interface SaveMatch {
+  playthroughId: string;
+  playthroughName?: string;
+  currentSave: { saveName?: string; playDurationSeconds?: number; uploadedAt: string };
+  /** Why this counts as a match. */
+  reason: 'session_map_match';
+  /** The uploaded save has LESS play time than this match's current save. */
+  playtimeRegressed: boolean;
+}
+
+/** Response of the same-game preview route. */
+export interface SavePreviewResult {
+  identity: SaveIdentity;
+  matches: SaveMatch[];
   warnings: SaveWarning[];
 }
 

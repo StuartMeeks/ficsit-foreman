@@ -7,6 +7,7 @@ import { NewPlaythroughModal } from './components/NewPlaythroughModal.js';
 import { Onboarding } from './components/Onboarding.js';
 import { PlaythroughSwitcher } from './components/PlaythroughSwitcher.js';
 import { SaveDropZone } from './components/SaveDropZone.js';
+import { SaveHistory } from './components/SaveHistory.js';
 import { SaveWarningBanner } from './components/SaveWarningBanner.js';
 import { DrawerDock } from './components/DrawerDock.js';
 import { SettingsDialog } from './components/SettingsDialog.js';
@@ -195,6 +196,20 @@ export function App(): React.JSX.Element {
                 />
               ),
             },
+            {
+              id: 'saves',
+              label: 'Saves',
+              render: () => (
+                <SaveHistory
+                  saves={foreman.saveHistory}
+                  currentId={foreman.playthrough?.save?.id ?? null}
+                  hasPlaythrough={foreman.playthrough !== null}
+                  onLoad={() => void foreman.loadSaveHistory()}
+                  onActivate={(id) => void foreman.activateSaveVersion(id)}
+                  onDelete={(id) => void foreman.deleteSaveVersion(id)}
+                />
+              ),
+            },
           ]}
         />
       </main>
@@ -220,6 +235,8 @@ export function App(): React.JSX.Element {
           foremen={foreman.foremen}
           onCreateForeman={foreman.addForeman}
           onCreate={foreman.newPlaythrough}
+          onPreviewSave={(file) => foreman.previewSaveFile(file).then((r) => r.matches)}
+          onUseExisting={foreman.addSaveToExisting}
           onClose={() => setNewOpen(false)}
         />
       ) : null}

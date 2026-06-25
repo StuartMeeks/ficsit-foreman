@@ -76,6 +76,11 @@ async function main(): Promise<void> {
     systemPromptTemplate,
   };
 
+  // Migrate any pre-#76 single-file saves to the per-version layout (idempotent).
+  await deps.saves.reconcileStorage().catch((error) => {
+    logger.warn('Save storage reconcile failed (will retry next boot):', error);
+  });
+
   const app = buildApp(deps);
   const server = app.listen(config.port, config.host, () => {
     logger.info(`Listening on http://${config.host}:${config.port} (health: /health)`);

@@ -53,30 +53,34 @@ model Playthrough {
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
-  user       User?       @relation(fields: [userId], references: [id], onDelete: Cascade)
-  foreman    Foreman     @relation(fields: [foremanId], references: [id], onDelete: Restrict)
-  save       Save?
-  messages   Message[]
-  workOrders WorkOrder[]
+  // The pioneer re-uploads the save as they progress, so a playthrough has a
+  // history of saves (`saves`) plus a pointer to the current one (#76). The
+  // current save is what feeds the save-game MCP.
+  currentSaveId String? @unique
+
+  user        User?       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  foreman     Foreman     @relation(fields: [foremanId], references: [id], onDelete: Restrict)
+  currentSave Save?       @relation("CurrentSave", fields: [currentSaveId], references: [id], onDelete: SetNull)
+  saves       Save[]      @relation("PlaythroughSaves")
+  messages    Message[]
+  workOrders  WorkOrder[]
 
   @@index([userId])
   @@index([foremanId])
 }
 
-// The current uploaded `.sav` for a playthrough (#61, minimal slice of #76).
-// One current save per playthrough (latest-only for v1: re-uploading replaces
-// it; a version history is deferred to #76). The bytes live on a data volume at
-// `${SAVE_DATA_DIR}/<playthroughId>.sav`; this row carries the metadata parsed
-// from the save (its in-game name + game/build version) which seeds the
-// playthrough's default name and is surfaced in the UI.
+// An uploaded `.sav` version for a playthrough (#76). A playthrough keeps a
+// history of these and points at the current one (Playthrough.currentSaveId).
+// The bytes live on a data volume at `${SAVE_DATA_DIR}/<playthroughId>/<id>.sav`;
+// this row carries the metadata parsed from the header (in-game name, session,
+// map, build & save version, play time) which seeds the playthrough's default
+// name, powers the build-version warning, and drives same-game recognition.
 model Save {
   id                  String   @id @default(uuid())
-  playthroughId       String   @unique
+  playthroughId       String
   fileName            String // the original uploaded filename
   saveName            String? // in-game session/save name parsed from the header
   version             String? // humanised game build + save format parsed from the header
-  // Discrete header identity (parsed via describe_save) — powers the
-  // build-version warning now and same-game recognition later (#76).
   sessionName         String? // raw in-game session name
   mapName             String? // e.g. Persistent_Level
   buildVersion        Int? // Satisfactory changelist/build number (comparable to game data's build)
@@ -85,7 +89,10 @@ model Save {
   sizeBytes           Int
   uploadedAt          DateTime @default(now())
 
-  playthrough Playthrough @relation(fields: [playthroughId], references: [id], onDelete: Cascade)
+  playthrough Playthrough  @relation("PlaythroughSaves", fields: [playthroughId], references: [id], onDelete: Cascade)
+  currentOf   Playthrough? @relation("CurrentSave")
+
+  @@index([playthroughId])
 }
 
 // A single persisted conversational turn. Only user input and the foreman's
