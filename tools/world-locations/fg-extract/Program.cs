@@ -96,6 +96,37 @@ string Purity(UObject e)
     return "normal";
 }
 
+// Discovery mode (DISCOVER=1): instead of extracting, sweep the cells and tally
+// every actor that carries a pickup/pod GUID by its class (ExportType). Used to
+// find which classes beyond the known six are collectible pickups (bonus items,
+// helmets, tapes, …) and confirm they're GUID-tracked. Prints and exits.
+if (Environment.GetEnvironmentVariable("DISCOVER") != null)
+{
+    var byType = new Dictionary<string, int>();
+    var discoverCells = provider.Files.Keys.Where(k => k.Contains("/_Generated_/") && k.EndsWith(".umap")).ToList();
+    Console.WriteLine($"[discover] sweeping {discoverCells.Count} cells for pickup/pod actors...");
+    var dn = 0;
+    foreach (var cell in discoverCells)
+    {
+        if (++dn % 1000 == 0) { Console.WriteLine($"  ...{dn}/{discoverCells.Count}"); }
+        try
+        {
+            foreach (var e in provider.LoadPackage(cell).GetExports())
+            {
+                var hasPickup = e.Properties.Any(p => p.Name.Text == "mItemPickupGuid");
+                var hasPod = e.Properties.Any(p => p.Name.Text == "mDropPodGuid");
+                if (!hasPickup && !hasPod) { continue; }
+                var key = $"{(hasPod ? "pod" : "pickup")}\t{e.ExportType}";
+                byType[key] = byType.GetValueOrDefault(key) + 1;
+            }
+        }
+        catch (Exception ex) { Console.Error.WriteLine($"[cell] {cell}: {ex.Message}"); }
+    }
+    Console.WriteLine("=== PICKUP/POD CLASSES (guidKind  ExportType: count) ===");
+    foreach (var kv in byType.OrderByDescending(k => k.Value)) { Console.WriteLine($"  {kv.Key}: {kv.Value}"); }
+    return;
+}
+
 var collectibles = new List<object>();
 var collCounts = new Dictionary<string, int>();
 var nodes = new List<object>();
