@@ -199,13 +199,12 @@ export function SettingsDialog({
                 type="password"
                 value={apiKey}
                 onChange={(e) => setApiKey(e.target.value)}
-                placeholder="Your provider key (kept in memory for this session)"
+                placeholder="Your provider key (stored only in this browser)"
                 autoComplete="off"
               />
               <span className="hint">
-                Needed unless the server has its own key. Kept only in memory for this browser
-                session and sent with each message — never written to disk or stored on the server,
-                so you re-enter it next visit. A key also unlocks the provider/model override above.
+                Needed unless the server has its own key. Sent with each message; never stored on
+                the server. A key also unlocks the provider/model override above.
               </span>
             </div>
           </div>
