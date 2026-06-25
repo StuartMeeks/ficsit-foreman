@@ -1,5 +1,3 @@
-import { randomUUID } from 'node:crypto';
-
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { WorkOrderService } from '../src/services/workOrderService.js';
@@ -13,15 +11,13 @@ import {
   workOrderToolDefinitions,
   type WorkOrderToolDeps,
 } from '../src/tools/workOrderTools.js';
-import { createTestDb, type TestDb } from './helpers.js';
+import { createTestDb, createTestPlaythrough, type TestDb } from './helpers.js';
 
 let db: TestDb;
 let deps: WorkOrderToolDeps;
 
-async function seedSession(): Promise<string> {
-  const id = randomUUID();
-  await db.prisma.session.create({ data: { id } });
-  return id;
+async function seedPlaythrough(): Promise<string> {
+  return createTestPlaythrough(db.prisma);
 }
 
 const validCreateInput = {
@@ -60,8 +56,13 @@ describe('work-order tool registry', () => {
 
 describe('handleWorkOrderTool', () => {
   it('creates an order in the new state and stamps the game version', async () => {
-    const session = await seedSession();
-    const outcome = await handleWorkOrderTool(session, CREATE_WORK_ORDER, validCreateInput, deps);
+    const playthrough = await seedPlaythrough();
+    const outcome = await handleWorkOrderTool(
+      playthrough,
+      CREATE_WORK_ORDER,
+      validCreateInput,
+      deps,
+    );
     expect(outcome.isError).toBe(false);
     expect(outcome.workOrder?.sequenceNumber).toBe(1);
     expect(outcome.workOrder?.state).toBe('new');
@@ -70,33 +71,38 @@ describe('handleWorkOrderTool', () => {
   });
 
   it('does not supersede the previous order on a second create', async () => {
-    const session = await seedSession();
-    await handleWorkOrderTool(session, CREATE_WORK_ORDER, validCreateInput, deps);
+    const playthrough = await seedPlaythrough();
+    await handleWorkOrderTool(playthrough, CREATE_WORK_ORDER, validCreateInput, deps);
     const outcome = await handleWorkOrderTool(
-      session,
+      playthrough,
       CREATE_WORK_ORDER,
       { ...validCreateInput, title: 'Pivot to copper' },
       deps,
     );
     expect(outcome.isError).toBe(false);
     expect(outcome.text).toContain('WO-002');
-    expect(await deps.workOrders.list(session)).toHaveLength(2);
+    expect(await deps.workOrders.list(playthrough)).toHaveLength(2);
   });
 
   it('rejects invalid create input without persisting', async () => {
-    const session = await seedSession();
-    const outcome = await handleWorkOrderTool(session, CREATE_WORK_ORDER, { title: '' }, deps);
+    const playthrough = await seedPlaythrough();
+    const outcome = await handleWorkOrderTool(playthrough, CREATE_WORK_ORDER, { title: '' }, deps);
     expect(outcome.isError).toBe(true);
     expect(outcome.workOrder).toBeUndefined();
-    expect(await deps.workOrders.list(session)).toHaveLength(0);
+    expect(await deps.workOrders.list(playthrough)).toHaveLength(0);
   });
 
   it('revises the current order in place rather than creating a new one', async () => {
-    const session = await seedSession();
-    const created = await handleWorkOrderTool(session, CREATE_WORK_ORDER, validCreateInput, deps);
+    const playthrough = await seedPlaythrough();
+    const created = await handleWorkOrderTool(
+      playthrough,
+      CREATE_WORK_ORDER,
+      validCreateInput,
+      deps,
+    );
     // No Start — the order is still `new`. Revise must still target it.
     const outcome = await handleWorkOrderTool(
-      session,
+      playthrough,
       REVISE_WORK_ORDER,
       { goal: 'Smelt 45 iron ingots per minute.', changeSummary: 'Bumped target.' },
       deps,
@@ -105,23 +111,28 @@ describe('handleWorkOrderTool', () => {
     expect(outcome.workOrder?.id).toBe(created.workOrder?.id);
     expect(outcome.workOrder?.sequenceNumber).toBe(1);
     expect(outcome.workOrder?.currentRevision).toBe(2);
-    expect(await deps.workOrders.list(session)).toHaveLength(1);
+    expect(await deps.workOrders.list(playthrough)).toHaveLength(1);
   });
 
   it('proposes completion of a new (unstarted) order', async () => {
-    const session = await seedSession();
-    await handleWorkOrderTool(session, CREATE_WORK_ORDER, validCreateInput, deps);
-    const outcome = await handleWorkOrderTool(session, PROPOSE_COMPLETION, {}, deps);
+    const playthrough = await seedPlaythrough();
+    await handleWorkOrderTool(playthrough, CREATE_WORK_ORDER, validCreateInput, deps);
+    const outcome = await handleWorkOrderTool(playthrough, PROPOSE_COMPLETION, {}, deps);
     expect(outcome.isError).toBe(false);
     expect(outcome.workOrder?.state).toBe('new');
   });
 
   it('proposes completion of the active order without completing it', async () => {
-    const session = await seedSession();
-    const created = await handleWorkOrderTool(session, CREATE_WORK_ORDER, validCreateInput, deps);
-    await deps.workOrders.transition(session, created.workOrder!.id, 'Start', 'Pioneer');
+    const playthrough = await seedPlaythrough();
+    const created = await handleWorkOrderTool(
+      playthrough,
+      CREATE_WORK_ORDER,
+      validCreateInput,
+      deps,
+    );
+    await deps.workOrders.transition(playthrough, created.workOrder!.id, 'Start', 'Pioneer');
 
-    const outcome = await handleWorkOrderTool(session, PROPOSE_COMPLETION, {}, deps);
+    const outcome = await handleWorkOrderTool(playthrough, PROPOSE_COMPLETION, {}, deps);
     expect(outcome.isError).toBe(false);
     expect(outcome.text).toMatch(/confirm/i);
     // State is unchanged — the foreman cannot complete.
@@ -129,12 +140,17 @@ describe('handleWorkOrderTool', () => {
   });
 
   it('blocks the active order with a reason and resolution hint', async () => {
-    const session = await seedSession();
-    const created = await handleWorkOrderTool(session, CREATE_WORK_ORDER, validCreateInput, deps);
-    await deps.workOrders.transition(session, created.workOrder!.id, 'Start', 'Pioneer');
+    const playthrough = await seedPlaythrough();
+    const created = await handleWorkOrderTool(
+      playthrough,
+      CREATE_WORK_ORDER,
+      validCreateInput,
+      deps,
+    );
+    await deps.workOrders.transition(playthrough, created.workOrder!.id, 'Start', 'Pioneer');
 
     const outcome = await handleWorkOrderTool(
-      session,
+      playthrough,
       BLOCK_WORK_ORDER,
       { blockedReason: 'Recipe locked.', blockedResolutionHint: 'Research it in the MAM.' },
       deps,
@@ -144,8 +160,8 @@ describe('handleWorkOrderTool', () => {
   });
 
   it('errors when proposing completion with no active order', async () => {
-    const session = await seedSession();
-    const outcome = await handleWorkOrderTool(session, PROPOSE_COMPLETION, {}, deps);
+    const playthrough = await seedPlaythrough();
+    const outcome = await handleWorkOrderTool(playthrough, PROPOSE_COMPLETION, {}, deps);
     expect(outcome.isError).toBe(true);
   });
 });

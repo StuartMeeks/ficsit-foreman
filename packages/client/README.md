@@ -5,7 +5,7 @@ runs as the `web` service in the `foreman` Docker Compose project, served by
 nginx, which reverse-proxies `/api` to the backend so the browser uses a single
 origin (no CORS).
 
-> **Phase 3 status: in progress.** Account sign-in/up, foreman chat (session +
+> **Phase 3 status: in progress.** Account sign-in/up, foreman chat (playthrough +
 > streaming), the active **work-order cockpit** (built to the
 > [Work Orders v2](../../docs/work-orders.md) model), and onboarding/settings are in
 > place. The visual language lives in [`design-tokens.css`](./design-tokens.css)
@@ -15,9 +15,9 @@ origin (no CORS).
 ## What works
 
 - **Accounts** — an email + password sign-in / sign-up gate stands before onboarding.
-  Sessions are HttpOnly cookies (the client stores no auth token); on first sign-in
-  the browser's existing anonymous session is claimed for the new account. Sign-out
-  lives in the header. The BYO LLM key stays in the browser as before.
+  Login sessions are HttpOnly cookies (the client stores no auth token); on first
+  sign-in the browser's existing anonymous playthrough is claimed for the new account.
+  Sign-out lives in the header. The BYO LLM key stays in the browser as before.
 - **Foreman chat** — streams the foreman's reply token-by-token over SSE, and shows
   tool calls (game-data + work-order tools) as inline chips.
 - **Work-order cockpit** — the active order rendered to the v2 model: state badge,
@@ -28,8 +28,8 @@ origin (no CORS).
   starts, pauses, ticks items, sets counts, reverts, and **completes** (completion
   is Pioneer-only; the foreman only proposes) — all against the work-order REST
   API, updating live over SSE. A history list sits beneath the active order.
-- **Settings** — set the foreman's personality and the pioneer profile (stored
-  on the session) and an optional Anthropic API key (kept only in the browser,
+- **Settings** — set the foreman's personality (stored on the foreman) and the
+  pioneer profile (stored on the playthrough) and an optional Anthropic API key (kept only in the browser,
   sent per request — needed unless the server has its own key).
 
 ## Run

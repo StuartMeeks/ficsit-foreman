@@ -41,7 +41,7 @@ export async function createTestDb(): Promise<TestDb> {
 
 /**
  * Inserts a Better Auth user row directly, returning its id. Service-level tests
- * need a real owner to satisfy the `Session.userId` foreign key without going
+ * need a real owner to satisfy the `Playthrough.userId` foreign key without going
  * through the HTTP auth flow.
  */
 export async function createTestUser(
@@ -52,4 +52,35 @@ export async function createTestUser(
     data: { id: randomUUID(), name: 'Test User', email, emailVerified: true },
   });
   return user.id;
+}
+
+/**
+ * Inserts a foreman row directly, returning its id. `userId` may be null (an
+ * anonymous foreman) since the relation is nullable, mirroring playthroughs.
+ */
+export async function createTestForeman(
+  prisma: PrismaClient,
+  userId: string | null = null,
+  personality = '',
+): Promise<string> {
+  const foreman = await prisma.foreman.create({
+    data: { userId, name: 'Test Foreman', personality },
+  });
+  return foreman.id;
+}
+
+/**
+ * Inserts a playthrough row directly (creating an anonymous foreman to satisfy
+ * the required relation unless one is supplied), returning its id. Lets
+ * work-order tests stand up a parent playthrough without the HTTP layer.
+ */
+export async function createTestPlaythrough(
+  prisma: PrismaClient,
+  opts: { id?: string; userId?: string | null; foremanId?: string } = {},
+): Promise<string> {
+  const foremanId = opts.foremanId ?? (await createTestForeman(prisma, opts.userId ?? null));
+  const playthrough = await prisma.playthrough.create({
+    data: { id: opts.id ?? randomUUID(), userId: opts.userId ?? null, foremanId },
+  });
+  return playthrough.id;
 }

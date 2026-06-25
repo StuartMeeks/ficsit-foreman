@@ -1,4 +1,4 @@
-import type { SessionService } from '../services/sessionService.js';
+import type { PlaythroughService } from '../services/playthroughService.js';
 import type { ChatMessage } from '../types.js';
 import { logger } from '../logger.js';
 import { createProvider } from './factory.js';
@@ -17,16 +17,16 @@ export interface SummaryConfig {
 }
 
 /**
- * Maintains a session's running summary so context survives beyond the history
- * window. Provider-agnostic: it builds a provider from the same runtime config
- * the chat turn used, so summaries run on the player's chosen provider with that
- * provider's cheaper summary model.
+ * Maintains a playthrough's running summary so context survives beyond the
+ * history window. Provider-agnostic: it builds a provider from the same runtime
+ * config the chat turn used, so summaries run on the player's chosen provider
+ * with that provider's cheaper summary model.
  */
 export class SummaryService {
   private readonly inFlight = new Set<string>();
 
   public constructor(
-    private readonly sessions: SessionService,
+    private readonly playthroughs: PlaythroughService,
     private readonly config: SummaryConfig,
     private readonly providerFactory: LlmProviderFactory = createProvider,
   ) {}
@@ -37,41 +37,44 @@ export class SummaryService {
   }
 
   /**
-   * Fire-and-forget entry point: if the session has grown past the threshold,
-   * regenerate and store its summary using the request's provider/config. Never
-   * throws — failures are logged so a background summarisation can never crash
-   * the request that scheduled it.
+   * Fire-and-forget entry point: if the playthrough has grown past the
+   * threshold, regenerate and store its summary using the request's
+   * provider/config. Never throws — failures are logged so a background
+   * summarisation can never crash the request that scheduled it.
    */
-  public async summariseIfNeeded(sessionId: string, llm: LlmRuntimeConfig): Promise<void> {
-    if (this.inFlight.has(sessionId)) {
+  public async summariseIfNeeded(playthroughId: string, llm: LlmRuntimeConfig): Promise<void> {
+    if (this.inFlight.has(playthroughId)) {
       return;
     }
     try {
-      const count = await this.sessions.countMessages(sessionId);
+      const count = await this.playthroughs.countMessages(playthroughId);
       if (!this.shouldSummarise(count)) {
         return;
       }
-      this.inFlight.add(sessionId);
-      const session = await this.sessions.get(sessionId);
-      if (session === undefined) {
+      this.inFlight.add(playthroughId);
+      const playthrough = await this.playthroughs.get(playthroughId);
+      if (playthrough === undefined) {
         return;
       }
-      const older = await this.sessions.messagesBeforeWindow(sessionId, this.config.historyWindow);
+      const older = await this.playthroughs.messagesBeforeWindow(
+        playthroughId,
+        this.config.historyWindow,
+      );
       if (older.length === 0) {
         return;
       }
       const provider = this.providerFactory(llm);
-      const summary = await this.summarise(provider, llm, older, session.summary);
+      const summary = await this.summarise(provider, llm, older, playthrough.summary);
       if (summary.length > 0) {
-        await this.sessions.updateSummary(sessionId, summary);
+        await this.playthroughs.updateSummary(playthroughId, summary);
         logger.info(
-          `Updated running summary for session '${sessionId}' (${summary.length} chars).`,
+          `Updated running summary for playthrough '${playthroughId}' (${summary.length} chars).`,
         );
       }
     } catch (error) {
-      logger.error(`Background summarisation failed for session '${sessionId}':`, error);
+      logger.error(`Background summarisation failed for playthrough '${playthroughId}':`, error);
     } finally {
-      this.inFlight.delete(sessionId);
+      this.inFlight.delete(playthroughId);
     }
   }
 

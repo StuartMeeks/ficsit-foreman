@@ -118,8 +118,8 @@ export type WorkOrderOutcome =
  * Persistence and lifecycle for work orders (v2), per docs/work-orders.md.
  *
  * Key invariants:
- * - Sequence numbers are per-session and monotonic (rendered WO-001, …).
- * - At most one `active` order per session, but multiple non-terminal orders may
+ * - Sequence numbers are per-playthrough and monotonic (rendered WO-001, …).
+ * - At most one `active` order per playthrough, but multiple non-terminal orders may
  *   coexist (a blocked parent + an active child). Creating an order no longer
  *   supersedes the current one — supersession is explicit.
  * - Plan vs execution are separate: plan changes write a new plan-only revision
@@ -134,7 +134,7 @@ export class WorkOrderService {
 
   /** Issues a new work order in the `new` state with an initial revision. */
   public async create(
-    sessionId: string,
+    playthroughId: string,
     input: CreateWorkOrderInput,
     version: string,
     actor: WorkOrderActor = 'Foreman',
@@ -145,14 +145,14 @@ export class WorkOrderService {
 
     const row = await this.prisma.$transaction(async (tx): Promise<WorkOrderRow> => {
       const aggregate = await tx.workOrder.aggregate({
-        where: { sessionId },
+        where: { playthroughId },
         _max: { sequenceNumber: true },
       });
       const nextSequence = (aggregate._max.sequenceNumber ?? 0) + 1;
 
       const created = await tx.workOrder.create({
         data: {
-          sessionId,
+          playthroughId,
           sequenceNumber: nextSequence,
           state: 'new',
           version,
@@ -203,19 +203,21 @@ export class WorkOrderService {
 
   // --- Reads ---------------------------------------------------------------
 
-  /** All work orders for a session, oldest first (history order). */
-  public async list(sessionId: string): Promise<WorkOrder[]> {
+  /** All work orders for a playthrough, oldest first (history order). */
+  public async list(playthroughId: string): Promise<WorkOrder[]> {
     const rows = await this.prisma.workOrder.findMany({
-      where: { sessionId },
+      where: { playthroughId },
       orderBy: { sequenceNumber: 'asc' },
     });
     const childIds = childIdMap(rows);
     return rows.map((row) => rowToWorkOrder(row, childIds.get(row.id) ?? []));
   }
 
-  /** The session's current active order, or undefined if none. */
-  public async getActive(sessionId: string): Promise<WorkOrder | undefined> {
-    const row = await this.prisma.workOrder.findFirst({ where: { sessionId, state: 'active' } });
+  /** The playthrough's current active order, or undefined if none. */
+  public async getActive(playthroughId: string): Promise<WorkOrder | undefined> {
+    const row = await this.prisma.workOrder.findFirst({
+      where: { playthroughId, state: 'active' },
+    });
     return row === null ? undefined : this.hydrate(row);
   }
 
@@ -225,46 +227,46 @@ export class WorkOrderService {
    * until the Pioneer starts it, so `getActive` alone would miss it — which left
    * the foreman unable to revise/complete an order it had only just issued.
    */
-  public async getCurrent(sessionId: string): Promise<WorkOrder | undefined> {
+  public async getCurrent(playthroughId: string): Promise<WorkOrder | undefined> {
     const active = await this.prisma.workOrder.findFirst({
-      where: { sessionId, state: 'active' },
+      where: { playthroughId, state: 'active' },
     });
     if (active !== null) {
       return this.hydrate(active);
     }
     const latest = await this.prisma.workOrder.findFirst({
-      where: { sessionId, state: { in: ['new', 'paused', 'blocked'] } },
+      where: { playthroughId, state: { in: ['new', 'paused', 'blocked'] } },
       orderBy: { sequenceNumber: 'desc' },
     });
     return latest === null ? undefined : this.hydrate(latest);
   }
 
-  /** A single order by id, scoped to its session. */
-  public async get(sessionId: string, id: string): Promise<WorkOrder | undefined> {
-    const row = await this.prisma.workOrder.findFirst({ where: { id, sessionId } });
+  /** A single order by id, scoped to its playthrough. */
+  public async get(playthroughId: string, id: string): Promise<WorkOrder | undefined> {
+    const row = await this.prisma.workOrder.findFirst({ where: { id, playthroughId } });
     return row === null ? undefined : this.hydrate(row);
   }
 
   /** Direct children of an order, oldest first. */
-  public async getChildren(sessionId: string, id: string): Promise<WorkOrder[]> {
+  public async getChildren(playthroughId: string, id: string): Promise<WorkOrder[]> {
     const rows = await this.prisma.workOrder.findMany({
-      where: { sessionId, parentWorkOrderId: id },
+      where: { playthroughId, parentWorkOrderId: id },
       orderBy: { sequenceNumber: 'asc' },
     });
     return Promise.all(rows.map((row) => this.hydrate(row)));
   }
 
   /** The parent of an order, or undefined if it has none. */
-  public async getParent(sessionId: string, id: string): Promise<WorkOrder | undefined> {
-    const row = await this.prisma.workOrder.findFirst({ where: { id, sessionId } });
+  public async getParent(playthroughId: string, id: string): Promise<WorkOrder | undefined> {
+    const row = await this.prisma.workOrder.findFirst({ where: { id, playthroughId } });
     if (row === null || row.parentWorkOrderId === null) {
       return undefined;
     }
-    return this.get(sessionId, row.parentWorkOrderId);
+    return this.get(playthroughId, row.parentWorkOrderId);
   }
 
-  public async getAuditTrail(sessionId: string, id: string): Promise<WorkOrderAuditEvent[]> {
-    const exists = await this.prisma.workOrder.findFirst({ where: { id, sessionId } });
+  public async getAuditTrail(playthroughId: string, id: string): Promise<WorkOrderAuditEvent[]> {
+    const exists = await this.prisma.workOrder.findFirst({ where: { id, playthroughId } });
     if (exists === null) {
       return [];
     }
@@ -275,8 +277,8 @@ export class WorkOrderService {
     return rows.map(auditRowToEvent);
   }
 
-  public async getRevisions(sessionId: string, id: string): Promise<WorkOrderRevision[]> {
-    const exists = await this.prisma.workOrder.findFirst({ where: { id, sessionId } });
+  public async getRevisions(playthroughId: string, id: string): Promise<WorkOrderRevision[]> {
+    const exists = await this.prisma.workOrder.findFirst({ where: { id, playthroughId } });
     if (exists === null) {
       return [];
     }
@@ -288,11 +290,11 @@ export class WorkOrderService {
   }
 
   public async getRevision(
-    sessionId: string,
+    playthroughId: string,
     id: string,
     revisionNumber: number,
   ): Promise<WorkOrderRevision | undefined> {
-    const exists = await this.prisma.workOrder.findFirst({ where: { id, sessionId } });
+    const exists = await this.prisma.workOrder.findFirst({ where: { id, playthroughId } });
     if (exists === null) {
       return undefined;
     }
@@ -308,12 +310,12 @@ export class WorkOrderService {
    * Returns undefined if the order or either revision is missing.
    */
   public async diffRevisions(
-    sessionId: string,
+    playthroughId: string,
     id: string,
     fromRevision?: number,
     toRevision?: number,
   ): Promise<WorkOrderRevisionDiff | undefined> {
-    const order = await this.prisma.workOrder.findFirst({ where: { id, sessionId } });
+    const order = await this.prisma.workOrder.findFirst({ where: { id, playthroughId } });
     if (order === null) {
       return undefined;
     }
@@ -343,14 +345,14 @@ export class WorkOrderService {
    * per-action fields (block reason, cancellation reason, …) are checked here.
    */
   public async transition(
-    sessionId: string,
+    playthroughId: string,
     id: string,
     action: WorkOrderAction,
     actor: WorkOrderActor,
     opts: TransitionOptions = {},
   ): Promise<WorkOrderOutcome> {
     return this.prisma.$transaction(async (tx): Promise<WorkOrderOutcome> => {
-      const row = await tx.workOrder.findFirst({ where: { id, sessionId } });
+      const row = await tx.workOrder.findFirst({ where: { id, playthroughId } });
       if (row === null) {
         return notFound();
       }
@@ -365,10 +367,10 @@ export class WorkOrderService {
         return { ok: false, reason: 'requirement', message: missing };
       }
 
-      // Single-active invariant: only one `active` order per session.
+      // Single-active invariant: only one `active` order per playthrough.
       if (result.to === 'active') {
         const otherActive = await tx.workOrder.findFirst({
-          where: { sessionId, state: 'active', id: { not: id } },
+          where: { playthroughId, state: 'active', id: { not: id } },
         });
         if (otherActive !== null) {
           return {
@@ -446,7 +448,7 @@ export class WorkOrderService {
         (action === 'Complete' || action === 'ForceComplete') &&
         updated.parentWorkOrderId !== null
       ) {
-        await this.onChildCompleted(tx, sessionId, updated);
+        await this.onChildCompleted(tx, playthroughId, updated);
       }
 
       return { ok: true, order: await this.hydrateTx(tx, updated) };
@@ -462,14 +464,14 @@ export class WorkOrderService {
    * `work_order_revised` audit event. Non-terminal orders only.
    */
   public async updatePlan(
-    sessionId: string,
+    playthroughId: string,
     id: string,
     patch: UpdatePlanInput,
     actor: WorkOrderActor = 'Foreman',
     meta: { reason?: string; changeSummary?: string } = {},
   ): Promise<WorkOrderOutcome> {
     return this.prisma.$transaction(async (tx): Promise<WorkOrderOutcome> => {
-      const row = await tx.workOrder.findFirst({ where: { id, sessionId } });
+      const row = await tx.workOrder.findFirst({ where: { id, playthroughId } });
       if (row === null) {
         return notFound();
       }
@@ -544,13 +546,13 @@ export class WorkOrderService {
 
   /** Marks the current (or a given) revision acknowledged by the Pioneer. */
   public async acknowledgeRevision(
-    sessionId: string,
+    playthroughId: string,
     id: string,
     revisionNumber?: number,
     actor: WorkOrderActor = 'Pioneer',
   ): Promise<WorkOrderOutcome> {
     return this.prisma.$transaction(async (tx): Promise<WorkOrderOutcome> => {
-      const row = await tx.workOrder.findFirst({ where: { id, sessionId } });
+      const row = await tx.workOrder.findFirst({ where: { id, playthroughId } });
       if (row === null) {
         return notFound();
       }
@@ -571,13 +573,13 @@ export class WorkOrderService {
    * forward by id and preserved. History is never deleted.
    */
   public async revertToRevision(
-    sessionId: string,
+    playthroughId: string,
     id: string,
     revisionNumber: number,
     actor: WorkOrderActor = 'Pioneer',
   ): Promise<WorkOrderOutcome> {
     return this.prisma.$transaction(async (tx): Promise<WorkOrderOutcome> => {
-      const row = await tx.workOrder.findFirst({ where: { id, sessionId } });
+      const row = await tx.workOrder.findFirst({ where: { id, playthroughId } });
       if (row === null) {
         return notFound();
       }
@@ -653,13 +655,13 @@ export class WorkOrderService {
   // --- Execution mutations (audit-only, no revision) -----------------------
 
   public async setMaterialChecked(
-    sessionId: string,
+    playthroughId: string,
     id: string,
     materialId: string,
     checked: boolean,
     actor: WorkOrderActor = 'Pioneer',
   ): Promise<WorkOrderOutcome> {
-    return this.mutateChecklist(sessionId, id, actor, (row) => {
+    return this.mutateChecklist(playthroughId, id, actor, (row) => {
       const items = parseMaterials(row.buildMaterials);
       const item = items.find((m) => m.id === materialId);
       if (item === undefined) {
@@ -675,13 +677,13 @@ export class WorkOrderService {
   }
 
   public async setStepChecked(
-    sessionId: string,
+    playthroughId: string,
     id: string,
     stepId: string,
     checked: boolean,
     actor: WorkOrderActor = 'Pioneer',
   ): Promise<WorkOrderOutcome> {
-    return this.mutateChecklist(sessionId, id, actor, (row) => {
+    return this.mutateChecklist(playthroughId, id, actor, (row) => {
       const items = parseSteps(row.buildSteps);
       const item = items.find((s) => s.id === stepId);
       if (item === undefined) {
@@ -697,13 +699,13 @@ export class WorkOrderService {
   }
 
   public async setMachineBuiltCount(
-    sessionId: string,
+    playthroughId: string,
     id: string,
     machineId: string,
     builtCount: number,
     actor: WorkOrderActor = 'Pioneer',
   ): Promise<WorkOrderOutcome> {
-    return this.mutateChecklist(sessionId, id, actor, (row) => {
+    return this.mutateChecklist(playthroughId, id, actor, (row) => {
       const items = parseMachines(row.machines);
       const item = items.find((m) => m.id === machineId);
       if (item === undefined) {
@@ -721,12 +723,12 @@ export class WorkOrderService {
 
   /** Adds to the manually-logged hours total. */
   public async logHours(
-    sessionId: string,
+    playthroughId: string,
     id: string,
     hours: number,
     actor: WorkOrderActor = 'Pioneer',
   ): Promise<WorkOrderOutcome> {
-    return this.mutateChecklist(sessionId, id, actor, (row) => {
+    return this.mutateChecklist(playthroughId, id, actor, (row) => {
       const total = (row.hoursLogged ?? 0) + hours;
       return {
         data: { hoursLogged: total },
@@ -741,13 +743,13 @@ export class WorkOrderService {
    * does NOT complete the order. Only the Pioneer may complete.
    */
   public async proposeCompletion(
-    sessionId: string,
+    playthroughId: string,
     id: string,
     note?: string,
     actor: WorkOrderActor = 'Foreman',
   ): Promise<WorkOrderOutcome> {
     return this.prisma.$transaction(async (tx): Promise<WorkOrderOutcome> => {
-      const row = await tx.workOrder.findFirst({ where: { id, sessionId } });
+      const row = await tx.workOrder.findFirst({ where: { id, playthroughId } });
       if (row === null) {
         return notFound();
       }
@@ -766,7 +768,7 @@ export class WorkOrderService {
   // --- Internals -----------------------------------------------------------
 
   private async mutateChecklist(
-    sessionId: string,
+    playthroughId: string,
     id: string,
     actor: WorkOrderActor,
     apply: (row: WorkOrderRow) =>
@@ -778,7 +780,7 @@ export class WorkOrderService {
         },
   ): Promise<WorkOrderOutcome> {
     return this.prisma.$transaction(async (tx): Promise<WorkOrderOutcome> => {
-      const row = await tx.workOrder.findFirst({ where: { id, sessionId } });
+      const row = await tx.workOrder.findFirst({ where: { id, playthroughId } });
       if (row === null) {
         return notFound();
       }
@@ -802,14 +804,14 @@ export class WorkOrderService {
   /** Auto-unblock the parent when a child completes (with audit on the parent). */
   private async onChildCompleted(
     tx: Prisma.TransactionClient,
-    sessionId: string,
+    playthroughId: string,
     child: WorkOrderRow,
   ): Promise<void> {
     if (child.parentWorkOrderId === null) {
       return;
     }
     const parent = await tx.workOrder.findFirst({
-      where: { id: child.parentWorkOrderId, sessionId },
+      where: { id: child.parentWorkOrderId, playthroughId },
     });
     if (parent === null) {
       return;
@@ -823,7 +825,7 @@ export class WorkOrderService {
     }
     // Only auto-unblock when no other order is currently active.
     const otherActive = await tx.workOrder.findFirst({
-      where: { sessionId, state: 'active', id: { not: parent.id } },
+      where: { playthroughId, state: 'active', id: { not: parent.id } },
     });
     if (otherActive !== null) {
       return;

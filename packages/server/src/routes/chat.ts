@@ -9,11 +9,11 @@ import { openSse } from '../sse.js';
 import { chatSchema } from '../validation.js';
 
 /**
- * Chat route, mounted under /api/sessions/:sessionId/chat. Streams the foreman's
- * response over SSE while running the tool-use loop server-side. The provider,
- * model, and key are resolved per request: a client that supplies its own key
- * (header) may also override provider/model/base URL (body); otherwise the
- * server's configured defaults and hosted key are used.
+ * Chat route, mounted under /api/playthroughs/:playthroughId/chat. Streams the
+ * foreman's response over SSE while running the tool-use loop server-side. The
+ * provider, model, and key are resolved per request: a client that supplies its
+ * own key (header) may also override provider/model/base URL (body); otherwise
+ * the server's configured defaults and hosted key are used.
  */
 export function chatRouter(deps: AppDeps): Router {
   const router = Router({ mergeParams: true });
@@ -21,13 +21,13 @@ export function chatRouter(deps: AppDeps): Router {
   const chatDeps: ChatDeps = {
     systemPromptTemplate: deps.systemPromptTemplate,
     historyWindow: deps.config.historyWindow,
-    sessions: deps.sessions,
+    playthroughs: deps.playthroughs,
     workOrders: deps.workOrders,
     mcp: deps.mcp,
   };
 
   router.post('/', async (req, res) => {
-    const { sessionId = '' } = req.params as { sessionId?: string };
+    const { playthroughId = '' } = req.params as { playthroughId?: string };
 
     const parsed = chatSchema.safeParse(req.body);
     if (!parsed.success) {
@@ -35,9 +35,16 @@ export function chatRouter(deps: AppDeps): Router {
       return;
     }
 
-    const session = await deps.sessions.get(sessionId);
-    if (session === undefined) {
-      res.status(404).json({ error: 'Session not found.' });
+    const playthrough = await deps.playthroughs.get(playthroughId);
+    if (playthrough === undefined) {
+      res.status(404).json({ error: 'Playthrough not found.' });
+      return;
+    }
+    // The persona lives on the attached foreman; an orphaned reference would be a
+    // data-integrity bug (the FK restricts deletion), so treat it as not-found.
+    const foreman = await deps.foremen.get(playthrough.foremanId);
+    if (foreman === undefined) {
+      res.status(404).json({ error: 'Foreman not found.' });
       return;
     }
 
@@ -62,13 +69,23 @@ export function chatRouter(deps: AppDeps): Router {
 
     // Persist the user turn before building history, so it is included in the
     // windowed context sent to the model.
-    await deps.sessions.appendMessage(sessionId, 'user', parsed.data.message);
+    await deps.playthroughs.appendMessage(playthroughId, 'user', parsed.data.message);
 
     const sse = openSse(res);
     try {
       const provider = deps.llmProviderFactory(llm);
       const finalText = await runChat(
-        { session, provider, model: llm.model, maxTokens: llm.maxTokens },
+        {
+          playthroughId,
+          promptContext: {
+            personality: foreman.personality,
+            pioneerProfile: playthrough.pioneerProfile,
+            summary: playthrough.summary,
+          },
+          provider,
+          model: llm.model,
+          maxTokens: llm.maxTokens,
+        },
         chatDeps,
         {
           text: (delta) => sse.send('text', { delta }),
@@ -77,19 +94,19 @@ export function chatRouter(deps: AppDeps): Router {
         },
       );
       if (finalText.length > 0) {
-        await deps.sessions.appendMessage(sessionId, 'assistant', finalText);
+        await deps.playthroughs.appendMessage(playthroughId, 'assistant', finalText);
       }
       sse.send('done', { ok: true });
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      logger.error(`Chat turn failed for session '${sessionId}':`, error);
+      logger.error(`Chat turn failed for playthrough '${playthroughId}':`, error);
       sse.send('error', { message });
     } finally {
       sse.close();
     }
 
     // Refresh the running summary in the background, on the same provider/config.
-    void deps.summary.summariseIfNeeded(sessionId, llm);
+    void deps.summary.summariseIfNeeded(playthroughId, llm);
   });
 
   return router;

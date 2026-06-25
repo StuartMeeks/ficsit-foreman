@@ -1,20 +1,20 @@
 interface HeaderProps {
-  sessionId: string | null;
+  playthroughId: string | null;
   userEmail: string | null;
   onOpenSettings: () => void;
   onOpenSecurity: () => void;
   onSignOut: () => void;
 }
 
-/** Global header: wordmark, session indicator, live dot, settings, sign-out. */
+/** Global header: wordmark, playthrough indicator, live dot, settings, sign-out. */
 export function Header({
-  sessionId,
+  playthroughId,
   userEmail,
   onOpenSettings,
   onOpenSecurity,
   onSignOut,
 }: HeaderProps): React.JSX.Element {
-  const shortId = sessionId !== null ? sessionId.slice(0, 8) : '—';
+  const shortId = playthroughId !== null ? playthroughId.slice(0, 8) : '—';
   return (
     <header className="header">
       <div className="wordmark">
@@ -23,7 +23,7 @@ export function Header({
       </div>
       <div className="spacer" />
       {userEmail !== null ? <span className="label">{userEmail}</span> : null}
-      <span className="label">SESSION {shortId}</span>
+      <span className="label">PLAYTHROUGH {shortId}</span>
       <span className="status">
         <span className="pulse-dot" aria-hidden="true" />
         <span className="label">ONLINE</span>

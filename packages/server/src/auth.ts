@@ -130,8 +130,9 @@ export function resolveTrustedOrigins(request?: Request): string[] {
  *
  * Better Auth's own `session` table is mapped to the `AuthSession` Prisma model
  * (`session: { modelName: 'authSession' }`) so it does not collide with our
- * domain `Session` (a play session). Sessions are HttpOnly cookies — no token
- * is exposed to client JavaScript.
+ * domain model — a login session is unrelated to a `Playthrough` (a play
+ * session). Auth sessions are HttpOnly cookies — no token is exposed to client
+ * JavaScript.
  *
  * Taking the client as an argument (rather than importing the singleton) keeps
  * auth on the same dependency-injection footing as the services, so tests can

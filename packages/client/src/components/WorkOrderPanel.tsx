@@ -13,7 +13,7 @@ import type {
 import type { WorkOrderActions } from '../useForeman.js';
 
 interface WorkOrderPanelProps {
-  sessionId: string | null;
+  playthroughId: string | null;
   current: WorkOrder | null;
   history: WorkOrder[];
   actions: WorkOrderActions;
@@ -63,7 +63,7 @@ function outputLine(out: ExpectedOutput): { label: string; value: string } {
  * blocking, opportunities, and completion all flow through here.
  */
 export function WorkOrderPanel({
-  sessionId,
+  playthroughId,
   current,
   history,
   actions,
@@ -88,20 +88,20 @@ export function WorkOrderPanel({
   // Pull the audit trail, revisions, and (when unacknowledged) the field diff for
   // the current order. Re-runs whenever the order object changes (any mutation).
   useEffect(() => {
-    if (sessionId === null || current === null) {
+    if (playthroughId === null || current === null) {
       setRevisions([]);
       setAudit([]);
       setDiff(null);
       return;
     }
-    const sid = sessionId;
+    const pid = playthroughId;
     const orderId = current.id;
     let cancelled = false;
     void (async () => {
       try {
         const [revs, events] = await Promise.all([
-          getRevisions(sid, orderId),
-          getAuditTrail(sid, orderId),
+          getRevisions(pid, orderId),
+          getAuditTrail(pid, orderId),
         ]);
         if (cancelled) {
           return;
@@ -109,7 +109,7 @@ export function WorkOrderPanel({
         setRevisions(revs);
         setAudit(events);
         if (current.hasUnacknowledgedRevision && current.currentRevision > 1) {
-          const d = await getRevisionDiff(sid, orderId);
+          const d = await getRevisionDiff(pid, orderId);
           if (!cancelled) {
             setDiff(d);
           }
@@ -123,7 +123,7 @@ export function WorkOrderPanel({
     return () => {
       cancelled = true;
     };
-  }, [sessionId, current]);
+  }, [playthroughId, current]);
 
   const run = (fn: () => Promise<void>): void => {
     setBusy(true);

@@ -107,7 +107,7 @@ export function App(): React.JSX.Element {
   return (
     <div className="app">
       <Header
-        sessionId={foreman.session?.id ?? null}
+        playthroughId={foreman.playthrough?.id ?? null}
         userEmail={foreman.user?.email ?? null}
         onOpenSettings={() => setSettingsOpen(true)}
         onOpenSecurity={() => setSecurityOpen(true)}
@@ -147,7 +147,7 @@ export function App(): React.JSX.Element {
           onKeyDown={onKeyDown}
         />
         <WorkOrderPanel
-          sessionId={foreman.session?.id ?? null}
+          playthroughId={foreman.playthrough?.id ?? null}
           current={foreman.currentOrder}
           history={foreman.history}
           actions={foreman.workOrders}
@@ -156,7 +156,8 @@ export function App(): React.JSX.Element {
 
       {settingsOpen ? (
         <SettingsDialog
-          session={foreman.session}
+          playthrough={foreman.playthrough}
+          foreman={foreman.foreman}
           llm={foreman.llm}
           onClose={() => setSettingsOpen(false)}
           onSave={foreman.saveSettings}

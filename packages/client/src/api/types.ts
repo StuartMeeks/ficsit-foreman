@@ -261,9 +261,19 @@ export type WorkOrderAction =
   | 'Cancel'
   | 'Supersede';
 
-export interface Session {
+/** A reusable foreman persona, owned by the user and attached to playthroughs. */
+export interface Foreman {
   id: string;
+  name: string;
   personality: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface Playthrough {
+  id: string;
+  foremanId: string;
+  name?: string;
   pioneerProfile: string;
   summary?: string;
   createdAt: string;

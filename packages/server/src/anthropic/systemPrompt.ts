@@ -1,6 +1,14 @@
 import fs from 'node:fs';
 
-import type { Session } from '../types.js';
+/**
+ * The values substituted into the system prompt for a turn: the foreman's
+ * persona, the playthrough's pioneer profile, and (if any) its running summary.
+ */
+export interface PromptContext {
+  personality: string;
+  pioneerProfile: string;
+  summary?: string;
+}
 
 const PERSONALITY_PLACEHOLDER = '{{PERSONALITY}}';
 const PIONEER_PLACEHOLDER = '{{PIONEER_PROFILE}}';
@@ -26,18 +34,15 @@ export function loadSystemPromptTemplate(filePath: string): string {
 }
 
 /**
- * Produces the final system prompt for a session by substituting its stored
- * personality, pioneer profile, and (if present) running session summary. Empty
- * personality/profile fall back to neutral defaults so the foreman is never
- * handed an empty character; an empty summary omits its block entirely.
+ * Produces the final system prompt for a turn by substituting the foreman's
+ * personality, the playthrough's pioneer profile, and (if present) its running
+ * summary. Empty personality/profile fall back to neutral defaults so the
+ * foreman is never handed an empty character; an empty summary omits its block.
  */
-export function buildSystemPrompt(
-  template: string,
-  session: Pick<Session, 'personality' | 'pioneerProfile' | 'summary'>,
-): string {
-  const personality = session.personality.trim() || DEFAULT_PERSONALITY;
-  const pioneerProfile = session.pioneerProfile.trim() || DEFAULT_PIONEER_PROFILE;
-  const summary = session.summary?.trim() ?? '';
+export function buildSystemPrompt(template: string, context: PromptContext): string {
+  const personality = context.personality.trim() || DEFAULT_PERSONALITY;
+  const pioneerProfile = context.pioneerProfile.trim() || DEFAULT_PIONEER_PROFILE;
+  const summary = context.summary?.trim() ?? '';
   const summaryBlock =
     summary.length > 0
       ? `\n## Session So Far\n\nA condensed record of what has happened earlier in this session, beyond the recent messages you can see:\n\n${summary}\n`

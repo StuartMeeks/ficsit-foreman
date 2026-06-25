@@ -3,9 +3,10 @@ import express, { type Express } from 'express';
 
 import type { AppDeps } from './deps.js';
 import { logger } from './logger.js';
-import { requireAuth, requireSessionOwnership } from './middleware/auth.js';
+import { requireAuth, requirePlaythroughOwnership } from './middleware/auth.js';
 import { chatRouter } from './routes/chat.js';
-import { sessionsRouter } from './routes/sessions.js';
+import { foremenRouter } from './routes/foremen.js';
+import { playthroughsRouter } from './routes/playthroughs.js';
 import { workOrdersRouter } from './routes/workOrders.js';
 
 /**
@@ -32,14 +33,21 @@ export function buildApp(deps: AppDeps): Express {
     });
   });
 
-  // Everything under /api/sessions requires authentication. Session-scoped
+  // Everything under /api requires authentication. Playthrough-scoped
   // sub-resources (chat, work orders) additionally require that the caller owns
-  // the session. More specific paths are mounted first; they share the prefix.
+  // the playthrough. More specific paths are mounted first; they share the
+  // prefix. The foreman library is user-scoped (ownership enforced per route).
   const needsAuth = requireAuth(deps.auth);
-  const ownsSession = requireSessionOwnership(deps.sessions);
-  app.use('/api/sessions/:sessionId/chat', needsAuth, ownsSession, chatRouter(deps));
-  app.use('/api/sessions/:sessionId/work-orders', needsAuth, ownsSession, workOrdersRouter(deps));
-  app.use('/api/sessions', needsAuth, sessionsRouter(deps));
+  const ownsPlaythrough = requirePlaythroughOwnership(deps.playthroughs);
+  app.use('/api/playthroughs/:playthroughId/chat', needsAuth, ownsPlaythrough, chatRouter(deps));
+  app.use(
+    '/api/playthroughs/:playthroughId/work-orders',
+    needsAuth,
+    ownsPlaythrough,
+    workOrdersRouter(deps),
+  );
+  app.use('/api/playthroughs', needsAuth, playthroughsRouter(deps));
+  app.use('/api/foremen', needsAuth, foremenRouter(deps));
 
   app.use((_req, res) => {
     res.status(404).json({ error: 'Not found.' });

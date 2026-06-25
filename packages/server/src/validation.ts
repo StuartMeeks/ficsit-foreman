@@ -283,22 +283,42 @@ export const reviseToolSchema = z.object({
   changeSummary: z.string().optional(),
 });
 
-// --- Sessions & chat (unchanged) -------------------------------------------
+// --- Foremen, playthroughs & chat ------------------------------------------
 
-export const createSessionSchema = z.object({
-  id: z.string().min(1).optional(),
+export const createForemanSchema = z.object({
+  name: z.string().min(1),
   personality: z.string().optional(),
+});
+
+export const updateForemanSchema = z
+  .object({
+    name: z.string().min(1).optional(),
+    personality: z.string().optional(),
+  })
+  .refine((patch) => patch.name !== undefined || patch.personality !== undefined, {
+    message: 'Provide name and/or personality.',
+  });
+
+export const createPlaythroughSchema = z.object({
+  id: z.string().min(1).optional(),
+  foremanId: z.string().min(1),
+  name: z.string().optional(),
   pioneerProfile: z.string().optional(),
 });
 
-export const updateSessionSchema = z
+export const updatePlaythroughSchema = z
   .object({
-    personality: z.string().optional(),
+    name: z.string().optional(),
     pioneerProfile: z.string().optional(),
+    foremanId: z.string().min(1).optional(),
   })
-  .refine((patch) => patch.personality !== undefined || patch.pioneerProfile !== undefined, {
-    message: 'Provide personality and/or pioneerProfile.',
-  });
+  .refine(
+    (patch) =>
+      patch.name !== undefined ||
+      patch.pioneerProfile !== undefined ||
+      patch.foremanId !== undefined,
+    { message: 'Provide name, pioneerProfile and/or foremanId.' },
+  );
 
 export const chatSchema = z.object({
   message: z.string().min(1),

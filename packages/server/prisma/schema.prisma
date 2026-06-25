@@ -14,27 +14,52 @@ datasource db {
   provider = "sqlite"
 }
 
-// A play session. Owned by a User (accounts, #63). `userId` is nullable so a
-// pre-accounts anonymous session can be re-homed to a user on first login;
-// authed creates always set it. Personality and pioneer profile are opaque
-// freeform strings injected into the foreman system prompt at request time.
-model Session {
+// A reusable foreman persona, owned by a user and attachable to many
+// playthroughs (#86). `personality` is the opaque freeform string injected into
+// the system prompt as {{PERSONALITY}}. `userId` is nullable to mirror
+// Playthrough: a pre-accounts anonymous playthrough carries an anonymous
+// foreman until both are claimed on first login.
+model Foreman {
+  id          String   @id @default(uuid())
+  userId      String?
+  name        String
+  personality String   @default("")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user         User?         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  playthroughs Playthrough[]
+
+  @@index([userId])
+}
+
+// A playthrough: one save's journey — a chosen foreman + the pioneer's play
+// style + the conversation and its work. This is the former `Session` (#86).
+// Owned by a User (accounts, #63); `userId` is nullable so a pre-accounts
+// anonymous playthrough can be re-homed to a user on first login. `name` is
+// freely editable (defaulted from the attached save once #76 lands).
+// `pioneerProfile` lives here, not on the user, because play style varies per
+// run; it is injected into the system prompt as {{PIONEER_PROFILE}}.
+model Playthrough {
   id             String   @id
   userId         String?
-  personality    String   @default("")
+  foremanId      String
+  name           String?
   pioneerProfile String   @default("")
-  // Running condensed record of the session, regenerated in the background once
-  // the conversation has rolled past the history window. Null until first
+  // Running condensed record of the playthrough, regenerated in the background
+  // once the conversation has rolled past the history window. Null until first
   // summarised; injected into the system prompt as {{SESSION_SUMMARY}}.
   summary        String?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
   user       User?       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  foreman    Foreman     @relation(fields: [foremanId], references: [id], onDelete: Restrict)
   messages   Message[]
   workOrders WorkOrder[]
 
   @@index([userId])
+  @@index([foremanId])
 }
 
 // A single persisted conversational turn. Only user input and the foreman's
@@ -42,43 +67,43 @@ model Session {
 // within a single chat request and are not persisted, keeping history valid and
 // trivially windowable.
 model Message {
-  id        String   @id @default(uuid())
-  sessionId String
-  session   Session  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
-  role      String // 'user' | 'assistant'
-  content   String // plain text of the turn
-  createdAt DateTime @default(now())
+  id            String      @id @default(uuid())
+  playthroughId String
+  playthrough   Playthrough @relation(fields: [playthroughId], references: [id], onDelete: Cascade)
+  role          String // 'user' | 'assistant'
+  content       String // plain text of the turn
+  createdAt     DateTime    @default(now())
 
-  @@index([sessionId, createdAt])
+  @@index([playthroughId, createdAt])
 }
 
 // A work order. Mirrors the WorkOrder interface in WORK_ORDER_SPEC.md (Work
-// Orders v2). Sequence numbers are per-session and monotonic (rendered WO-001,
-// WO-002, …). At most one order per session may be `active` at a time, but
-// multiple non-terminal orders may coexist (e.g. a blocked parent + an active
-// child) — enforced in the service layer.
+// Orders v2). Sequence numbers are per-playthrough and monotonic (rendered
+// WO-001, WO-002, …). At most one order per playthrough may be `active` at a
+// time, but multiple non-terminal orders may coexist (e.g. a blocked parent +
+// an active child) — enforced in the service layer.
 //
 // Plan vs execution are separated: plan fields (Foreman-owned) are snapshotted
 // into WorkOrderRevision on every plan change; execution fields (Pioneer-owned —
 // checked flags inside the checklists, machine built counts, hoursLogged) live
 // only here and their history is the WorkOrderAuditEvent trail, never snapshots.
 model WorkOrder {
-  id             String  @id @default(uuid())
-  sessionId      String
-  session        Session @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  id             String      @id @default(uuid())
+  playthroughId  String
+  playthrough    Playthrough @relation(fields: [playthroughId], references: [id], onDelete: Cascade)
   sequenceNumber Int
   state          String // WorkOrderState: new|active|paused|blocked|completed|cancelled|superseded
   version        String // game data version this order was built for
 
   // Plan — Foreman-owned. Complex fields are JSON-encoded TEXT (portable
   // SQLite→Postgres). Checklist JSON carries stable ids + execution state.
-  title                 String
-  goal                  String
-  objective             String?
-  strategicSignificance String?
-  successCondition      String?
-  tier                  Int?
-  notes                 String? // JSON string[] of foreman build notes
+  title                  String
+  goal                   String
+  objective              String?
+  strategicSignificance  String?
+  successCondition       String?
+  tier                   Int?
+  notes                  String? // JSON string[] of foreman build notes
   locationRecommendation String? // JSON LocationRecommendation
   resourceNodes          String? // JSON ResourceNodeReference[]
   machines               String  @default("[]") // JSON MachineRequirement[]
@@ -100,7 +125,7 @@ model WorkOrder {
   pioneerFeedback   String? // JSON PioneerFeedback
 
   // Revision / acknowledgement (plan revisions only).
-  currentRevision         Int  @default(1)
+  currentRevision          Int  @default(1)
   lastAcknowledgedRevision Int?
 
   // Relationships. Children are derived by querying parentWorkOrderId.
@@ -113,8 +138,8 @@ model WorkOrder {
   revisions   WorkOrderRevision[]
   auditEvents WorkOrderAuditEvent[]
 
-  @@unique([sessionId, sequenceNumber])
-  @@index([sessionId, state])
+  @@unique([playthroughId, sequenceNumber])
+  @@index([playthroughId, state])
   @@index([parentWorkOrderId])
 }
 
@@ -172,7 +197,8 @@ model User {
   authSessions AuthSession[]
   accounts     Account[]
   twoFactors   TwoFactor[]
-  sessions     Session[] // the user's play sessions
+  foremen      Foreman[] // the user's reusable foreman personas
+  playthroughs Playthrough[] // the user's playthroughs
 
   @@map("user")
 }

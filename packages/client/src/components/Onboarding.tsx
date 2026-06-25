@@ -101,7 +101,7 @@ const PIONEER_QUESTIONS: PioneerQuestion[] = [
   },
   {
     id: 'style',
-    label: 'Session style',
+    label: 'Playthrough style',
     prompt: 'How do you like to play?',
     options: [
       {
@@ -167,8 +167,8 @@ interface OnboardingProps {
 /**
  * First-run onboarding (GUI v1). Walks the pioneer through choosing the
  * foreman's personality and describing themselves, then hands both freeform
- * strings to the session. Personality and profile are both editable later
- * via Settings — this is only the first pass.
+ * strings to onboarding (which mints a foreman + playthrough). Personality and
+ * profile are both editable later via Settings — this is only the first pass.
  */
 export function Onboarding({ onComplete }: OnboardingProps): React.JSX.Element {
   const [step, setStep] = useState<Step>('welcome');
@@ -222,7 +222,7 @@ export function Onboarding({ onComplete }: OnboardingProps): React.JSX.Element {
         pioneerProfile: pioneerProfile.trim(),
       });
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Could not start your session.');
+      setError(e instanceof Error ? e.message : 'Could not start your playthrough.');
       setSubmitting(false);
     }
   };
