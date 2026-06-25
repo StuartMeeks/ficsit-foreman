@@ -154,6 +154,8 @@ const COLLECTIBLE_KINDS: WorldCollectibleKind[] = [
   'powerSlugYellow',
   'powerSlugPurple',
   'hardDrive',
+  'helmet',
+  'mtape',
 ];
 
 const COVERAGE_NOTE =
@@ -189,11 +191,12 @@ export function collectibleProgressView(
   world: WorldLocations,
 ): CollectibleProgressView {
   const collectedSet = collectedGuidSet(state);
+  const unlockedSchematics = unlockedSchematicSet(state);
   const totals = new Map<string, number>();
   const collected = new Map<string, number>();
   for (const c of world.collectibles) {
     totals.set(c.kind, (totals.get(c.kind) ?? 0) + 1);
-    if (collectedSet.has(c.guid)) {
+    if (isCollected(c, collectedSet, unlockedSchematics)) {
       collected.set(c.kind, (collected.get(c.kind) ?? 0) + 1);
     }
   }
@@ -214,6 +217,34 @@ export function collectibleProgressView(
 /** Every collected-collectible GUID (pickups + looted pods) as one lookup set. */
 export function collectedGuidSet(state: SaveState): Set<string> {
   return new Set([...state.collectedPickupGuids, ...state.lootedDropPodGuids]);
+}
+
+/**
+ * The classes of every schematic the pioneer has unlocked. Customizer pickups
+ * (helmet/tapes) carry no pickup GUID — picking one up unlocks a cosmetic
+ * schematic, so this is how their collected status is determined.
+ */
+export function unlockedSchematicSet(state: SaveState): Set<string> {
+  return new Set(state.milestones.map((m) => m.schematicClass));
+}
+
+/**
+ * Whether a collectible has been collected: GUID-keyed kinds match the save's
+ * destroyed-pickup record; schematic-keyed customizer kinds match the unlocked
+ * schematics.
+ */
+export function isCollected(
+  c: Collectible,
+  collectedGuids: Set<string>,
+  unlockedSchematics: Set<string>,
+): boolean {
+  if (c.guid !== undefined) {
+    return collectedGuids.has(c.guid);
+  }
+  if (c.schematic !== undefined) {
+    return unlockedSchematics.has(c.schematic);
+  }
+  return false;
 }
 
 export interface NearbyItem {
@@ -252,6 +283,8 @@ const KIND_LABELS: Record<WorldCollectibleKind, string> = {
   powerSlugYellow: 'Yellow Power Slug',
   powerSlugPurple: 'Purple Power Slug',
   hardDrive: 'Hard Drive (crash site)',
+  helmet: 'Customizer Helmet',
+  mtape: 'Tape',
 };
 
 const NEARBY_NOTE =
@@ -273,14 +306,14 @@ export function nearbyFromWorld(
   origin: Vec3,
   options: NearbyOptions = {},
   excludeGuids?: Set<string>,
+  excludeSchematics?: Set<string>,
 ): NearbyResult {
   const limit = options.limit ?? DEFAULT_NEARBY_LIMIT;
+  const collected = (c: Collectible): boolean =>
+    (c.guid !== undefined && excludeGuids?.has(c.guid) === true) ||
+    (c.schematic !== undefined && excludeSchematics?.has(c.schematic) === true);
   let items: NearbyItem[] = collectibles
-    .filter(
-      (c) =>
-        (options.kinds === undefined || options.kinds.includes(c.kind)) &&
-        excludeGuids?.has(c.guid) !== true,
-    )
+    .filter((c) => (options.kinds === undefined || options.kinds.includes(c.kind)) && !collected(c))
     .map((c) => {
       const location = vecToMetres({ x: c.x, y: c.y, z: c.z });
       return {

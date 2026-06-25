@@ -3,12 +3,14 @@ import { describe, expect, it } from 'vitest';
 
 import { emptySaveState, normaliseSave } from '../src/normalise/index.js';
 import {
+  collectedGuidSet,
   collectibleProgressView,
   milestones,
   nearbyFromWorld,
   playerSummary,
   storageView,
   unlockedRecipes,
+  unlockedSchematicSet,
 } from '../src/query/selectors.js';
 import { SaveStore } from '../src/store/saveStore.js';
 import { FIXTURE_SAVE } from './fixtures/save.js';
@@ -93,6 +95,43 @@ describe('selectors', () => {
     expect(byKind['hardDrive']).toMatchObject({ worldTotal: 2, collected: 1, remaining: 1 });
     // A kind absent from the dataset reports zeros, not undefined.
     expect(byKind['somersloop']).toMatchObject({ worldTotal: 0, collected: 0, remaining: 0 });
+  });
+
+  it('marks schematic-keyed customizer pickups collected by unlocked schematic', () => {
+    const world: WorldLocations = {
+      gameVersion: 'test',
+      build: 0,
+      source: 'test',
+      counts: {},
+      collectibles: [
+        { id: 'h', kind: 'helmet', schematic: 'Schematic_Helmet_Beta_C', x: 0, y: 0, z: 0 },
+        { id: 't1', kind: 'mtape', schematic: 'Schematic_Huntdown_C', x: 10, y: 0, z: 0 },
+        { id: 't2', kind: 'mtape', schematic: 'Schematic_DeepRockGalactic_C', x: 20, y: 0, z: 0 },
+      ],
+      resourceNodes: [],
+    };
+    const s = emptySaveState('v', 'n', 't');
+    // The pioneer has unlocked the helmet + one tape (no pickup GUIDs involved).
+    s.milestones = [
+      { schematicClass: 'Schematic_Helmet_Beta_C', displayName: 'Helmet', kind: 'other' },
+      { schematicClass: 'Schematic_Huntdown_C', displayName: 'Huntdown', kind: 'other' },
+    ];
+
+    const byKind = Object.fromEntries(
+      collectibleProgressView(s, world).perType.map((c) => [c.kind, c]),
+    );
+    expect(byKind['helmet']).toMatchObject({ worldTotal: 1, collected: 1, remaining: 0 });
+    expect(byKind['mtape']).toMatchObject({ worldTotal: 2, collected: 1, remaining: 1 });
+
+    // get_nearby excludes the unlocked ones — only the un-collected tape remains.
+    const nearby = nearbyFromWorld(
+      world.collectibles,
+      { x: 0, y: 0, z: 0 },
+      {},
+      collectedGuidSet(s),
+      unlockedSchematicSet(s),
+    );
+    expect(nearby.items.map((i) => i.label)).toEqual(['Tape']); // the DeepRockGalactic tape
   });
 
   it('nearbyFromWorld returns uncollected collectibles nearest-first, filtered and capped', () => {

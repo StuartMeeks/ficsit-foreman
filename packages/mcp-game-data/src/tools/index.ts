@@ -18,6 +18,8 @@ const collectibleKind = z.enum([
   'powerSlugYellow',
   'powerSlugPurple',
   'hardDrive',
+  'helmet',
+  'mtape',
 ]);
 
 /** A world location in **metres** (matching the in-game HUD) — usually the pioneer's position. */

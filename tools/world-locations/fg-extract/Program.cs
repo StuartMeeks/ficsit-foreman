@@ -37,7 +37,12 @@ provider.Initialize();
 provider.SubmitKey(new FGuid(), new FAesKey(new byte[32]));
 Console.WriteLine($"mounted. files = {provider.Files.Count}");
 
-// Collectible classes (live in the _Generated_ cells), mapped to dataset kinds.
+// Collectible classes, mapped to dataset kinds. The first six are GUID-keyed
+// pickups in the _Generated_ cells (spheres/sloops/slugs) plus drop pods. The
+// customizer pickups (helmet in a cell, music tapes in the persistent level) are
+// SCHEMATIC-keyed instead — they carry no mItemPickupGuid; what they grant is a
+// cosmetic schematic (mSchematic), so "collected" is read from the save's
+// unlocked schematics rather than mDestroyedPickups.
 var collectibleKinds = new Dictionary<string, string>
 {
     ["BP_WAT2_C"] = "mercerSphere",     // 298 in assets — matches the known Mercer total
@@ -46,7 +51,12 @@ var collectibleKinds = new Dictionary<string, string>
     ["BP_Crystal_mk2_C"] = "powerSlugYellow",
     ["BP_Crystal_mk3_C"] = "powerSlugPurple",
     ["BP_DropPod_C"] = "hardDrive",
+    ["BP_UnlockPickup_Customization_C"] = "helmet", // 1, in a cell; grants a Helmet schematic
+    ["BP_TapePickup_C"] = "mtape",                  // 3, in the persistent level; grant Tape schematics
 };
+
+// Kinds keyed by the schematic they unlock rather than a pickup GUID.
+var schematicKinds = new HashSet<string> { "helmet", "mtape" };
 
 // Resource-node classes (live in the base Persistent_Level), mapped to dataset kinds.
 var nodeKinds = new Dictionary<string, string>
@@ -78,6 +88,18 @@ string? GuidFor(UObject e, string kind)
     return $"{g.A:X8}{g.B:X8}{g.C:X8}{g.D:X8}";
 }
 
+// The cosmetic schematic a customizer pickup grants (helmet/tape), as the save
+// records it once unlocked. `mSchematic` is a class reference; we keep its
+// trailing `Schematic_*_C` identifier, which the save MCP matches against the
+// pioneer's unlocked schematics to compute collected status. Null when absent.
+string? SchematicFor(UObject e)
+{
+    var raw = e.Properties.FirstOrDefault(p => p.Name.Text == "mSchematic")?.Tag?.GenericValue?.ToString();
+    if (raw == null) { return null; }
+    var m = Regex.Match(raw, @"\.([A-Za-z0-9_]+)'?$");
+    return m.Success ? m.Groups[1].Value : null;
+}
+
 // Extract the trailing "Desc_X_C" class identifier from an object-reference property.
 string? Ref(UObject e, string prop)
 {
@@ -100,18 +122,23 @@ var collectibles = new List<object>();
 var collCounts = new Dictionary<string, int>();
 var nodes = new List<object>();
 var nodeCounts = new Dictionary<string, int>();
-var seenDropPods = new HashSet<string>();
+var seenCollectibles = new HashSet<string>(); // dedupe by id across both passes
 
 void AddCollectible(UObject e, string kind)
 {
     var loc = Loc(e);
     if (loc == null) { return; }
-    if (kind == "hardDrive" && !seenDropPods.Add(e.Name)) { return; }
-    collectibles.Add(new { id = e.Name, kind, guid = GuidFor(e, kind), x = (int) loc.Value.X, y = (int) loc.Value.Y, z = (int) loc.Value.Z });
+    if (!seenCollectibles.Add($"{kind}:{e.Name}")) { return; }
+    int x = (int) loc.Value.X, y = (int) loc.Value.Y, z = (int) loc.Value.Z;
+    // Schematic-keyed kinds (helmet/tapes) carry a schematic instead of a GUID.
+    object entry = schematicKinds.Contains(kind)
+        ? new { id = e.Name, kind, schematic = SchematicFor(e), x, y, z }
+        : new { id = e.Name, kind, guid = GuidFor(e, kind), x, y, z };
+    collectibles.Add(entry);
     collCounts[kind] = collCounts.GetValueOrDefault(kind) + 1;
 }
 
-// --- Pass 1: collectibles + drop pods from the WP cells ---
+// --- Pass 1: collectibles (incl. the customizer helmet) from the WP cells ---
 var cells = provider.Files.Keys.Where(k => k.Contains("/_Generated_/") && k.EndsWith(".umap")).ToList();
 Console.WriteLine($"sweeping {cells.Count} cells for collectibles...");
 var n = 0;
@@ -128,7 +155,7 @@ foreach (var cell in cells)
     catch (Exception ex) { Console.Error.WriteLine($"[cell] {cell}: {ex.Message}"); }
 }
 
-// --- Pass 2: resource nodes (+ any remaining drop pods) from the persistent level ---
+// --- Pass 2: resource nodes (+ drop pods and music tapes) from the persistent level ---
 var levelPkgs = provider.Files.Keys
     .Where(k => k.Contains("/GameLevel01/") && k.EndsWith(".umap") && !k.Contains("/_Generated_/"))
     .ToList();
@@ -139,7 +166,11 @@ foreach (var pkgPath in levelPkgs)
     {
         foreach (var e in provider.LoadPackage(pkgPath).GetExports())
         {
-            if (collectibleKinds.TryGetValue(e.ExportType, out var ck) && ck == "hardDrive") { AddCollectible(e, ck); }
+            // Collectibles that live in the persistent level rather than the cells.
+            if (collectibleKinds.TryGetValue(e.ExportType, out var ck) && (ck == "hardDrive" || ck == "mtape"))
+            {
+                AddCollectible(e, ck);
+            }
             if (!nodeKinds.TryGetValue(e.ExportType, out var kind)) { continue; }
             var loc = Loc(e);
             if (loc == null) { continue; }
