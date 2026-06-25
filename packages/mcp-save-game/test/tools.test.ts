@@ -39,7 +39,8 @@ describe('selectors', () => {
   it('playerSummary reports location and item count', () => {
     const summary = playerSummary(store.getState());
     expect(summary.itemCount).toBe(1);
-    expect(summary.location).toEqual({ x: 100, y: 200, z: 300 });
+    // Location is reported in metres (fixture stores 100/200/300 cm).
+    expect(summary.location).toEqual({ x: 1, y: 2, z: 3 });
   });
 
   it('unlockedRecipes splits standard and alternate with counts', () => {
@@ -61,7 +62,8 @@ describe('selectors', () => {
     const view = storageView(store.getState(), { x: 0, y: 0, z: 0 });
     expect(view.containerCount).toBe(2);
     expect(view.containers[0]?.buildingClass).toBe('Build_StorageContainerMk1_C'); // the near one
-    expect(view.containers[0]?.distance).toBe(10);
+    expect(view.containers[0]?.distance).toBe(0.1); // 10 cm → 0.1 m
+    expect(view.containers[0]?.location).toEqual({ x: 0.1, y: 0, z: 0 }); // metres
     expect(view.containers[1]?.distance ?? 0).toBeGreaterThan(view.containers[0]?.distance ?? 0);
   });
 
@@ -97,13 +99,15 @@ describe('selectors', () => {
     const origin = { x: 0, y: 0, z: 0 };
     const all = nearbyFromWorld(WORLD_COLLECTIBLES, origin);
     expect(all.matchCount).toBe(8);
-    expect(all.items[0]).toMatchObject({ label: 'Mercer Sphere', distance: 50 }); // nearest
+    // Nearest: the 50 cm sphere → 0.5 m, with a compass bearing.
+    expect(all.items[0]).toMatchObject({ label: 'Mercer Sphere', distance: 0.5 });
+    expect(all.items[0]?.bearing).toMatch(/^(N|NE|E|SE|S|SW|W|NW)$/);
 
     const spheres = nearbyFromWorld(WORLD_COLLECTIBLES, origin, { kinds: ['mercerSphere'] });
     expect(spheres.matchCount).toBe(2);
 
-    const within = nearbyFromWorld(WORLD_COLLECTIBLES, origin, { radius: 1000 });
-    expect(within.matchCount).toBe(7); // excludes the far sphere at 5000
+    const within = nearbyFromWorld(WORLD_COLLECTIBLES, origin, { radius: 10 }); // metres
+    expect(within.matchCount).toBe(7); // excludes the far sphere at 5000 cm (50 m)
 
     const capped = nearbyFromWorld(WORLD_COLLECTIBLES, origin, { limit: 3 });
     expect(capped.items).toHaveLength(3);

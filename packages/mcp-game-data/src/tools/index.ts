@@ -1,8 +1,9 @@
+import { cmToMetres, compassBearing, metresToCm } from '@foreman/game-data-core';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 
 import type { GraphDB } from '../graph/index.js';
-import type { WorldQueries } from '../world/queries.js';
+import type { Coord, WorldQueries } from '../world/queries.js';
 
 type ToolResult = {
   content: { type: 'text'; text: string }[];
@@ -19,8 +20,35 @@ const collectibleKind = z.enum([
   'hardDrive',
 ]);
 
-/** A world location in Unreal units (centimetres) — usually the pioneer's position. */
+/** A world location in **metres** (matching the in-game HUD) — usually the pioneer's position. */
 const coord = z.object({ x: z.number(), y: z.number(), z: z.number() });
+
+/** Pioneer-facing metres → internal centimetres (the dataset/query unit). */
+function toCm(origin: { x: number; y: number; z: number }): Coord {
+  return { x: metresToCm(origin.x), y: metresToCm(origin.y), z: metresToCm(origin.z) };
+}
+
+/**
+ * A world hit (centimetre x/y/z + cm distance) reshaped for the pioneer: metres,
+ * a compass bearing from the (metres) origin, and no internal `guid`/`id` noise
+ * dropped by the caller's explicit field pick.
+ */
+function placeInMetres<T extends { x: number; y: number; z: number; distance: number }>(
+  hit: T,
+  originMetres: { x: number; y: number },
+): Omit<T, 'guid'> & { bearing: string } {
+  const x = cmToMetres(hit.x);
+  const y = cmToMetres(hit.y);
+  const { guid: _guid, ...rest } = hit as T & { guid?: string };
+  return {
+    ...(rest as Omit<T, 'guid'>),
+    x,
+    y,
+    z: cmToMetres(hit.z),
+    distance: cmToMetres(hit.distance),
+    bearing: compassBearing(originMetres, { x, y }),
+  };
+}
 
 /**
  * Registers every Foreman MCP tool. Tool descriptions are tight and
@@ -238,11 +266,18 @@ export function registerTools(server: McpServer, graph: GraphDB, world: WorldQue
     {
       title: 'List collectibles',
       description:
-        'World totals for each collectible kind (Mercer Spheres, Somersloops, blue/yellow/purple power slugs, hard-drive drop pods). Supply a type to also get the full coordinate list for that one kind. These are fixed world placements, not what a particular save has collected.',
+        'World totals for each collectible kind (Mercer Spheres, Somersloops, blue/yellow/purple power slugs, hard-drive drop pods). Supply a type to also get the full coordinate list (metres) for that one kind. These are fixed world placements, not what a particular save has collected.',
       inputSchema: { type: collectibleKind.optional() },
     },
     async ({ type }): Promise<ToolResult> => {
-      return ok(world.listCollectibles(type));
+      const result = world.listCollectibles(type);
+      const collectibles = result.collectibles?.map(({ guid: _g, ...c }) => ({
+        ...c,
+        x: cmToMetres(c.x),
+        y: cmToMetres(c.y),
+        z: cmToMetres(c.z),
+      }));
+      return ok({ ...result, collectibles });
     },
   );
 
@@ -251,7 +286,7 @@ export function registerTools(server: McpServer, graph: GraphDB, world: WorldQue
     {
       title: 'Nearest collectibles',
       description:
-        'The collectibles closest to a world location, nearest-first, each with its coordinates and straight-line distance. Filter by type; cap with n (default 10). Use the pioneer location as the coord to answer "what can I grab near me?".',
+        'The collectibles closest to a world location, nearest-first, each with its coordinates (metres), straight-line distance (metres) and a compass bearing (N/NE/E/…) from the origin. Filter by type; cap with n (default 10). Pass the pioneer location (metres, from the save) as the coord to answer "what can I grab near me?".',
       inputSchema: {
         coord,
         type: collectibleKind.optional(),
@@ -259,7 +294,8 @@ export function registerTools(server: McpServer, graph: GraphDB, world: WorldQue
       },
     },
     async ({ coord: origin, type, n }): Promise<ToolResult> => {
-      return ok({ collectibles: world.nearestCollectibles(origin, type, n) });
+      const hits = world.nearestCollectibles(toCm(origin), type, n);
+      return ok({ collectibles: hits.map((h) => placeInMetres(h, origin)) });
     },
   );
 
@@ -268,7 +304,7 @@ export function registerTools(server: McpServer, graph: GraphDB, world: WorldQue
     {
       title: 'Nearest resource nodes',
       description:
-        'The resource extraction points closest to a world location, nearest-first, each with resource type, purity (impure/normal/pure), coordinates and distance. Covers ore/fluid nodes, fracking satellites and cores, and geothermal geysers. Filter by resource (name or class, e.g. "Iron Ore") and/or purity; cap with n (default 10).',
+        'The resource extraction points closest to a world location, nearest-first, each with resource type, purity (impure/normal/pure), coordinates (metres), distance (metres) and a compass bearing (N/NE/E/…) from the origin. Covers ore/fluid nodes, fracking satellites and cores, and geothermal geysers. Filter by resource (name or class, e.g. "Iron Ore") and/or purity; cap with n (default 10). Pass the pioneer location in metres.',
       inputSchema: {
         coord,
         resource: z.string().optional(),
@@ -277,7 +313,8 @@ export function registerTools(server: McpServer, graph: GraphDB, world: WorldQue
       },
     },
     async ({ coord: origin, resource, purity, n }): Promise<ToolResult> => {
-      return ok({ nodes: world.nearestResourceNodes(origin, { resource, purity, n }) });
+      const hits = world.nearestResourceNodes(toCm(origin), { resource, purity, n });
+      return ok({ nodes: hits.map((h) => placeInMetres(h, origin)) });
     },
   );
 }

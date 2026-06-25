@@ -36,15 +36,13 @@ const TOOL_RUNNERS: Record<string, (state: ReturnType<typeof loadState>) => unkn
   get_collectibles: (s) => collectibleProgressView(s, loadWorldLocations().world),
   // Nearby uses the player's own location as the origin (when known), querying
   // the static world dataset (same source the MCP tool uses).
-  get_nearby: (s) =>
-    s.player.location === undefined
+  get_nearby: (s) => {
+    // Origin must be metres — exactly what get_player_state hands the foreman.
+    const origin = playerSummary(s).location;
+    return origin === undefined
       ? { error: 'player location unknown in this save' }
-      : nearbyFromWorld(
-          loadWorldLocations().world.collectibles,
-          s.player.location,
-          {},
-          collectedGuidSet(s),
-        ),
+      : nearbyFromWorld(loadWorldLocations().world.collectibles, origin, {}, collectedGuidSet(s));
+  },
 };
 
 function out(value: unknown): void {
