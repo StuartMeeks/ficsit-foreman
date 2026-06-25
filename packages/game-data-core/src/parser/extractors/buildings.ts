@@ -127,6 +127,25 @@ export function buildingFromRaw(raw: RawClass, shortName: string, items: ItemLoo
     building.maxPowerConsumption = maxPower;
   }
 
+  // Logistics throughput, surfaced for production-line costing (#66). Present
+  // only on the relevant classes; absent fields stay undefined.
+  const conveyorSpeed = getNumber(raw, 'mSpeed', 0); // belts: units are 2× items/min
+  if (conveyorSpeed > 0) {
+    building.conveyorSpeedPerMin = round4(conveyorSpeed / 2);
+  }
+  const flowLimit = getNumber(raw, 'mFlowLimit', 0); // pipes: m³/s
+  if (flowLimit > 0) {
+    building.pipeFlowPerMin = round4(flowLimit * 60);
+  }
+  const itemsPerCycle = getNumber(raw, 'mItemsPerCycle', 0); // miners / extractors
+  const cycleTime = getNumber(raw, 'mExtractCycleTime', 0);
+  if (itemsPerCycle > 0 && cycleTime > 0) {
+    const perMin = (itemsPerCycle * 60) / cycleTime;
+    // Fluid extractors store items in 1000-per-m³ units (water extractor 2000 → 120 m³/min).
+    const isLiquid = getString(raw, 'mAllowedResourceForms').includes('RF_LIQUID');
+    building.extractionRatePerMin = round4(isLiquid ? perMin / 1000 : perMin);
+  }
+
   if (shortName.includes('Generator')) {
     const powerProduction = getNumber(raw, 'mPowerProduction', 0);
     const variableFactor = getNumber(raw, 'mVariablePowerProductionFactor', 0);

@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
+import { buildingFromRaw } from '../src/parser/extractors/buildings.js';
 import { parseGameData } from '../src/parser/index.js';
+import type { RawClass } from '../src/parser/types.js';
 import { FIXTURE_VERSION, rawDocs } from './fixtures/docs.js';
 
 const { gameData, parseWarnings } = parseGameData(rawDocs, FIXTURE_VERSION);
@@ -71,6 +73,69 @@ describe('build costs', () => {
     expect(gameData.buildings['Build_ConstructorMk1_C']?.buildCost).toEqual([
       { itemClassName: 'Desc_IronPlateReinforced_C', amount: 2 },
     ]);
+  });
+});
+
+describe('logistics throughput (#66)', () => {
+  const noItems = new Map();
+  const build = (raw: RawClass, shortName: string) => buildingFromRaw(raw, shortName, noItems);
+
+  it('derives conveyor speed (items/min = mSpeed / 2)', () => {
+    expect(
+      build(
+        { ClassName: 'Build_ConveyorBeltMk1_C', mSpeed: '120.000000' },
+        'FGBuildableConveyorBelt',
+      ).conveyorSpeedPerMin,
+    ).toBe(60);
+    expect(
+      build(
+        { ClassName: 'Build_ConveyorBeltMk3_C', mSpeed: '540.000000' },
+        'FGBuildableConveyorBelt',
+      ).conveyorSpeedPerMin,
+    ).toBe(270);
+  });
+
+  it('derives pipe flow (m³/min = mFlowLimit * 60)', () => {
+    expect(
+      build({ ClassName: 'Build_Pipeline_C', mFlowLimit: '5.000000' }, 'FGBuildablePipeline')
+        .pipeFlowPerMin,
+    ).toBe(300);
+  });
+
+  it('derives miner extraction rate (items/min) for solids', () => {
+    const miner = build(
+      {
+        ClassName: 'Build_MinerMk1_C',
+        mExtractCycleTime: '1.000000',
+        mItemsPerCycle: '1',
+        mAllowedResourceForms: '(RF_SOLID)',
+      },
+      'FGBuildableResourceExtractor',
+    );
+    expect(miner.extractionRatePerMin).toBe(60);
+  });
+
+  it('derives fluid extractor rate in m³/min (÷1000 for liquids)', () => {
+    const pump = build(
+      {
+        ClassName: 'Build_WaterPump_C',
+        mExtractCycleTime: '1.000000',
+        mItemsPerCycle: '2000',
+        mAllowedResourceForms: '(RF_LIQUID)',
+      },
+      'FGBuildableWaterPump',
+    );
+    expect(pump.extractionRatePerMin).toBe(120);
+  });
+
+  it('leaves the fields undefined for non-logistics buildings', () => {
+    const b = build(
+      { ClassName: 'Build_AssemblerMk1_C', mPowerConsumption: '15' },
+      'FGBuildableManufacturer',
+    );
+    expect(b.conveyorSpeedPerMin).toBeUndefined();
+    expect(b.pipeFlowPerMin).toBeUndefined();
+    expect(b.extractionRatePerMin).toBeUndefined();
   });
 });
 

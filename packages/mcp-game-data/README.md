@@ -135,6 +135,7 @@ tagged with the detected game version.
 | `recipes_for(item)` | All recipes that produce an item, including alternates; flags the standard. |
 | `ingredient_tree(item, targetPerMinute, recipeChoices?)` | Flat per-minute requirements + machine counts for every tier. |
 | `total_raw_inputs(item, targetPerMinute)` | Leaf raw resources only — what to mine/extract. |
+| `full_production_line(item, targetPerMinute, recipeChoices?, assumptions?)` | Total build cost of the whole line: every production machine (exact, honouring chosen recipes) + miners/extractors, plus a close-enough **estimate** of belts, pipes, splitters and mergers, aggregated into one shopping list. Logistics figures are estimates (layout isn't in the data); tune via `assumptions` (`minerMark`, `purity`, `beltMetresPerLink`). |
 | `what_consumes(item)` | All recipes that use an item as an ingredient. |
 | `compare_alternates(item)` | Side-by-side cost/throughput of every recipe producing an item. |
 | `buildable_with(resources)` | Items producible from a set of raw resources (transitive closure). |

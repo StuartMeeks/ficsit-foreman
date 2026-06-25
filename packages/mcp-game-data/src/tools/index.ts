@@ -131,6 +131,36 @@ export function registerTools(server: McpServer, graph: GraphDB, world: WorldQue
   );
 
   server.registerTool(
+    'full_production_line',
+    {
+      title: 'Full production line cost',
+      description:
+        'Total build cost of a whole production line for an item at a target rate: every production machine (exact, honouring chosen standard/alt recipes via recipeChoices), the miners/extractors to feed it (exact, by miner mark + node purity), and a close-enough ESTIMATE of belts, pipes, splitters and mergers — aggregated into one shopping list (totalBuildCost). Logistics figures are estimates (factory layout/length is not in the game data) and flagged; tune via the optional assumptions.',
+      inputSchema: {
+        item: z.string(),
+        targetPerMinute: z.number().positive(),
+        recipeChoices: z.record(z.string(), z.string()).optional(),
+        assumptions: z
+          .object({
+            minerMark: z.number().int().min(1).max(3).optional(),
+            purity: z.enum(['impure', 'normal', 'pure']).optional(),
+            beltMetresPerLink: z.number().positive().optional(),
+          })
+          .optional(),
+      },
+    },
+    async ({ item, targetPerMinute, recipeChoices, assumptions }): Promise<ToolResult> => {
+      const result = await graph.fullProductionLine(
+        item,
+        targetPerMinute,
+        recipeChoices,
+        assumptions,
+      );
+      return result === undefined ? notFound(`item '${item}'`) : ok(result);
+    },
+  );
+
+  server.registerTool(
     'total_raw_inputs',
     {
       title: 'Total raw inputs',

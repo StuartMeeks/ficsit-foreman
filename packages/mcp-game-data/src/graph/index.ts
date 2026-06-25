@@ -14,9 +14,11 @@ import {
 } from './queries/recipes.js';
 import {
   buildableWith,
+  fullProductionLine,
   ingredientTree,
   totalRawInputs,
   type BuildableItem,
+  type FullProductionLineOptions,
   type TotalRawInputsResult,
 } from './queries/production.js';
 import { getSchematic, listSchematics, type SchematicSummary } from './queries/schematics.js';
@@ -26,7 +28,12 @@ import {
   type BuildingView,
   type GeneratorSummary,
 } from './queries/buildings.js';
-import type { AlternateComparison, IngredientTreeResult, RecipeView } from './types.js';
+import type {
+  AlternateComparison,
+  FullProductionLineResult,
+  IngredientTreeResult,
+  RecipeView,
+} from './types.js';
 
 /** Cypher keywords that mutate data; rejected by `cypherQuery`. */
 const MUTATING_KEYWORDS =
@@ -87,6 +94,15 @@ export class GraphDB implements QueryContext {
     targetPerMinute: number,
   ): Promise<TotalRawInputsResult | undefined> {
     return totalRawInputs(this, item, targetPerMinute);
+  }
+
+  public fullProductionLine(
+    item: string,
+    targetPerMinute: number,
+    recipeChoices?: Record<string, string>,
+    options?: FullProductionLineOptions,
+  ): Promise<FullProductionLineResult | undefined> {
+    return fullProductionLine(this, item, targetPerMinute, recipeChoices, options);
   }
 
   public buildableWith(resources: string[]): Promise<BuildableItem[]> {
