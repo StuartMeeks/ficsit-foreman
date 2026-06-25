@@ -11,26 +11,22 @@ import type {
   WorkOrderRevisionDiff,
 } from '../api/types.js';
 import type { WorkOrderActions } from '../useForeman.js';
+import { STATE_LABEL, woLabel } from './workOrderLabels.js';
 
 interface WorkOrderPanelProps {
   playthroughId: string | null;
   current: WorkOrder | null;
   history: WorkOrder[];
   actions: WorkOrderActions;
+  /** True when the displayed order is being viewed from history (read-only). */
+  isViewingHistory: boolean;
+  /** Return to the live active order. */
+  onBackToActive: () => void;
+  /** Open the Work History drawer. */
+  onOpenHistory: () => void;
 }
 
-const woLabel = (n: number): string => `WO-${String(n).padStart(3, '0')}`;
 const metres = (cm: number): string => `${Math.round(cm / 100)}m`;
-
-const STATE_LABEL: Record<string, string> = {
-  new: 'New',
-  active: 'Active',
-  paused: 'Paused',
-  blocked: 'Blocked',
-  completed: 'Completed',
-  cancelled: 'Cancelled',
-  superseded: 'Superseded',
-};
 
 const COLLECTIBLE_LABEL: Record<CollectibleKind, string> = {
   mercerSphere: 'Mercer Sphere',
@@ -67,6 +63,9 @@ export function WorkOrderPanel({
   current,
   history,
   actions,
+  isViewingHistory,
+  onBackToActive,
+  onOpenHistory,
 }: WorkOrderPanelProps): React.JSX.Element {
   const [revisions, setRevisions] = useState<WorkOrderRevision[]>([]);
   const [audit, setAudit] = useState<WorkOrderAuditEvent[]>([]);
@@ -149,12 +148,20 @@ export function WorkOrderPanel({
         <div className="pane-head">
           <span className="tick label">⟩</span>
           <span className="label">Active Work Order</span>
+          <span className="spacer" />
+          <button
+            type="button"
+            className="ghost-btn tiny"
+            disabled={history.length === 0}
+            onClick={onOpenHistory}
+          >
+            History
+          </button>
         </div>
         <div className="wo">
           <p className="empty">
             No active order. Ask the foreman what to build next, and it will issue one here.
           </p>
-          <WorkHistory history={history} />
         </div>
       </section>
     );
@@ -162,6 +169,9 @@ export function WorkOrderPanel({
 
   const o = current;
   const terminal = o.state === 'completed' || o.state === 'cancelled' || o.state === 'superseded';
+  // Viewing a past order from history is read-only too, even when it is not
+  // terminal (e.g. a paused sibling) — only the live active order is editable.
+  const readOnly = terminal || isViewingHistory;
   const power = o.expectedOutputs.find((out) => out.kind === 'power');
   const otherOutputs = o.expectedOutputs.filter((out) => out.kind !== 'power');
 
@@ -205,13 +215,28 @@ export function WorkOrderPanel({
     <section className="pane work">
       <div className="pane-head">
         <span className="tick label">⟩</span>
-        <span className="label">{terminal ? 'Work Order' : 'Active Work Order'}</span>
+        <span className="label">{readOnly ? 'Work Order' : 'Active Work Order'}</span>
         {o.hoursLogged !== undefined ? (
           <span className="label hours">{o.hoursLogged}h logged</span>
         ) : null}
+        <span className="spacer" />
+        <button
+          type="button"
+          className="ghost-btn tiny"
+          disabled={history.length === 0}
+          onClick={onOpenHistory}
+        >
+          History
+        </button>
       </div>
 
       <div className="wo">
+        {isViewingHistory ? (
+          <button type="button" className="ghost-btn back-active" onClick={onBackToActive}>
+            ← Back to active order
+          </button>
+        ) : null}
+
         {/* ── Header ───────────────────────────────────────────────── */}
         <div className="wo-top">
           <span className="wo-id">{woLabel(o.sequenceNumber)}</span>
@@ -236,7 +261,7 @@ export function WorkOrderPanel({
         {error !== null ? <div className="wo-error">{error}</div> : null}
 
         {/* ── Plan revised ─────────────────────────────────────────── */}
-        {o.hasUnacknowledgedRevision && !terminal ? (
+        {o.hasUnacknowledgedRevision && !readOnly ? (
           <div className="banner-card revised">
             <div className="banner-card-head">
               <span className="label">Plan revised by Foreman · R{o.currentRevision}</span>
@@ -312,7 +337,7 @@ export function WorkOrderPanel({
                     <input
                       type="checkbox"
                       checked={step.checked}
-                      disabled={busy || terminal}
+                      disabled={busy || readOnly}
                       onChange={(e) => run(() => actions.setStep(o.id, step.id, e.target.checked))}
                     />
                     <span className="step-n">{String(i + 1).padStart(2, '0')}</span>
@@ -338,7 +363,7 @@ export function WorkOrderPanel({
                   <input
                     type="checkbox"
                     checked={mat.checked}
-                    disabled={busy || terminal}
+                    disabled={busy || readOnly}
                     onChange={(e) => run(() => actions.setMaterial(o.id, mat.id, e.target.checked))}
                   />
                   <span className="check-body">{mat.itemName}</span>
@@ -365,7 +390,7 @@ export function WorkOrderPanel({
                   <div className="stepper">
                     <button
                       type="button"
-                      disabled={busy || terminal || m.builtCount <= 0}
+                      disabled={busy || readOnly || m.builtCount <= 0}
                       onClick={() =>
                         run(() => actions.setMachine(o.id, m.id, Math.max(0, m.builtCount - 1)))
                       }
@@ -377,7 +402,7 @@ export function WorkOrderPanel({
                     </span>
                     <button
                       type="button"
-                      disabled={busy || terminal || m.builtCount >= m.requiredCount}
+                      disabled={busy || readOnly || m.builtCount >= m.requiredCount}
                       onClick={() =>
                         run(() =>
                           actions.setMachine(
@@ -502,7 +527,7 @@ export function WorkOrderPanel({
                       {rev.changeSummary ?? rev.reason ?? `Revision ${rev.revisionNumber}`}
                       <span className="check-note">{rev.createdBy}</span>
                     </span>
-                    {!terminal && rev.revisionNumber < o.currentRevision ? (
+                    {!readOnly && rev.revisionNumber < o.currentRevision ? (
                       <button
                         type="button"
                         className="ghost-btn tiny"
@@ -538,7 +563,7 @@ export function WorkOrderPanel({
         ) : null}
 
         {/* ── Controls ─────────────────────────────────────────────── */}
-        {!terminal ? (
+        {!readOnly ? (
           <div className="controls">
             {forceWarn ? (
               <div className="force-warn" ref={forceWarnRef}>
@@ -624,8 +649,6 @@ export function WorkOrderPanel({
             )}
           </div>
         ) : null}
-
-        <WorkHistory history={history} currentId={o.id} />
       </div>
     </section>
   );
@@ -674,35 +697,6 @@ function CollectibleGroup({
           </span>
         </div>
       ))}
-    </div>
-  );
-}
-
-function WorkHistory({
-  history,
-  currentId,
-}: {
-  history: WorkOrder[];
-  currentId?: string;
-}): React.JSX.Element | null {
-  const past = history.filter((o) => o.id !== currentId);
-  if (past.length === 0) {
-    return null;
-  }
-  return (
-    <div className="history">
-      <span className="label">Work History</span>
-      {[...past]
-        .sort((a, b) => b.sequenceNumber - a.sequenceNumber)
-        .map((order) => (
-          <div className="row" key={order.id}>
-            <span className="wo-n">{woLabel(order.sequenceNumber)}</span>
-            <span>{order.title}</span>
-            <span className={`chip state-${order.state}`}>
-              {STATE_LABEL[order.state] ?? order.state}
-            </span>
-          </div>
-        ))}
     </div>
   );
 }
