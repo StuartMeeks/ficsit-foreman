@@ -1,0 +1,9 @@
+# Normalise line endings. Development happens on Linux and the world-locations
+# extractor runs on a Windows host, so pin text files to LF in the repo and on
+# checkout to keep diffs clean and cross-platform-stable. Git auto-detects binary
+# files and leaves them untouched.
+* text=auto eol=lf
+
+# en-US.json is UTF-16 LE with a BOM. Line-ending/text normalisation would corrupt
+# it, so mark it binary explicitly rather than relying on auto-detection.
+packages/game-data-core/data/*/en-US.json binary
