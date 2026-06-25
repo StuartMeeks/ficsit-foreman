@@ -1,29 +1,29 @@
 interface HeaderProps {
-  playthroughId: string | null;
+  /** The playthrough switcher control, rendered next to the wordmark. */
+  switcher?: React.ReactNode;
   userEmail: string | null;
   onOpenSettings: () => void;
   onOpenSecurity: () => void;
   onSignOut: () => void;
 }
 
-/** Global header: wordmark, playthrough indicator, live dot, settings, sign-out. */
+/** Global header: wordmark, playthrough switcher, live dot, settings, sign-out. */
 export function Header({
-  playthroughId,
+  switcher,
   userEmail,
   onOpenSettings,
   onOpenSecurity,
   onSignOut,
 }: HeaderProps): React.JSX.Element {
-  const shortId = playthroughId !== null ? playthroughId.slice(0, 8) : '—';
   return (
     <header className="header">
       <div className="wordmark">
         <span className="glyph" aria-hidden="true" />
         FOREMAN
       </div>
+      {switcher !== undefined ? <div className="header-switcher">{switcher}</div> : null}
       <div className="spacer" />
       {userEmail !== null ? <span className="label">{userEmail}</span> : null}
-      <span className="label">PLAYTHROUGH {shortId}</span>
       <span className="status">
         <span className="pulse-dot" aria-hidden="true" />
         <span className="label">ONLINE</span>

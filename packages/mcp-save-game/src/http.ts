@@ -4,7 +4,7 @@ import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/
 
 import { lanAddresses } from './config.js';
 import { logger } from './logger.js';
-import type { SaveStore } from './store/saveStore.js';
+import type { SaveStoreRegistry } from './store/registry.js';
 import { registerTools } from './tools/index.js';
 
 const MCP_ENDPOINT = '/mcp';
@@ -18,7 +18,7 @@ const MCP_ENDPOINT = '/mcp';
  * trusted localhost/LAN without putting an auth layer in front of it.
  */
 export async function startHttpServer(
-  store: SaveStore,
+  registry: SaveStoreRegistry,
   host: string,
   port: number,
   serverName: string,
@@ -29,7 +29,7 @@ export async function startHttpServer(
 
   app.post(MCP_ENDPOINT, async (req, res) => {
     const server = new McpServer({ name: serverName, version: serverVersion });
-    registerTools(server, store);
+    registerTools(server, registry);
     const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined });
     res.on('close', () => {
       void transport.close();
@@ -59,6 +59,7 @@ export async function startHttpServer(
   app.delete(MCP_ENDPOINT, methodNotAllowed);
 
   app.get('/health', (_req, res) => {
+    const store = registry.resolve();
     res.json({ status: 'ok', version: store.version, saveName: store.saveName });
   });
 

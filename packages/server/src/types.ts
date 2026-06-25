@@ -332,15 +332,30 @@ export interface Foreman {
   updatedAt: string;
 }
 
+/** The current uploaded `.sav` attached to a playthrough (metadata only). */
+export interface Save {
+  id: string;
+  /** Original uploaded filename. */
+  fileName: string;
+  /** In-game session/save name parsed from the header (if available). */
+  saveName?: string;
+  /** Game build + save format parsed from the header (if available). */
+  version?: string;
+  sizeBytes: number;
+  uploadedAt: string;
+}
+
 export interface Playthrough {
   id: string;
   /** The attached foreman (persona) — one per playthrough. */
   foremanId: string;
-  /** Free-text name; undefined until set (defaulted from the save in #76). */
+  /** Free-text name; undefined until set (defaulted from the attached save). */
   name?: string;
   pioneerProfile: string;
   /** Condensed running record of the playthrough; undefined until first summarised. */
   summary?: string;
+  /** The current attached save, if one has been uploaded. */
+  save?: Save;
   createdAt: string;
   updatedAt: string;
 }
@@ -349,4 +364,10 @@ export interface Playthrough {
 export interface ChatMessage {
   role: 'user' | 'assistant';
   content: string;
+}
+
+/** A stored message with its id + timestamp, for re-hydrating chat history. */
+export interface StoredMessage extends ChatMessage {
+  id: string;
+  createdAt: string;
 }

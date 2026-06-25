@@ -6,9 +6,10 @@ import dotenv from 'dotenv';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 
-import { resolveSavePath, resolveServerConfig } from './config.js';
+import { resolveSavePath, resolveServerConfig, type ServerConfig } from './config.js';
 import { startHttpServer } from './http.js';
 import { logger } from './logger.js';
+import { SaveStoreRegistry } from './store/registry.js';
 import { SaveStore } from './store/saveStore.js';
 import { registerTools } from './tools/index.js';
 
@@ -24,28 +25,31 @@ function loadEnv(): void {
   dotenv.config(); // also honour a .env in the current working directory
 }
 
-function buildStore(): SaveStore {
+function buildRegistry(config: ServerConfig): SaveStoreRegistry {
   const { path: savePath, warning } = resolveSavePath();
   if (warning !== undefined) {
     logger.warn(warning);
   }
-  const store = new SaveStore(savePath);
-  logger.info(`Save source: ${savePath ?? '(none — running with an empty state)'}`);
-  return store;
+  const defaultStore = new SaveStore(savePath);
+  logger.info(`Default save source: ${savePath ?? '(none — running with an empty state)'}`);
+  if (config.saveDataDir !== undefined) {
+    logger.info(`Per-playthrough saves served from: ${config.saveDataDir}`);
+  }
+  return new SaveStoreRegistry(defaultStore, config.saveDataDir);
 }
 
 async function main(): Promise<void> {
   loadEnv();
-  const store = buildStore();
-
   const config = resolveServerConfig();
+  const registry = buildRegistry(config);
+
   if (config.transport === 'http') {
-    await startHttpServer(store, config.host, config.port, SERVER_NAME, SERVER_VERSION);
+    await startHttpServer(registry, config.host, config.port, SERVER_NAME, SERVER_VERSION);
     return;
   }
 
   const server = new McpServer({ name: SERVER_NAME, version: SERVER_VERSION });
-  registerTools(server, store);
+  registerTools(server, registry);
   const transport = new StdioServerTransport();
   await server.connect(transport);
   logger.info('Transport: stdio (no network port — the client talks over stdin/stdout).');

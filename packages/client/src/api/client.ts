@@ -6,6 +6,8 @@ import { parseSseStream } from './sse.js';
 import type {
   Foreman,
   Playthrough,
+  Save,
+  StoredMessage,
   WorkOrder,
   WorkOrderAction,
   WorkOrderAuditEvent,
@@ -83,6 +85,24 @@ export async function patchForeman(
   return (await response.json()) as Foreman;
 }
 
+export async function listForemen(): Promise<Foreman[]> {
+  const response = await fetch('/api/foremen', { credentials: CREDENTIALS });
+  if (!response.ok) {
+    throw new Error(await readError(response));
+  }
+  return (await response.json()) as Foreman[];
+}
+
+export async function deleteForeman(id: string): Promise<void> {
+  const response = await fetch(`/api/foremen/${id}`, {
+    method: 'DELETE',
+    credentials: CREDENTIALS,
+  });
+  if (!response.ok && response.status !== 404) {
+    throw new Error(await readError(response));
+  }
+}
+
 // ── Playthroughs ──────────────────────────────────────────────────────────────
 
 export interface CreatePlaythroughInput {
@@ -149,6 +169,51 @@ export async function patchPlaythrough(
     throw new Error(await readError(response));
   }
   return (await response.json()) as Playthrough;
+}
+
+export async function listPlaythroughs(): Promise<Playthrough[]> {
+  const response = await fetch('/api/playthroughs', { credentials: CREDENTIALS });
+  if (!response.ok) {
+    throw new Error(await readError(response));
+  }
+  return (await response.json()) as Playthrough[];
+}
+
+export async function deletePlaythrough(id: string): Promise<void> {
+  const response = await fetch(`/api/playthroughs/${id}`, {
+    method: 'DELETE',
+    credentials: CREDENTIALS,
+  });
+  if (!response.ok && response.status !== 404) {
+    throw new Error(await readError(response));
+  }
+}
+
+/** Prior chat turns for a playthrough, chronological — re-hydrates the chat view. */
+export async function listMessages(playthroughId: string): Promise<StoredMessage[]> {
+  const response = await fetch(`/api/playthroughs/${playthroughId}/messages`, {
+    credentials: CREDENTIALS,
+  });
+  if (!response.ok) {
+    throw new Error(await readError(response));
+  }
+  return (await response.json()) as StoredMessage[];
+}
+
+/** Uploads (or replaces) the playthrough's current save. Multipart `save` field. */
+export async function uploadSave(playthroughId: string, file: File): Promise<Save> {
+  const form = new FormData();
+  form.append('save', file);
+  // No explicit content-type: the browser sets the multipart boundary itself.
+  const response = await fetch(`/api/playthroughs/${playthroughId}/save`, {
+    method: 'POST',
+    credentials: CREDENTIALS,
+    body: form,
+  });
+  if (!response.ok) {
+    throw new Error(await readError(response));
+  }
+  return (await response.json()) as Save;
 }
 
 export async function getActiveWorkOrder(playthroughId: string): Promise<WorkOrder | null> {

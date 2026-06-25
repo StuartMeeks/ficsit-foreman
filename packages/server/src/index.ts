@@ -18,6 +18,7 @@ import { McpHttpClient } from './mcp/client.js';
 import type { McpGateway } from './mcp/client.js';
 import { ForemanService } from './services/foremanService.js';
 import { PlaythroughService } from './services/playthroughService.js';
+import { SaveService } from './services/saveService.js';
 import { WorkOrderService } from './services/workOrderService.js';
 
 /** Loads `.env` from the package dir, the workspace root, and the cwd. */
@@ -63,6 +64,7 @@ async function main(): Promise<void> {
     auth: createAuth(prisma),
     foremen: new ForemanService(prisma),
     playthroughs,
+    saves: new SaveService(prisma, mcp, config.saveDataDir),
     workOrders: new WorkOrderService(prisma),
     mcp,
     summary: new SummaryService(

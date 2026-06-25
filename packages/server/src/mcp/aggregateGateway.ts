@@ -1,5 +1,10 @@
 import { logger } from '../logger.js';
-import type { McpGateway, ToolDefinition, ToolInvocationResult } from './client.js';
+import type {
+  McpGateway,
+  ToolCallContext,
+  ToolDefinition,
+  ToolInvocationResult,
+} from './client.js';
 
 /**
  * Fans the foreman's tool calls out across several MCP servers (e.g. game-data
@@ -55,6 +60,7 @@ export class McpAggregateGateway implements McpGateway {
   public async callTool(
     name: string,
     args: Record<string, unknown>,
+    context?: ToolCallContext,
   ): Promise<ToolInvocationResult> {
     // Routes are populated by listTools, which the chat loop calls each turn
     // before dispatching tool calls. Refresh lazily if we have not listed yet.
@@ -62,6 +68,13 @@ export class McpAggregateGateway implements McpGateway {
       await this.listTools();
     }
     const gateway = this.routes.get(name) ?? this.primary;
-    return gateway.callTool(name, args);
+    // Save-game tools live on a secondary server. Inject the host's savePath so
+    // the call reads the active playthrough's save, overriding any model-supplied
+    // value. The primary (game-data) server never gets a savePath.
+    const routedArgs =
+      gateway !== this.primary && context?.savePath !== undefined
+        ? { ...args, savePath: context.savePath }
+        : args;
+    return gateway.callTool(name, routedArgs, context);
   }
 }

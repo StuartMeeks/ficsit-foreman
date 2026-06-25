@@ -19,6 +19,15 @@ export interface ToolInvocationResult {
 }
 
 /**
+ * Host-supplied context for a tool call. The save-game MCP is multi-save aware;
+ * the host injects the active playthrough's `savePath` so save-game tools read
+ * the right save (the model never supplies it). Ignored by single-save servers.
+ */
+export interface ToolCallContext {
+  savePath?: string;
+}
+
+/**
  * The subset of MCP behaviour the chat loop depends on. Defining it as an
  * interface lets tests substitute a fake gateway without a live MCP server.
  */
@@ -26,7 +35,11 @@ export interface McpGateway {
   /** Game data version reported by the MCP server (for stamping work orders). */
   readonly gameVersion: string;
   listTools(): Promise<ToolDefinition[]>;
-  callTool(name: string, args: Record<string, unknown>): Promise<ToolInvocationResult>;
+  callTool(
+    name: string,
+    args: Record<string, unknown>,
+    context?: ToolCallContext,
+  ): Promise<ToolInvocationResult>;
 }
 
 interface RawToolContent {
@@ -123,7 +136,10 @@ export class McpHttpClient implements McpGateway {
   public async callTool(
     name: string,
     args: Record<string, unknown>,
+    _context?: ToolCallContext,
   ): Promise<ToolInvocationResult> {
+    // A single MCP server ignores the host context — only the aggregate gateway
+    // uses it (to inject savePath into save-routed calls).
     try {
       const client = await this.ensureClient();
       const result = await client.callTool({ name, arguments: args });

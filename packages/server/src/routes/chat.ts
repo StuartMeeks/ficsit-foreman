@@ -71,6 +71,10 @@ export function chatRouter(deps: AppDeps): Router {
     // windowed context sent to the model.
     await deps.playthroughs.appendMessage(playthroughId, 'user', parsed.data.message);
 
+    // If this playthrough has a save attached, the save-game tools should read
+    // it (injected by the gateway). Undefined → tools fall back to the default.
+    const savePath = await deps.saves.getSavePath(playthroughId);
+
     const sse = openSse(res);
     try {
       const provider = deps.llmProviderFactory(llm);
@@ -82,6 +86,7 @@ export function chatRouter(deps: AppDeps): Router {
             pioneerProfile: playthrough.pioneerProfile,
             summary: playthrough.summary,
           },
+          savePath,
           provider,
           model: llm.model,
           maxTokens: llm.maxTokens,

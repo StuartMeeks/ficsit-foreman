@@ -50,10 +50,16 @@ services:
     container_name: foreman-server
     depends_on:
       - mcp-game-data
+      - mcp-save-game
     ports:
       - "8724:8724"
     environment:
       MCP_URL: http://mcp-game-data:8723/mcp
+      # The save-game MCP reads each playthrough's uploaded .sav from the shared
+      # saves volume (SAVE_DATA_DIR); the server injects the active playthrough's
+      # path into save-game tool calls.
+      SAVE_MCP_URL: http://mcp-save-game:8726/mcp
+      SAVE_DATA_DIR: /data/saves
       DATABASE_URL: file:/data/foreman.db
       # Accounts. BETTER_AUTH_SECRET signs session cookies. Leave it unset and the
       # server generates one on first start and persists it in the /data volume
@@ -84,9 +90,14 @@ services:
       # `docker compose down` keeps it too — only `down -v` (or removing the
       # volume) deletes your data.
       - foreman-db:/data
-      # Prefer a folder you control instead? Comment the line above and use a
-      # host bind mount — data then lives next to compose.yaml in ./data:
+      # Uploaded playthrough saves live in their own volume, shared read/write
+      # with the save-game MCP (mounted at the same path there) so it can read a
+      # save by the absolute path the server injects.
+      - foreman-saves:/data/saves
+      # Prefer a folder you control instead? Comment the lines above and use host
+      # bind mounts — data then lives next to compose.yaml in ./data:
       #   - ./data:/data
+      #   - ./data/saves:/data/saves
     restart: unless-stopped
 
   web:
@@ -120,11 +131,19 @@ services:
     ports:
       - "8726:8726"
     environment:
-      # Path to the .sav INSIDE the container (mount the save directory below).
+      # Optional fixed save (legacy/dev): path to a .sav INSIDE the container
+      # (mount the save directory below). When the app uploads per-playthrough
+      # saves, those are served from SAVE_DATA_DIR instead.
       SAVE_FILE_PATH: ${SAVE_FILE_PATH:-}
-    # volumes:
-    #   # Mount the folder holding your .sav read-only, then set SAVE_FILE_PATH to
-    #   # the in-container path, e.g. SAVE_FILE_PATH=/saves/MySave.sav:
+      # Playthrough saves uploaded by the app live here (shared with the server).
+      # Host-injected savePath arguments must resolve inside this directory.
+      SAVE_DATA_DIR: /data/saves
+    volumes:
+      # Shared with the server: the app writes uploaded saves here, this MCP reads
+      # them by absolute path.
+      - foreman-saves:/data/saves
+    #   # Also mount a folder holding a fixed .sav read-only (legacy SAVE_FILE_PATH),
+    #   # then set SAVE_FILE_PATH to the in-container path:
     #   - "C:/Users/you/AppData/Local/FactoryGame/Saved/SaveGames:/saves:ro"
 
 volumes:
@@ -132,3 +151,5 @@ volumes:
   #   docker run --rm -v foreman-db:/data -v "$PWD:/backup" busybox \
   #     tar czf /backup/foreman-db.tgz /data
   foreman-db:
+  # Uploaded playthrough saves, shared between the server and the save-game MCP.
+  foreman-saves:

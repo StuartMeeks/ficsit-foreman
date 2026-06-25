@@ -14,7 +14,13 @@ import {
   claimPlaythrough,
   createForeman,
   createPlaythrough,
+  deleteForeman,
+  deletePlaythrough,
   getForeman,
+  getPlaythrough,
+  listForemen,
+  listMessages,
+  listPlaythroughs,
   listWorkOrders,
   logHours,
   patchForeman,
@@ -25,6 +31,7 @@ import {
   setStepChecked,
   streamChat,
   transitionWorkOrder,
+  uploadSave,
   type ClientLlmConfig,
   type TransitionOptions,
 } from './api/client.js';
@@ -32,6 +39,7 @@ import {
   TERMINAL_STATES,
   type Foreman,
   type Playthrough,
+  type StoredMessage,
   type WorkOrder,
   type WorkOrderAction,
 } from './api/types.js';
@@ -45,7 +53,7 @@ const PROVIDER_KEY = 'foreman.provider';
 const MODEL_KEY = 'foreman.model';
 const BASE_URL_KEY = 'foreman.baseUrl';
 
-/** Default name for the foreman minted during onboarding (renamed later, #61). */
+/** Default name for the foreman minted during onboarding (renamed later via Settings). */
 const DEFAULT_FOREMAN_NAME = 'Foreman';
 
 export interface ChatMsg {
@@ -68,6 +76,14 @@ export interface LlmSettings {
 /** Whether the auth check is still running, finished signed-out, or signed-in. */
 export type AuthStatus = 'loading' | 'anon' | 'authed';
 
+/** Fields for creating a new playthrough from the new-playthrough modal. */
+export interface NewPlaythroughInput {
+  foremanId: string;
+  name?: string;
+  pioneerProfile?: string;
+  saveFile?: File;
+}
+
 export interface ForemanState {
   authStatus: AuthStatus;
   user: AuthUser | null;
@@ -79,9 +95,12 @@ export interface ForemanState {
   /** Re-reads the current user (e.g. after enabling/disabling MFA). */
   refreshUser(): Promise<void>;
   signOut(): Promise<void>;
+  /** The active playthrough and its attached foreman. */
   playthrough: Playthrough | null;
-  /** The foreman attached to the current playthrough (its persona). */
   foreman: Foreman | null;
+  /** All of the user's playthroughs / foremen (for the switcher + library). */
+  playthroughs: Playthrough[];
+  foremen: Foreman[];
   messages: ChatMsg[];
   /** The order the work-order panel should display (active, else latest). */
   currentOrder: WorkOrder | null;
@@ -95,11 +114,18 @@ export interface ForemanState {
   keyNeeded: boolean;
   send(text: string): void;
   completeOnboarding(input: { personality: string; pioneerProfile: string }): Promise<void>;
-  saveSettings(input: {
-    personality: string;
-    pioneerProfile: string;
-    llm: LlmSettings;
-  }): Promise<void>;
+  saveSettings(input: { pioneerProfile: string; llm: LlmSettings }): Promise<void>;
+  // Playthrough management (switcher + new-playthrough modal).
+  switchPlaythrough(id: string): Promise<void>;
+  newPlaythrough(input: NewPlaythroughInput): Promise<void>;
+  renamePlaythrough(id: string, name: string): Promise<void>;
+  removePlaythrough(id: string): Promise<void>;
+  /** Swap the foreman attached to the active playthrough. */
+  setPlaythroughForeman(foremanId: string): Promise<void>;
+  // Foreman library (sectioned Settings).
+  addForeman(input: { name: string; personality?: string }): Promise<Foreman>;
+  editForeman(id: string, patch: { name?: string; personality?: string }): Promise<void>;
+  removeForeman(id: string): Promise<void>;
 }
 
 function readStorage(key: string): string {
@@ -121,6 +147,17 @@ function writeStorage(key: string, value: string): void {
 /** The working playthrough id, falling back to the pre-#86 storage key. */
 function readPlaythroughId(): string {
   return readStorage(PLAYTHROUGH_KEY) || readStorage(LEGACY_SESSION_KEY);
+}
+
+/** A stored message hydrated into the chat view (no live streaming state). */
+function toChatMsg(message: StoredMessage): ChatMsg {
+  return {
+    id: message.id,
+    role: message.role,
+    content: message.content,
+    tools: [],
+    streaming: false,
+  };
 }
 
 /**
@@ -172,6 +209,8 @@ export function useForeman(): ForemanState {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [playthrough, setPlaythrough] = useState<Playthrough | null>(null);
   const [foreman, setForeman] = useState<Foreman | null>(null);
+  const [playthroughs, setPlaythroughs] = useState<Playthrough[]>([]);
+  const [foremen, setForemen] = useState<Foreman[]>([]);
   const [messages, setMessages] = useState<ChatMsg[]>([]);
   const [history, setHistory] = useState<WorkOrder[]>([]);
   const currentOrder = useMemo(() => pickCurrent(history), [history]);
@@ -206,34 +245,64 @@ export function useForeman(): ForemanState {
   }, []);
 
   /**
-   * Resolves the signed-in user's working playthrough. The browser may hold a
-   * local playthrough id from before sign-in (or a prior visit); we claim it for
-   * the user (idempotent if already theirs), and fall through to onboarding if it
-   * is gone or belongs to someone else. A playthrough counts as onboarded once
-   * its foreman carries a personality or it carries a pioneer profile; the
-   * playthrough itself is created lazily when onboarding completes.
+   * Makes a playthrough the active one: persists it locally, resolves its
+   * foreman, and (when onboarded) hydrates its chat history and work orders.
    */
-  const loadPlaythrough = useCallback(async () => {
-    const existingId = readPlaythroughId();
-    const loaded = existingId ? await claimPlaythrough(existingId) : null;
-    if (loaded === null) {
-      writeStorage(PLAYTHROUGH_KEY, '');
-      setPlaythrough(null);
-      setForeman(null);
-      setNeedsOnboarding(true);
-      return;
-    }
-    writeStorage(PLAYTHROUGH_KEY, loaded.id);
-    const attachedForeman = await getForeman(loaded.foremanId);
-    setPlaythrough(loaded);
-    setForeman(attachedForeman);
-    if (isUnonboarded(loaded, attachedForeman)) {
+  const activate = useCallback(async (target: Playthrough, knownForemen: Foreman[]) => {
+    writeStorage(PLAYTHROUGH_KEY, target.id);
+    const attached =
+      knownForemen.find((f) => f.id === target.foremanId) ?? (await getForeman(target.foremanId));
+    setPlaythrough(target);
+    setForeman(attached);
+    if (isUnonboarded(target, attached)) {
+      setMessages([]);
+      setHistory([]);
       setNeedsOnboarding(true);
       return;
     }
     setNeedsOnboarding(false);
-    await loadOrders(loaded.id);
-  }, [loadOrders]);
+    const [msgs, orders] = await Promise.all([listMessages(target.id), listWorkOrders(target.id)]);
+    setMessages(msgs.map(toChatMsg));
+    setHistory(orders);
+  }, []);
+
+  /**
+   * Loads the signed-in user's workspace: their foremen + playthroughs, then the
+   * active playthrough — the locally-remembered one (claimed if it predates
+   * accounts), else the most recently updated, else onboarding when there are
+   * none.
+   */
+  const loadWorkspace = useCallback(async () => {
+    const [allForemen, listed] = await Promise.all([listForemen(), listPlaythroughs()]);
+    setForemen(allForemen);
+    let all = listed;
+
+    const storedId = readPlaythroughId();
+    let active: Playthrough | null = storedId ? (all.find((p) => p.id === storedId) ?? null) : null;
+    if (active === null && storedId.length > 0) {
+      // A locally-held id not in the list may be a pre-accounts anonymous
+      // playthrough; claim it for this user, and fold it into the list.
+      active = await claimPlaythrough(storedId);
+      if (active !== null && !all.some((p) => p.id === active!.id)) {
+        all = [active, ...all];
+      }
+    }
+    if (active === null) {
+      active = all[0] ?? null;
+    }
+    setPlaythroughs(all);
+
+    if (active === null) {
+      writeStorage(PLAYTHROUGH_KEY, '');
+      setPlaythrough(null);
+      setForeman(null);
+      setMessages([]);
+      setHistory([]);
+      setNeedsOnboarding(true);
+      return;
+    }
+    await activate(active, allForemen);
+  }, [activate]);
 
   useEffect(() => {
     if (booted.current) {
@@ -249,16 +318,16 @@ export function useForeman(): ForemanState {
         }
         setUser(current);
         setAuthStatus('authed');
-        await loadPlaythrough();
+        await loadWorkspace();
       } catch (error) {
         setBootError(error instanceof Error ? error.message : 'Failed to start a playthrough.');
       } finally {
         setBooting(false);
       }
     })();
-  }, [loadPlaythrough]);
+  }, [loadWorkspace]);
 
-  /** Runs the post-authentication playthrough load, surfacing boot errors. */
+  /** Runs the post-authentication workspace load, surfacing boot errors. */
   const enterApp = useCallback(
     async (current: AuthUser) => {
       setUser(current);
@@ -266,14 +335,14 @@ export function useForeman(): ForemanState {
       setBootError(null);
       setBooting(true);
       try {
-        await loadPlaythrough();
+        await loadWorkspace();
       } catch (error) {
         setBootError(error instanceof Error ? error.message : 'Failed to start a playthrough.');
       } finally {
         setBooting(false);
       }
     },
-    [loadPlaythrough],
+    [loadWorkspace],
   );
 
   const signIn = useCallback(
@@ -320,6 +389,8 @@ export function useForeman(): ForemanState {
     setAuthStatus('anon');
     setPlaythrough(null);
     setForeman(null);
+    setPlaythroughs([]);
+    setForemen([]);
     setMessages([]);
     setHistory([]);
     setNeedsOnboarding(false);
@@ -421,6 +492,14 @@ export function useForeman(): ForemanState {
     };
   }, [replaceOrder, playthrough]);
 
+  /** Upserts a playthrough into the list (keeping most-recent-first order). */
+  const upsertPlaythrough = useCallback((updated: Playthrough) => {
+    setPlaythroughs((prev) => {
+      const without = prev.filter((p) => p.id !== updated.id);
+      return [updated, ...without];
+    });
+  }, []);
+
   const completeOnboarding = useCallback(
     async (input: { personality: string; pioneerProfile: string }) => {
       // Reuse an existing playthrough + foreman (e.g. one left behind by an
@@ -445,37 +524,137 @@ export function useForeman(): ForemanState {
         });
       }
       writeStorage(PLAYTHROUGH_KEY, nextPlaythrough.id);
+      setForemen(await listForemen());
+      upsertPlaythrough(nextPlaythrough);
       setForeman(nextForeman);
       setPlaythrough(nextPlaythrough);
       setNeedsOnboarding(false);
+      setMessages([]);
       await loadOrders(nextPlaythrough.id);
     },
-    [loadOrders, playthrough, foreman],
+    [loadOrders, playthrough, foreman, upsertPlaythrough],
   );
 
   const saveSettings = useCallback(
-    async (input: { personality: string; pioneerProfile: string; llm: LlmSettings }) => {
+    async (input: { pioneerProfile: string; llm: LlmSettings }) => {
       // The user's own provider key, held only in their browser so they need not
       // re-enter it each visit. It is sent solely as the request header they
-      // authorised and never persisted server-side. localStorage is clear-text
-      // by nature; this at-rest exposure is an accepted trade-off for a key the
-      // user owns on their own machine.
+      // authorised and never persisted server-side.
       writeStorage(API_KEY, input.llm.apiKey);
       writeStorage(PROVIDER_KEY, input.llm.provider);
       writeStorage(MODEL_KEY, input.llm.model);
       writeStorage(BASE_URL_KEY, input.llm.baseUrl);
       setLlm(input.llm);
-      if (foreman !== null) {
-        setForeman(await patchForeman(foreman.id, { personality: input.personality }));
-      }
       if (playthrough !== null) {
-        setPlaythrough(
-          await patchPlaythrough(playthrough.id, { pioneerProfile: input.pioneerProfile }),
-        );
+        const updated = await patchPlaythrough(playthrough.id, {
+          pioneerProfile: input.pioneerProfile,
+        });
+        setPlaythrough(updated);
+        upsertPlaythrough(updated);
       }
     },
-    [playthrough, foreman],
+    [playthrough, upsertPlaythrough],
   );
+
+  const switchPlaythrough = useCallback(
+    async (id: string) => {
+      if (playthrough?.id === id) {
+        return;
+      }
+      const target = playthroughs.find((p) => p.id === id) ?? (await getPlaythrough(id));
+      if (target === null || target === undefined) {
+        return;
+      }
+      await activate(target, foremen);
+    },
+    [activate, foremen, playthroughs, playthrough],
+  );
+
+  const newPlaythrough = useCallback(
+    async (input: NewPlaythroughInput) => {
+      const created = await createPlaythrough({
+        foremanId: input.foremanId,
+        name: input.name,
+        pioneerProfile: input.pioneerProfile,
+      });
+      if (input.saveFile !== undefined) {
+        await uploadSave(created.id, input.saveFile);
+      }
+      // Re-fetch so a save-derived default name + save metadata are reflected.
+      const fresh = (await getPlaythrough(created.id)) ?? created;
+      upsertPlaythrough(fresh);
+      await activate(fresh, foremen);
+    },
+    [activate, foremen, upsertPlaythrough],
+  );
+
+  const renamePlaythrough = useCallback(
+    async (id: string, name: string) => {
+      const updated = await patchPlaythrough(id, { name });
+      upsertPlaythrough(updated);
+      if (playthrough?.id === id) {
+        setPlaythrough(updated);
+      }
+    },
+    [playthrough, upsertPlaythrough],
+  );
+
+  const removePlaythrough = useCallback(
+    async (id: string) => {
+      await deletePlaythrough(id);
+      const remaining = playthroughs.filter((p) => p.id !== id);
+      setPlaythroughs(remaining);
+      if (playthrough?.id === id) {
+        const next = remaining[0] ?? null;
+        if (next === null) {
+          writeStorage(PLAYTHROUGH_KEY, '');
+          setPlaythrough(null);
+          setForeman(null);
+          setMessages([]);
+          setHistory([]);
+          setNeedsOnboarding(true);
+        } else {
+          await activate(next, foremen);
+        }
+      }
+    },
+    [activate, foremen, playthrough, playthroughs],
+  );
+
+  const setPlaythroughForeman = useCallback(
+    async (foremanId: string) => {
+      if (playthrough === null) {
+        return;
+      }
+      const updated = await patchPlaythrough(playthrough.id, { foremanId });
+      setPlaythrough(updated);
+      upsertPlaythrough(updated);
+      setForeman(foremen.find((f) => f.id === foremanId) ?? (await getForeman(foremanId)));
+    },
+    [foremen, playthrough, upsertPlaythrough],
+  );
+
+  const addForeman = useCallback(async (input: { name: string; personality?: string }) => {
+    const created = await createForeman(input);
+    setForemen(await listForemen());
+    return created;
+  }, []);
+
+  const editForeman = useCallback(
+    async (id: string, patch: { name?: string; personality?: string }) => {
+      const updated = await patchForeman(id, patch);
+      setForemen((prev) => prev.map((f) => (f.id === id ? updated : f)));
+      if (foreman?.id === id) {
+        setForeman(updated);
+      }
+    },
+    [foreman],
+  );
+
+  const removeForeman = useCallback(async (id: string) => {
+    await deleteForeman(id);
+    setForemen((prev) => prev.filter((f) => f.id !== id));
+  }, []);
 
   return {
     authStatus,
@@ -488,6 +667,8 @@ export function useForeman(): ForemanState {
     signOut,
     playthrough,
     foreman,
+    playthroughs,
+    foremen,
     messages,
     currentOrder,
     history,
@@ -501,5 +682,13 @@ export function useForeman(): ForemanState {
     send,
     completeOnboarding,
     saveSettings,
+    switchPlaythrough,
+    newPlaythrough,
+    renamePlaythrough,
+    removePlaythrough,
+    setPlaythroughForeman,
+    addForeman,
+    editForeman,
+    removeForeman,
   };
 }

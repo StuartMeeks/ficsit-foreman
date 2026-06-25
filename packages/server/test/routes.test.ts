@@ -1,5 +1,8 @@
+import fs from 'node:fs';
 import type { AddressInfo } from 'node:net';
 import type { Server } from 'node:http';
+import os from 'node:os';
+import path from 'node:path';
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
@@ -12,8 +15,11 @@ import { SummaryService } from '../src/llm/summary.js';
 import type { LlmProviderFactory } from '../src/llm/provider.js';
 import { ForemanService } from '../src/services/foremanService.js';
 import { PlaythroughService } from '../src/services/playthroughService.js';
+import { SaveService } from '../src/services/saveService.js';
 import { WorkOrderService } from '../src/services/workOrderService.js';
 import { createTestDb, createTestForeman, type TestDb } from './helpers.js';
+
+let saveDir: string;
 
 let db: TestDb;
 let server: Server;
@@ -60,6 +66,7 @@ function authHeaders(c: string = cookie): Record<string, string> {
 
 beforeAll(async () => {
   db = await createTestDb();
+  saveDir = fs.mkdtempSync(path.join(os.tmpdir(), 'foreman-saves-test-'));
   const playthroughs = new PlaythroughService(db.prisma);
   const stubFactory: LlmProviderFactory = () => ({
     runTurn: async () => ({ text: '', toolCalls: [], stopReason: 'stop' }),
@@ -70,6 +77,7 @@ beforeAll(async () => {
     auth: createAuth(db.prisma),
     foremen: new ForemanService(db.prisma),
     playthroughs,
+    saves: new SaveService(db.prisma, stubMcp, saveDir),
     workOrders: new WorkOrderService(db.prisma),
     mcp: stubMcp,
     summary: new SummaryService(playthroughs, { historyWindow: 20 }, stubFactory),
@@ -87,6 +95,7 @@ beforeAll(async () => {
 afterAll(async () => {
   await new Promise<void>((resolve) => server.close(() => resolve()));
   await db.cleanup();
+  fs.rmSync(saveDir, { recursive: true, force: true });
 });
 
 /** Creates a foreman for the caller, returning its id. */
@@ -304,5 +313,73 @@ describe('HTTP routes', () => {
       headers: authHeaders(),
     });
     expect(res.status).toBe(404);
+  });
+
+  it('returns an empty message history for a fresh playthrough', async () => {
+    const playthrough = await createPlaythrough();
+    const res = await fetch(`${baseUrl}/api/playthroughs/${playthrough.id}/messages`, {
+      headers: authHeaders(),
+    });
+    expect(res.status).toBe(200);
+    expect((await res.json()) as unknown[]).toEqual([]);
+  });
+
+  it('uploads a save, attaches it, and stores the file', async () => {
+    const playthrough = await createPlaythrough();
+    const form = new FormData();
+    form.append('save', new Blob([new Uint8Array([1, 2, 3, 4])]), 'MyWorld.sav');
+    const upload = await fetch(`${baseUrl}/api/playthroughs/${playthrough.id}/save`, {
+      method: 'POST',
+      headers: { cookie }, // no content-type: fetch sets the multipart boundary
+      body: form,
+    });
+    expect(upload.status).toBe(201);
+    const save = (await upload.json()) as { fileName: string; sizeBytes: number };
+    expect(save.fileName).toBe('MyWorld.sav');
+    expect(save.sizeBytes).toBe(4);
+    // The bytes landed on the data volume, and the playthrough now reports a save.
+    expect(fs.existsSync(path.join(saveDir, `${playthrough.id}.sav`))).toBe(true);
+    const fetched = await fetch(`${baseUrl}/api/playthroughs/${playthrough.id}`, {
+      headers: authHeaders(),
+    });
+    expect((await fetched.json()) as { save?: unknown }).toHaveProperty('save');
+  });
+
+  it('rejects a save upload with no file', async () => {
+    const playthrough = await createPlaythrough();
+    const res = await fetch(`${baseUrl}/api/playthroughs/${playthrough.id}/save`, {
+      method: 'POST',
+      headers: { cookie },
+      body: new FormData(),
+    });
+    expect(res.status).toBe(400);
+  });
+
+  it('deletes a playthrough and its work orders', async () => {
+    const playthrough = await createPlaythrough();
+    await fetch(`${baseUrl}/api/playthroughs/${playthrough.id}/work-orders`, {
+      method: 'POST',
+      headers: authHeaders(),
+      body: JSON.stringify(workOrderBody),
+    });
+    const del = await fetch(`${baseUrl}/api/playthroughs/${playthrough.id}`, {
+      method: 'DELETE',
+      headers: authHeaders(),
+    });
+    expect(del.status).toBe(204);
+    const read = await fetch(`${baseUrl}/api/playthroughs/${playthrough.id}`, {
+      headers: authHeaders(),
+    });
+    expect(read.status).toBe(404);
+  });
+
+  it("forbids deleting another user's playthrough", async () => {
+    const playthrough = await createPlaythrough();
+    const otherCookie = await signUp('deleter@example.com');
+    const res = await fetch(`${baseUrl}/api/playthroughs/${playthrough.id}`, {
+      method: 'DELETE',
+      headers: authHeaders(otherCookie),
+    });
+    expect(res.status).toBe(403);
   });
 });
