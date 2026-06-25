@@ -136,9 +136,13 @@ textarea {
 /* ── Main two-pane layout ───────────────────────────────────────────────── */
 .main {
   display: grid;
-  /* chat | draggable divider | work order. Chat width is set live via --chat-pct. */
-  grid-template-columns: var(--chat-pct, 30%) 6px minmax(0, 1fr);
+  /* chat | draggable divider | work order | drawer dock. Chat width is set live
+     via --chat-pct; the dock column is the rail (collapsed/floating) or the
+     rail + pinned panel, so the work-order column reflows to fit. */
+  grid-template-columns: var(--chat-pct, 30%) 6px minmax(0, 1fr) auto;
   min-height: 0;
+  /* Containing block for a floating (unpinned) drawer panel. */
+  position: relative;
 }
 
 .pane {
@@ -929,18 +933,81 @@ button:disabled {
   font-size: 11px;
 }
 
-/* ── Work History drawer ────────────────────────────────────────────────── */
-.drawer {
-  position: fixed;
-  top: 0;
-  right: 0;
-  height: 100%;
-  width: min(420px, 100%);
+/* ── Drawer dock (right-edge tool windows) ──────────────────────────────── */
+/* The dock is the 4th column of .main (so it sits below the header and never
+   covers it). A thin rail of vertical tabs is always visible; an open drawer's
+   panel is either pinned (in-flow — the work-order panel shrinks to fit) or
+   floating (overlays the panel and auto-hides on outside click / Escape). */
+.dock {
+  display: flex;
+  flex-direction: row;
+  min-height: 0;
+}
+
+.dock-rail {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 34px;
+  padding-top: 10px;
+  border-left: 1px solid var(--border-hairline);
+  background: var(--surface-panel);
+}
+
+/* Vertical tab (reads bottom-to-top up the rail), VS auto-hide style. */
+.dock-tab {
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  background: transparent;
+  border: 0;
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  font-family: var(--font-numeric);
+  font-size: 11px;
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  padding: 10px 4px;
+  margin: 0 4px;
+  cursor: pointer;
+}
+
+.dock-tab:hover {
+  color: var(--text-primary);
+  background: var(--color-surface-hover);
+}
+
+.dock-tab.active {
+  color: var(--accent);
+  background: var(--accent-tint);
+}
+
+.dock-panel {
+  display: flex;
+  flex-direction: column;
+  width: min(420px, 70vw);
+  min-height: 0;
   background: var(--surface-panel);
   border-left: 1px solid var(--border-emphasis);
-  padding: 18px;
-  overflow-y: auto;
-  animation: slideInRight 0.2s ease both;
+}
+
+/* Unpinned: a fixed box anchored to the right edge (below the header, clearing
+   the always-visible rail) that floats over the work-order panel without
+   reflowing it. The panel fills this box. */
+.dock-float {
+  position: fixed;
+  top: 48px; /* 48px = header height */
+  bottom: 0;
+  right: 34px; /* clear the always-visible rail */
+  width: 420px;
+  max-width: 70vw;
+  z-index: 20;
+  box-shadow: -12px 0 28px rgba(0, 0, 0, 0.45);
+  animation: slideInRight 0.18s ease both;
+}
+
+.dock-float .dock-panel {
+  width: 100%;
+  height: 100%;
 }
 
 @keyframes slideInRight {
@@ -952,17 +1019,61 @@ button:disabled {
   }
 }
 
-.drawer-head {
+.dock-panel-head {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding-bottom: 12px;
-  margin-bottom: 6px;
+  gap: 8px;
+  padding: 10px 12px;
   border-bottom: 1px solid var(--border-hairline);
 }
 
-.drawer-head .spacer {
+.dock-panel-head .spacer {
   flex: 1;
+}
+
+.dock-pin,
+.dock-collapse {
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 12px;
+  line-height: 1;
+  padding: 3px 6px;
+}
+
+.dock-pin:hover,
+.dock-collapse:hover {
+  color: var(--text-primary);
+  border-color: var(--border-strong);
+}
+
+/* A tilted pin reads as "auto-hide"; upright + accent reads as "pinned". */
+.dock-pin:not(.active) {
+  transform: rotate(45deg);
+  opacity: 0.7;
+}
+
+.dock-pin.active {
+  color: var(--accent);
+}
+
+.dock-collapse {
+  font-family: var(--font-numeric);
+}
+
+.dock-panel-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px 14px 14px;
+}
+
+/* The history list fills the dock body — drop the standalone-section spacing. */
+.dock-panel-body .history {
+  margin-top: 0;
+  border-top: 0;
+  padding-top: 0;
 }
 
 /* A history row: gutter | WO-id | title | state + date. Fixed height so the
@@ -1525,6 +1636,10 @@ button:disabled {
   }
   .pane.chat {
     border-bottom: 1px solid var(--border-hairline);
+  }
+  /* The dock is a desktop cockpit affordance; hide it in the stacked layout. */
+  .dock {
+    display: none;
   }
 }
 

@@ -22,8 +22,6 @@ interface WorkOrderPanelProps {
   isViewingHistory: boolean;
   /** Return to the live active order. */
   onBackToActive: () => void;
-  /** Open the Work History drawer. */
-  onOpenHistory: () => void;
 }
 
 const metres = (cm: number): string => `${Math.round(cm / 100)}m`;
@@ -65,7 +63,6 @@ export function WorkOrderPanel({
   actions,
   isViewingHistory,
   onBackToActive,
-  onOpenHistory,
 }: WorkOrderPanelProps): React.JSX.Element {
   const [revisions, setRevisions] = useState<WorkOrderRevision[]>([]);
   const [audit, setAudit] = useState<WorkOrderAuditEvent[]>([]);
@@ -148,15 +145,6 @@ export function WorkOrderPanel({
         <div className="pane-head">
           <span className="tick label">⟩</span>
           <span className="label">Active Work Order</span>
-          <span className="spacer" />
-          <button
-            type="button"
-            className="ghost-btn tiny"
-            disabled={history.length === 0}
-            onClick={onOpenHistory}
-          >
-            History
-          </button>
         </div>
         <div className="wo">
           <p className="empty">
@@ -219,15 +207,6 @@ export function WorkOrderPanel({
         {o.hoursLogged !== undefined ? (
           <span className="label hours">{o.hoursLogged}h logged</span>
         ) : null}
-        <span className="spacer" />
-        <button
-          type="button"
-          className="ghost-btn tiny"
-          disabled={history.length === 0}
-          onClick={onOpenHistory}
-        >
-          History
-        </button>
       </div>
 
       <div className="wo">
