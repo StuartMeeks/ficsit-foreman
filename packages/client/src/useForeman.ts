@@ -110,6 +110,12 @@ export interface ForemanState {
   messages: ChatMsg[];
   /** The order the work-order panel should display (active, else latest). */
   currentOrder: WorkOrder | null;
+  /** The order to actually render: a history selection if any, else currentOrder. */
+  displayedOrder: WorkOrder | null;
+  /** The order being viewed from history, or null when on the live active order. */
+  viewingId: string | null;
+  /** View a past order from history (read-only); null returns to the active order. */
+  viewOrder(id: string | null): void;
   history: WorkOrder[];
   workOrders: WorkOrderActions;
   sending: boolean;
@@ -222,6 +228,20 @@ export function useForeman(): ForemanState {
   const [messages, setMessages] = useState<ChatMsg[]>([]);
   const [history, setHistory] = useState<WorkOrder[]>([]);
   const currentOrder = useMemo(() => pickCurrent(history), [history]);
+  // A history order the pioneer is browsing (read-only). Resolves against the
+  // live `history`, so SSE/mutation updates flow through; falls back to the
+  // active order if the viewed order is gone (e.g. after a playthrough switch).
+  const [viewingId, setViewingId] = useState<string | null>(null);
+  const displayedOrder = useMemo(() => {
+    if (viewingId !== null) {
+      const viewed = history.find((o) => o.id === viewingId);
+      if (viewed !== undefined) {
+        return viewed;
+      }
+    }
+    return currentOrder;
+  }, [viewingId, history, currentOrder]);
+  const viewOrder = useCallback((id: string | null) => setViewingId(id), []);
   const [sending, setSending] = useState(false);
   const [booting, setBooting] = useState(true);
   const [needsOnboarding, setNeedsOnboarding] = useState(false);
@@ -257,6 +277,7 @@ export function useForeman(): ForemanState {
    * foreman, and (when onboarded) hydrates its chat history and work orders.
    */
   const activate = useCallback(async (target: Playthrough, knownForemen: Foreman[]) => {
+    setViewingId(null);
     writeStorage(PLAYTHROUGH_KEY, target.id);
     const attached =
       knownForemen.find((f) => f.id === target.foremanId) ?? (await getForeman(target.foremanId));
@@ -514,6 +535,7 @@ export function useForeman(): ForemanState {
       // abandoned first run) rather than orphaning them; otherwise mint a fresh
       // foreman and playthrough. Persona lives on the foreman, profile on the
       // playthrough.
+      setViewingId(null);
       let nextForeman: Foreman;
       let nextPlaythrough: Playthrough;
       if (playthrough !== null && foreman !== null) {
@@ -693,6 +715,9 @@ export function useForeman(): ForemanState {
     foremen,
     messages,
     currentOrder,
+    displayedOrder,
+    viewingId,
+    viewOrder,
     history,
     workOrders,
     sending,

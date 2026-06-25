@@ -929,6 +929,172 @@ button:disabled {
   font-size: 11px;
 }
 
+/* ── Work History drawer ────────────────────────────────────────────────── */
+.drawer {
+  position: fixed;
+  top: 0;
+  right: 0;
+  height: 100%;
+  width: min(420px, 100%);
+  background: var(--surface-panel);
+  border-left: 1px solid var(--border-emphasis);
+  padding: 18px;
+  overflow-y: auto;
+  animation: slideInRight 0.2s ease both;
+}
+
+@keyframes slideInRight {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+.drawer-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding-bottom: 12px;
+  margin-bottom: 6px;
+  border-bottom: 1px solid var(--border-hairline);
+}
+
+.drawer-head .spacer {
+  flex: 1;
+}
+
+/* A history row: gutter | WO-id | title | state + date. Fixed height so the
+   graph-gutter line geometry (50% segments) lines up across rows. */
+.history-row {
+  display: grid;
+  grid-template-columns: auto auto 1fr auto;
+  gap: 10px;
+  align-items: center;
+  width: 100%;
+  height: 40px;
+  padding: 0 4px 0 0;
+  border: 0;
+  border-bottom: 1px solid var(--border-hairline);
+  border-left: 2px solid transparent;
+  background: none;
+  text-align: left;
+  font-size: 13px;
+  color: var(--text-body);
+  cursor: pointer;
+}
+
+.history-row:hover {
+  background: var(--color-surface-hover);
+}
+
+.history-row.selected {
+  border-left-color: var(--accent);
+  color: var(--text-title);
+}
+
+.history-row .wo-n {
+  font-family: var(--font-numeric);
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
+.history-title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.history-title .label.sub {
+  margin-left: 6px;
+  color: var(--text-dim);
+}
+
+.history-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Graph gutter: one fixed-width lane cell per column. */
+.wo-graph {
+  display: grid;
+  grid-template-columns: repeat(var(--lanes), 16px);
+  align-self: stretch;
+}
+
+.lane {
+  position: relative;
+  height: 100%;
+}
+
+.lane .ln {
+  position: absolute;
+  background: var(--text-dim);
+}
+
+.lane .ln-up {
+  top: 0;
+  bottom: 50%;
+  left: 50%;
+  width: 2px;
+  transform: translateX(-50%);
+}
+
+.lane .ln-down {
+  top: 50%;
+  bottom: 0;
+  left: 50%;
+  width: 2px;
+  transform: translateX(-50%);
+}
+
+.lane .ln-left {
+  left: 0;
+  right: 50%;
+  top: 50%;
+  height: 2px;
+  transform: translateY(-50%);
+}
+
+.lane .ln-right {
+  left: 50%;
+  right: 0;
+  top: 50%;
+  height: 2px;
+  transform: translateY(-50%);
+}
+
+.lane .node {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 8px;
+  height: 8px;
+  border-radius: var(--radius-full);
+  transform: translate(-50%, -50%);
+  background: var(--text-muted);
+}
+
+.lane .node.state-active {
+  background: var(--accent);
+}
+.lane .node.state-new {
+  background: var(--accent-muted);
+}
+.lane .node.state-completed {
+  background: var(--status-met);
+}
+.lane .node.state-blocked {
+  background: var(--color-danger);
+}
+.lane .node.state-cancelled,
+.lane .node.state-superseded {
+  background: var(--text-dim);
+}
+
 /* ── Settings dialog ────────────────────────────────────────────────────── */
 .overlay {
   position: fixed;

@@ -8,6 +8,7 @@ import { Onboarding } from './components/Onboarding.js';
 import { PlaythroughSwitcher } from './components/PlaythroughSwitcher.js';
 import { SaveDropZone } from './components/SaveDropZone.js';
 import { SettingsDialog } from './components/SettingsDialog.js';
+import { WorkHistoryDrawer } from './components/WorkHistoryDrawer.js';
 import { WorkOrderPanel } from './components/WorkOrderPanel.js';
 import { useForeman } from './useForeman.js';
 
@@ -35,6 +36,7 @@ export function App(): React.JSX.Element {
   const foreman = useForeman();
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [newOpen, setNewOpen] = useState(false);
+  const [drawerOpen, setDrawerOpen] = useState(false);
   const [chatPct, setChatPct] = useState(initialSplit);
   const mainRef = useRef<HTMLElement>(null);
   const dragging = useRef(false);
@@ -165,11 +167,29 @@ export function App(): React.JSX.Element {
         />
         <WorkOrderPanel
           playthroughId={foreman.playthrough?.id ?? null}
-          current={foreman.currentOrder}
+          current={foreman.displayedOrder}
           history={foreman.history}
           actions={foreman.workOrders}
+          isViewingHistory={
+            foreman.viewingId !== null && foreman.viewingId !== foreman.currentOrder?.id
+          }
+          onBackToActive={() => foreman.viewOrder(null)}
+          onOpenHistory={() => setDrawerOpen(true)}
         />
       </main>
+
+      {drawerOpen ? (
+        <WorkHistoryDrawer
+          history={foreman.history}
+          currentId={foreman.currentOrder?.id ?? null}
+          viewingId={foreman.viewingId}
+          onSelect={(id) => {
+            foreman.viewOrder(id === foreman.currentOrder?.id ? null : id);
+            setDrawerOpen(false);
+          }}
+          onClose={() => setDrawerOpen(false)}
+        />
+      ) : null}
 
       {settingsOpen ? (
         <SettingsDialog
