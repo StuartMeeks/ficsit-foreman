@@ -27,6 +27,10 @@ This file is the single home for our conventions (`CLAUDE.md` points here).
 - Update a branch from `main` with **rebase**, not a merge commit.
 - Title: the Conventional Commit summary. Write the **complete** description at
   creation time, not in a later edit.
+- **Link the PR to the issue(s) it resolves** with a closing keyword in the body
+  (`Closes #N` / `Fixes #N`), so the issue auto-closes on merge and the issue
+  shows the PR cross-reference. For a PR that advances but doesn't finish an
+  issue, link it without the keyword (`Refs #N`) and leave the issue open.
 - AI-generated PRs must begin the body with: `🤖 AI-generated PR — Please review
   carefully.`
 
@@ -39,6 +43,25 @@ When you open an issue, label it and slot it onto the roadmap:
 - **A milestone**, so it lands on the roadmap (e.g. *Foundation — accounts &
   persistence*, *Save subsystem*, *App features*, *Game-data MCP*). If none fits,
   leave it unset and explain why in the body.
+
+### Closing issues — keep the roadmap honest
+What actually ships often diverges from what an issue first proposed. When you
+close one (usually by merging its PR), reconcile the surrounding roadmap in the
+same stroke — a closed issue with a stale body, or a sibling that still claims
+work you've absorbed, misleads the next reader.
+
+- **Add a closing comment** when the delivered scope differs from the issue body
+  (scope grew, shrank, or the approach changed). Summarise what shipped, call out
+  where it diverged from the original plan, and link the PR. Prefer a comment over
+  editing the original body, so the history of the decision is preserved.
+- **Re-scope related issues.** If closing one changes a sibling's scope — work
+  pulled forward into this one, or an approach here that supersedes another's plan
+  — edit that sibling's body/title to match, and note why. An open issue must
+  describe the work that's *actually left*, not the original carve-up.
+- **Update the milestone description** when a milestone's framing no longer holds
+  (e.g. a "foundational refactor" it attributed to one issue shipped in another).
+- **Ensure the issue↔PR links exist** (see the closing keywords above); if an
+  issue was closed without a linked PR, add a comment pointing at the PR/commit.
 
 ### Code standards
 - Always use curly braces, even for single-line `if`/`else`/loops.
