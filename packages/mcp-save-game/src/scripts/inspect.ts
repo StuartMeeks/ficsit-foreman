@@ -9,16 +9,19 @@
  *   npm run inspect diff <saveA> <saveB>  # collectables/typePath delta
  *   npm run inspect get_player_state [save]   # run a tool (any of the five)
  */
+import { loadWorldLocations } from '@foreman/game-data-core';
+
 import { expandHome } from '../config.js';
-import { loadItemNames } from '../gameData.js';
+import { loadDisplayNames } from '../gameData.js';
 import { normaliseSave } from '../normalise/index.js';
 import { classNameFromPath } from '../normalise/classRef.js';
 import type { RawObject, RawSave } from '../parser/types.js';
 import { parseSaveFile } from '../parser/index.js';
 import {
+  collectedGuidSet,
   collectibleProgressView,
   milestones,
-  nearby,
+  nearbyFromWorld,
   playerSummary,
   storageView,
   unlockedRecipes,
@@ -30,12 +33,18 @@ const TOOL_RUNNERS: Record<string, (state: ReturnType<typeof loadState>) => unkn
   get_unlocked_recipes: (s) => unlockedRecipes(s),
   get_milestones: (s) => milestones(s),
   get_storage: (s) => storageView(s),
-  get_collectibles: (s) => collectibleProgressView(s),
-  // Nearby uses the player's own location as the origin (when known).
+  get_collectibles: (s) => collectibleProgressView(s, loadWorldLocations().world),
+  // Nearby uses the player's own location as the origin (when known), querying
+  // the static world dataset (same source the MCP tool uses).
   get_nearby: (s) =>
     s.player.location === undefined
       ? { error: 'player location unknown in this save' }
-      : nearby(s, s.player.location),
+      : nearbyFromWorld(
+          loadWorldLocations().world.collectibles,
+          s.player.location,
+          {},
+          collectedGuidSet(s),
+        ),
 };
 
 function out(value: unknown): void {
@@ -65,7 +74,7 @@ function loadState(filePath: string): ReturnType<typeof normaliseSave>['state'] 
   return normaliseSave(
     parseSaveFile(filePath, 'inspect'),
     new Date().toISOString(),
-    loadItemNames(),
+    loadDisplayNames(),
   ).state;
 }
 
@@ -151,8 +160,8 @@ function runSummary(savePath: string): void {
     milestones: state.milestones.length,
     mamResearch: state.mamResearch.length,
     assemblyPhase: state.assemblyPhase?.phase,
-    collectibleProgress: state.collectibleProgress,
-    remainingCollectibles: state.remainingCollectibles.length,
+    collectedPickups: state.collectedPickupGuids.length,
+    lootedDropPods: state.lootedDropPodGuids.length,
     warnings: state.warnings.length,
   });
 }

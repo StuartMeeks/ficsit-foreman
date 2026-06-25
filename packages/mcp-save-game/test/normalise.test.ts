@@ -20,20 +20,28 @@ describe('player', () => {
 
   it('decodes inventory via the mInventory reference and skips empty slots', () => {
     expect(state.player.inventory).toHaveLength(1);
-    expect(state.player.inventory[0]).toMatchObject({ itemClass: 'Desc_IronPlate_C', quantity: 50 });
+    expect(state.player.inventory[0]).toMatchObject({
+      itemClass: 'Desc_IronPlate_C',
+      quantity: 50,
+    });
   });
 });
 
 describe('storage + depot', () => {
   it('extracts containers with their inventories', () => {
     expect(state.storage.containers).toHaveLength(2);
-    const coal = state.storage.containers.flatMap((c) => c.inventory).find((i) => i.itemClass === 'Desc_Coal_C');
+    const coal = state.storage.containers
+      .flatMap((c) => c.inventory)
+      .find((i) => i.itemClass === 'Desc_Coal_C');
     expect(coal?.quantity).toBe(200);
   });
 
   it('decodes the dimensional depot (ItemAmount shape)', () => {
     expect(state.storage.dimensionalDepot).toHaveLength(1);
-    expect(state.storage.dimensionalDepot[0]).toMatchObject({ itemClass: 'Desc_SAMIngot_C', quantity: 500 });
+    expect(state.storage.dimensionalDepot[0]).toMatchObject({
+      itemClass: 'Desc_SAMIngot_C',
+      quantity: 500,
+    });
   });
 });
 
@@ -63,21 +71,14 @@ describe('milestones + MAM + phase', () => {
 });
 
 describe('collectibles', () => {
-  const byKind = Object.fromEntries(state.collectibleProgress.map((c) => [c.kind, c]));
-
-  it('derives per-type collected = worldTotal − remaining from present actors', () => {
-    expect(byKind['mercerSphere']).toMatchObject({ worldTotal: 298, remaining: 2, collected: 296 });
-    expect(byKind['somersloop']).toMatchObject({ worldTotal: 106, remaining: 1, collected: 105 });
-    expect(byKind['powerSlugBlue']).toMatchObject({ worldTotal: 596, remaining: 3, collected: 593 });
-    expect(byKind['powerSlugYellow']).toMatchObject({ remaining: 1, collected: 388 });
-    expect(byKind['powerSlugPurple']).toMatchObject({ remaining: 1, collected: 256 });
-  });
-
-  it('excludes hard-drive drop pods and transient resource deposits', () => {
-    expect(state.collectibleProgress.some((c) => String(c.kind).includes('drop'))).toBe(false);
-    // 2 spheres + 1 sloop + 3 blue + 1 yellow + 1 purple = 8 (pod + deposit excluded).
-    expect(state.remainingCollectibles).toHaveLength(8);
-    expect(state.remainingCollectibles.every((c) => c.location !== undefined)).toBe(true);
+  it('reads collected-pickup + looted-drop-pod GUIDs from FGScannableSubsystem', () => {
+    // mDestroyedPickups: [1,2,3,4] and [5,6,7,8]; mLootedDropPods: [9,10,11,12].
+    // Each FGuid renders as 32 uppercase hex chars (four uint32s in file order).
+    expect(state.collectedPickupGuids).toEqual([
+      '00000001000000020000000300000004',
+      '00000005000000060000000700000008',
+    ]);
+    expect(state.lootedDropPodGuids).toEqual(['000000090000000A0000000B0000000C']);
   });
 });
 

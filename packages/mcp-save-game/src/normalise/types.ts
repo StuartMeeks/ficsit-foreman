@@ -5,8 +5,6 @@
  * (no game-data lookup; this server does not duplicate the game-data graph).
  */
 
-import type { CollectibleKind } from '../constants.js';
-
 export interface Vec3 {
   x: number;
   y: number;
@@ -58,37 +56,13 @@ export interface AssemblyPhase {
   target?: string;
 }
 
-/**
- * One un-collected collectible still present in the save, with its world
- * location. Collected ones are destroyed (absent), so this is "what's left to
- * grab, and where".
- */
-export interface RemainingCollectible {
-  kind: CollectibleKind;
-  label: string;
-  location?: Vec3;
-}
-
-/**
- * Per-type collection progress. `collected = max(0, worldTotal − remaining)`,
- * where `remaining` is the count of un-collected actors of that type present in
- * the save. Exact on a fully-explored save; on an under-explored one (World
- * Partition cells not yet streamed in) `collected` is over-counted — surfaced
- * via the tool's coverage note.
- */
-export interface CollectibleCount {
-  kind: CollectibleKind;
-  label: string;
-  worldTotal: number;
-  remaining: number;
-  collected: number;
-}
-
 export interface SaveState {
   /** Detected game version (build number, with save version), or 'unknown'. */
   version: string;
   /** Save session name, or the file base name. */
   saveName: string;
+  /** Total in-game play time in seconds, if the header carries it. */
+  playDurationSeconds?: number;
   /** ISO timestamp of when this state was parsed. */
   parsedAt: string;
   player: PlayerState;
@@ -101,10 +75,14 @@ export interface SaveState {
   /** Unlocked MAM research-tree names. */
   mamResearch: string[];
   assemblyPhase?: AssemblyPhase;
-  /** Per-type collection progress (Mercer Spheres, Somersloops, slugs, hard drives). */
-  collectibleProgress: CollectibleCount[];
-  /** Un-collected collectibles still in the save, with locations (for proximity). */
-  remainingCollectibles: RemainingCollectible[];
+  /**
+   * GUIDs of collected collectibles (spheres/sloops/slugs), from
+   * `FGScannableSubsystem.mDestroyedPickups` — matched against the world-locations
+   * dataset for exact per-kind collected counts. See `collectibleProgressView`.
+   */
+  collectedPickupGuids: string[];
+  /** GUIDs of looted hard-drive drop pods (`FGScannableSubsystem.mLootedDropPods`). */
+  lootedDropPodGuids: string[];
   /** Non-fatal issues collected during normalisation. */
   warnings: string[];
 }
@@ -120,8 +98,8 @@ export function emptySaveState(version: string, saveName: string, parsedAt: stri
     recipes: [],
     milestones: [],
     mamResearch: [],
-    collectibleProgress: [],
-    remainingCollectibles: [],
+    collectedPickupGuids: [],
+    lootedDropPodGuids: [],
     warnings: [],
   };
 }

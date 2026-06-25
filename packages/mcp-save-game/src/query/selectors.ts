@@ -1,7 +1,11 @@
-import type { CollectibleKind } from '../constants.js';
+import type {
+  Collectible,
+  CollectibleKind as WorldCollectibleKind,
+  WorldLocations,
+} from '@foreman/game-data-core';
+
 import type {
   AssemblyPhase,
-  CollectibleCount,
   Inventory,
   Milestone,
   SaveState,
@@ -19,6 +23,10 @@ import type {
 export interface PlayerSummary {
   location?: Vec3;
   hubLocation?: Vec3;
+  /** Total in-game play time in seconds, if the save header carries it. */
+  playDurationSeconds?: number;
+  /** The same play time formatted as "Xh Ym", for convenience. */
+  playTime?: string;
   itemCount: number;
   inventory: Inventory;
 }
@@ -27,9 +35,21 @@ export function playerSummary(state: SaveState): PlayerSummary {
   return {
     location: state.player.location,
     hubLocation: state.player.hubLocation,
+    playDurationSeconds: state.playDurationSeconds,
+    playTime: formatDuration(state.playDurationSeconds),
     itemCount: state.player.inventory.length,
     inventory: state.player.inventory,
   };
+}
+
+/** Formats a duration in seconds as "Xh Ym" (e.g. 45296 → "12h 34m"). */
+function formatDuration(seconds: number | undefined): string | undefined {
+  if (seconds === undefined || !Number.isFinite(seconds)) {
+    return undefined;
+  }
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  return `${hours}h ${minutes}m`;
 }
 
 export interface RecipeSummary {
@@ -114,30 +134,84 @@ export function storageView(state: SaveState, location?: Vec3): StorageView {
   };
 }
 
+const COLLECTIBLE_KINDS: WorldCollectibleKind[] = [
+  'mercerSphere',
+  'somersloop',
+  'powerSlugBlue',
+  'powerSlugYellow',
+  'powerSlugPurple',
+  'hardDrive',
+];
+
 const COVERAGE_NOTE =
-  'collected = world total − remaining-in-save. Exact on a fully-explored save; ' +
-  'on an under-explored save (World-Partition cells not yet streamed in) the ' +
-  'collected figure is over-counted.';
+  "Exact per-kind counts. collected is read from the save's own collected record " +
+  "(FGScannableSubsystem), matched to the world dataset by each collectible's GUID, so it is " +
+  'accurate at any exploration level — never an estimate. remaining = worldTotal − collected ' +
+  '(still out there); use get_nearby for the locations of those remaining ones.';
+
+export interface CollectibleProgress {
+  kind: WorldCollectibleKind;
+  label: string;
+  /** Fixed map-wide total for this kind. */
+  worldTotal: number;
+  /** Exactly how many the pioneer has collected (from the save's GUID record). */
+  collected: number;
+  /** Still out there to grab (worldTotal − collected). */
+  remaining: number;
+}
 
 export interface CollectibleProgressView {
-  perType: CollectibleCount[];
+  perType: CollectibleProgress[];
   note: string;
 }
 
-/** Per-type collection progress (Mercer Spheres, Somersloops, blue/yellow/purple slugs). */
-export function collectibleProgressView(state: SaveState): CollectibleProgressView {
-  return { perType: state.collectibleProgress, note: COVERAGE_NOTE };
+/**
+ * Exact per-kind collectible progress. The save's `FGScannableSubsystem` records
+ * the GUID of every collected pickup (spheres/sloops/slugs) and looted hard-drive
+ * pod; matching those against each world-dataset collectible's GUID gives an exact
+ * collected count at any progression — no exploration-based estimation.
+ */
+export function collectibleProgressView(
+  state: SaveState,
+  world: WorldLocations,
+): CollectibleProgressView {
+  const collectedSet = collectedGuidSet(state);
+  const totals = new Map<string, number>();
+  const collected = new Map<string, number>();
+  for (const c of world.collectibles) {
+    totals.set(c.kind, (totals.get(c.kind) ?? 0) + 1);
+    if (collectedSet.has(c.guid)) {
+      collected.set(c.kind, (collected.get(c.kind) ?? 0) + 1);
+    }
+  }
+  const perType: CollectibleProgress[] = COLLECTIBLE_KINDS.map((kind) => {
+    const worldTotal = totals.get(kind) ?? 0;
+    const got = collected.get(kind) ?? 0;
+    return {
+      kind,
+      label: KIND_LABELS[kind] ?? kind,
+      worldTotal,
+      collected: got,
+      remaining: worldTotal - got,
+    };
+  });
+  return { perType, note: COVERAGE_NOTE };
+}
+
+/** Every collected-collectible GUID (pickups + looted pods) as one lookup set. */
+export function collectedGuidSet(state: SaveState): Set<string> {
+  return new Set([...state.collectedPickupGuids, ...state.lootedDropPodGuids]);
 }
 
 export interface NearbyItem {
-  kind: CollectibleKind;
+  kind: WorldCollectibleKind;
   label: string;
   location: Vec3;
   distance: number;
 }
 
 export interface NearbyOptions {
-  kinds?: CollectibleKind[];
+  kinds?: WorldCollectibleKind[];
   radius?: number;
   limit?: number;
 }
@@ -148,33 +222,67 @@ export interface NearbyResult {
   /** Total matches (before the limit was applied). */
   matchCount: number;
   items: NearbyItem[];
+  /** Honest caveat: positions are from the static world dataset. */
+  note: string;
 }
 
 const DEFAULT_NEARBY_LIMIT = 20;
 
+const KIND_LABELS: Record<WorldCollectibleKind, string> = {
+  mercerSphere: 'Mercer Sphere',
+  somersloop: 'Somersloop',
+  powerSlugBlue: 'Blue Power Slug',
+  powerSlugYellow: 'Yellow Power Slug',
+  powerSlugPurple: 'Purple Power Slug',
+  hardDrive: 'Hard Drive (crash site)',
+};
+
+const NEARBY_NOTE =
+  'Un-collected collectibles only: positions are from the static world dataset, with the ' +
+  'ones the save records as already collected (by GUID) removed — so these are genuinely ' +
+  'still out there to grab. Coordinates are centimetres.';
+
 /**
- * Un-collected collectibles near a world location, nearest-first. Filtered by
- * `kinds` and `radius`, capped by `limit` (default 20).
+ * Un-collected collectibles near a world location, nearest-first. Positions come
+ * from the static world-location dataset (complete and accurate); collectibles
+ * the save records as collected (by GUID, via `excludeGuids`) are removed, so the
+ * result is exactly what is still grabbable. Filtered by `kinds` and `radius`,
+ * capped by `limit` (default 20). Coordinates are centimetres.
  */
-export function nearby(state: SaveState, origin: Vec3, options: NearbyOptions = {}): NearbyResult {
+export function nearbyFromWorld(
+  collectibles: Collectible[],
+  origin: Vec3,
+  options: NearbyOptions = {},
+  excludeGuids?: Set<string>,
+): NearbyResult {
   const limit = options.limit ?? DEFAULT_NEARBY_LIMIT;
-  let items: NearbyItem[] = state.remainingCollectibles
+  let items: NearbyItem[] = collectibles
     .filter(
-      (c): c is typeof c & { location: Vec3 } =>
-        c.location !== undefined && (options.kinds === undefined || options.kinds.includes(c.kind)),
+      (c) =>
+        (options.kinds === undefined || options.kinds.includes(c.kind)) &&
+        excludeGuids?.has(c.guid) !== true,
     )
-    .map((c) => ({
-      kind: c.kind,
-      label: c.label,
-      location: c.location,
-      distance: distance(origin, c.location),
-    }))
+    .map((c) => {
+      const location = { x: c.x, y: c.y, z: c.z };
+      return {
+        kind: c.kind,
+        label: KIND_LABELS[c.kind] ?? c.kind,
+        location,
+        distance: distance(origin, location),
+      };
+    })
     .sort((a, b) => a.distance - b.distance);
   if (options.radius !== undefined) {
     const radius = options.radius;
     items = items.filter((i) => i.distance <= radius);
   }
-  return { origin, radius: options.radius, matchCount: items.length, items: items.slice(0, limit) };
+  return {
+    origin,
+    radius: options.radius,
+    matchCount: items.length,
+    items: items.slice(0, limit),
+    note: NEARBY_NOTE,
+  };
 }
 
 export function distance(a: Vec3, b: Vec3): number {

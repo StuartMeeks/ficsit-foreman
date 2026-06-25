@@ -63,6 +63,21 @@ FVector? Loc(UObject e)
     return root?.GetOrDefault<FVector>("RelativeLocation");
 }
 
+// The actor's stable GUID, as the save records it when the collectible is
+// collected. Pickups (spheres/sloops/slugs) carry it as `mItemPickupGuid`
+// (matched against FGScannableSubsystem.mDestroyedPickups); drop pods carry it
+// as `mDropPodGuid` (matched against mLootedDropPods). Emitted as 32 uppercase
+// hex chars (the four FGuid uint32s, in file order) so the save MCP can match it
+// directly. Null when absent/zero (so the field is simply omitted).
+string? GuidFor(UObject e, string kind)
+{
+    var g = kind == "hardDrive"
+        ? e.GetOrDefault<FGuid>("mDropPodGuid")
+        : e.GetOrDefault<FGuid>("mItemPickupGuid");
+    if (g.A == 0 && g.B == 0 && g.C == 0 && g.D == 0) { return null; }
+    return $"{g.A:X8}{g.B:X8}{g.C:X8}{g.D:X8}";
+}
+
 // Extract the trailing "Desc_X_C" class identifier from an object-reference property.
 string? Ref(UObject e, string prop)
 {
@@ -92,7 +107,7 @@ void AddCollectible(UObject e, string kind)
     var loc = Loc(e);
     if (loc == null) { return; }
     if (kind == "hardDrive" && !seenDropPods.Add(e.Name)) { return; }
-    collectibles.Add(new { id = e.Name, kind, x = (int) loc.Value.X, y = (int) loc.Value.Y, z = (int) loc.Value.Z });
+    collectibles.Add(new { id = e.Name, kind, guid = GuidFor(e, kind), x = (int) loc.Value.X, y = (int) loc.Value.Y, z = (int) loc.Value.Z });
     collCounts[kind] = collCounts.GetValueOrDefault(kind) + 1;
 }
 

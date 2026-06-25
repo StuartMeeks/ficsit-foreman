@@ -29,6 +29,14 @@ export interface Collectible {
   /** Stable in-level instance name, e.g. `BP_Crystal_C_2146`. */
   id: string;
   kind: CollectibleKind;
+  /**
+   * The actor's GUID as 32 uppercase hex chars (four FGuid uint32s in file
+   * order) — `mItemPickupGuid` for pickups, `mDropPodGuid` for hard-drive pods.
+   * This is the key a save records when the collectible is collected (in
+   * `FGScannableSubsystem.mDestroyedPickups` / `mLootedDropPods`), so it lets a
+   * save be matched to exact per-collectible collected status.
+   */
+  guid: string;
   x: number;
   y: number;
   z: number;
