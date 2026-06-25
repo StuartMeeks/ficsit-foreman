@@ -103,6 +103,8 @@ string Purity(UObject e)
 if (Environment.GetEnvironmentVariable("DISCOVER") != null)
 {
     var byType = new Dictionary<string, int>();
+    var spawnableItems = new Dictionary<string, int>(); // FGItemPickup_Spawnable → contained item Desc
+    var sampleProps = new List<string>();
     var discoverCells = provider.Files.Keys.Where(k => k.Contains("/_Generated_/") && k.EndsWith(".umap")).ToList();
     Console.WriteLine($"[discover] sweeping {discoverCells.Count} cells for pickup/pod actors...");
     var dn = 0;
@@ -118,12 +120,30 @@ if (Environment.GetEnvironmentVariable("DISCOVER") != null)
                 if (!hasPickup && !hasPod) { continue; }
                 var key = $"{(hasPod ? "pod" : "pickup")}\t{e.ExportType}";
                 byType[key] = byType.GetValueOrDefault(key) + 1;
+
+                if (e.ExportType == "FGItemPickup_Spawnable")
+                {
+                    if (sampleProps.Count < 3)
+                    {
+                        sampleProps.Add($"{e.Name}: {string.Join(", ", e.Properties.Select(p => p.Name.Text))}");
+                    }
+                    // The contained item(s): regex every Desc_*_C out of the item-stack property.
+                    var raw = e.Properties.FirstOrDefault(p => p.Name.Text == "mPickupItems")?.Tag?.GenericValue?.ToString()
+                        ?? e.Properties.FirstOrDefault(p => p.Name.Text == "mItemType")?.Tag?.GenericValue?.ToString();
+                    var item = raw == null ? "(none)" : (Regex.Match(raw, @"(Desc_[A-Za-z0-9_]+_C|BP_[A-Za-z0-9_]+_C)").Value);
+                    if (string.IsNullOrEmpty(item)) { item = "(unparsed)"; }
+                    spawnableItems[item] = spawnableItems.GetValueOrDefault(item) + 1;
+                }
             }
         }
         catch (Exception ex) { Console.Error.WriteLine($"[cell] {cell}: {ex.Message}"); }
     }
     Console.WriteLine("=== PICKUP/POD CLASSES (guidKind  ExportType: count) ===");
     foreach (var kv in byType.OrderByDescending(k => k.Value)) { Console.WriteLine($"  {kv.Key}: {kv.Value}"); }
+    Console.WriteLine("=== FGItemPickup_Spawnable CONTAINED ITEMS (item: count) ===");
+    foreach (var kv in spawnableItems.OrderByDescending(k => k.Value)) { Console.WriteLine($"  {kv.Key}: {kv.Value}"); }
+    Console.WriteLine("=== sample FGItemPickup_Spawnable property names ===");
+    foreach (var s in sampleProps) { Console.WriteLine($"  {s}"); }
     return;
 }
 
