@@ -11,6 +11,12 @@ export interface ServerConfig {
   host: string;
   /** HTTP port (only meaningful when transport is 'http'). */
   port: number;
+  /**
+   * Directory that host-injected `savePath` arguments must live under (the
+   * shared saves volume). Tool calls may only read saves inside it; undefined
+   * disables per-request saves (only `SAVE_FILE_PATH` is served).
+   */
+  saveDataDir: string | undefined;
 }
 
 const DEFAULT_HTTP_HOST = '0.0.0.0';
@@ -27,7 +33,12 @@ export function resolveServerConfig(env: NodeJS.ProcessEnv = process.env): Serve
   const host = env['MCP_HTTP_HOST']?.trim() || DEFAULT_HTTP_HOST;
   const parsedPort = Number.parseInt(env['MCP_HTTP_PORT']?.trim() ?? '', 10);
   const port = Number.isInteger(parsedPort) && parsedPort > 0 ? parsedPort : DEFAULT_HTTP_PORT;
-  return { transport, host, port };
+  const rawSaveDir = env['SAVE_DATA_DIR']?.trim();
+  const saveDataDir =
+    rawSaveDir !== undefined && rawSaveDir.length > 0
+      ? path.resolve(expandHome(rawSaveDir))
+      : undefined;
+  return { transport, host, port, saveDataDir };
 }
 
 /** Non-internal IPv4 addresses of this machine, for echoing a reachable URL. */

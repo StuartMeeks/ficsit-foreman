@@ -65,6 +65,9 @@ with credentials (cookies) included.
 | `GET` | `/api/playthroughs/:id` | Fetch a playthrough you own. |
 | `POST` | `/api/playthroughs/:id/claim` | Claim a pre-accounts anonymous playthrough on first login. |
 | `PATCH` | `/api/playthroughs/:id` | Update name, pioneer profile, and/or attached foreman (effective next message). |
+| `DELETE` | `/api/playthroughs/:id` | Delete a playthrough — cascades its messages + work orders, removes its save file. |
+| `GET` | `/api/playthroughs/:id/messages` | Recent chat history (chronological) for re-hydrating the conversation. |
+| `POST` | `/api/playthroughs/:id/save` | Upload (or replace) the current `.sav` (multipart `save`); parses metadata, seeds the name. |
 | `POST` | `/api/playthroughs/:id/chat` | Send a message; streams the response over SSE. |
 | `POST` | `/api/playthroughs/:id/work-orders` | Create a work order (starts in `new`; does not abandon others). |
 | `GET` | `/api/playthroughs/:id/work-orders` | Full work-order history. |
@@ -98,6 +101,9 @@ location and remaining collectibles), `DATABASE_URL` (default `file:./dev.db`;
 set a `postgresql://` URL and switch the schema's datasource provider for prod),
 `BETTER_AUTH_SECRET` (signs session cookies; auto-generated + persisted if unset —
 set it explicitly for multi-instance/Postgres),
+`SAVE_DATA_DIR` (where uploaded playthrough saves are stored — `<id>.sav` per
+playthrough; defaults next to the database, e.g. `/data/saves`; must be a volume
+shared with the save-game MCP),
 `PORT` (default `8724`), `HISTORY_WINDOW` (default `20`).
 
 ## Running

@@ -55,11 +55,30 @@ model Playthrough {
 
   user       User?       @relation(fields: [userId], references: [id], onDelete: Cascade)
   foreman    Foreman     @relation(fields: [foremanId], references: [id], onDelete: Restrict)
+  save       Save?
   messages   Message[]
   workOrders WorkOrder[]
 
   @@index([userId])
   @@index([foremanId])
+}
+
+// The current uploaded `.sav` for a playthrough (#61, minimal slice of #76).
+// One current save per playthrough (latest-only for v1: re-uploading replaces
+// it; a version history is deferred to #76). The bytes live on a data volume at
+// `${SAVE_DATA_DIR}/<playthroughId>.sav`; this row carries the metadata parsed
+// from the save (its in-game name + game/build version) which seeds the
+// playthrough's default name and is surfaced in the UI.
+model Save {
+  id            String   @id @default(uuid())
+  playthroughId String   @unique
+  fileName      String // the original uploaded filename
+  saveName      String? // in-game session/save name parsed from the header
+  version       String? // game build + save format parsed from the header
+  sizeBytes     Int
+  uploadedAt    DateTime @default(now())
+
+  playthrough Playthrough @relation(fields: [playthroughId], references: [id], onDelete: Cascade)
 }
 
 // A single persisted conversational turn. Only user input and the foreman's

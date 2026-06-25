@@ -18,8 +18,14 @@ origin (no CORS).
   Login sessions are HttpOnly cookies (the client stores no auth token); on first
   sign-in the browser's existing anonymous playthrough is claimed for the new account.
   Sign-out lives in the header. The BYO LLM key stays in the browser as before.
+- **Playthroughs** — a header dropdown switches between playthroughs (resuming chat
+  history **and** work orders), and creates / renames / deletes them. A new playthrough
+  is made from a lightweight modal: name it, pick or create a foreman, optionally drop
+  in a `.sav` (drag-drop or file dialog — its name seeds the playthrough), and set a
+  pioneer profile.
 - **Foreman chat** — streams the foreman's reply token-by-token over SSE, and shows
-  tool calls (game-data + work-order tools) as inline chips.
+  tool calls (game-data + work-order tools) as inline chips. Past turns re-hydrate when
+  a playthrough is opened.
 - **Work-order cockpit** — the active order rendered to the v2 model: state badge,
   plan-revised banner with a field-level diff + acknowledge, blocked banner,
   foreman completion suggestion, build-step and material checklists, machine built
@@ -28,9 +34,11 @@ origin (no CORS).
   starts, pauses, ticks items, sets counts, reverts, and **completes** (completion
   is Pioneer-only; the foreman only proposes) — all against the work-order REST
   API, updating live over SSE. A history list sits beneath the active order.
-- **Settings** — set the foreman's personality (stored on the foreman) and the
-  pioneer profile (stored on the playthrough) and an optional Anthropic API key (kept only in the browser,
-  sent per request — needed unless the server has its own key).
+- **Settings** — a sectioned dialog: **Foremen** (a library to create / edit / delete
+  reusable personas and choose which one this playthrough uses), **Pioneer** (this
+  playthrough's profile), **LLM** (provider / model / key, kept only in the browser and
+  sent per request — needed unless the server has its own key), and a **Billing**
+  placeholder.
 
 ## Run
 

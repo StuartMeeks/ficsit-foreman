@@ -47,6 +47,13 @@ export interface ServerConfig {
   historyWindow: number;
   /** Resolved absolute path to the foreman system prompt markdown file. */
   systemPromptPath: string;
+  /**
+   * Directory where uploaded playthrough `.sav` files are stored, one per
+   * playthrough (`<saveDataDir>/<playthroughId>.sav`). In Docker this is a volume
+   * shared with the save-game MCP so it can read the file by the same absolute
+   * path the server injects.
+   */
+  saveDataDir: string;
 }
 
 const DEFAULT_HOST = '0.0.0.0';
@@ -115,6 +122,24 @@ export function resolveSystemPromptPath(env: NodeJS.ProcessEnv = process.env): s
   return candidates[candidates.length - 1] ?? path.join(packageRoot, 'SYSTEM_PROMPT.md');
 }
 
+/**
+ * Resolves the saves directory. An explicit `SAVE_DATA_DIR` wins; otherwise it
+ * sits next to a `file:` SQLite database (same data volume, survives restarts),
+ * mirroring the auth-secret placement, falling back to `./saves`.
+ */
+export function resolveSaveDataDir(env: NodeJS.ProcessEnv = process.env): string {
+  const explicit = env['SAVE_DATA_DIR']?.trim();
+  if (explicit !== undefined && explicit.length > 0) {
+    return path.resolve(explicit);
+  }
+  const url = env['DATABASE_URL']?.trim() ?? '';
+  if (url.startsWith('file:')) {
+    const dbPath = url.slice('file:'.length);
+    return path.join(path.dirname(path.resolve(dbPath)), 'saves');
+  }
+  return path.resolve(process.cwd(), 'saves');
+}
+
 /** Resolves all backend configuration from the environment. */
 export function resolveServerConfig(env: NodeJS.ProcessEnv = process.env): ServerConfig {
   const providerKind = parseProvider(env['LLM_PROVIDER']) ?? 'anthropic';
@@ -145,6 +170,7 @@ export function resolveServerConfig(env: NodeJS.ProcessEnv = process.env): Serve
     saveMcpUrl: firstNonEmpty(env['SAVE_MCP_URL']),
     historyWindow: parsePositiveInt(env['HISTORY_WINDOW'], DEFAULT_HISTORY_WINDOW),
     systemPromptPath: resolveSystemPromptPath(env),
+    saveDataDir: resolveSaveDataDir(env),
   };
 }
 

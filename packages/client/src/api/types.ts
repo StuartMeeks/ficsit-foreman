@@ -270,14 +270,33 @@ export interface Foreman {
   updatedAt: string;
 }
 
+/** The current uploaded `.sav` attached to a playthrough (metadata only). */
+export interface Save {
+  id: string;
+  fileName: string;
+  saveName?: string;
+  version?: string;
+  sizeBytes: number;
+  uploadedAt: string;
+}
+
 export interface Playthrough {
   id: string;
   foremanId: string;
   name?: string;
   pioneerProfile: string;
   summary?: string;
+  save?: Save;
   createdAt: string;
   updatedAt: string;
+}
+
+/** A stored chat message, for re-hydrating history on load / switch. */
+export interface StoredMessage {
+  id: string;
+  role: ChatRole;
+  content: string;
+  createdAt: string;
 }
 
 export type ChatRole = 'user' | 'assistant';

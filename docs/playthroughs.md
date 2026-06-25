@@ -109,17 +109,24 @@ User ──1:*── Foreman ──1:*── Playthrough ──1:1── Save (c
 1. **Domain model + migration** *(foundational — do first).* Schema (Foreman, Playthrough rename,
    Save table), the data migration, and the server rename `session`→`playthrough` across
    services/routes, plus Foreman CRUD and the playthrough list endpoint.
-2. **Playthrough switcher + foreman library + sectioned settings** *(reworked #61).* List / switch
-   / new / rename / delete playthroughs (resuming chat **and** work orders); a foreman library; and
-   the sectioned Settings dialog (Foreman / Pioneer / LLM / billing placeholder).
-3. **Save upload + re-upload + name-from-save** *(refocused #76).* Optional upload at creation and
-   re-upload later; storage; wiring into the save-game MCP.
+2. **Playthrough switcher + foreman library + sectioned settings + minimal save upload** *(#61).*
+   List / switch / new / rename / delete playthroughs (resuming chat **and** work orders); a foreman
+   library; the sectioned Settings dialog (Foreman / Pioneer / LLM / billing placeholder); **and** a
+   minimal-but-functional save upload pulled forward from #76 — the new-playthrough modal optionally
+   takes a `.sav` (drag-drop or file dialog), stored one-per-playthrough on a shared data volume,
+   parsed for metadata (seeds the playthrough name). The save-game MCP gained an optional, host-
+   injected `savePath` (per-path LRU of mtime-gated parses) so it answers about the active
+   playthrough's save; the server overrides `savePath` on save-routed tool calls.
+3. **Save subsystem: re-upload history + load-model refactor** *(refocused #76).* Re-upload-over-time
+   with version history (v1 here is latest-only), the save-game MCP folder/newest-per-playthrough
+   load-model refactor, and extracting the save parse/normalise layer into a shared lib.
 
 ## Decisions (settled)
 
 - Design-first; this spec is signed off before implementation.
 - `pioneerProfile` lives on the **Playthrough**.
 - A save is **optional** to start a playthrough.
-- Save is **latest-only** for v1; storage is a #76 detail.
+- Save is **latest-only** for v1 (re-upload replaces it). Minimal upload + storage + the per-call
+  `savePath` MCP mechanism landed in **#61**; the load-model refactor + version history are **#76**.
 - Foremen are seeded by **deduping** existing personalities on migration; new users get a foreman
   from their chosen onboarding preset.

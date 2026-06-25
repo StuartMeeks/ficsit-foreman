@@ -15,10 +15,7 @@ describe('SaveStore', () => {
   });
 
   it('re-parses only when the file mtime changes', () => {
-    const states: SaveState[] = [
-      emptySaveState('v', 'A', NOW),
-      emptySaveState('v', 'B', NOW),
-    ];
+    const states: SaveState[] = [emptySaveState('v', 'A', NOW), emptySaveState('v', 'B', NOW)];
     let mtime = 1;
     let loads = 0;
     const store = new SaveStore('save.sav', {

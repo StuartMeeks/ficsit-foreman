@@ -5,6 +5,7 @@ import type { SummaryService } from './llm/summary.js';
 import type { McpGateway } from './mcp/client.js';
 import type { ForemanService } from './services/foremanService.js';
 import type { PlaythroughService } from './services/playthroughService.js';
+import type { SaveService } from './services/saveService.js';
 import type { WorkOrderService } from './services/workOrderService.js';
 
 /** Everything the HTTP layer needs, assembled once at startup. */
@@ -14,6 +15,7 @@ export interface AppDeps {
   auth: Auth;
   foremen: ForemanService;
   playthroughs: PlaythroughService;
+  saves: SaveService;
   workOrders: WorkOrderService;
   mcp: McpGateway;
   /** Maintains each playthrough's running summary in the background. */

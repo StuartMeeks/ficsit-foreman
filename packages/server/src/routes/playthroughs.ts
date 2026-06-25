@@ -1,8 +1,22 @@
 import { Router, type Request } from 'express';
+import multer from 'multer';
 
 import type { AppDeps } from '../deps.js';
 import { requirePlaythroughOwnership } from '../middleware/auth.js';
 import { createPlaythroughSchema, updatePlaythroughSchema } from '../validation.js';
+
+/** Number of recent messages re-hydrated into the chat view on load/switch. */
+const MESSAGE_HISTORY_CAP = 500;
+
+/** A Satisfactory `.sav` can be tens of MB; cap uploads generously. */
+const MAX_SAVE_BYTES = 64 * 1024 * 1024;
+
+// In-memory upload: the save bytes are handed straight to the SaveService, which
+// writes them to the data volume — no temp files on disk.
+const uploadSave = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: MAX_SAVE_BYTES },
+}).single('save');
 
 /**
  * Routes for playthrough lifecycle: create, list, fetch, update, and claim.
@@ -103,6 +117,40 @@ export function playthroughsRouter(deps: AppDeps): Router {
       return;
     }
     res.json(playthrough);
+  });
+
+  // Delete a playthrough: cascades its messages + work orders, and removes the
+  // stored save file from disk. Idempotent-ish — a missing one is 404.
+  router.delete('/:playthroughId', ownsPlaythrough, async (req, res) => {
+    const id = playthroughId(req);
+    deps.saves.removeSaveFile(id);
+    const deleted = await deps.playthroughs.delete(id);
+    if (!deleted) {
+      res.status(404).json({ error: 'Playthrough not found.' });
+      return;
+    }
+    res.status(204).end();
+  });
+
+  // Chat history for re-hydrating the conversation on load / switch.
+  router.get('/:playthroughId/messages', ownsPlaythrough, async (req, res) => {
+    res.json(await deps.playthroughs.listMessages(playthroughId(req), MESSAGE_HISTORY_CAP));
+  });
+
+  // Upload (or replace) the playthrough's current save. Multipart field `save`.
+  // Multer runs after the ownership check so an unauthorised caller's file is
+  // never read. Metadata is parsed and the playthrough name seeded from it.
+  router.post('/:playthroughId/save', ownsPlaythrough, uploadSave, async (req, res) => {
+    const file = req.file;
+    if (file === undefined) {
+      res.status(400).json({ error: "Expected a 'save' file upload." });
+      return;
+    }
+    const save = await deps.saves.upsertSave(playthroughId(req), {
+      fileName: file.originalname,
+      bytes: file.buffer,
+    });
+    res.status(201).json(save);
   });
 
   return router;

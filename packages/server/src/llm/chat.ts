@@ -26,6 +26,8 @@ export interface ChatRequest {
   playthroughId: string;
   /** Persona + pioneer profile + summary substituted into the system prompt. */
   promptContext: PromptContext;
+  /** Absolute path of the playthrough's save, injected into save-game tools. */
+  savePath?: string;
   /** The LLM provider for this request, already built from the effective config. */
   provider: LlmProvider;
   model: string;
@@ -84,7 +86,7 @@ export async function runChat(
 
     for (const call of result.toolCalls) {
       events.toolUse(call.name);
-      const outcome = await dispatchTool(req.playthroughId, call, deps, events);
+      const outcome = await dispatchTool(req.playthroughId, req.savePath, call, deps, events);
       messages.push({
         role: 'tool',
         toolCallId: call.id,
@@ -114,6 +116,7 @@ interface ToolOutcome {
 /** Routes a tool call to the work-order handler or the MCP server. */
 async function dispatchTool(
   playthroughId: string,
+  savePath: string | undefined,
   call: NeutralToolCall,
   deps: ChatDeps,
   events: ChatEvents,
@@ -128,5 +131,6 @@ async function dispatchTool(
     }
     return { text: outcome.text, isError: outcome.isError };
   }
-  return deps.mcp.callTool(call.name, call.arguments);
+  // savePath is injected into save-game tool calls by the aggregate gateway.
+  return deps.mcp.callTool(call.name, call.arguments, { savePath });
 }

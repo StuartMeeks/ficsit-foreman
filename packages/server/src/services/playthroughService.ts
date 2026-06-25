@@ -1,8 +1,8 @@
 import { randomUUID } from 'node:crypto';
 
-import type { PrismaClient, Playthrough as PlaythroughRow } from '@prisma/client';
+import type { PrismaClient, Playthrough as PlaythroughRow, Save as SaveRow } from '@prisma/client';
 
-import type { ChatMessage, Playthrough } from '../types.js';
+import type { ChatMessage, Playthrough, StoredMessage } from '../types.js';
 
 /** Initial values when creating a playthrough. Owned by the authenticated user. */
 export interface CreatePlaythroughInput {
@@ -12,7 +12,7 @@ export interface CreatePlaythroughInput {
   foremanId: string;
   /** Client-held playthrough id. Generated if omitted. */
   id?: string;
-  /** Free-text name; defaults from the attached save once #76 lands. */
+  /** Free-text name; defaulted from the attached save's name on upload. */
   name?: string;
   pioneerProfile?: string;
 }
@@ -53,7 +53,10 @@ export class PlaythroughService {
   }
 
   public async get(id: string): Promise<Playthrough | undefined> {
-    const row = await this.prisma.playthrough.findUnique({ where: { id } });
+    const row = await this.prisma.playthrough.findUnique({
+      where: { id },
+      include: { save: true },
+    });
     return row === null ? undefined : rowToPlaythrough(row);
   }
 
@@ -62,6 +65,7 @@ export class PlaythroughService {
     const rows = await this.prisma.playthrough.findMany({
       where: { userId },
       orderBy: { updatedAt: 'desc' },
+      include: { save: true },
     });
     return rows.map(rowToPlaythrough);
   }
@@ -113,6 +117,34 @@ export class PlaythroughService {
       },
     });
     return rowToPlaythrough(row);
+  }
+
+  /** Deletes a playthrough and (via cascade) its messages + work orders. */
+  public async delete(id: string): Promise<boolean> {
+    const existing = await this.prisma.playthrough.findUnique({ where: { id } });
+    if (existing === null) {
+      return false;
+    }
+    await this.prisma.playthrough.delete({ where: { id } });
+    return true;
+  }
+
+  /**
+   * The most recent `limit` messages for a playthrough, in chronological order,
+   * each with its id + timestamp — for re-hydrating the chat view on load/switch.
+   */
+  public async listMessages(playthroughId: string, limit: number): Promise<StoredMessage[]> {
+    const rows = await this.prisma.message.findMany({
+      where: { playthroughId },
+      orderBy: { createdAt: 'desc' },
+      take: limit,
+    });
+    return rows.reverse().map((row) => ({
+      id: row.id,
+      role: row.role as ChatMessage['role'],
+      content: row.content,
+      createdAt: row.createdAt.toISOString(),
+    }));
   }
 
   /** Appends a conversational turn to the playthrough's history. */
@@ -169,7 +201,7 @@ export class PlaythroughService {
   }
 }
 
-function rowToPlaythrough(row: PlaythroughRow): Playthrough {
+function rowToPlaythrough(row: PlaythroughRow & { save?: SaveRow | null }): Playthrough {
   const playthrough: Playthrough = {
     id: row.id,
     foremanId: row.foremanId,
@@ -183,5 +215,20 @@ function rowToPlaythrough(row: PlaythroughRow): Playthrough {
   if (row.summary !== null && row.summary.length > 0) {
     playthrough.summary = row.summary;
   }
+  if (row.save !== undefined && row.save !== null) {
+    playthrough.save = rowToSave(row.save);
+  }
   return playthrough;
+}
+
+/** Marshals a Save row into the API shape (metadata only; no file path). */
+export function rowToSave(row: SaveRow): NonNullable<Playthrough['save']> {
+  return {
+    id: row.id,
+    fileName: row.fileName,
+    saveName: row.saveName ?? undefined,
+    version: row.version ?? undefined,
+    sizeBytes: row.sizeBytes,
+    uploadedAt: row.uploadedAt.toISOString(),
+  };
 }

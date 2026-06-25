@@ -3,7 +3,9 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { AuthScreen } from './components/AuthScreen.js';
 import { ChatColumn } from './components/ChatColumn.js';
 import { Header } from './components/Header.js';
+import { NewPlaythroughModal } from './components/NewPlaythroughModal.js';
 import { Onboarding } from './components/Onboarding.js';
+import { PlaythroughSwitcher } from './components/PlaythroughSwitcher.js';
 import { SecurityDialog } from './components/SecurityDialog.js';
 import { SettingsDialog } from './components/SettingsDialog.js';
 import { WorkOrderPanel } from './components/WorkOrderPanel.js';
@@ -33,6 +35,7 @@ export function App(): React.JSX.Element {
   const foreman = useForeman();
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [securityOpen, setSecurityOpen] = useState(false);
+  const [newOpen, setNewOpen] = useState(false);
   const [chatPct, setChatPct] = useState(initialSplit);
   const mainRef = useRef<HTMLElement>(null);
   const dragging = useRef(false);
@@ -107,7 +110,16 @@ export function App(): React.JSX.Element {
   return (
     <div className="app">
       <Header
-        playthroughId={foreman.playthrough?.id ?? null}
+        switcher={
+          <PlaythroughSwitcher
+            playthroughs={foreman.playthroughs}
+            current={foreman.playthrough}
+            onSwitch={(id) => void foreman.switchPlaythrough(id)}
+            onNew={() => setNewOpen(true)}
+            onRename={(id, name) => void foreman.renamePlaythrough(id, name)}
+            onDelete={(id) => void foreman.removePlaythrough(id)}
+          />
+        }
         userEmail={foreman.user?.email ?? null}
         onOpenSettings={() => setSettingsOpen(true)}
         onOpenSecurity={() => setSecurityOpen(true)}
@@ -157,10 +169,23 @@ export function App(): React.JSX.Element {
       {settingsOpen ? (
         <SettingsDialog
           playthrough={foreman.playthrough}
-          foreman={foreman.foreman}
+          foremen={foreman.foremen}
           llm={foreman.llm}
           onClose={() => setSettingsOpen(false)}
           onSave={foreman.saveSettings}
+          onAddForeman={foreman.addForeman}
+          onEditForeman={foreman.editForeman}
+          onRemoveForeman={foreman.removeForeman}
+          onUseForeman={foreman.setPlaythroughForeman}
+        />
+      ) : null}
+
+      {newOpen ? (
+        <NewPlaythroughModal
+          foremen={foreman.foremen}
+          onCreateForeman={foreman.addForeman}
+          onCreate={foreman.newPlaythrough}
+          onClose={() => setNewOpen(false)}
         />
       ) : null}
 
