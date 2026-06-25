@@ -18,7 +18,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "inspect": "tsx src/scripts/inspect.ts",
-    "lint": "eslint . && prettier --check \"src/**/*.ts\"",
+    "lint": "eslint . --max-warnings 0 && prettier --check \"src/**/*.ts\"",
     "format": "prettier --write \"src/**/*.ts\""
   },
   "dependencies": {
