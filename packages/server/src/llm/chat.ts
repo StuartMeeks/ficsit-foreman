@@ -1,9 +1,9 @@
 import type { McpGateway, ToolDefinition } from '../mcp/client.js';
-import type { SessionService } from '../services/sessionService.js';
+import type { PlaythroughService } from '../services/playthroughService.js';
 import type { WorkOrderService } from '../services/workOrderService.js';
-import type { Session, WorkOrder } from '../types.js';
+import type { WorkOrder } from '../types.js';
 import { logger } from '../logger.js';
-import { buildSystemPrompt } from '../anthropic/systemPrompt.js';
+import { buildSystemPrompt, type PromptContext } from '../anthropic/systemPrompt.js';
 import {
   handleWorkOrderTool,
   isWorkOrderTool,
@@ -16,14 +16,16 @@ import type { NeutralMessage, NeutralToolCall } from './types.js';
 export interface ChatDeps {
   systemPromptTemplate: string;
   historyWindow: number;
-  sessions: SessionService;
+  playthroughs: PlaythroughService;
   workOrders: WorkOrderService;
   mcp: McpGateway;
 }
 
 /** A single chat turn to run. The user message is already persisted. */
 export interface ChatRequest {
-  session: Session;
+  playthroughId: string;
+  /** Persona + pioneer profile + summary substituted into the system prompt. */
+  promptContext: PromptContext;
   /** The LLM provider for this request, already built from the effective config. */
   provider: LlmProvider;
   model: string;
@@ -52,10 +54,10 @@ export async function runChat(
   deps: ChatDeps,
   events: ChatEvents,
 ): Promise<string> {
-  const system = buildSystemPrompt(deps.systemPromptTemplate, req.session);
+  const system = buildSystemPrompt(deps.systemPromptTemplate, req.promptContext);
   const tools = await assembleTools(deps.mcp);
 
-  const history = await deps.sessions.recentMessages(req.session.id, deps.historyWindow);
+  const history = await deps.playthroughs.recentMessages(req.playthroughId, deps.historyWindow);
   const messages: NeutralMessage[] = history.map((message) => ({
     role: message.role,
     content: message.content,
@@ -82,7 +84,7 @@ export async function runChat(
 
     for (const call of result.toolCalls) {
       events.toolUse(call.name);
-      const outcome = await dispatchTool(req.session.id, call, deps, events);
+      const outcome = await dispatchTool(req.playthroughId, call, deps, events);
       messages.push({
         role: 'tool',
         toolCallId: call.id,
@@ -111,13 +113,13 @@ interface ToolOutcome {
 
 /** Routes a tool call to the work-order handler or the MCP server. */
 async function dispatchTool(
-  sessionId: string,
+  playthroughId: string,
   call: NeutralToolCall,
   deps: ChatDeps,
   events: ChatEvents,
 ): Promise<ToolOutcome> {
   if (isWorkOrderTool(call.name)) {
-    const outcome = await handleWorkOrderTool(sessionId, call.name, call.arguments, {
+    const outcome = await handleWorkOrderTool(playthroughId, call.name, call.arguments, {
       workOrders: deps.workOrders,
       gameVersion: () => deps.mcp.gameVersion,
     });

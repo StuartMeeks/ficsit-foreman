@@ -4,7 +4,8 @@
 
 import { parseSseStream } from './sse.js';
 import type {
-  Session,
+  Foreman,
+  Playthrough,
   WorkOrder,
   WorkOrderAction,
   WorkOrderAuditEvent,
@@ -35,13 +36,15 @@ async function readError(response: Response): Promise<string> {
   }
 }
 
-export interface CreateSessionInput {
+// ── Foremen ─────────────────────────────────────────────────────────────────
+
+export interface CreateForemanInput {
+  name: string;
   personality?: string;
-  pioneerProfile?: string;
 }
 
-export async function createSession(input: CreateSessionInput): Promise<Session> {
-  const response = await fetch('/api/sessions', {
+export async function createForeman(input: CreateForemanInput): Promise<Foreman> {
+  const response = await fetch('/api/foremen', {
     method: 'POST',
     headers: jsonHeaders(),
     credentials: CREDENTIALS,
@@ -50,27 +53,75 @@ export async function createSession(input: CreateSessionInput): Promise<Session>
   if (!response.ok) {
     throw new Error(await readError(response));
   }
-  return (await response.json()) as Session;
+  return (await response.json()) as Foreman;
 }
 
-export async function getSession(id: string): Promise<Session | null> {
-  const response = await fetch(`/api/sessions/${id}`, { credentials: CREDENTIALS });
+export async function getForeman(id: string): Promise<Foreman | null> {
+  const response = await fetch(`/api/foremen/${id}`, { credentials: CREDENTIALS });
   if (response.status === 404 || response.status === 403) {
     return null;
   }
   if (!response.ok) {
     throw new Error(await readError(response));
   }
-  return (await response.json()) as Session;
+  return (await response.json()) as Foreman;
+}
+
+export async function patchForeman(
+  id: string,
+  patch: { name?: string; personality?: string },
+): Promise<Foreman> {
+  const response = await fetch(`/api/foremen/${id}`, {
+    method: 'PATCH',
+    headers: jsonHeaders(),
+    credentials: CREDENTIALS,
+    body: JSON.stringify(patch),
+  });
+  if (!response.ok) {
+    throw new Error(await readError(response));
+  }
+  return (await response.json()) as Foreman;
+}
+
+// ── Playthroughs ──────────────────────────────────────────────────────────────
+
+export interface CreatePlaythroughInput {
+  foremanId: string;
+  name?: string;
+  pioneerProfile?: string;
+}
+
+export async function createPlaythrough(input: CreatePlaythroughInput): Promise<Playthrough> {
+  const response = await fetch('/api/playthroughs', {
+    method: 'POST',
+    headers: jsonHeaders(),
+    credentials: CREDENTIALS,
+    body: JSON.stringify(input),
+  });
+  if (!response.ok) {
+    throw new Error(await readError(response));
+  }
+  return (await response.json()) as Playthrough;
+}
+
+export async function getPlaythrough(id: string): Promise<Playthrough | null> {
+  const response = await fetch(`/api/playthroughs/${id}`, { credentials: CREDENTIALS });
+  if (response.status === 404 || response.status === 403) {
+    return null;
+  }
+  if (!response.ok) {
+    throw new Error(await readError(response));
+  }
+  return (await response.json()) as Playthrough;
 }
 
 /**
- * Claims a pre-accounts anonymous session (the local `foreman.sessionId`) for
- * the signed-in user on first login. Returns the session if claimed or already
- * owned; null if it no longer exists or belongs to another user.
+ * Claims a pre-accounts anonymous playthrough (the local `foreman.playthroughId`)
+ * for the signed-in user on first login. Returns the playthrough if claimed or
+ * already owned; null if it no longer exists or belongs to another user.
  */
-export async function claimSession(id: string): Promise<Session | null> {
-  const response = await fetch(`/api/sessions/${id}/claim`, {
+export async function claimPlaythrough(id: string): Promise<Playthrough | null> {
+  const response = await fetch(`/api/playthroughs/${id}/claim`, {
     method: 'POST',
     headers: jsonHeaders(),
     credentials: CREDENTIALS,
@@ -81,14 +132,14 @@ export async function claimSession(id: string): Promise<Session | null> {
   if (!response.ok) {
     throw new Error(await readError(response));
   }
-  return (await response.json()) as Session;
+  return (await response.json()) as Playthrough;
 }
 
-export async function patchSession(
+export async function patchPlaythrough(
   id: string,
-  patch: { personality?: string; pioneerProfile?: string },
-): Promise<Session> {
-  const response = await fetch(`/api/sessions/${id}`, {
+  patch: { name?: string; pioneerProfile?: string; foremanId?: string },
+): Promise<Playthrough> {
+  const response = await fetch(`/api/playthroughs/${id}`, {
     method: 'PATCH',
     headers: jsonHeaders(),
     credentials: CREDENTIALS,
@@ -97,11 +148,11 @@ export async function patchSession(
   if (!response.ok) {
     throw new Error(await readError(response));
   }
-  return (await response.json()) as Session;
+  return (await response.json()) as Playthrough;
 }
 
-export async function getActiveWorkOrder(sessionId: string): Promise<WorkOrder | null> {
-  const response = await fetch(`/api/sessions/${sessionId}/work-orders/active`, {
+export async function getActiveWorkOrder(playthroughId: string): Promise<WorkOrder | null> {
+  const response = await fetch(`/api/playthroughs/${playthroughId}/work-orders/active`, {
     credentials: CREDENTIALS,
   });
   if (response.status === 404) {
@@ -113,8 +164,8 @@ export async function getActiveWorkOrder(sessionId: string): Promise<WorkOrder |
   return (await response.json()) as WorkOrder;
 }
 
-export async function listWorkOrders(sessionId: string): Promise<WorkOrder[]> {
-  const response = await fetch(`/api/sessions/${sessionId}/work-orders`, {
+export async function listWorkOrders(playthroughId: string): Promise<WorkOrder[]> {
+  const response = await fetch(`/api/playthroughs/${playthroughId}/work-orders`, {
     credentials: CREDENTIALS,
   });
   if (!response.ok) {
@@ -128,8 +179,8 @@ export async function listWorkOrders(sessionId: string): Promise<WorkOrder[]> {
 // local state in place. Failures (409 conflict, 403 actor, 400 requirement)
 // surface as a thrown Error carrying the server's message.
 
-const wo = (sessionId: string, id: string): string =>
-  `/api/sessions/${sessionId}/work-orders/${id}`;
+const wo = (playthroughId: string, id: string): string =>
+  `/api/playthroughs/${playthroughId}/work-orders/${id}`;
 
 async function send<T>(url: string, method: string, body?: unknown): Promise<T> {
   const response = await fetch(url, {
@@ -166,12 +217,12 @@ export interface TransitionOptions {
 }
 
 export async function transitionWorkOrder(
-  sessionId: string,
+  playthroughId: string,
   id: string,
   action: WorkOrderAction,
   options: TransitionOptions = {},
 ): Promise<WorkOrder> {
-  return send<WorkOrder>(`${wo(sessionId, id)}/transitions`, 'POST', {
+  return send<WorkOrder>(`${wo(playthroughId, id)}/transitions`, 'POST', {
     action,
     actor: 'Pioneer',
     ...options,
@@ -179,62 +230,72 @@ export async function transitionWorkOrder(
 }
 
 export async function setMaterialChecked(
-  sessionId: string,
+  playthroughId: string,
   id: string,
   materialId: string,
   checked: boolean,
 ): Promise<WorkOrder> {
-  return send<WorkOrder>(`${wo(sessionId, id)}/materials/${materialId}`, 'PATCH', { checked });
+  return send<WorkOrder>(`${wo(playthroughId, id)}/materials/${materialId}`, 'PATCH', { checked });
 }
 
 export async function setStepChecked(
-  sessionId: string,
+  playthroughId: string,
   id: string,
   stepId: string,
   checked: boolean,
 ): Promise<WorkOrder> {
-  return send<WorkOrder>(`${wo(sessionId, id)}/steps/${stepId}`, 'PATCH', { checked });
+  return send<WorkOrder>(`${wo(playthroughId, id)}/steps/${stepId}`, 'PATCH', { checked });
 }
 
 export async function setMachineBuiltCount(
-  sessionId: string,
+  playthroughId: string,
   id: string,
   machineId: string,
   builtCount: number,
 ): Promise<WorkOrder> {
-  return send<WorkOrder>(`${wo(sessionId, id)}/machines/${machineId}`, 'PATCH', { builtCount });
+  return send<WorkOrder>(`${wo(playthroughId, id)}/machines/${machineId}`, 'PATCH', { builtCount });
 }
 
-export async function logHours(sessionId: string, id: string, hours: number): Promise<WorkOrder> {
-  return send<WorkOrder>(`${wo(sessionId, id)}/hours`, 'POST', { hours });
+export async function logHours(
+  playthroughId: string,
+  id: string,
+  hours: number,
+): Promise<WorkOrder> {
+  return send<WorkOrder>(`${wo(playthroughId, id)}/hours`, 'POST', { hours });
 }
 
 export async function acknowledgeRevision(
-  sessionId: string,
+  playthroughId: string,
   id: string,
   revisionNumber?: number,
 ): Promise<WorkOrder> {
-  return send<WorkOrder>(`${wo(sessionId, id)}/acknowledge`, 'POST', { revisionNumber });
+  return send<WorkOrder>(`${wo(playthroughId, id)}/acknowledge`, 'POST', { revisionNumber });
 }
 
 export async function revertToRevision(
-  sessionId: string,
+  playthroughId: string,
   id: string,
   revisionNumber: number,
 ): Promise<WorkOrder> {
-  return send<WorkOrder>(`${wo(sessionId, id)}/revert`, 'POST', { revisionNumber });
+  return send<WorkOrder>(`${wo(playthroughId, id)}/revert`, 'POST', { revisionNumber });
 }
 
-export async function getAuditTrail(sessionId: string, id: string): Promise<WorkOrderAuditEvent[]> {
-  return getJson<WorkOrderAuditEvent[]>(`${wo(sessionId, id)}/audit`);
+export async function getAuditTrail(
+  playthroughId: string,
+  id: string,
+): Promise<WorkOrderAuditEvent[]> {
+  return getJson<WorkOrderAuditEvent[]>(`${wo(playthroughId, id)}/audit`);
 }
 
-export async function getRevisions(sessionId: string, id: string): Promise<WorkOrderRevision[]> {
-  return getJson<WorkOrderRevision[]>(`${wo(sessionId, id)}/revisions`);
+export async function getRevisions(
+  playthroughId: string,
+  id: string,
+): Promise<WorkOrderRevision[]> {
+  return getJson<WorkOrderRevision[]>(`${wo(playthroughId, id)}/revisions`);
 }
 
 export async function getRevisionDiff(
-  sessionId: string,
+  playthroughId: string,
   id: string,
   from?: number,
   to?: number,
@@ -247,7 +308,9 @@ export async function getRevisionDiff(
     params.set('to', String(to));
   }
   const qs = params.toString();
-  return getJson<WorkOrderRevisionDiff>(`${wo(sessionId, id)}/revisions/diff${qs ? `?${qs}` : ''}`);
+  return getJson<WorkOrderRevisionDiff>(
+    `${wo(playthroughId, id)}/revisions/diff${qs ? `?${qs}` : ''}`,
+  );
 }
 
 /** Per-request LLM override (effective only when an API key is supplied). */
@@ -271,7 +334,7 @@ export interface ChatHandlers {
  * close). Network/HTTP failures surface through onError.
  */
 export async function streamChat(
-  sessionId: string,
+  playthroughId: string,
   message: string,
   apiKey: string | undefined,
   llm: ClientLlmConfig,
@@ -290,7 +353,7 @@ export async function streamChat(
 
   let response: Response;
   try {
-    response = await fetch(`/api/sessions/${sessionId}/chat`, {
+    response = await fetch(`/api/playthroughs/${playthroughId}/chat`, {
       method: 'POST',
       headers: jsonHeaders(apiKey),
       credentials: CREDENTIALS,

@@ -20,10 +20,15 @@ alongside `mcp-game-data` (and optionally `mcp-save-game`).
   request.
 - **Accounts.** Using the app requires an account. [Better Auth](https://better-auth.com)
   (mounted at `/api/auth/*`) provides email + password with HttpOnly-cookie sessions;
-  every play session and its data is scoped to a user. The pioneer's own LLM key still
+  every playthrough and its data is scoped to a user. The pioneer's own LLM key still
   stays client-side. See `BETTER_AUTH_*` in `.env.example`.
+- **Foremen & playthroughs.** A **foreman** is a reusable persona (its
+  `{{PERSONALITY}}`); a **playthrough** is one save's journey, attached to a
+  foreman and carrying its own `{{PIONEER_PROFILE}}`, chat history, and work
+  orders (see [`docs/playthroughs.md`](../../docs/playthroughs.md)).
 - **Foreman persona.** Loads `SYSTEM_PROMPT.md` once at startup and substitutes
-  the session's `{{PERSONALITY}}` and `{{PIONEER_PROFILE}}` per request.
+  the attached foreman's `{{PERSONALITY}}` and the playthrough's
+  `{{PIONEER_PROFILE}}` per request.
 - **Two key tiers.** Free tier — the client passes its own provider key in the
   `x-anthropic-api-key` header (and may pick provider/model in the chat body).
   Hosted tier — the server uses its own `LLM_API_KEY`. The header wins when both
@@ -34,7 +39,7 @@ alongside `mcp-game-data` (and optionally `mcp-save-game`).
   `block`/`unblock`/`supersede`, `create_child_work_order`) and may only
   `propose_completion` — **completion is Pioneer-only** (via REST/UI). Creating an
   order no longer abandons the current one; supersession is explicit. Sequence
-  numbers are per-session and monotonic (WO-001, …); at most one order is `active`
+  numbers are per-playthrough and monotonic (WO-001, …); at most one order is `active`
   at a time, though non-terminal orders may coexist (a blocked parent + an active
   child). Plan edits write acknowledged **revision snapshots**; execution changes
   (checklists, machine counts, hours) append to an **audit trail**.
@@ -44,24 +49,27 @@ alongside `mcp-game-data` (and optionally `mcp-save-game`).
 ## API
 
 All routes are under `/api`. **Authentication is required** — Better Auth owns
-`/api/auth/*` (email + password; HttpOnly-cookie sessions), and every
-`/api/sessions*` route rejects unauthenticated requests with 401. Sessions are
-owned by a user: reads/updates of a session you don't own return 403. Send requests
+`/api/auth/*` (email + password; HttpOnly-cookie sessions), and every other
+`/api/*` route rejects unauthenticated requests with 401. Foremen and playthroughs
+are owned by a user: reads/updates of one you don't own return 403. Send requests
 with credentials (cookies) included.
 
 | Method | Path | Purpose |
 |---|---|---|
 | `POST`/`GET` | `/api/auth/*` | Better Auth: sign-up/sign-in (email), sign-out, session. |
-| `POST` | `/api/sessions` | Create a session owned by the caller (optionally seed personality/profile). |
-| `GET` | `/api/sessions` | List the caller's own sessions. |
-| `GET` | `/api/sessions/:id` | Fetch a session you own. |
-| `POST` | `/api/sessions/:id/claim` | Claim a pre-accounts anonymous session on first login. |
-| `PATCH` | `/api/sessions/:id` | Update personality and/or pioneer profile (effective next message). |
-| `POST` | `/api/sessions/:id/chat` | Send a message; streams the response over SSE. |
-| `POST` | `/api/sessions/:id/work-orders` | Create a work order (starts in `new`; does not abandon others). |
-| `GET` | `/api/sessions/:id/work-orders` | Full work-order history. |
-| `GET` | `/api/sessions/:id/work-orders/active` | The current active order (404 if none). |
-| `GET` | `/api/sessions/:id/work-orders/:woId` | A single order (also `/children`, `/parent`). |
+| `POST` | `/api/foremen` | Create a reusable foreman (persona) owned by the caller. |
+| `GET` | `/api/foremen` | List the caller's own foremen. |
+| `GET`/`PATCH`/`DELETE` | `/api/foremen/:id` | Fetch, edit (name/personality), or delete a foreman you own. |
+| `POST` | `/api/playthroughs` | Create a playthrough owned by the caller (requires `foremanId`; optional name/profile). |
+| `GET` | `/api/playthroughs` | List the caller's own playthroughs. |
+| `GET` | `/api/playthroughs/:id` | Fetch a playthrough you own. |
+| `POST` | `/api/playthroughs/:id/claim` | Claim a pre-accounts anonymous playthrough on first login. |
+| `PATCH` | `/api/playthroughs/:id` | Update name, pioneer profile, and/or attached foreman (effective next message). |
+| `POST` | `/api/playthroughs/:id/chat` | Send a message; streams the response over SSE. |
+| `POST` | `/api/playthroughs/:id/work-orders` | Create a work order (starts in `new`; does not abandon others). |
+| `GET` | `/api/playthroughs/:id/work-orders` | Full work-order history. |
+| `GET` | `/api/playthroughs/:id/work-orders/active` | The current active order (404 if none). |
+| `GET` | `/api/playthroughs/:id/work-orders/:woId` | A single order (also `/children`, `/parent`). |
 | `PATCH` | `…/work-orders/:woId/plan` | Foreman plan edit (writes a revision). |
 | `POST` | `…/work-orders/:woId/transitions` | Lifecycle action: start/pause/resume/block/unblock/complete/force-complete/cancel/supersede. |
 | `PATCH` | `…/work-orders/:woId/materials\|steps\|machines/:itemId` | Pioneer execution updates (check/uncheck, built count). |

@@ -10,9 +10,10 @@ import type { AppDeps } from '../src/deps.js';
 import type { McpGateway } from '../src/mcp/client.js';
 import { SummaryService } from '../src/llm/summary.js';
 import type { LlmProviderFactory } from '../src/llm/provider.js';
-import { SessionService } from '../src/services/sessionService.js';
+import { ForemanService } from '../src/services/foremanService.js';
+import { PlaythroughService } from '../src/services/playthroughService.js';
 import { WorkOrderService } from '../src/services/workOrderService.js';
-import { createTestDb, type TestDb } from './helpers.js';
+import { createTestDb, createTestForeman, type TestDb } from './helpers.js';
 
 let db: TestDb;
 let server: Server;
@@ -59,7 +60,7 @@ function authHeaders(c: string = cookie): Record<string, string> {
 
 beforeAll(async () => {
   db = await createTestDb();
-  const sessions = new SessionService(db.prisma);
+  const playthroughs = new PlaythroughService(db.prisma);
   const stubFactory: LlmProviderFactory = () => ({
     runTurn: async () => ({ text: '', toolCalls: [], stopReason: 'stop' }),
     complete: async () => '',
@@ -67,10 +68,11 @@ beforeAll(async () => {
   const deps: AppDeps = {
     config: resolveServerConfig({}),
     auth: createAuth(db.prisma),
-    sessions,
+    foremen: new ForemanService(db.prisma),
+    playthroughs,
     workOrders: new WorkOrderService(db.prisma),
     mcp: stubMcp,
-    summary: new SummaryService(sessions, { historyWindow: 20 }, stubFactory),
+    summary: new SummaryService(playthroughs, { historyWindow: 20 }, stubFactory),
     llmProviderFactory: stubFactory,
     systemPromptTemplate: 'Prompt {{PERSONALITY}} {{PIONEER_PROFILE}} {{SESSION_SUMMARY}}',
   };
@@ -87,11 +89,30 @@ afterAll(async () => {
   await db.cleanup();
 });
 
-async function createSession(body: unknown = {}, c: string = cookie): Promise<{ id: string }> {
-  const res = await fetch(`${baseUrl}/api/sessions`, {
+/** Creates a foreman for the caller, returning its id. */
+async function createForeman(
+  c: string = cookie,
+  body: unknown = { name: 'ADA', personality: 'Calm' },
+): Promise<string> {
+  const res = await fetch(`${baseUrl}/api/foremen`, {
     method: 'POST',
     headers: authHeaders(c),
     body: JSON.stringify(body),
+  });
+  expect(res.status).toBe(201);
+  return ((await res.json()) as { id: string }).id;
+}
+
+/** Creates a playthrough for the caller, minting a foreman first unless given. */
+async function createPlaythrough(
+  body: Record<string, unknown> = {},
+  c: string = cookie,
+): Promise<{ id: string }> {
+  const foremanId = (body.foremanId as string | undefined) ?? (await createForeman(c));
+  const res = await fetch(`${baseUrl}/api/playthroughs`, {
+    method: 'POST',
+    headers: authHeaders(c),
+    body: JSON.stringify({ foremanId, ...body }),
   });
   expect(res.status).toBe(201);
   return res.json() as Promise<{ id: string }>;
@@ -107,7 +128,7 @@ describe('HTTP routes', () => {
   });
 
   it('rejects unauthenticated API access with 401', async () => {
-    const res = await fetch(`${baseUrl}/api/sessions`, {
+    const res = await fetch(`${baseUrl}/api/playthroughs`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({}),
@@ -115,23 +136,30 @@ describe('HTTP routes', () => {
     expect(res.status).toBe(401);
   });
 
+  it('creates a foreman and lists it', async () => {
+    const id = await createForeman();
+    const list = await fetch(`${baseUrl}/api/foremen`, { headers: authHeaders() });
+    expect(list.status).toBe(200);
+    const foremen = (await list.json()) as { id: string }[];
+    expect(foremen.some((f) => f.id === id)).toBe(true);
+  });
 
-  it('creates and updates a session', async () => {
-    const session = await createSession({ personality: 'Calm' });
-    const res = await fetch(`${baseUrl}/api/sessions/${session.id}`, {
+  it('creates and updates a playthrough', async () => {
+    const playthrough = await createPlaythrough({ name: 'Iron World' });
+    const res = await fetch(`${baseUrl}/api/playthroughs/${playthrough.id}`, {
       method: 'PATCH',
       headers: authHeaders(),
       body: JSON.stringify({ pioneerProfile: 'Veteran' }),
     });
     expect(res.status).toBe(200);
-    const updated = (await res.json()) as { personality: string; pioneerProfile: string };
-    expect(updated.personality).toBe('Calm');
+    const updated = (await res.json()) as { name: string; pioneerProfile: string };
+    expect(updated.name).toBe('Iron World');
     expect(updated.pioneerProfile).toBe('Veteran');
   });
 
-  it('rejects an empty session update', async () => {
-    const session = await createSession();
-    const res = await fetch(`${baseUrl}/api/sessions/${session.id}`, {
+  it('rejects an empty playthrough update', async () => {
+    const playthrough = await createPlaythrough();
+    const res = await fetch(`${baseUrl}/api/playthroughs/${playthrough.id}`, {
       method: 'PATCH',
       headers: authHeaders(),
       body: JSON.stringify({}),
@@ -139,32 +167,47 @@ describe('HTTP routes', () => {
     expect(res.status).toBe(400);
   });
 
-  it("forbids access to another user's session with 403", async () => {
-    const session = await createSession();
+  it("rejects creating a playthrough with another user's foreman", async () => {
+    const otherCookie = await signUp('foreman-owner@example.com');
+    const foreignForeman = await createForeman(otherCookie);
+    const res = await fetch(`${baseUrl}/api/playthroughs`, {
+      method: 'POST',
+      headers: authHeaders(),
+      body: JSON.stringify({ foremanId: foreignForeman }),
+    });
+    expect(res.status).toBe(403);
+  });
+
+  it("forbids access to another user's playthrough with 403", async () => {
+    const playthrough = await createPlaythrough();
     const otherCookie = await signUp('intruder@example.com');
-    const res = await fetch(`${baseUrl}/api/sessions/${session.id}`, {
+    const res = await fetch(`${baseUrl}/api/playthroughs/${playthrough.id}`, {
       headers: authHeaders(otherCookie),
     });
     expect(res.status).toBe(403);
   });
 
-  it('claims a pre-accounts anonymous session on first login', async () => {
-    // A session left behind before accounts existed has a null owner.
-    const anon = await db.prisma.session.create({ data: { id: 'anon-claim-1' } });
-    const claim = await fetch(`${baseUrl}/api/sessions/${anon.id}/claim`, {
+  it('claims a pre-accounts anonymous playthrough on first login', async () => {
+    // A playthrough left behind before accounts existed has a null owner; it
+    // still needs a foreman, so seed an anonymous one alongside it.
+    const foremanId = await createTestForeman(db.prisma, null);
+    const anon = await db.prisma.playthrough.create({
+      data: { id: 'anon-claim-1', foremanId },
+    });
+    const claim = await fetch(`${baseUrl}/api/playthroughs/${anon.id}/claim`, {
       method: 'POST',
       headers: authHeaders(),
     });
     expect(claim.status).toBe(200);
     // Now owned: a plain read succeeds.
-    const read = await fetch(`${baseUrl}/api/sessions/${anon.id}`, { headers: authHeaders() });
+    const read = await fetch(`${baseUrl}/api/playthroughs/${anon.id}`, { headers: authHeaders() });
     expect(read.status).toBe(200);
   });
 
-  it('refuses to claim a session owned by another user with 403', async () => {
-    const session = await createSession();
+  it('refuses to claim a playthrough owned by another user with 403', async () => {
+    const playthrough = await createPlaythrough();
     const otherCookie = await signUp('claimant@example.com');
-    const claim = await fetch(`${baseUrl}/api/sessions/${session.id}/claim`, {
+    const claim = await fetch(`${baseUrl}/api/playthroughs/${playthrough.id}/claim`, {
       method: 'POST',
       headers: authHeaders(otherCookie),
     });
@@ -172,8 +215,8 @@ describe('HTTP routes', () => {
   });
 
   it('creates a new order, lists it, then starts it to become active', async () => {
-    const session = await createSession();
-    const create = await fetch(`${baseUrl}/api/sessions/${session.id}/work-orders`, {
+    const playthrough = await createPlaythrough();
+    const create = await fetch(`${baseUrl}/api/playthroughs/${playthrough.id}/work-orders`, {
       method: 'POST',
       headers: authHeaders(),
       body: JSON.stringify(workOrderBody),
@@ -189,13 +232,13 @@ describe('HTTP routes', () => {
     expect(order.version).toBe('1.2.3.0');
     expect(order.state).toBe('new');
 
-    const list = await fetch(`${baseUrl}/api/sessions/${session.id}/work-orders`, {
+    const list = await fetch(`${baseUrl}/api/playthroughs/${playthrough.id}/work-orders`, {
       headers: authHeaders(),
     });
     expect(((await list.json()) as unknown[]).length).toBe(1);
 
     const start = await fetch(
-      `${baseUrl}/api/sessions/${session.id}/work-orders/${order.id}/transitions`,
+      `${baseUrl}/api/playthroughs/${playthrough.id}/work-orders/${order.id}/transitions`,
       {
         method: 'POST',
         headers: authHeaders(),
@@ -204,7 +247,7 @@ describe('HTTP routes', () => {
     );
     expect(start.status).toBe(200);
 
-    const active = await fetch(`${baseUrl}/api/sessions/${session.id}/work-orders/active`, {
+    const active = await fetch(`${baseUrl}/api/playthroughs/${playthrough.id}/work-orders/active`, {
       headers: authHeaders(),
     });
     expect(active.status).toBe(200);
@@ -212,9 +255,9 @@ describe('HTTP routes', () => {
   });
 
   it('does not supersede the previous order on a second create (one active max)', async () => {
-    const session = await createSession();
+    const playthrough = await createPlaythrough();
     const post = async (title: string): Promise<{ id: string }> => {
-      const res = await fetch(`${baseUrl}/api/sessions/${session.id}/work-orders`, {
+      const res = await fetch(`${baseUrl}/api/playthroughs/${playthrough.id}/work-orders`, {
         method: 'POST',
         headers: authHeaders(),
         body: JSON.stringify({ ...workOrderBody, title }),
@@ -222,20 +265,25 @@ describe('HTTP routes', () => {
       return res.json() as Promise<{ id: string }>;
     };
     const first = await post('First');
-    await fetch(`${baseUrl}/api/sessions/${session.id}/work-orders/${first.id}/transitions`, {
-      method: 'POST',
-      headers: authHeaders(),
-      body: JSON.stringify({ action: 'Start', actor: 'Pioneer' }),
-    });
+    await fetch(
+      `${baseUrl}/api/playthroughs/${playthrough.id}/work-orders/${first.id}/transitions`,
+      {
+        method: 'POST',
+        headers: authHeaders(),
+        body: JSON.stringify({ action: 'Start', actor: 'Pioneer' }),
+      },
+    );
     await post('Second');
 
     // First is still active (not superseded); Second sits in `new`.
-    const active = await fetch(`${baseUrl}/api/sessions/${session.id}/work-orders/active`, {
+    const active = await fetch(`${baseUrl}/api/playthroughs/${playthrough.id}/work-orders/active`, {
       headers: authHeaders(),
     });
     expect(((await active.json()) as { title: string }).title).toBe('First');
     const list = (await (
-      await fetch(`${baseUrl}/api/sessions/${session.id}/work-orders`, { headers: authHeaders() })
+      await fetch(`${baseUrl}/api/playthroughs/${playthrough.id}/work-orders`, {
+        headers: authHeaders(),
+      })
     ).json()) as {
       state: string;
     }[];
@@ -244,15 +292,15 @@ describe('HTTP routes', () => {
   });
 
   it('404s the active endpoint when nothing is active', async () => {
-    const session = await createSession();
-    const res = await fetch(`${baseUrl}/api/sessions/${session.id}/work-orders/active`, {
+    const playthrough = await createPlaythrough();
+    const res = await fetch(`${baseUrl}/api/playthroughs/${playthrough.id}/work-orders/active`, {
       headers: authHeaders(),
     });
     expect(res.status).toBe(404);
   });
 
-  it('404s work orders for an unknown session', async () => {
-    const res = await fetch(`${baseUrl}/api/sessions/does-not-exist/work-orders`, {
+  it('404s work orders for an unknown playthrough', async () => {
+    const res = await fetch(`${baseUrl}/api/playthroughs/does-not-exist/work-orders`, {
       headers: authHeaders(),
     });
     expect(res.status).toBe(404);

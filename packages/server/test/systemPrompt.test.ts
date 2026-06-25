@@ -15,7 +15,9 @@ function tempPrompt(contents: string): string {
 
 describe('loadSystemPromptTemplate', () => {
   it('extracts the fenced code block, dropping surrounding markdown', () => {
-    const file = tempPrompt('# Heading\n\nintro\n\n```\nYou are the Foreman {{PERSONALITY}}.\n```\n\nNotes after.');
+    const file = tempPrompt(
+      '# Heading\n\nintro\n\n```\nYou are the Foreman {{PERSONALITY}}.\n```\n\nNotes after.',
+    );
     const template = loadSystemPromptTemplate(file);
     expect(template).toBe('You are the Foreman {{PERSONALITY}}.');
   });

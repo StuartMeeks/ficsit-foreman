@@ -3,7 +3,8 @@ import type { ServerConfig } from './config.js';
 import type { LlmProviderFactory } from './llm/provider.js';
 import type { SummaryService } from './llm/summary.js';
 import type { McpGateway } from './mcp/client.js';
-import type { SessionService } from './services/sessionService.js';
+import type { ForemanService } from './services/foremanService.js';
+import type { PlaythroughService } from './services/playthroughService.js';
 import type { WorkOrderService } from './services/workOrderService.js';
 
 /** Everything the HTTP layer needs, assembled once at startup. */
@@ -11,10 +12,11 @@ export interface AppDeps {
   config: ServerConfig;
   /** The Better Auth instance (owns /api/auth/* and session resolution). */
   auth: Auth;
-  sessions: SessionService;
+  foremen: ForemanService;
+  playthroughs: PlaythroughService;
   workOrders: WorkOrderService;
   mcp: McpGateway;
-  /** Maintains each session's running summary in the background. */
+  /** Maintains each playthrough's running summary in the background. */
   summary: SummaryService;
   /** Builds an LLM provider from a resolved per-request runtime config. */
   llmProviderFactory: LlmProviderFactory;

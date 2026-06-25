@@ -4,10 +4,10 @@ import { runChat, type ChatDeps } from '../src/llm/chat.js';
 import type { LlmProvider } from '../src/llm/provider.js';
 import type { LlmRequest, LlmStreamEvent, LlmTurnResult } from '../src/llm/types.js';
 import type { McpGateway, ToolDefinition, ToolInvocationResult } from '../src/mcp/client.js';
-import { SessionService } from '../src/services/sessionService.js';
+import { PlaythroughService } from '../src/services/playthroughService.js';
 import { WorkOrderService } from '../src/services/workOrderService.js';
 import type { WorkOrder } from '../src/types.js';
-import { createTestDb, createTestUser, type TestDb } from './helpers.js';
+import { createTestDb, createTestForeman, createTestUser, type TestDb } from './helpers.js';
 
 let db: TestDb;
 let userId: string;
@@ -69,15 +69,16 @@ afterAll(async () => {
 
 describe('runChat tool-use loop', () => {
   it('drives game-data and work-order tools, then returns the final text', async () => {
-    const sessions = new SessionService(db.prisma);
+    const playthroughs = new PlaythroughService(db.prisma);
     const workOrders = new WorkOrderService(db.prisma);
     const mcp = fakeMcp();
-    const session = await sessions.create({
+    const foremanId = await createTestForeman(db.prisma, userId, 'Gruff');
+    const playthrough = await playthroughs.create({
       userId,
-      personality: 'Gruff',
+      foremanId,
       pioneerProfile: 'Veteran',
     });
-    await sessions.appendMessage(session.id, 'user', 'Get me started on iron.');
+    await playthroughs.appendMessage(playthrough.id, 'user', 'Get me started on iron.');
 
     const provider = new FakeLlmProvider([
       {
@@ -97,7 +98,7 @@ describe('runChat tool-use loop', () => {
       systemPromptTemplate:
         'You are the Foreman. <p>{{PERSONALITY}}</p> <q>{{PIONEER_PROFILE}}</q>',
       historyWindow: 20,
-      sessions,
+      playthroughs,
       workOrders,
       mcp,
     };
@@ -105,11 +106,21 @@ describe('runChat tool-use loop', () => {
     const textChunks: string[] = [];
     const toolNames: string[] = [];
     const orders: WorkOrder[] = [];
-    const finalText = await runChat({ session, provider, model: 'm', maxTokens: 1024 }, deps, {
-      text: (delta) => textChunks.push(delta),
-      toolUse: (name) => toolNames.push(name),
-      workOrder: (order) => orders.push(order),
-    });
+    const finalText = await runChat(
+      {
+        playthroughId: playthrough.id,
+        promptContext: { personality: 'Gruff', pioneerProfile: 'Veteran' },
+        provider,
+        model: 'm',
+        maxTokens: 1024,
+      },
+      deps,
+      {
+        text: (delta) => textChunks.push(delta),
+        toolUse: (name) => toolNames.push(name),
+        workOrder: (order) => orders.push(order),
+      },
+    );
 
     expect(finalText).toBe('Let me check the recipe. Order issued. Get to it.');
     expect(textChunks).toEqual(['Let me check the recipe. ', 'Order issued. Get to it.']);
@@ -117,7 +128,7 @@ describe('runChat tool-use loop', () => {
     expect(mcp.calls).toEqual([{ name: 'get_recipe', args: { name: 'Iron Plate' } }]);
 
     expect(orders).toHaveLength(1);
-    const stored = await workOrders.list(session.id);
+    const stored = await workOrders.list(playthrough.id);
     expect(stored).toHaveLength(1);
     expect(stored[0]?.state).toBe('new');
     expect(stored[0]?.version).toBe('1.2.3.0');
@@ -128,10 +139,11 @@ describe('runChat tool-use loop', () => {
   });
 
   it('returns immediately when the first turn has no tool use', async () => {
-    const sessions = new SessionService(db.prisma);
+    const playthroughs = new PlaythroughService(db.prisma);
     const workOrders = new WorkOrderService(db.prisma);
-    const session = await sessions.create({ userId });
-    await sessions.appendMessage(session.id, 'user', 'Hello.');
+    const foremanId = await createTestForeman(db.prisma, userId);
+    const playthrough = await playthroughs.create({ userId, foremanId });
+    await playthroughs.appendMessage(playthrough.id, 'user', 'Hello.');
 
     const provider = new FakeLlmProvider([
       { text: 'Just chatting.', toolCalls: [], stopReason: 'stop' },
@@ -140,16 +152,26 @@ describe('runChat tool-use loop', () => {
     const deps: ChatDeps = {
       systemPromptTemplate: 'Prompt {{PERSONALITY}} {{PIONEER_PROFILE}}',
       historyWindow: 20,
-      sessions,
+      playthroughs,
       workOrders,
       mcp: fakeMcp(),
     };
 
-    const finalText = await runChat({ session, provider, model: 'm', maxTokens: 1024 }, deps, {
-      text: () => {},
-      toolUse: () => {},
-      workOrder: () => {},
-    });
+    const finalText = await runChat(
+      {
+        playthroughId: playthrough.id,
+        promptContext: { personality: '', pioneerProfile: '' },
+        provider,
+        model: 'm',
+        maxTokens: 1024,
+      },
+      deps,
+      {
+        text: () => {},
+        toolUse: () => {},
+        workOrder: () => {},
+      },
+    );
     expect(finalText).toBe('Just chatting.');
     expect(provider.requests).toHaveLength(1);
   });

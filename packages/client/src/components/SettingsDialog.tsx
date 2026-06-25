@@ -1,10 +1,11 @@
 import { useState } from 'react';
 
-import type { Session } from '../api/types.js';
+import type { Foreman, Playthrough } from '../api/types.js';
 import type { LlmSettings } from '../useForeman.js';
 
 interface SettingsDialogProps {
-  session: Session | null;
+  playthrough: Playthrough | null;
+  foreman: Foreman | null;
   llm: LlmSettings;
   onClose: () => void;
   onSave: (input: {
@@ -15,18 +16,20 @@ interface SettingsDialogProps {
 }
 
 /**
- * Settings: the foreman's personality and the pioneer profile (stored on the
- * session), plus the LLM provider/model/key (held only in this browser). Leave
- * the provider on "Server default" to use whatever the server is configured for.
+ * Settings: the foreman's personality (stored on the foreman) and the pioneer
+ * profile (stored on the playthrough), plus the LLM provider/model/key (held
+ * only in this browser). Leave the provider on "Server default" to use whatever
+ * the server is configured for.
  */
 export function SettingsDialog({
-  session,
+  playthrough,
+  foreman,
   llm,
   onClose,
   onSave,
 }: SettingsDialogProps): React.JSX.Element {
-  const [personality, setPersonality] = useState(session?.personality ?? '');
-  const [pioneerProfile, setPioneerProfile] = useState(session?.pioneerProfile ?? '');
+  const [personality, setPersonality] = useState(foreman?.personality ?? '');
+  const [pioneerProfile, setPioneerProfile] = useState(playthrough?.pioneerProfile ?? '');
   const [provider, setProvider] = useState(llm.provider);
   const [model, setModel] = useState(llm.model);
   const [baseUrl, setBaseUrl] = useState(llm.baseUrl);

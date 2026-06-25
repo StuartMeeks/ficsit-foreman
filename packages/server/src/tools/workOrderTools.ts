@@ -171,7 +171,7 @@ export function workOrderToolDefinitions(): ToolDefinition[] {
     {
       name: CREATE_WORK_ORDER,
       description:
-        'Issue a NEW work order — a specific, single-session task with everything needed to start. Use this ONLY for genuinely new work. To change the order the pioneer is already on (add/edit a step, swap a recipe, adjust counts, change the goal), call revise_work_order instead — do NOT create a second order. It starts in the `new` state for the pioneer to begin; it does NOT abandon any existing order (use supersede_work_order for that). Resolve alternate recipe choices and use the game-data + save-game tools for accurate materials, rates, locations, and opportunities before issuing.',
+        'Issue a NEW work order — a specific, self-contained task with everything needed to start. Use this ONLY for genuinely new work. To change the order the pioneer is already on (add/edit a step, swap a recipe, adjust counts, change the goal), call revise_work_order instead — do NOT create a second order. It starts in the `new` state for the pioneer to begin; it does NOT abandon any existing order (use supersede_work_order for that). Resolve alternate recipe choices and use the game-data + save-game tools for accurate materials, rates, locations, and opportunities before issuing.',
       inputSchema: {
         type: 'object',
         properties: planProperties,
@@ -279,33 +279,33 @@ export function workOrderToolDefinitions(): ToolDefinition[] {
  * model to read back and, where relevant, the affected order for the client.
  */
 export async function handleWorkOrderTool(
-  sessionId: string,
+  playthroughId: string,
   name: string,
   input: unknown,
   deps: WorkOrderToolDeps,
 ): Promise<WorkOrderToolOutcome> {
   switch (name) {
     case CREATE_WORK_ORDER:
-      return handleCreate(sessionId, input, deps);
+      return handleCreate(playthroughId, input, deps);
     case PROPOSE_COMPLETION:
-      return handleProposeCompletion(sessionId, input, deps);
+      return handleProposeCompletion(playthroughId, input, deps);
     case REVISE_WORK_ORDER:
-      return handleRevise(sessionId, input, deps);
+      return handleRevise(playthroughId, input, deps);
     case BLOCK_WORK_ORDER:
-      return handleBlock(sessionId, input, deps);
+      return handleBlock(playthroughId, input, deps);
     case UNBLOCK_WORK_ORDER:
-      return handleUnblock(sessionId, input, deps);
+      return handleUnblock(playthroughId, input, deps);
     case SUPERSEDE_WORK_ORDER:
-      return handleSupersede(sessionId, input, deps);
+      return handleSupersede(playthroughId, input, deps);
     case CREATE_CHILD_WORK_ORDER:
-      return handleCreateChild(sessionId, input, deps);
+      return handleCreateChild(playthroughId, input, deps);
     default:
       return { text: `Unknown work-order tool '${name}'.`, isError: true };
   }
 }
 
 async function handleCreate(
-  sessionId: string,
+  playthroughId: string,
   input: unknown,
   deps: WorkOrderToolDeps,
 ): Promise<WorkOrderToolOutcome> {
@@ -313,7 +313,7 @@ async function handleCreate(
   if (!parsed.success) {
     return { text: `Invalid create_work_order arguments: ${parsed.error.message}`, isError: true };
   }
-  const order = await deps.workOrders.create(sessionId, parsed.data, deps.gameVersion());
+  const order = await deps.workOrders.create(playthroughId, parsed.data, deps.gameVersion());
   const label = formatWorkOrderLabel(order.sequenceNumber);
   return {
     text: `Issued ${label}: "${order.title}" (state: new). Tell the pioneer it is ready to start.`,
@@ -323,7 +323,7 @@ async function handleCreate(
 }
 
 async function handleProposeCompletion(
-  sessionId: string,
+  playthroughId: string,
   input: unknown,
   deps: WorkOrderToolDeps,
 ): Promise<WorkOrderToolOutcome> {
@@ -331,11 +331,15 @@ async function handleProposeCompletion(
   if (!parsed.success) {
     return { text: `Invalid propose_completion arguments: ${parsed.error.message}`, isError: true };
   }
-  const target = await resolveTargetId(deps, sessionId, parsed.data.workOrderId);
+  const target = await resolveTargetId(deps, playthroughId, parsed.data.workOrderId);
   if (target.error !== undefined) {
     return { text: target.error, isError: true };
   }
-  const outcome = await deps.workOrders.proposeCompletion(sessionId, target.id, parsed.data.note);
+  const outcome = await deps.workOrders.proposeCompletion(
+    playthroughId,
+    target.id,
+    parsed.data.note,
+  );
   return mapOutcome(outcome, (order) => ({
     text: `Proposed completion of ${formatWorkOrderLabel(order.sequenceNumber)}. Ask the pioneer to confirm — only they can mark it complete.`,
     workOrder: order,
@@ -343,7 +347,7 @@ async function handleProposeCompletion(
 }
 
 async function handleRevise(
-  sessionId: string,
+  playthroughId: string,
   input: unknown,
   deps: WorkOrderToolDeps,
 ): Promise<WorkOrderToolOutcome> {
@@ -351,7 +355,7 @@ async function handleRevise(
   if (!parsed.success) {
     return { text: `Invalid revise_work_order arguments: ${parsed.error.message}`, isError: true };
   }
-  const target = await resolveTargetId(deps, sessionId, parsed.data.workOrderId);
+  const target = await resolveTargetId(deps, playthroughId, parsed.data.workOrderId);
   if (target.error !== undefined) {
     return { text: target.error, isError: true };
   }
@@ -359,7 +363,7 @@ async function handleRevise(
   void _id;
   const meta = changeSummary !== undefined ? { changeSummary } : {};
   const outcome = await deps.workOrders.updatePlan(
-    sessionId,
+    playthroughId,
     target.id,
     patch as UpdatePlanInput,
     'Foreman',
@@ -372,7 +376,7 @@ async function handleRevise(
 }
 
 async function handleBlock(
-  sessionId: string,
+  playthroughId: string,
   input: unknown,
   deps: WorkOrderToolDeps,
 ): Promise<WorkOrderToolOutcome> {
@@ -380,11 +384,11 @@ async function handleBlock(
   if (!parsed.success) {
     return { text: `Invalid block_work_order arguments: ${parsed.error.message}`, isError: true };
   }
-  const target = await resolveTargetId(deps, sessionId, parsed.data.workOrderId);
+  const target = await resolveTargetId(deps, playthroughId, parsed.data.workOrderId);
   if (target.error !== undefined) {
     return { text: target.error, isError: true };
   }
-  const outcome = await deps.workOrders.transition(sessionId, target.id, 'Block', 'Foreman', {
+  const outcome = await deps.workOrders.transition(playthroughId, target.id, 'Block', 'Foreman', {
     blockedReason: parsed.data.blockedReason,
     blockedResolutionHint: parsed.data.blockedResolutionHint,
   });
@@ -395,7 +399,7 @@ async function handleBlock(
 }
 
 async function handleUnblock(
-  sessionId: string,
+  playthroughId: string,
   input: unknown,
   deps: WorkOrderToolDeps,
 ): Promise<WorkOrderToolOutcome> {
@@ -403,11 +407,11 @@ async function handleUnblock(
   if (!parsed.success) {
     return { text: `Invalid unblock_work_order arguments: ${parsed.error.message}`, isError: true };
   }
-  const target = await resolveTargetId(deps, sessionId, parsed.data.workOrderId);
+  const target = await resolveTargetId(deps, playthroughId, parsed.data.workOrderId);
   if (target.error !== undefined) {
     return { text: target.error, isError: true };
   }
-  const outcome = await deps.workOrders.transition(sessionId, target.id, 'Unblock', 'Foreman', {
+  const outcome = await deps.workOrders.transition(playthroughId, target.id, 'Unblock', 'Foreman', {
     resolutionNote: parsed.data.resolutionNote,
   });
   return mapOutcome(outcome, (order) => ({
@@ -417,7 +421,7 @@ async function handleUnblock(
 }
 
 async function handleSupersede(
-  sessionId: string,
+  playthroughId: string,
   input: unknown,
   deps: WorkOrderToolDeps,
 ): Promise<WorkOrderToolOutcome> {
@@ -428,14 +432,20 @@ async function handleSupersede(
       isError: true,
     };
   }
-  const target = await resolveTargetId(deps, sessionId, parsed.data.workOrderId);
+  const target = await resolveTargetId(deps, playthroughId, parsed.data.workOrderId);
   if (target.error !== undefined) {
     return { text: target.error, isError: true };
   }
-  const outcome = await deps.workOrders.transition(sessionId, target.id, 'Supersede', 'Foreman', {
-    supersededByWorkOrderId: parsed.data.supersededByWorkOrderId,
-    supersededReason: parsed.data.supersededReason,
-  });
+  const outcome = await deps.workOrders.transition(
+    playthroughId,
+    target.id,
+    'Supersede',
+    'Foreman',
+    {
+      supersededByWorkOrderId: parsed.data.supersededByWorkOrderId,
+      supersededReason: parsed.data.supersededReason,
+    },
+  );
   return mapOutcome(outcome, (order) => ({
     text: `Superseded ${formatWorkOrderLabel(order.sequenceNumber)}.`,
     workOrder: order,
@@ -443,7 +453,7 @@ async function handleSupersede(
 }
 
 async function handleCreateChild(
-  sessionId: string,
+  playthroughId: string,
   input: unknown,
   deps: WorkOrderToolDeps,
 ): Promise<WorkOrderToolOutcome> {
@@ -459,7 +469,7 @@ async function handleCreateChild(
   }
   let parentId = parsed.data.parentWorkOrderId;
   if (parentId === undefined) {
-    const current = await deps.workOrders.getCurrent(sessionId);
+    const current = await deps.workOrders.getCurrent(playthroughId);
     if (current === undefined) {
       return {
         text: 'No parentWorkOrderId given and no current order to parent to.',
@@ -469,7 +479,7 @@ async function handleCreateChild(
     parentId = current.id;
   }
   const order = await deps.workOrders.create(
-    sessionId,
+    playthroughId,
     { ...parsed.data, parentWorkOrderId: parentId },
     deps.gameVersion(),
   );
@@ -480,10 +490,10 @@ async function handleCreateChild(
   };
 }
 
-/** Resolves the target order id (explicit, or the session's current order). */
+/** Resolves the target order id (explicit, or the playthrough's current order). */
 async function resolveTargetId(
   deps: WorkOrderToolDeps,
-  sessionId: string,
+  playthroughId: string,
   explicitId: string | undefined,
 ): Promise<{ id: string; error?: undefined } | { id?: undefined; error: string }> {
   if (explicitId !== undefined) {
@@ -491,9 +501,9 @@ async function resolveTargetId(
   }
   // The "current" order — active, or the latest non-terminal — so the foreman can
   // act on an order it just issued (which is `new`, not yet `active`).
-  const current = await deps.workOrders.getCurrent(sessionId);
+  const current = await deps.workOrders.getCurrent(playthroughId);
   if (current === undefined) {
-    return { error: 'No workOrderId given and no current work order in this session.' };
+    return { error: 'No workOrderId given and no current work order in this playthrough.' };
   }
   return { id: current.id };
 }

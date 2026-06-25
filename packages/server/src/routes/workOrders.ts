@@ -17,22 +17,23 @@ import {
 
 /**
  * Routes for work orders (v2), mounted under
- * /api/sessions/:sessionId/work-orders. The plan is edited via /plan (Foreman),
- * lifecycle via /transitions, and execution progress via the materials/steps/
- * machines/hours endpoints (Pioneer). `mergeParams` exposes the parent
- * :sessionId. See docs/work-orders.md.
+ * /api/playthroughs/:playthroughId/work-orders. The plan is edited via /plan
+ * (Foreman), lifecycle via /transitions, and execution progress via the
+ * materials/steps/machines/hours endpoints (Pioneer). `mergeParams` exposes the
+ * parent :playthroughId. See docs/work-orders.md.
  */
 export function workOrdersRouter(deps: AppDeps): Router {
   const router = Router({ mergeParams: true });
 
-  const sessionId = (req: { params: Record<string, string> }): string => req.params.sessionId ?? '';
+  const playthroughId = (req: { params: Record<string, string> }): string =>
+    req.params.playthroughId ?? '';
 
   // --- Creation & reads ----------------------------------------------------
 
   router.post('/', async (req, res) => {
-    const session = await deps.sessions.get(sessionId(req));
-    if (session === undefined) {
-      res.status(404).json({ error: 'Session not found.' });
+    const playthrough = await deps.playthroughs.get(playthroughId(req));
+    if (playthrough === undefined) {
+      res.status(404).json({ error: 'Playthrough not found.' });
       return;
     }
     const parsed = workOrderCreateSchema.safeParse(req.body);
@@ -40,26 +41,26 @@ export function workOrdersRouter(deps: AppDeps): Router {
       res.status(400).json({ error: parsed.error.message });
       return;
     }
-    const order = await deps.workOrders.create(session.id, parsed.data, deps.mcp.gameVersion);
+    const order = await deps.workOrders.create(playthrough.id, parsed.data, deps.mcp.gameVersion);
     res.status(201).json(order);
   });
 
   router.get('/', async (req, res) => {
-    const session = await deps.sessions.get(sessionId(req));
-    if (session === undefined) {
-      res.status(404).json({ error: 'Session not found.' });
+    const playthrough = await deps.playthroughs.get(playthroughId(req));
+    if (playthrough === undefined) {
+      res.status(404).json({ error: 'Playthrough not found.' });
       return;
     }
-    res.json(await deps.workOrders.list(session.id));
+    res.json(await deps.workOrders.list(playthrough.id));
   });
 
   router.get('/active', async (req, res) => {
-    const session = await deps.sessions.get(sessionId(req));
-    if (session === undefined) {
-      res.status(404).json({ error: 'Session not found.' });
+    const playthrough = await deps.playthroughs.get(playthroughId(req));
+    if (playthrough === undefined) {
+      res.status(404).json({ error: 'Playthrough not found.' });
       return;
     }
-    const active = await deps.workOrders.getActive(session.id);
+    const active = await deps.workOrders.getActive(playthrough.id);
     if (active === undefined) {
       res.status(404).json({ error: 'No active work order.' });
       return;
@@ -68,7 +69,7 @@ export function workOrdersRouter(deps: AppDeps): Router {
   });
 
   router.get('/:id', async (req, res) => {
-    const order = await deps.workOrders.get(sessionId(req), req.params.id);
+    const order = await deps.workOrders.get(playthroughId(req), req.params.id);
     if (order === undefined) {
       res.status(404).json({ error: 'Work order not found.' });
       return;
@@ -77,11 +78,11 @@ export function workOrdersRouter(deps: AppDeps): Router {
   });
 
   router.get('/:id/children', async (req, res) => {
-    res.json(await deps.workOrders.getChildren(sessionId(req), req.params.id));
+    res.json(await deps.workOrders.getChildren(playthroughId(req), req.params.id));
   });
 
   router.get('/:id/parent', async (req, res) => {
-    const parent = await deps.workOrders.getParent(sessionId(req), req.params.id);
+    const parent = await deps.workOrders.getParent(playthroughId(req), req.params.id);
     if (parent === undefined) {
       res.status(404).json({ error: 'No parent work order.' });
       return;
@@ -90,11 +91,11 @@ export function workOrdersRouter(deps: AppDeps): Router {
   });
 
   router.get('/:id/audit', async (req, res) => {
-    res.json(await deps.workOrders.getAuditTrail(sessionId(req), req.params.id));
+    res.json(await deps.workOrders.getAuditTrail(playthroughId(req), req.params.id));
   });
 
   router.get('/:id/revisions', async (req, res) => {
-    res.json(await deps.workOrders.getRevisions(sessionId(req), req.params.id));
+    res.json(await deps.workOrders.getRevisions(playthroughId(req), req.params.id));
   });
 
   // Field-level diff between two revisions. ?from=&to= optional; defaults to the
@@ -110,7 +111,7 @@ export function workOrdersRouter(deps: AppDeps): Router {
       res.status(400).json({ error: 'from/to must be integers.' });
       return;
     }
-    const diff = await deps.workOrders.diffRevisions(sessionId(req), req.params.id, from, to);
+    const diff = await deps.workOrders.diffRevisions(playthroughId(req), req.params.id, from, to);
     if (diff === undefined) {
       res.status(404).json({ error: 'Work order or revision not found.' });
       return;
@@ -124,7 +125,7 @@ export function workOrdersRouter(deps: AppDeps): Router {
       res.status(400).json({ error: 'Revision number must be an integer.' });
       return;
     }
-    const revision = await deps.workOrders.getRevision(sessionId(req), req.params.id, n);
+    const revision = await deps.workOrders.getRevision(playthroughId(req), req.params.id, n);
     if (revision === undefined) {
       res.status(404).json({ error: 'Revision not found.' });
       return;
@@ -149,7 +150,7 @@ export function workOrdersRouter(deps: AppDeps): Router {
       meta.changeSummary = changeSummary;
     }
     const outcome = await deps.workOrders.updatePlan(
-      sessionId(req),
+      playthroughId(req),
       req.params.id,
       patch,
       'Foreman',
@@ -168,7 +169,7 @@ export function workOrdersRouter(deps: AppDeps): Router {
     }
     const { action, actor, ...opts } = parsed.data;
     const outcome = await deps.workOrders.transition(
-      sessionId(req),
+      playthroughId(req),
       req.params.id,
       action as WorkOrderAction,
       actor ?? 'Pioneer',
@@ -186,7 +187,7 @@ export function workOrdersRouter(deps: AppDeps): Router {
       return;
     }
     const outcome = await deps.workOrders.setMaterialChecked(
-      sessionId(req),
+      playthroughId(req),
       req.params.id,
       req.params.materialId,
       parsed.data.checked,
@@ -201,7 +202,7 @@ export function workOrdersRouter(deps: AppDeps): Router {
       return;
     }
     const outcome = await deps.workOrders.setStepChecked(
-      sessionId(req),
+      playthroughId(req),
       req.params.id,
       req.params.stepId,
       parsed.data.checked,
@@ -216,7 +217,7 @@ export function workOrdersRouter(deps: AppDeps): Router {
       return;
     }
     const outcome = await deps.workOrders.setMachineBuiltCount(
-      sessionId(req),
+      playthroughId(req),
       req.params.id,
       req.params.machineId,
       parsed.data.builtCount,
@@ -231,7 +232,7 @@ export function workOrdersRouter(deps: AppDeps): Router {
       return;
     }
     const outcome = await deps.workOrders.logHours(
-      sessionId(req),
+      playthroughId(req),
       req.params.id,
       parsed.data.hours,
     );
@@ -247,7 +248,7 @@ export function workOrdersRouter(deps: AppDeps): Router {
       return;
     }
     const outcome = await deps.workOrders.acknowledgeRevision(
-      sessionId(req),
+      playthroughId(req),
       req.params.id,
       parsed.data.revisionNumber,
     );
@@ -261,7 +262,7 @@ export function workOrdersRouter(deps: AppDeps): Router {
       return;
     }
     const outcome = await deps.workOrders.revertToRevision(
-      sessionId(req),
+      playthroughId(req),
       req.params.id,
       parsed.data.revisionNumber,
     );

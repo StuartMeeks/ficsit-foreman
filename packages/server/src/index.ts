@@ -16,7 +16,8 @@ import { SummaryService } from './llm/summary.js';
 import { McpAggregateGateway } from './mcp/aggregateGateway.js';
 import { McpHttpClient } from './mcp/client.js';
 import type { McpGateway } from './mcp/client.js';
-import { SessionService } from './services/sessionService.js';
+import { ForemanService } from './services/foremanService.js';
+import { PlaythroughService } from './services/playthroughService.js';
 import { WorkOrderService } from './services/workOrderService.js';
 
 /** Loads `.env` from the package dir, the workspace root, and the cwd. */
@@ -56,14 +57,19 @@ async function main(): Promise<void> {
     ),
   );
 
-  const sessions = new SessionService(prisma);
+  const playthroughs = new PlaythroughService(prisma);
   const deps: AppDeps = {
     config,
     auth: createAuth(prisma),
-    sessions,
+    foremen: new ForemanService(prisma),
+    playthroughs,
     workOrders: new WorkOrderService(prisma),
     mcp,
-    summary: new SummaryService(sessions, { historyWindow: config.historyWindow }, createProvider),
+    summary: new SummaryService(
+      playthroughs,
+      { historyWindow: config.historyWindow },
+      createProvider,
+    ),
     llmProviderFactory: createProvider,
     systemPromptTemplate,
   };

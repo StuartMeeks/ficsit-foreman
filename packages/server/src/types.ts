@@ -322,11 +322,24 @@ export interface WorkOrderRevisionDiff {
   changes: WorkOrderFieldChange[];
 }
 
-export interface Session {
+/** A reusable foreman persona, owned by a user and attached to playthroughs. */
+export interface Foreman {
   id: string;
+  name: string;
+  /** Persona text injected into the system prompt as {{PERSONALITY}}. */
   personality: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface Playthrough {
+  id: string;
+  /** The attached foreman (persona) — one per playthrough. */
+  foremanId: string;
+  /** Free-text name; undefined until set (defaulted from the save in #76). */
+  name?: string;
   pioneerProfile: string;
-  /** Condensed running record of the session; undefined until first summarised. */
+  /** Condensed running record of the playthrough; undefined until first summarised. */
   summary?: string;
   createdAt: string;
   updatedAt: string;
