@@ -37,7 +37,12 @@ provider.Initialize();
 provider.SubmitKey(new FGuid(), new FAesKey(new byte[32]));
 Console.WriteLine($"mounted. files = {provider.Files.Count}");
 
-// Collectible classes (live in the _Generated_ cells), mapped to dataset kinds.
+// Collectible classes, mapped to dataset kinds. The first six are GUID-keyed
+// pickups in the _Generated_ cells (spheres/sloops/slugs) plus drop pods. The
+// customizer pickups (helmet in a cell, music tapes in the persistent level) are
+// SCHEMATIC-keyed instead — they carry no mItemPickupGuid; what they grant is a
+// cosmetic schematic (mSchematic), so "collected" is read from the save's
+// unlocked schematics rather than mDestroyedPickups.
 var collectibleKinds = new Dictionary<string, string>
 {
     ["BP_WAT2_C"] = "mercerSphere",     // 298 in assets — matches the known Mercer total
@@ -46,7 +51,12 @@ var collectibleKinds = new Dictionary<string, string>
     ["BP_Crystal_mk2_C"] = "powerSlugYellow",
     ["BP_Crystal_mk3_C"] = "powerSlugPurple",
     ["BP_DropPod_C"] = "hardDrive",
+    ["BP_UnlockPickup_Customization_C"] = "helmet", // 1, in a cell; grants a Helmet schematic
+    ["BP_TapePickup_C"] = "mtape",                  // 3, in the persistent level; grant Tape schematics
 };
+
+// Kinds keyed by the schematic they unlock rather than a pickup GUID.
+var schematicKinds = new HashSet<string> { "helmet", "mtape" };
 
 // Resource-node classes (live in the base Persistent_Level), mapped to dataset kinds.
 var nodeKinds = new Dictionary<string, string>
@@ -78,6 +88,18 @@ string? GuidFor(UObject e, string kind)
     return $"{g.A:X8}{g.B:X8}{g.C:X8}{g.D:X8}";
 }
 
+// The cosmetic schematic a customizer pickup grants (helmet/tape), as the save
+// records it once unlocked. `mSchematic` is a class reference; we keep its
+// trailing `Schematic_*_C` identifier, which the save MCP matches against the
+// pioneer's unlocked schematics to compute collected status. Null when absent.
+string? SchematicFor(UObject e)
+{
+    var raw = e.Properties.FirstOrDefault(p => p.Name.Text == "mSchematic")?.Tag?.GenericValue?.ToString();
+    if (raw == null) { return null; }
+    var m = Regex.Match(raw, @"\.([A-Za-z0-9_]+)'?$");
+    return m.Success ? m.Groups[1].Value : null;
+}
+
 // Extract the trailing "Desc_X_C" class identifier from an object-reference property.
 string? Ref(UObject e, string prop)
 {
@@ -96,155 +118,27 @@ string Purity(UObject e)
     return "normal";
 }
 
-// Discovery mode (DISCOVER=1): instead of extracting, sweep the cells and tally
-// every actor that carries a pickup/pod GUID by its class (ExportType). Used to
-// find which classes beyond the known six are collectible pickups (bonus items,
-// helmets, tapes, …) and confirm they're GUID-tracked. Prints and exits.
-// DISCOVER2: hunt rare/keyword-matching actors (the helmet + tapes are hand-placed
-// and few, and likely NOT keyed by mItemPickupGuid). Histograms every class across
-// cells + persistent level, lists the rare ones, and dumps actors whose class or
-// any property value mentions customization/helmet/tape — with location + guid keying.
-// DISCOVER3: full property dump of the customizer pickups (helmet + tapes), to
-// get exact locations and the schematic each grants (collected-status key).
-if (Environment.GetEnvironmentVariable("DISCOVER3") != null)
-{
-    var targets = new HashSet<string> { "BP_UnlockPickup_Customization_C", "BP_TapePickup_C" };
-    var pkgs = provider.Files.Keys
-        .Where(k => (k.Contains("/_Generated_/") || k.Contains("/GameLevel01/")) && k.EndsWith(".umap"))
-        .ToList();
-    Console.WriteLine($"[discover3] scanning {pkgs.Count} packages for {string.Join(", ", targets)}...");
-    foreach (var pkg in pkgs)
-    {
-        try
-        {
-            foreach (var e in provider.LoadPackage(pkg).GetExports())
-            {
-                if (!targets.Contains(e.ExportType)) { continue; }
-                var loc = Loc(e);
-                Console.WriteLine($"--- {e.ExportType} | {e.Name} | loc={(loc == null ? "?" : $"{(int) loc.Value.X},{(int) loc.Value.Y},{(int) loc.Value.Z}")} ---");
-                foreach (var p in e.Properties)
-                {
-                    var v = p.Tag?.GenericValue?.ToString() ?? "";
-                    if (v.Length > 200) { v = v.Substring(0, 200) + "…"; }
-                    Console.WriteLine($"    {p.Name.Text} = {v}");
-                }
-            }
-        }
-        catch (Exception ex) { Console.Error.WriteLine($"[pkg] {pkg}: {ex.Message}"); }
-    }
-    Console.WriteLine("DONE-DISCOVER3");
-    return;
-}
-
-if (Environment.GetEnvironmentVariable("DISCOVER2") != null)
-{
-    var rx = new Regex(@"(Customiz|Helmet|Cassette|Boombox|Mtape|Beanie|UnlockPickup|MercerShrine|Tape_|_Tape|Hat_|_Hat)", RegexOptions.IgnoreCase);
-    var classTally = new Dictionary<string, int>();
-    var hits = new List<string>();
-    var pkgs = provider.Files.Keys
-        .Where(k => (k.Contains("/_Generated_/") || k.Contains("/GameLevel01/")) && k.EndsWith(".umap"))
-        .ToList();
-    Console.WriteLine($"[discover2] scanning {pkgs.Count} packages...");
-    var pn = 0;
-    foreach (var pkg in pkgs)
-    {
-        if (++pn % 1000 == 0) { Console.WriteLine($"  ...{pn}/{pkgs.Count}"); }
-        try
-        {
-            foreach (var e in provider.LoadPackage(pkg).GetExports())
-            {
-                classTally[e.ExportType] = classTally.GetValueOrDefault(e.ExportType) + 1;
-                string? matched = rx.IsMatch(e.ExportType) ? $"class={e.ExportType}" : null;
-                if (matched == null)
-                {
-                    foreach (var p in e.Properties)
-                    {
-                        var s = p.Tag?.GenericValue?.ToString();
-                        if (s != null && rx.IsMatch(s)) { matched = $"{p.Name.Text}={s}"; break; }
-                    }
-                }
-                if (matched == null) { continue; }
-                var loc = Loc(e);
-                var locS = loc == null ? "(no-loc)" : $"({(int) loc.Value.X},{(int) loc.Value.Y},{(int) loc.Value.Z})";
-                var guid = e.Properties.Any(p => p.Name.Text == "mItemPickupGuid") ? "ItemPickupGuid"
-                    : e.Properties.Any(p => p.Name.Text == "mDropPodGuid") ? "DropPodGuid" : "no-guid";
-                if (hits.Count < 80) { hits.Add($"{e.ExportType} | {e.Name} | {locS} | {guid} | {matched}"); }
-            }
-        }
-        catch (Exception ex) { Console.Error.WriteLine($"[pkg] {pkg}: {ex.Message}"); }
-    }
-    Console.WriteLine("=== RARE CLASSES (count <= 8) ===");
-    foreach (var kv in classTally.Where(k => k.Value <= 8).OrderBy(k => k.Value)) { Console.WriteLine($"  {kv.Key}: {kv.Value}"); }
-    Console.WriteLine("=== KEYWORD HITS ===");
-    foreach (var h in hits) { Console.WriteLine($"  {h}"); }
-    return;
-}
-
-if (Environment.GetEnvironmentVariable("DISCOVER") != null)
-{
-    var byType = new Dictionary<string, int>();
-    var spawnableItems = new Dictionary<string, int>(); // FGItemPickup_Spawnable → contained item Desc
-    var sampleProps = new List<string>();
-    var discoverCells = provider.Files.Keys.Where(k => k.Contains("/_Generated_/") && k.EndsWith(".umap")).ToList();
-    Console.WriteLine($"[discover] sweeping {discoverCells.Count} cells for pickup/pod actors...");
-    var dn = 0;
-    foreach (var cell in discoverCells)
-    {
-        if (++dn % 1000 == 0) { Console.WriteLine($"  ...{dn}/{discoverCells.Count}"); }
-        try
-        {
-            foreach (var e in provider.LoadPackage(cell).GetExports())
-            {
-                var hasPickup = e.Properties.Any(p => p.Name.Text == "mItemPickupGuid");
-                var hasPod = e.Properties.Any(p => p.Name.Text == "mDropPodGuid");
-                if (!hasPickup && !hasPod) { continue; }
-                var key = $"{(hasPod ? "pod" : "pickup")}\t{e.ExportType}";
-                byType[key] = byType.GetValueOrDefault(key) + 1;
-
-                if (e.ExportType == "FGItemPickup_Spawnable")
-                {
-                    var stack = e.GetOrDefault<CUE4Parse.UE4.Assets.Objects.FStructFallback?>("mPickupItems");
-                    var inner = stack?.GetOrDefault<CUE4Parse.UE4.Assets.Objects.FStructFallback?>("Item");
-                    if (sampleProps.Count < 3 && inner != null)
-                    {
-                        sampleProps.Add(string.Join(" | ", inner.Properties.Select(p => $"{p.Name.Text}={p.Tag?.GenericValue}")));
-                    }
-                    var raw = inner?.Properties
-                        .FirstOrDefault(p => p.Name.Text == "ItemClass" || p.Name.Text == "ItemType")
-                        ?.Tag?.GenericValue?.ToString() ?? "";
-                    var item = Regex.Match(raw, @"(Desc_[A-Za-z0-9_]+_C|BP_[A-Za-z0-9_]+_C)").Value;
-                    if (string.IsNullOrEmpty(item)) { item = string.IsNullOrEmpty(raw) ? "(no-itemclass)" : raw; }
-                    spawnableItems[item] = spawnableItems.GetValueOrDefault(item) + 1;
-                }
-            }
-        }
-        catch (Exception ex) { Console.Error.WriteLine($"[cell] {cell}: {ex.Message}"); }
-    }
-    Console.WriteLine("=== PICKUP/POD CLASSES (guidKind  ExportType: count) ===");
-    foreach (var kv in byType.OrderByDescending(k => k.Value)) { Console.WriteLine($"  {kv.Key}: {kv.Value}"); }
-    Console.WriteLine("=== FGItemPickup_Spawnable CONTAINED ITEMS (item: count) ===");
-    foreach (var kv in spawnableItems.OrderByDescending(k => k.Value)) { Console.WriteLine($"  {kv.Key}: {kv.Value}"); }
-    Console.WriteLine("=== sample FGItemPickup_Spawnable property names ===");
-    foreach (var s in sampleProps) { Console.WriteLine($"  {s}"); }
-    return;
-}
-
 var collectibles = new List<object>();
 var collCounts = new Dictionary<string, int>();
 var nodes = new List<object>();
 var nodeCounts = new Dictionary<string, int>();
-var seenDropPods = new HashSet<string>();
+var seenCollectibles = new HashSet<string>(); // dedupe by id across both passes
 
 void AddCollectible(UObject e, string kind)
 {
     var loc = Loc(e);
     if (loc == null) { return; }
-    if (kind == "hardDrive" && !seenDropPods.Add(e.Name)) { return; }
-    collectibles.Add(new { id = e.Name, kind, guid = GuidFor(e, kind), x = (int) loc.Value.X, y = (int) loc.Value.Y, z = (int) loc.Value.Z });
+    if (!seenCollectibles.Add($"{kind}:{e.Name}")) { return; }
+    int x = (int) loc.Value.X, y = (int) loc.Value.Y, z = (int) loc.Value.Z;
+    // Schematic-keyed kinds (helmet/tapes) carry a schematic instead of a GUID.
+    object entry = schematicKinds.Contains(kind)
+        ? new { id = e.Name, kind, schematic = SchematicFor(e), x, y, z }
+        : new { id = e.Name, kind, guid = GuidFor(e, kind), x, y, z };
+    collectibles.Add(entry);
     collCounts[kind] = collCounts.GetValueOrDefault(kind) + 1;
 }
 
-// --- Pass 1: collectibles + drop pods from the WP cells ---
+// --- Pass 1: collectibles (incl. the customizer helmet) from the WP cells ---
 var cells = provider.Files.Keys.Where(k => k.Contains("/_Generated_/") && k.EndsWith(".umap")).ToList();
 Console.WriteLine($"sweeping {cells.Count} cells for collectibles...");
 var n = 0;
@@ -261,7 +155,7 @@ foreach (var cell in cells)
     catch (Exception ex) { Console.Error.WriteLine($"[cell] {cell}: {ex.Message}"); }
 }
 
-// --- Pass 2: resource nodes (+ any remaining drop pods) from the persistent level ---
+// --- Pass 2: resource nodes (+ drop pods and music tapes) from the persistent level ---
 var levelPkgs = provider.Files.Keys
     .Where(k => k.Contains("/GameLevel01/") && k.EndsWith(".umap") && !k.Contains("/_Generated_/"))
     .ToList();
@@ -272,7 +166,11 @@ foreach (var pkgPath in levelPkgs)
     {
         foreach (var e in provider.LoadPackage(pkgPath).GetExports())
         {
-            if (collectibleKinds.TryGetValue(e.ExportType, out var ck) && ck == "hardDrive") { AddCollectible(e, ck); }
+            // Collectibles that live in the persistent level rather than the cells.
+            if (collectibleKinds.TryGetValue(e.ExportType, out var ck) && (ck == "hardDrive" || ck == "mtape"))
+            {
+                AddCollectible(e, ck);
+            }
             if (!nodeKinds.TryGetValue(e.ExportType, out var kind)) { continue; }
             var loc = Loc(e);
             if (loc == null) { continue; }
