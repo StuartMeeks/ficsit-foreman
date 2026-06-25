@@ -247,11 +247,13 @@ export class SaveService {
   /** Removes a playthrough's entire save directory (best-effort), on delete. */
   public removeSaveDir(playthroughId: string): void {
     try {
-      fs.rmSync(this.dirFor(playthroughId), { recursive: true, force: true });
+      // dirFor validates the id stays directly within the data dir (no
+      // traversal); the legacy single-file path is derived from that safe dir
+      // rather than re-interpolating the untrusted id into a fresh path.
+      const dir = this.dirFor(playthroughId);
+      fs.rmSync(dir, { recursive: true, force: true });
       // Also clear any pre-#76 single-file layout that predates the reconcile.
-      fs.rmSync(path.resolve(path.resolve(this.saveDataDir), `${playthroughId}.sav`), {
-        force: true,
-      });
+      fs.rmSync(`${dir}.sav`, { force: true });
     } catch (error) {
       logger.warn(`Could not remove save dir for playthrough '${playthroughId}':`, error);
     }
