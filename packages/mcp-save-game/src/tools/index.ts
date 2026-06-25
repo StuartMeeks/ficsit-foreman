@@ -69,7 +69,7 @@ export function registerTools(server: McpServer, registry: SaveStoreRegistry): v
     {
       title: 'Get player state',
       description:
-        "The pioneer's current world location, HUB location, total play time, and personal inventory (aggregated per item).",
+        "The pioneer's current world location, HUB location, total play time, and personal inventory (aggregated per item). Coordinates are in metres (matching the in-game HUD).",
       inputSchema: { savePath: savePathSchema },
     },
     async ({ savePath }): Promise<ToolResult> => {
@@ -110,7 +110,7 @@ export function registerTools(server: McpServer, registry: SaveStoreRegistry): v
     {
       title: 'Get storage',
       description:
-        'Storage container contents and the dimensional depot. Pass a location {x,y,z} to sort containers nearest-first by distance.',
+        'Storage container contents and the dimensional depot; container locations are in metres. Pass a location {x,y,z} in metres (e.g. from get_player_state) to sort containers nearest-first by distance (metres).',
       inputSchema: { location: vec3Schema.optional(), savePath: savePathSchema },
     },
     async ({ location, savePath }): Promise<ToolResult> => {
@@ -138,7 +138,7 @@ export function registerTools(server: McpServer, registry: SaveStoreRegistry): v
     {
       title: 'Get nearby collectibles',
       description:
-        'Un-collected collectibles near a world location, nearest-first, each with coordinates and distance. Positions are from the complete world dataset, with the ones the save records as already collected removed — so these are genuinely still grabbable. Filter by kinds (mercerSphere, somersloop, powerSlugBlue/Yellow/Purple, hardDrive), cap by radius and limit (default 20). Use the player location from get_player_state as the origin to answer "what can I grab near me?". Distances are centimetres.',
+        'Un-collected collectibles near a world location, nearest-first, each with coordinates (metres), distance (metres), and a compass bearing (N/NE/E/…) from the origin. Positions are from the complete world dataset, with the ones the save records as already collected removed — so these are genuinely still grabbable. Filter by kinds (mercerSphere, somersloop, powerSlugBlue/Yellow/Purple, hardDrive), cap by radius (metres) and limit (default 20). Use the player location from get_player_state (also metres) as the origin to answer "what can I grab near me?".',
       inputSchema: {
         location: vec3Schema,
         kinds: z.array(collectibleKindSchema).optional(),

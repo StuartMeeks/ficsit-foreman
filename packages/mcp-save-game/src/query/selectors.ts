@@ -1,7 +1,9 @@
-import type {
-  Collectible,
-  CollectibleKind as WorldCollectibleKind,
-  WorldLocations,
+import {
+  cmToMetres,
+  compassBearing,
+  type Collectible,
+  type CollectibleKind as WorldCollectibleKind,
+  type WorldLocations,
 } from '@foreman/game-data-core';
 
 import type {
@@ -13,6 +15,11 @@ import type {
   UnlockedRecipe,
   Vec3,
 } from '../normalise/types.js';
+
+/** Convert a centimetre position to the metres the pioneer sees in-game (2dp). */
+function vecToMetres(v: Vec3): Vec3 {
+  return { x: cmToMetres(v.x), y: cmToMetres(v.y), z: cmToMetres(v.z) };
+}
 
 /**
  * Pure, tool-facing read functions over a `SaveState`. These shape the computed
@@ -33,8 +40,9 @@ export interface PlayerSummary {
 
 export function playerSummary(state: SaveState): PlayerSummary {
   return {
-    location: state.player.location,
-    hubLocation: state.player.hubLocation,
+    location: state.player.location === undefined ? undefined : vecToMetres(state.player.location),
+    hubLocation:
+      state.player.hubLocation === undefined ? undefined : vecToMetres(state.player.hubLocation),
     playDurationSeconds: state.playDurationSeconds,
     playTime: formatDuration(state.playDurationSeconds),
     itemCount: state.player.inventory.length,
@@ -113,19 +121,24 @@ export interface StorageView {
 }
 
 /**
- * Storage containers and the dimensional depot. When a `location` is given,
+ * Storage containers and the dimensional depot, with container locations in
+ * metres. When a `location` (in metres, e.g. from get_player_state) is given,
  * containers are annotated with distance to it and sorted nearest-first.
  */
 export function storageView(state: SaveState, location?: Vec3): StorageView {
-  let containers: (StorageContainer & { distance?: number })[] = state.storage.containers;
-  if (location !== undefined) {
-    containers = state.storage.containers
-      .map((container) => ({
+  const containers: (StorageContainer & { distance?: number })[] = state.storage.containers.map(
+    (container) => {
+      const locM = container.location === undefined ? undefined : vecToMetres(container.location);
+      return {
         ...container,
+        location: locM,
         distance:
-          container.location === undefined ? undefined : distance(location, container.location),
-      }))
-      .sort((a, b) => (a.distance ?? Infinity) - (b.distance ?? Infinity));
+          location !== undefined && locM !== undefined ? distance(location, locM) : undefined,
+      };
+    },
+  );
+  if (location !== undefined) {
+    containers.sort((a, b) => (a.distance ?? Infinity) - (b.distance ?? Infinity));
   }
   return {
     containerCount: state.storage.containers.length,
@@ -206,8 +219,12 @@ export function collectedGuidSet(state: SaveState): Set<string> {
 export interface NearbyItem {
   kind: WorldCollectibleKind;
   label: string;
+  /** World position in metres. */
   location: Vec3;
+  /** Straight-line distance from the origin, in metres. */
   distance: number;
+  /** 8-point compass direction from the origin (N, NE, E, …). */
+  bearing: string;
 }
 
 export interface NearbyOptions {
@@ -240,14 +257,16 @@ const KIND_LABELS: Record<WorldCollectibleKind, string> = {
 const NEARBY_NOTE =
   'Un-collected collectibles only: positions are from the static world dataset, with the ' +
   'ones the save records as already collected (by GUID) removed — so these are genuinely ' +
-  'still out there to grab. Coordinates are centimetres.';
+  'still out there to grab. Locations + distances are in metres; bearing is the compass ' +
+  'direction from you (N/NE/E/…).';
 
 /**
- * Un-collected collectibles near a world location, nearest-first. Positions come
- * from the static world-location dataset (complete and accurate); collectibles
- * the save records as collected (by GUID, via `excludeGuids`) are removed, so the
- * result is exactly what is still grabbable. Filtered by `kinds` and `radius`,
- * capped by `limit` (default 20). Coordinates are centimetres.
+ * Un-collected collectibles near a world location, nearest-first, in metres.
+ * `origin` is in metres (e.g. from get_player_state) and `radius` in metres.
+ * Positions come from the static world-location dataset (complete and accurate);
+ * collectibles the save records as collected (by GUID, via `excludeGuids`) are
+ * removed, so the result is exactly what is still grabbable. Each item carries a
+ * compass bearing from the origin. Capped by `limit` (default 20).
  */
 export function nearbyFromWorld(
   collectibles: Collectible[],
@@ -263,12 +282,13 @@ export function nearbyFromWorld(
         excludeGuids?.has(c.guid) !== true,
     )
     .map((c) => {
-      const location = { x: c.x, y: c.y, z: c.z };
+      const location = vecToMetres({ x: c.x, y: c.y, z: c.z });
       return {
         kind: c.kind,
         label: KIND_LABELS[c.kind] ?? c.kind,
         location,
         distance: distance(origin, location),
+        bearing: compassBearing(origin, location),
       };
     })
     .sort((a, b) => a.distance - b.distance);
@@ -285,6 +305,7 @@ export function nearbyFromWorld(
   };
 }
 
+/** Straight-line distance between two points (same units in, same units out; exact). */
 export function distance(a: Vec3, b: Vec3): number {
-  return Math.round(Math.hypot(a.x - b.x, a.y - b.y, a.z - b.z));
+  return Math.hypot(a.x - b.x, a.y - b.y, a.z - b.z);
 }

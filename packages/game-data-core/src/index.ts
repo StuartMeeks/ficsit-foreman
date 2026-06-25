@@ -67,3 +67,4 @@ export {
   emptyWorldLocations,
   channelWorldLocationsPath,
 } from './world/index.js';
+export { cmToMetres, metresToCm, compassBearing } from './world/units.js';
