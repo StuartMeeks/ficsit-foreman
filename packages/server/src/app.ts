@@ -7,6 +7,7 @@ import { requireAuth, requirePlaythroughOwnership } from './middleware/auth.js';
 import { chatRouter } from './routes/chat.js';
 import { foremenRouter } from './routes/foremen.js';
 import { playthroughsRouter } from './routes/playthroughs.js';
+import { savesRouter } from './routes/saves.js';
 import { workOrdersRouter } from './routes/workOrders.js';
 
 /**
@@ -47,6 +48,7 @@ export function buildApp(deps: AppDeps): Express {
     workOrdersRouter(deps),
   );
   app.use('/api/playthroughs', needsAuth, playthroughsRouter(deps));
+  app.use('/api/saves', needsAuth, savesRouter(deps));
   app.use('/api/foremen', needsAuth, foremenRouter(deps));
 
   app.use((_req, res) => {

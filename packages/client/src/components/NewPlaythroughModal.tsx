@@ -1,14 +1,19 @@
 import { useRef, useState } from 'react';
 
-import type { Foreman } from '../api/types.js';
+import type { Foreman, SaveMatch } from '../api/types.js';
 import type { NewPlaythroughInput } from '../useForeman.js';
 import { NewForemanModal } from './NewForemanModal.js';
 import { PioneerProfileFields } from './PioneerProfile.js';
+import { SaveMatchModal } from './SaveMatchModal.js';
 
 interface NewPlaythroughModalProps {
   foremen: Foreman[];
   onCreateForeman: (input: { name: string; personality?: string }) => Promise<Foreman>;
   onCreate: (input: NewPlaythroughInput) => Promise<void>;
+  /** Same-game preview for a chosen save, before committing a new playthrough. */
+  onPreviewSave: (file: File) => Promise<SaveMatch[]>;
+  /** Append the chosen save to an existing matched playthrough and open it. */
+  onUseExisting: (playthroughId: string, file: File) => Promise<void>;
   onClose: () => void;
 }
 
@@ -23,6 +28,8 @@ export function NewPlaythroughModal({
   foremen,
   onCreateForeman,
   onCreate,
+  onPreviewSave,
+  onUseExisting,
   onClose,
 }: NewPlaythroughModalProps): React.JSX.Element {
   const [name, setName] = useState('');
@@ -33,6 +40,7 @@ export function NewPlaythroughModal({
   const [dragging, setDragging] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [matches, setMatches] = useState<SaveMatch[] | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
 
   const canCreate = foremanChoice.length > 0;
@@ -44,7 +52,7 @@ export function NewPlaythroughModal({
     }
   };
 
-  const create = async (): Promise<void> => {
+  const createNew = async (): Promise<void> => {
     setSubmitting(true);
     setError(null);
     try {
@@ -57,6 +65,44 @@ export function NewPlaythroughModal({
       onClose();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not create the playthrough.');
+      setSubmitting(false);
+    }
+  };
+
+  // On submit, if a save was chosen, check whether it belongs to an existing
+  // playthrough first; if so, let the pioneer choose update-vs-create-new.
+  const submit = async (): Promise<void> => {
+    if (saveFile === null) {
+      await createNew();
+      return;
+    }
+    setSubmitting(true);
+    setError(null);
+    try {
+      const found = await onPreviewSave(saveFile);
+      if (found.length > 0) {
+        setMatches(found);
+        setSubmitting(false);
+        return;
+      }
+      await createNew();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not read the save file.');
+      setSubmitting(false);
+    }
+  };
+
+  const useExisting = async (playthroughId: string): Promise<void> => {
+    if (saveFile === null) {
+      return;
+    }
+    setSubmitting(true);
+    setError(null);
+    try {
+      await onUseExisting(playthroughId, saveFile);
+      onClose();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not update the playthrough.');
       setSubmitting(false);
     }
   };
@@ -162,7 +208,7 @@ export function NewPlaythroughModal({
           <button
             type="button"
             className="send"
-            onClick={() => void create()}
+            onClick={() => void submit()}
             disabled={!canCreate || submitting}
           >
             {submitting ? 'Creating' : 'Create'}
@@ -174,6 +220,17 @@ export function NewPlaythroughModal({
             onCreate={onCreateForeman}
             onCreated={(f) => setForemanChoice(f.id)}
             onClose={() => setAddingForeman(false)}
+          />
+        ) : null}
+
+        {matches !== null && saveFile !== null ? (
+          <SaveMatchModal
+            matches={matches}
+            fileName={saveFile.name}
+            busy={submitting}
+            onUseExisting={(id) => void useExisting(id)}
+            onCreateNew={() => void createNew()}
+            onCancel={() => setMatches(null)}
           />
         ) : null}
       </div>

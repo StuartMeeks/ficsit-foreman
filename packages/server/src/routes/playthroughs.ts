@@ -119,11 +119,11 @@ export function playthroughsRouter(deps: AppDeps): Router {
     res.json(playthrough);
   });
 
-  // Delete a playthrough: cascades its messages + work orders, and removes the
-  // stored save file from disk. Idempotent-ish — a missing one is 404.
+  // Delete a playthrough: cascades its messages + work orders, and removes its
+  // stored save files from disk. Idempotent-ish — a missing one is 404.
   router.delete('/:playthroughId', ownsPlaythrough, async (req, res) => {
     const id = playthroughId(req);
-    deps.saves.removeSaveFile(id);
+    deps.saves.removeSaveDir(id);
     const deleted = await deps.playthroughs.delete(id);
     if (!deleted) {
       res.status(404).json({ error: 'Playthrough not found.' });
@@ -137,7 +137,7 @@ export function playthroughsRouter(deps: AppDeps): Router {
     res.json(await deps.playthroughs.listMessages(playthroughId(req), MESSAGE_HISTORY_CAP));
   });
 
-  // Upload (or replace) the playthrough's current save. Multipart field `save`.
+  // Upload the playthrough's save: appends a new version and makes it current.
   // Multer runs after the ownership check so an unauthorised caller's file is
   // never read. Metadata is parsed and the playthrough name seeded from it.
   router.post('/:playthroughId/save', ownsPlaythrough, uploadSave, async (req, res) => {
@@ -146,11 +146,38 @@ export function playthroughsRouter(deps: AppDeps): Router {
       res.status(400).json({ error: "Expected a 'save' file upload." });
       return;
     }
-    const result = await deps.saves.upsertSave(playthroughId(req), {
+    const result = await deps.saves.addVersion(playthroughId(req), {
       fileName: file.originalname,
       bytes: file.buffer,
     });
     res.status(201).json(result);
+  });
+
+  // History of a playthrough's uploaded save versions, newest first.
+  router.get('/:playthroughId/saves', ownsPlaythrough, async (req, res) => {
+    res.json(await deps.saves.listSaves(playthroughId(req)));
+  });
+
+  // Re-activate an older version as the current save (what feeds the foreman).
+  router.post('/:playthroughId/saves/:saveId/activate', ownsPlaythrough, async (req, res) => {
+    const { saveId = '' } = req.params as { saveId?: string };
+    const save = await deps.saves.setCurrentSave(playthroughId(req), saveId);
+    if (save === undefined) {
+      res.status(404).json({ error: 'Save not found for this playthrough.' });
+      return;
+    }
+    res.json(save);
+  });
+
+  // Delete a save version. If it was current, the newest remaining is promoted.
+  router.delete('/:playthroughId/saves/:saveId', ownsPlaythrough, async (req, res) => {
+    const { saveId = '' } = req.params as { saveId?: string };
+    const deleted = await deps.saves.deleteSave(playthroughId(req), saveId);
+    if (!deleted) {
+      res.status(404).json({ error: 'Save not found for this playthrough.' });
+      return;
+    }
+    res.status(204).end();
   });
 
   return router;

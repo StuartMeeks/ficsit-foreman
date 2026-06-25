@@ -285,9 +285,9 @@ export interface Save {
   uploadedAt: string;
 }
 
-/** A non-fatal advisory returned alongside an uploaded save. */
+/** A non-fatal advisory returned alongside an uploaded/previewed save. */
 export interface SaveWarning {
-  kind: 'build_mismatch';
+  kind: 'build_mismatch' | 'playtime_regressed';
   message: string;
   saveBuild?: number;
   gameDataBuild?: number;
@@ -296,6 +296,32 @@ export interface SaveWarning {
 /** The save-upload response: the stored save plus any advisories. */
 export interface SaveUploadResult {
   save: Save;
+  warnings: SaveWarning[];
+}
+
+/** Header identity parsed from a save (same-game matching + warnings). */
+export interface SaveIdentity {
+  saveName?: string;
+  sessionName?: string;
+  mapName?: string;
+  buildVersion?: number;
+  saveVersion?: number;
+  playDurationSeconds?: number;
+}
+
+/** A playthrough whose current save matches an uploaded save's identity. */
+export interface SaveMatch {
+  playthroughId: string;
+  playthroughName?: string;
+  currentSave: { saveName?: string; playDurationSeconds?: number; uploadedAt: string };
+  reason: 'session_map_match';
+  playtimeRegressed: boolean;
+}
+
+/** The same-game preview response. */
+export interface SavePreviewResult {
+  identity: SaveIdentity;
+  matches: SaveMatch[];
   warnings: SaveWarning[];
 }
 

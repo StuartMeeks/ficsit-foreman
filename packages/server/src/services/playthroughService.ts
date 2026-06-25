@@ -55,7 +55,7 @@ export class PlaythroughService {
   public async get(id: string): Promise<Playthrough | undefined> {
     const row = await this.prisma.playthrough.findUnique({
       where: { id },
-      include: { save: true },
+      include: { currentSave: true },
     });
     return row === null ? undefined : rowToPlaythrough(row);
   }
@@ -65,7 +65,7 @@ export class PlaythroughService {
     const rows = await this.prisma.playthrough.findMany({
       where: { userId },
       orderBy: { updatedAt: 'desc' },
-      include: { save: true },
+      include: { currentSave: true },
     });
     return rows.map(rowToPlaythrough);
   }
@@ -201,7 +201,7 @@ export class PlaythroughService {
   }
 }
 
-function rowToPlaythrough(row: PlaythroughRow & { save?: SaveRow | null }): Playthrough {
+function rowToPlaythrough(row: PlaythroughRow & { currentSave?: SaveRow | null }): Playthrough {
   const playthrough: Playthrough = {
     id: row.id,
     foremanId: row.foremanId,
@@ -215,8 +215,8 @@ function rowToPlaythrough(row: PlaythroughRow & { save?: SaveRow | null }): Play
   if (row.summary !== null && row.summary.length > 0) {
     playthrough.summary = row.summary;
   }
-  if (row.save !== undefined && row.save !== null) {
-    playthrough.save = rowToSave(row.save);
+  if (row.currentSave !== undefined && row.currentSave !== null) {
+    playthrough.save = rowToSave(row.currentSave);
   }
   return playthrough;
 }

@@ -342,8 +342,8 @@ describe('HTTP routes', () => {
     expect(result.save.sizeBytes).toBe(4);
     // No game-data build wired in this test's fake MCP, so no version warning.
     expect(result.warnings).toEqual([]);
-    // The bytes landed on the data volume, and the playthrough now reports a save.
-    expect(fs.existsSync(path.join(saveDir, `${playthrough.id}.sav`))).toBe(true);
+    // The bytes landed on the data volume under the per-version layout.
+    expect(fs.existsSync(path.join(saveDir, playthrough.id, `${result.save.id}.sav`))).toBe(true);
     const fetched = await fetch(`${baseUrl}/api/playthroughs/${playthrough.id}`, {
       headers: authHeaders(),
     });
@@ -374,11 +374,12 @@ describe('HTTP routes', () => {
 
   it('save path resolution refuses to escape the data directory', () => {
     const saves = new SaveService(db.prisma, stubMcp, saveDir);
-    // Sound ids resolve to a flat file inside the data dir.
-    expect(saves.savePathFor('abc123')).toBe(path.join(saveDir, 'abc123.sav'));
-    // Traversal / separators are rejected before any filesystem access.
+    // Sound ids resolve to a per-playthrough, per-save file inside the data dir.
+    expect(saves.savePathFor('abc123', 'save1')).toBe(path.join(saveDir, 'abc123', 'save1.sav'));
+    // Traversal / separators in either segment are rejected before any fs access.
     for (const bad of ['../escape', '../../etc/passwd', 'a/b']) {
-      expect(() => saves.savePathFor(bad)).toThrow(/unsafe save path/i);
+      expect(() => saves.savePathFor(bad, 'save1')).toThrow(/unsafe save (dir|path)/i);
+      expect(() => saves.savePathFor('abc123', bad)).toThrow(/unsafe save path/i);
     }
   });
 

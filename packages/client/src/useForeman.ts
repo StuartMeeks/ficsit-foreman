@@ -17,12 +17,16 @@ import {
   deleteForeman,
   deletePlaythrough,
   getForeman,
+  activateSave,
+  deleteSave,
   getPlaythrough,
   listForemen,
   listMessages,
   listPlaythroughs,
+  listSaves,
   listWorkOrders,
   logHours,
+  previewSave,
   patchForeman,
   patchPlaythrough,
   revertToRevision,
@@ -39,6 +43,8 @@ import {
   TERMINAL_STATES,
   type Foreman,
   type Playthrough,
+  type Save,
+  type SavePreviewResult,
   type SaveWarning,
   type StoredMessage,
   type WorkOrder,
@@ -123,6 +129,18 @@ export interface ForemanState {
   saveWarnings: SaveWarning[];
   /** Dismiss the save advisories. */
   dismissSaveWarnings(): void;
+  /** The active playthrough's save version history (loaded on demand). */
+  saveHistory: Save[];
+  /** (Re)load the active playthrough's save history. */
+  loadSaveHistory(): Promise<void>;
+  /** Re-activate an older save version as current. */
+  activateSaveVersion(saveId: string): Promise<void>;
+  /** Delete a save version. */
+  deleteSaveVersion(saveId: string): Promise<void>;
+  /** Same-game preview for a candidate upload (identity + matching playthroughs). */
+  previewSaveFile(file: File): Promise<SavePreviewResult>;
+  /** Append an uploaded save to an existing matched playthrough and open it. */
+  addSaveToExisting(playthroughId: string, file: File): Promise<void>;
   sending: boolean;
   booting: boolean;
   needsOnboarding: boolean;
@@ -240,6 +258,8 @@ export function useForeman(): ForemanState {
   // Advisories from the most recent save upload (e.g. build-version mismatch),
   // surfaced as a dismissible banner. Cleared on dismiss and playthrough switch.
   const [saveWarnings, setSaveWarnings] = useState<SaveWarning[]>([]);
+  // The active playthrough's save version history (loaded on demand by the drawer).
+  const [saveHistory, setSaveHistory] = useState<Save[]>([]);
   const displayedOrder = useMemo(() => {
     if (viewingId !== null) {
       const viewed = history.find((o) => o.id === viewingId);
@@ -287,6 +307,7 @@ export function useForeman(): ForemanState {
   const activate = useCallback(async (target: Playthrough, knownForemen: Foreman[]) => {
     setViewingId(null);
     setSaveWarnings([]);
+    setSaveHistory([]);
     writeStorage(PLAYTHROUGH_KEY, target.id);
     const attached =
       knownForemen.find((f) => f.id === target.foremanId) ?? (await getForeman(target.foremanId));
@@ -643,6 +664,70 @@ export function useForeman(): ForemanState {
     [playthrough, upsertPlaythrough],
   );
 
+  /** Same-game preview for an upload: its identity + matching playthroughs. */
+  const previewSaveFile = useCallback(
+    (file: File): Promise<SavePreviewResult> => previewSave(file),
+    [],
+  );
+
+  /** Append an uploaded save to an existing (matched) playthrough and open it. */
+  const addSaveToExisting = useCallback(
+    async (playthroughId: string, file: File) => {
+      // Switch first: activating a playthrough resets save warnings, so set them
+      // after, against the now-current playthrough.
+      await switchPlaythrough(playthroughId);
+      const { warnings } = await uploadSave(playthroughId, file);
+      setSaveWarnings(warnings);
+      const fresh = await getPlaythrough(playthroughId);
+      if (fresh !== null) {
+        setPlaythrough(fresh);
+        upsertPlaythrough(fresh);
+      }
+    },
+    [switchPlaythrough, upsertPlaythrough],
+  );
+
+  /** Load the active playthrough's save version history (for the drawer). */
+  const loadSaveHistory = useCallback(async () => {
+    if (playthrough === null) {
+      setSaveHistory([]);
+      return;
+    }
+    setSaveHistory(await listSaves(playthrough.id));
+  }, [playthrough]);
+
+  const refreshAfterSaveChange = useCallback(async () => {
+    if (playthrough === null) {
+      return;
+    }
+    const fresh = (await getPlaythrough(playthrough.id)) ?? playthrough;
+    setPlaythrough(fresh);
+    upsertPlaythrough(fresh);
+    setSaveHistory(await listSaves(playthrough.id));
+  }, [playthrough, upsertPlaythrough]);
+
+  const activateSaveVersion = useCallback(
+    async (saveId: string) => {
+      if (playthrough === null) {
+        return;
+      }
+      await activateSave(playthrough.id, saveId);
+      await refreshAfterSaveChange();
+    },
+    [playthrough, refreshAfterSaveChange],
+  );
+
+  const deleteSaveVersion = useCallback(
+    async (saveId: string) => {
+      if (playthrough === null) {
+        return;
+      }
+      await deleteSave(playthrough.id, saveId);
+      await refreshAfterSaveChange();
+    },
+    [playthrough, refreshAfterSaveChange],
+  );
+
   const renamePlaythrough = useCallback(
     async (id: string, name: string) => {
       const updated = await patchPlaythrough(id, { name });
@@ -733,6 +818,12 @@ export function useForeman(): ForemanState {
     workOrders,
     saveWarnings,
     dismissSaveWarnings: () => setSaveWarnings([]),
+    saveHistory,
+    loadSaveHistory,
+    activateSaveVersion,
+    deleteSaveVersion,
+    previewSaveFile,
+    addSaveToExisting,
     sending,
     booting,
     needsOnboarding,

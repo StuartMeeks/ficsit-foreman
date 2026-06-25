@@ -6,6 +6,8 @@ import { parseSseStream } from './sse.js';
 import type {
   Foreman,
   Playthrough,
+  Save,
+  SavePreviewResult,
   SaveUploadResult,
   StoredMessage,
   WorkOrder,
@@ -214,6 +216,55 @@ export async function uploadSave(playthroughId: string, file: File): Promise<Sav
     throw new Error(await readError(response));
   }
   return (await response.json()) as SaveUploadResult;
+}
+
+/** A playthrough's uploaded save versions, newest first. */
+export async function listSaves(playthroughId: string): Promise<Save[]> {
+  const response = await fetch(`/api/playthroughs/${playthroughId}/saves`, {
+    credentials: CREDENTIALS,
+  });
+  if (!response.ok) {
+    throw new Error(await readError(response));
+  }
+  return (await response.json()) as Save[];
+}
+
+/** Re-activates an older save version as the current one. */
+export async function activateSave(playthroughId: string, saveId: string): Promise<Save> {
+  const response = await fetch(`/api/playthroughs/${playthroughId}/saves/${saveId}/activate`, {
+    method: 'POST',
+    credentials: CREDENTIALS,
+  });
+  if (!response.ok) {
+    throw new Error(await readError(response));
+  }
+  return (await response.json()) as Save;
+}
+
+/** Deletes a save version (the newest remaining is promoted if it was current). */
+export async function deleteSave(playthroughId: string, saveId: string): Promise<void> {
+  const response = await fetch(`/api/playthroughs/${playthroughId}/saves/${saveId}`, {
+    method: 'DELETE',
+    credentials: CREDENTIALS,
+  });
+  if (!response.ok && response.status !== 404) {
+    throw new Error(await readError(response));
+  }
+}
+
+/** Parses an upload's identity and finds the user's playthroughs of the same game. */
+export async function previewSave(file: File): Promise<SavePreviewResult> {
+  const form = new FormData();
+  form.append('save', file);
+  const response = await fetch('/api/saves/preview', {
+    method: 'POST',
+    credentials: CREDENTIALS,
+    body: form,
+  });
+  if (!response.ok) {
+    throw new Error(await readError(response));
+  }
+  return (await response.json()) as SavePreviewResult;
 }
 
 export async function getActiveWorkOrder(playthroughId: string): Promise<WorkOrder | null> {
