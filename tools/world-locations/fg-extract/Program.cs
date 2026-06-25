@@ -1,3 +1,4 @@
+using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using CUE4Parse.Compression;
@@ -21,6 +22,14 @@ var usmap =
     Environment.GetEnvironmentVariable("SF_USMAP")
     ?? @"D:\Games\Steam\steamapps\common\Satisfactory\CommunityResources\FactoryGame.usmap";
 var outPath = Environment.GetEnvironmentVariable("OUT") ?? @"world-locations.json";
+
+// The version this dataset describes. Overridable so a re-extraction for a new
+// game build stamps the correct version without editing this file; the defaults
+// document the build the dataset was originally extracted from.
+var gameVersion = Environment.GetEnvironmentVariable("GAME_VERSION") ?? "1.2.3.0";
+var build = int.TryParse(Environment.GetEnvironmentVariable("BUILD"), out var parsedBuild)
+    ? parsedBuild
+    : 493833;
 
 var provider = new DefaultFileProvider(paks, SearchOption.TopDirectoryOnly, new VersionContainer(EGame.GAME_UE5_6));
 provider.MappingsContainer = new FileUsmapTypeMappingsProvider(usmap);
@@ -128,21 +137,37 @@ foreach (var pkgPath in levelPkgs)
     catch (Exception ex) { Console.Error.WriteLine($"[lvl] {pkgPath}: {ex.Message}"); }
 }
 
-var counts = new Dictionary<string, int>();
+// Alphabetical so the counts block is stable across re-extractions.
+var counts = new SortedDictionary<string, int>(StringComparer.Ordinal);
 foreach (var kv in collCounts) { counts[kv.Key] = kv.Value; }
 foreach (var kv in nodeCounts) { counts[kv.Key] = kv.Value; }
 
 var dataset = new
 {
-    gameVersion = "1.2.3.0",
-    build = 493833,
+    gameVersion,
+    build,
     source = "first-party asset extraction (CUE4Parse + shipped FactoryGame.usmap)",
     counts,
-    collectibles = collectibles.OrderBy(c => ((dynamic) c).kind).ToList(),
-    resourceNodes = nodes,
+    // Deterministic ordering (kind, then id) so a regenerated dataset diffs only
+    // on genuine world changes, not on asset-enumeration order.
+    collectibles = collectibles
+        .OrderBy(c => (string) ((dynamic) c).kind, StringComparer.Ordinal)
+        .ThenBy(c => (string) ((dynamic) c).id, StringComparer.Ordinal)
+        .ToList(),
+    resourceNodes = nodes
+        .OrderBy(c => (string) ((dynamic) c).kind, StringComparer.Ordinal)
+        .ThenBy(c => (string) ((dynamic) c).id, StringComparer.Ordinal)
+        .ToList(),
 };
 
-var json = JsonSerializer.Serialize(dataset, new JsonSerializerOptions { WriteIndented = true });
+// UnsafeRelaxedJsonEscaping keeps printable ASCII such as '+' literal instead of
+// escaping it to a unicode sequence; this is a data file, not HTML, so relaxed
+// escaping is safe and keeps the output readable.
+var json = JsonSerializer.Serialize(dataset, new JsonSerializerOptions
+{
+    WriteIndented = true,
+    Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
+});
 File.WriteAllText(outPath, json);
 
 Console.WriteLine("=== COUNTS ===");

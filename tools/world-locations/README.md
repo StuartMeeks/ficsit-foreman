@@ -74,6 +74,9 @@ see "Upstreaming" below.
    `Program.cs`) — bump this if a future Satisfactory moves to a new engine version.
 
    ```powershell
+   # Stamp the build you are extracting (must match the channel's meta.json):
+   $env:GAME_VERSION = "1.2.3.1"
+   $env:BUILD        = "495413"
    # Optional overrides (defaults point at a default Steam install):
    #   $env:SF_PAKS  = "D:\...\Satisfactory\FactoryGame\Content\Paks"
    #   $env:SF_USMAP = "D:\...\Satisfactory\CommunityResources\FactoryGame.usmap"
@@ -81,6 +84,12 @@ see "Upstreaming" below.
    cd tools/world-locations/fg-extract
    dotnet run -c Release
    ```
+
+   `GAME_VERSION`/`BUILD` are stamped into the dataset header (defaulting to the
+   build it was first extracted from) — **set them**, never hand-edit the resulting
+   file's version. Output is deterministically ordered (counts alphabetical;
+   `collectibles`/`resourceNodes` by `kind` then `id`) so a regenerated dataset
+   diffs only on genuine world changes.
 
    It prints per-kind counts and writes `world-locations.json`. **Sanity check**: the
    collectible counts must read mercerSphere 298, somersloop 106, powerSlugBlue 596,

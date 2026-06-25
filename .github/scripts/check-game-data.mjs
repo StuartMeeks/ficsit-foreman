@@ -1,20 +1,26 @@
 #!/usr/bin/env node
 // Validates bundled game-data pull requests.
 //
-// Two independent concerns:
+// A bundled channel is a THREE-FILE BUNDLE under
+// packages/game-data-core/data/<channel>/:
 //
-//   1. Docs drops (en-US.json + meta.json). A docs PR must:
-//        - touch only files under a single packages/game-data-core/data/<channel>/ directory;
-//        - contain that channel's en-US.json and a well-formed meta.json
-//          ({ gameVersion: string, build: positive int, channel: <dir name> });
-//        - bump build strictly above that channel's current build on the base branch.
+//   en-US.json           the raw Satisfactory docs (game data)
+//   meta.json            { gameVersion, build, channel }
+//   world-locations.json the extracted collectible/resource-node dataset
 //
-//   2. The world-location dataset (world-locations.json). Validated whenever it
-//      changes, with NO isolation rule (it is bundled alongside loader code):
-//        - well-formed; collectibles[] and resourceNodes[] present;
-//        - counts equal the actual array lengths;
-//        - collectible counts equal the known fixed world totals;
-//        - gameVersion matches the channel's meta.json.
+// The three describe one game build and move together. A data PR must:
+//   - touch only files under a SINGLE channel directory (one channel per PR);
+//   - leave the channel bundle COMPLETE — all three files present;
+//   - ship a well-formed meta.json ({ gameVersion: string, build: positive int,
+//     channel: <dir name> }) and bump build strictly above that channel's
+//     current build on the base branch;
+//   - ship a well-formed world-locations.json whose collectibles[]/resourceNodes[]
+//     counts equal the actual array lengths and whose collectible counts equal the
+//     known fixed world totals;
+//   - keep meta.json and world-locations.json in lockstep: identical gameVersion
+//     AND build. (This is what stops a version being "bumped" without a genuine
+//     re-extraction — both files only ever move together, and the world totals are
+//     re-checked against the fixed oracle.)
 //
 // On PRs that touch no bundled game data, this is a no-op (exit 0), so it is
 // safe to require as a status check on every pull request.
@@ -25,7 +31,7 @@ import path from 'node:path';
 
 const DATA_DIR = 'packages/game-data-core/data';
 const CHANNELS = ['stable', 'experimental'];
-const WORLD_FILE = 'world-locations.json';
+const BUNDLE_FILES = ['en-US.json', 'meta.json', 'world-locations.json'];
 
 /** Fixed public world totals — the completeness oracle for a regenerated dataset. */
 const KNOWN_COLLECTIBLE_TOTALS = {
@@ -54,88 +60,37 @@ const changed = git(`git diff --name-only ${baseSha} ${headSha}`)
   .map((line) => line.trim())
   .filter(Boolean);
 
-const isWorldFile = (file) => file.startsWith(`${DATA_DIR}/`) && file.endsWith(`/${WORLD_FILE}`);
-
-// Docs drops gate on en-US.json/meta.json only. The world dataset is validated
-// separately (below) and never triggers the docs-isolation rules.
-const docsChanged = changed.filter(
-  (file) =>
-    file.startsWith(`${DATA_DIR}/`) && file !== `${DATA_DIR}/README.md` && !isWorldFile(file),
+// Every tracked bundle file under data/, excluding the human-facing README.
+const dataChanged = changed.filter(
+  (file) => file.startsWith(`${DATA_DIR}/`) && file !== `${DATA_DIR}/README.md`,
 );
-const worldChanged = changed.filter(isWorldFile);
 
-if (docsChanged.length === 0 && worldChanged.length === 0) {
+if (dataChanged.length === 0) {
   console.log('No bundled game-data changes; nothing to validate.');
   process.exit(0);
 }
 
-// --- 1. Docs drop validation (isolation + well-formed meta + monotonic build) ---
-if (docsChanged.length > 0) {
-  const touchedChannels = new Set(
-    docsChanged.map((file) => file.slice(DATA_DIR.length + 1).split('/')[0]),
+// --- 1. One channel per PR ---
+const touchedChannels = new Set(
+  dataChanged.map((file) => file.slice(DATA_DIR.length + 1).split('/')[0]),
+);
+if (touchedChannels.size > 1) {
+  fail(`Update one channel per PR. Channels touched: ${[...touchedChannels].join(', ')}.`);
+}
+const channel = [...touchedChannels][0];
+if (!CHANNELS.includes(channel)) {
+  fail(`Unknown channel directory '${channel}'. Allowed: ${CHANNELS.join(', ')}.`);
+}
+const channelDir = `${DATA_DIR}/${channel}`;
+const stray = changed.filter((file) => !file.startsWith(`${channelDir}/`));
+if (stray.length > 0) {
+  fail(
+    `A game-data PR must contain only files under ${channelDir}/. Unexpected changes:\n  ${stray.join('\n  ')}`,
   );
-  if (touchedChannels.size > 1) {
-    fail(`Update one channel per PR. Channels touched: ${[...touchedChannels].join(', ')}.`);
-  }
-  const channel = [...touchedChannels][0];
-  if (!CHANNELS.includes(channel)) {
-    fail(`Unknown channel directory '${channel}'. Allowed: ${CHANNELS.join(', ')}.`);
-  }
-  const channelDir = `${DATA_DIR}/${channel}`;
-  const stray = changed.filter((file) => !file.startsWith(`${channelDir}/`));
-  if (stray.length > 0) {
-    fail(
-      `A game-data docs PR must contain only files under ${channelDir}/. Unexpected changes:\n  ${stray.join('\n  ')}`,
-    );
-  }
-
-  if (CHANNELS.includes(channel)) {
-    const docsPath = path.join(channelDir, 'en-US.json');
-    const metaPath = path.join(channelDir, 'meta.json');
-    if (!fs.existsSync(docsPath)) {
-      fail(`${docsPath} is missing.`);
-    }
-
-    let meta;
-    if (!fs.existsSync(metaPath)) {
-      fail(`${metaPath} is missing.`);
-    } else {
-      try {
-        meta = JSON.parse(fs.readFileSync(metaPath, 'utf8'));
-      } catch {
-        fail(`${metaPath} is not valid JSON.`);
-      }
-    }
-
-    if (meta) {
-      if (typeof meta.gameVersion !== 'string' || meta.gameVersion.trim() === '') {
-        fail('meta.gameVersion must be a non-empty string.');
-      }
-      if (!Number.isInteger(meta.build) || meta.build <= 0) {
-        fail('meta.build must be a positive integer.');
-      }
-      if (meta.channel !== channel) {
-        fail(`meta.channel ('${meta.channel}') must equal the directory name ('${channel}').`);
-      }
-
-      let baseBuild = null;
-      try {
-        baseBuild = JSON.parse(git(`git show ${baseSha}:${metaPath}`)).build;
-      } catch {
-        baseBuild = null; // channel did not exist on the base branch — first one is fine.
-      }
-      if (Number.isInteger(baseBuild) && Number.isInteger(meta.build) && meta.build <= baseBuild) {
-        fail(
-          `build (${meta.build}) must be greater than the current ${channel} build (${baseBuild}).`,
-        );
-      }
-    }
-  }
 }
 
-// --- 2. World-location dataset validation (no isolation rule) ---
-for (const file of worldChanged) {
-  validateWorldFile(file);
+if (CHANNELS.includes(channel)) {
+  validateBundle(channel, channelDir);
 }
 
 if (errors.length > 0) {
@@ -146,26 +101,88 @@ if (errors.length > 0) {
   process.exit(1);
 }
 
-const what = [
-  docsChanged.length > 0 ? 'docs' : null,
-  worldChanged.length > 0 ? 'world locations' : null,
-]
-  .filter(Boolean)
-  .join(' + ');
-console.log(`✓ bundled game data is valid (${what}).`);
+console.log(`✓ bundled game data is valid (${channel} three-file bundle).`);
 
-function validateWorldFile(file) {
-  const channel = file.slice(DATA_DIR.length + 1).split('/')[0];
-  let data;
+function readJson(file) {
   try {
-    data = JSON.parse(fs.readFileSync(file, 'utf8'));
+    return JSON.parse(fs.readFileSync(file, 'utf8'));
   } catch {
     fail(`${file} is not valid JSON.`);
-    return;
+    return undefined;
+  }
+}
+
+function validateBundle(channel, channelDir) {
+  // The bundle must be complete: all three files present.
+  for (const name of BUNDLE_FILES) {
+    if (!fs.existsSync(path.join(channelDir, name))) {
+      fail(`${path.join(channelDir, name)} is missing — a channel bundle needs all of: ${BUNDLE_FILES.join(', ')}.`);
+    }
+  }
+
+  const meta = validateMeta(channel, channelDir);
+  const world = validateWorldFile(channelDir);
+
+  // meta.json and world-locations.json must describe the same build.
+  if (meta && world) {
+    if (world.gameVersion !== meta.gameVersion) {
+      fail(
+        `world-locations.json gameVersion ('${world.gameVersion}') must match meta.json ('${meta.gameVersion}').`,
+      );
+    }
+    if (world.build !== meta.build) {
+      fail(
+        `world-locations.json build (${world.build}) must match meta.json (${meta.build}).`,
+      );
+    }
+  }
+}
+
+function validateMeta(channel, channelDir) {
+  const metaPath = path.join(channelDir, 'meta.json');
+  if (!fs.existsSync(metaPath)) {
+    return undefined;
+  }
+  const meta = readJson(metaPath);
+  if (!meta) {
+    return undefined;
+  }
+
+  if (typeof meta.gameVersion !== 'string' || meta.gameVersion.trim() === '') {
+    fail('meta.gameVersion must be a non-empty string.');
+  }
+  if (!Number.isInteger(meta.build) || meta.build <= 0) {
+    fail('meta.build must be a positive integer.');
+  }
+  if (meta.channel !== channel) {
+    fail(`meta.channel ('${meta.channel}') must equal the directory name ('${channel}').`);
+  }
+
+  let baseBuild = null;
+  try {
+    baseBuild = JSON.parse(git(`git show ${baseSha}:${metaPath}`)).build;
+  } catch {
+    baseBuild = null; // channel did not exist on the base branch — first one is fine.
+  }
+  if (Number.isInteger(baseBuild) && Number.isInteger(meta.build) && meta.build <= baseBuild) {
+    fail(`build (${meta.build}) must be greater than the current ${channel} build (${baseBuild}).`);
+  }
+
+  return meta;
+}
+
+function validateWorldFile(channelDir) {
+  const file = path.join(channelDir, 'world-locations.json');
+  if (!fs.existsSync(file)) {
+    return undefined;
+  }
+  const data = readJson(file);
+  if (!data) {
+    return undefined;
   }
   if (!Array.isArray(data.collectibles) || !Array.isArray(data.resourceNodes)) {
     fail(`${file} must have array 'collectibles' and 'resourceNodes'.`);
-    return;
+    return undefined;
   }
 
   // counts must equal the actual array lengths.
@@ -191,18 +208,5 @@ function validateWorldFile(file) {
     }
   }
 
-  // gameVersion must match the channel's meta.json.
-  const metaPath = path.join(DATA_DIR, channel, 'meta.json');
-  if (fs.existsSync(metaPath)) {
-    try {
-      const meta = JSON.parse(fs.readFileSync(metaPath, 'utf8'));
-      if (typeof meta.gameVersion === 'string' && data.gameVersion !== meta.gameVersion) {
-        fail(
-          `${file}: gameVersion ('${data.gameVersion}') must match ${channel} meta.json ('${meta.gameVersion}').`,
-        );
-      }
-    } catch {
-      // meta.json validity is the docs block's concern.
-    }
-  }
+  return data;
 }
