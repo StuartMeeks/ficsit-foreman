@@ -106,7 +106,7 @@ string Purity(UObject e)
 // any property value mentions customization/helmet/tape — with location + guid keying.
 if (Environment.GetEnvironmentVariable("DISCOVER2") != null)
 {
-    var rx = new Regex(@"(Customiz|Helmet|Hat|Tape|Cassette|Boombox|Mtape|Beanie|UnlockPickup|Schematic)", RegexOptions.IgnoreCase);
+    var rx = new Regex(@"(Customiz|Helmet|Cassette|Boombox|Mtape|Beanie|UnlockPickup|MercerShrine|Tape_|_Tape|Hat_|_Hat)", RegexOptions.IgnoreCase);
     var classTally = new Dictionary<string, int>();
     var hits = new List<string>();
     var pkgs = provider.Files.Keys
