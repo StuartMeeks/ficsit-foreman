@@ -37,9 +37,11 @@ jobs:
           # --name-status with rename detection (-M) and keep just A/M entries so
           # that moving the data directory (e.g. a package rename) does not look
           # like a channel edit — renames (R) and deletions (D) are ignored.
+          # awk -F'\t' splits status from path on the literal tab portably; a
+          # `grep -E '\t'` does NOT match a tab on every grep build, which silently
+          # made this step find nothing and skip validation.
           files=$(git diff --name-status -M "$BASE_SHA" "$HEAD_SHA" \
-            | { grep -E '^[AM]\t' || true; } \
-            | cut -f2 \
+            | awk -F'\t' '$1 ~ /^[AM]$/ { print $2 }' \
             | { grep '^packages/game-data-core/data/' || true; } \
             | { grep -v '^packages/game-data-core/data/README.md$' || true; })
           if [ -n "$files" ]; then
