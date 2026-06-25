@@ -100,6 +100,54 @@ string Purity(UObject e)
 // every actor that carries a pickup/pod GUID by its class (ExportType). Used to
 // find which classes beyond the known six are collectible pickups (bonus items,
 // helmets, tapes, …) and confirm they're GUID-tracked. Prints and exits.
+// DISCOVER2: hunt rare/keyword-matching actors (the helmet + tapes are hand-placed
+// and few, and likely NOT keyed by mItemPickupGuid). Histograms every class across
+// cells + persistent level, lists the rare ones, and dumps actors whose class or
+// any property value mentions customization/helmet/tape — with location + guid keying.
+if (Environment.GetEnvironmentVariable("DISCOVER2") != null)
+{
+    var rx = new Regex(@"(Customiz|Helmet|Hat|Tape|Cassette|Boombox|Mtape|Beanie|UnlockPickup|Schematic)", RegexOptions.IgnoreCase);
+    var classTally = new Dictionary<string, int>();
+    var hits = new List<string>();
+    var pkgs = provider.Files.Keys
+        .Where(k => (k.Contains("/_Generated_/") || k.Contains("/GameLevel01/")) && k.EndsWith(".umap"))
+        .ToList();
+    Console.WriteLine($"[discover2] scanning {pkgs.Count} packages...");
+    var pn = 0;
+    foreach (var pkg in pkgs)
+    {
+        if (++pn % 1000 == 0) { Console.WriteLine($"  ...{pn}/{pkgs.Count}"); }
+        try
+        {
+            foreach (var e in provider.LoadPackage(pkg).GetExports())
+            {
+                classTally[e.ExportType] = classTally.GetValueOrDefault(e.ExportType) + 1;
+                string? matched = rx.IsMatch(e.ExportType) ? $"class={e.ExportType}" : null;
+                if (matched == null)
+                {
+                    foreach (var p in e.Properties)
+                    {
+                        var s = p.Tag?.GenericValue?.ToString();
+                        if (s != null && rx.IsMatch(s)) { matched = $"{p.Name.Text}={s}"; break; }
+                    }
+                }
+                if (matched == null) { continue; }
+                var loc = Loc(e);
+                var locS = loc == null ? "(no-loc)" : $"({(int) loc.Value.X},{(int) loc.Value.Y},{(int) loc.Value.Z})";
+                var guid = e.Properties.Any(p => p.Name.Text == "mItemPickupGuid") ? "ItemPickupGuid"
+                    : e.Properties.Any(p => p.Name.Text == "mDropPodGuid") ? "DropPodGuid" : "no-guid";
+                if (hits.Count < 80) { hits.Add($"{e.ExportType} | {e.Name} | {locS} | {guid} | {matched}"); }
+            }
+        }
+        catch (Exception ex) { Console.Error.WriteLine($"[pkg] {pkg}: {ex.Message}"); }
+    }
+    Console.WriteLine("=== RARE CLASSES (count <= 8) ===");
+    foreach (var kv in classTally.Where(k => k.Value <= 8).OrderBy(k => k.Value)) { Console.WriteLine($"  {kv.Key}: {kv.Value}"); }
+    Console.WriteLine("=== KEYWORD HITS ===");
+    foreach (var h in hits) { Console.WriteLine($"  {h}"); }
+    return;
+}
+
 if (Environment.GetEnvironmentVariable("DISCOVER") != null)
 {
     var byType = new Dictionary<string, int>();
