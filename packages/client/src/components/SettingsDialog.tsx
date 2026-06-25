@@ -2,47 +2,59 @@ import { useState } from 'react';
 
 import type { Foreman, Playthrough } from '../api/types.js';
 import type { LlmSettings } from '../useForeman.js';
+import { NewForemanModal } from './NewForemanModal.js';
+import { PioneerProfileFields } from './PioneerProfile.js';
+import { SecurityDialog } from './SecurityDialog.js';
 
 interface SettingsDialogProps {
   playthrough: Playthrough | null;
   foremen: Foreman[];
   llm: LlmSettings;
+  /** Whether the account has two-factor enabled (for the Security section). */
+  twoFactorEnabled: boolean;
   onClose: () => void;
   onSave: (input: { pioneerProfile: string; llm: LlmSettings }) => Promise<void>;
-  onAddForeman: (input: { name: string; personality?: string }) => Promise<unknown>;
+  onAddForeman: (input: { name: string; personality?: string }) => Promise<Foreman>;
   onEditForeman: (id: string, patch: { name?: string; personality?: string }) => Promise<void>;
   onRemoveForeman: (id: string) => Promise<void>;
   onUseForeman: (id: string) => Promise<void>;
+  /** Re-reads the user after MFA is enabled/disabled in the Security section. */
+  onRefreshUser: () => Promise<void> | void;
 }
 
-type Section = 'foremen' | 'pioneer' | 'llm' | 'billing';
+type Section = 'playthrough' | 'llm' | 'security' | 'billing';
 
 const SECTIONS: { key: Section; label: string }[] = [
-  { key: 'foremen', label: 'Foremen' },
-  { key: 'pioneer', label: 'Pioneer' },
+  { key: 'playthrough', label: 'This Playthrough' },
   { key: 'llm', label: 'LLM' },
+  { key: 'security', label: 'Security' },
   { key: 'billing', label: 'Billing' },
 ];
 
 /**
- * Sectioned settings: the foreman library (reusable personas), the active
- * playthrough's pioneer profile, the LLM provider/model/key (held only in this
- * browser), and a billing placeholder. Pioneer + LLM are saved together via the
- * footer; foreman edits apply immediately (a persona is shared across every
- * playthrough that uses it).
+ * Sectioned settings reached from the account menu. "This Playthrough" holds the
+ * foreman attached to the active playthrough (with the reusable library, since a
+ * persona is shared across every playthrough that uses it) plus the pioneer
+ * profile; LLM holds the provider/model/key (kept only in this browser);
+ * Security manages two-factor (its setup opens a second-level dialog); Billing
+ * is a placeholder. Pioneer profile + LLM are saved together via the footer;
+ * foreman edits apply immediately.
  */
 export function SettingsDialog({
   playthrough,
   foremen,
   llm,
+  twoFactorEnabled,
   onClose,
   onSave,
   onAddForeman,
   onEditForeman,
   onRemoveForeman,
   onUseForeman,
+  onRefreshUser,
 }: SettingsDialogProps): React.JSX.Element {
-  const [section, setSection] = useState<Section>('foremen');
+  const [section, setSection] = useState<Section>('playthrough');
+  const [securityOpen, setSecurityOpen] = useState(false);
   const [pioneerProfile, setPioneerProfile] = useState(playthrough?.pioneerProfile ?? '');
   const [provider, setProvider] = useState(llm.provider);
   const [model, setModel] = useState(llm.model);
@@ -52,8 +64,12 @@ export function SettingsDialog({
   const [error, setError] = useState<string | null>(null);
 
   const [addingForeman, setAddingForeman] = useState(false);
-  const [newName, setNewName] = useState('');
-  const [newPersonality, setNewPersonality] = useState('');
+
+  // Show the foreman attached to this playthrough first; the rest are the
+  // reusable library, switchable via "Use here".
+  const attachedFirst = [...foremen].sort(
+    (a, b) => Number(b.id === playthrough?.foremanId) - Number(a.id === playthrough?.foremanId),
+  );
 
   const modelPlaceholder =
     provider === 'openai'
@@ -61,13 +77,6 @@ export function SettingsDialog({
       : provider === 'anthropic'
         ? 'claude-sonnet-4-6'
         : 'server default';
-
-  const guard = (fn: () => Promise<void>): void => {
-    setError(null);
-    void fn().catch((e: unknown) =>
-      setError(e instanceof Error ? e.message : 'Something went wrong.'),
-    );
-  };
 
   const save = async (): Promise<void> => {
     setSaving(true);
@@ -80,18 +89,6 @@ export function SettingsDialog({
     } finally {
       setSaving(false);
     }
-  };
-
-  const addForeman = (): void => {
-    if (newName.trim().length === 0) {
-      return;
-    }
-    guard(async () => {
-      await onAddForeman({ name: newName.trim(), personality: newPersonality });
-      setNewName('');
-      setNewPersonality('');
-      setAddingForeman(false);
-    });
   };
 
   return (
@@ -119,13 +116,16 @@ export function SettingsDialog({
           ))}
         </div>
 
-        {section === 'foremen' ? (
+        {section === 'playthrough' ? (
           <div className="settings-section">
+            <span className="label">Foreman</span>
             <p className="hint">
-              Reusable foreman personas. Editing one changes it for every playthrough that uses it.
+              The persona attached to this playthrough is shown first; the rest are your reusable
+              library — pick &ldquo;Use here&rdquo; to switch. Editing a persona changes it for
+              every playthrough that uses it.
             </p>
             <div className="foreman-list">
-              {foremen.map((f) => (
+              {attachedFirst.map((f) => (
                 <ForemanRow
                   key={f.id}
                   foreman={f}
@@ -138,59 +138,20 @@ export function SettingsDialog({
               ))}
             </div>
 
-            {addingForeman ? (
-              <div className="foreman-edit">
-                <div className="field">
-                  <label htmlFor="nf-name">Name</label>
-                  <input
-                    id="nf-name"
-                    value={newName}
-                    onChange={(e) => setNewName(e.target.value)}
-                    placeholder="e.g. ADA"
-                    autoComplete="off"
-                  />
-                </div>
-                <div className="field">
-                  <label htmlFor="nf-persona">Personality</label>
-                  <textarea
-                    id="nf-persona"
-                    value={newPersonality}
-                    onChange={(e) => setNewPersonality(e.target.value)}
-                    placeholder="e.g. Calm, methodical planner who explains trade-offs."
-                  />
-                </div>
-                <div className="actions">
-                  <button
-                    type="button"
-                    className="icon-button"
-                    onClick={() => setAddingForeman(false)}
-                  >
-                    Cancel
-                  </button>
-                  <button type="button" className="send" onClick={addForeman}>
-                    Add foreman
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <button type="button" className="icon-button" onClick={() => setAddingForeman(true)}>
-                + New foreman
-              </button>
-            )}
-          </div>
-        ) : null}
+            <button type="button" className="icon-button" onClick={() => setAddingForeman(true)}>
+              + New foreman
+            </button>
 
-        {section === 'pioneer' ? (
-          <div className="settings-section">
-            <p className="hint">Your play style for this playthrough. Takes effect next message.</p>
-            <div className="field">
-              <label htmlFor="pioneer">Pioneer profile</label>
-              <textarea
-                id="pioneer"
-                value={pioneerProfile}
-                onChange={(e) => setPioneerProfile(e.target.value)}
-                placeholder="e.g. Returning player, goal-oriented, wants direction but room to build."
-              />
+            {addingForeman ? (
+              <NewForemanModal onCreate={onAddForeman} onClose={() => setAddingForeman(false)} />
+            ) : null}
+
+            <div className="settings-subsection">
+              <span className="label">Pioneer profile</span>
+              <p className="hint">
+                Your play style for this playthrough. Takes effect next message.
+              </p>
+              <PioneerProfileFields value={pioneerProfile} onChange={setPioneerProfile} />
             </div>
           </div>
         ) : null}
@@ -246,6 +207,27 @@ export function SettingsDialog({
                 the server. A key also unlocks the provider/model override above.
               </span>
             </div>
+          </div>
+        ) : null}
+
+        {section === 'security' ? (
+          <div className="settings-section">
+            <p className="hint">
+              Two-factor authentication is{' '}
+              <strong>{twoFactorEnabled ? 'enabled' : 'not enabled'}</strong>. When enabled, a code
+              from your authenticator app (or a recovery code) is required at every sign-in.
+            </p>
+            <button type="button" className="icon-button" onClick={() => setSecurityOpen(true)}>
+              {twoFactorEnabled ? 'Manage two-factor' : 'Set up two-factor'}
+            </button>
+
+            {securityOpen ? (
+              <SecurityDialog
+                twoFactorEnabled={twoFactorEnabled}
+                onChanged={onRefreshUser}
+                onClose={() => setSecurityOpen(false)}
+              />
+            ) : null}
           </div>
         ) : null}
 

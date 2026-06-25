@@ -1,18 +1,20 @@
+import { UserMenu } from './UserMenu.js';
+
 interface HeaderProps {
   /** The playthrough switcher control, rendered next to the wordmark. */
   switcher?: React.ReactNode;
+  userName: string | null;
   userEmail: string | null;
   onOpenSettings: () => void;
-  onOpenSecurity: () => void;
   onSignOut: () => void;
 }
 
-/** Global header: wordmark, playthrough switcher, live dot, settings, sign-out. */
+/** Global header: wordmark, playthrough switcher, live dot, and account menu. */
 export function Header({
   switcher,
+  userName,
   userEmail,
   onOpenSettings,
-  onOpenSecurity,
   onSignOut,
 }: HeaderProps): React.JSX.Element {
   return (
@@ -23,20 +25,16 @@ export function Header({
       </div>
       {switcher !== undefined ? <div className="header-switcher">{switcher}</div> : null}
       <div className="spacer" />
-      {userEmail !== null ? <span className="label">{userEmail}</span> : null}
       <span className="status">
         <span className="pulse-dot" aria-hidden="true" />
         <span className="label">ONLINE</span>
       </span>
-      <button type="button" className="icon-button" onClick={onOpenSettings}>
-        Settings
-      </button>
-      <button type="button" className="icon-button" onClick={onOpenSecurity}>
-        Security
-      </button>
-      <button type="button" className="icon-button" onClick={onSignOut}>
-        Sign out
-      </button>
+      <UserMenu
+        name={userName}
+        email={userEmail}
+        onOpenSettings={onOpenSettings}
+        onSignOut={onSignOut}
+      />
     </header>
   );
 }
