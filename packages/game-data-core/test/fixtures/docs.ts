@@ -138,6 +138,35 @@ export const rawDocs: unknown = [
     ],
   },
   {
+    NativeClass: "Class'/Script/FactoryGame.FGBuildableConveyorBelt'",
+    Classes: [
+      {
+        ClassName: 'Build_ConveyorBeltMk1_C',
+        mDisplayName: 'Conveyor Belt Mk.1',
+        mSpeed: '120.000000',
+      },
+    ],
+  },
+  {
+    NativeClass: "Class'/Script/FactoryGame.FGBuildableResourceExtractor'",
+    Classes: [
+      {
+        ClassName: 'Build_MinerMk1_C',
+        mDisplayName: 'Miner Mk.1',
+        mExtractCycleTime: '1.000000',
+        mItemsPerCycle: '1',
+        mAllowedResourceForms: '(RF_SOLID)',
+      },
+    ],
+  },
+  {
+    NativeClass: "Class'/Script/FactoryGame.FGBuildableConveyorAttachment'",
+    Classes: [
+      { ClassName: 'Build_ConveyorAttachmentSplitter_C', mDisplayName: 'Conveyor Splitter' },
+      { ClassName: 'Build_ConveyorAttachmentMerger_C', mDisplayName: 'Conveyor Merger' },
+    ],
+  },
+  {
     NativeClass: "Class'/Script/FactoryGame.FGRecipe'",
     Classes: [
       {
@@ -221,6 +250,55 @@ export const rawDocs: unknown = [
         mDisplayName: 'Constructor',
         mIngredients: itemAmounts([['Desc_IronPlateReinforced_C', 2]]),
         mProduct: itemAmounts([['Desc_ConstructorMk1_C', 1]]),
+        mManufactoringDuration: '0.000000',
+        mProducedIn: `(${BUILD_GUN})`,
+      },
+      {
+        ClassName: 'Recipe_SmelterMk1_C',
+        mDisplayName: 'Smelter',
+        mIngredients: itemAmounts([['Desc_IronRod_C', 5]]),
+        mProduct: itemAmounts([['Desc_SmelterMk1_C', 1]]),
+        mManufactoringDuration: '0.000000',
+        mProducedIn: `(${BUILD_GUN})`,
+      },
+      {
+        ClassName: 'Recipe_AssemblerMk1_C',
+        mDisplayName: 'Assembler',
+        mIngredients: itemAmounts([['Desc_IronPlate_C', 8]]),
+        mProduct: itemAmounts([['Desc_AssemblerMk1_C', 1]]),
+        mManufactoringDuration: '0.000000',
+        mProducedIn: `(${BUILD_GUN})`,
+      },
+      // Build-gun recipes for the logistics buildings (#66 costing).
+      {
+        ClassName: 'Recipe_MinerMk1_C',
+        mDisplayName: 'Miner Mk.1',
+        mIngredients: itemAmounts([['Desc_IronPlate_C', 10]]),
+        mProduct: itemAmounts([['Desc_MinerMk1_C', 1]]),
+        mManufactoringDuration: '0.000000',
+        mProducedIn: `(${BUILD_GUN})`,
+      },
+      {
+        ClassName: 'Recipe_ConveyorBeltMk1_C',
+        mDisplayName: 'Conveyor Belt Mk.1',
+        mIngredients: itemAmounts([['Desc_IronPlate_C', 1]]),
+        mProduct: itemAmounts([['Desc_ConveyorBeltMk1_C', 1]]),
+        mManufactoringDuration: '0.000000',
+        mProducedIn: `(${BUILD_GUN})`,
+      },
+      {
+        ClassName: 'Recipe_ConveyorAttachmentSplitter_C',
+        mDisplayName: 'Conveyor Splitter',
+        mIngredients: itemAmounts([['Desc_IronPlate_C', 2]]),
+        mProduct: itemAmounts([['Desc_ConveyorAttachmentSplitter_C', 1]]),
+        mManufactoringDuration: '0.000000',
+        mProducedIn: `(${BUILD_GUN})`,
+      },
+      {
+        ClassName: 'Recipe_ConveyorAttachmentMerger_C',
+        mDisplayName: 'Conveyor Merger',
+        mIngredients: itemAmounts([['Desc_IronPlate_C', 2]]),
+        mProduct: itemAmounts([['Desc_ConveyorAttachmentMerger_C', 1]]),
         mManufactoringDuration: '0.000000',
         mProducedIn: `(${BUILD_GUN})`,
       },

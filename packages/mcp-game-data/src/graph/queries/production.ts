@@ -8,7 +8,16 @@ import {
   unitForItem,
 } from '../context.js';
 import { rows } from '../run.js';
-import type { IngredientTreeResult, ProductionComponent, RawInput } from '../types.js';
+import type {
+  CostLine,
+  ExtractionCost,
+  FullProductionLineResult,
+  IngredientTreeResult,
+  LogisticsCost,
+  ProductionComponent,
+  ProductionMachineCost,
+  RawInput,
+} from '../types.js';
 
 interface ProducingRecipe {
   className: string;
@@ -260,6 +269,230 @@ export async function totalRawInputs(
     unit: tree.unit,
     rawInputs,
     warnings: tree.warnings,
+  };
+}
+
+// ── Full production-line costing (#66) ──────────────────────────────────────
+// Stable building/resource class names (verified against the bundled data).
+const MINERS = ['Build_MinerMk1_C', 'Build_MinerMk2_C', 'Build_MinerMk3_C'];
+const BELTS = [
+  'Build_ConveyorBeltMk1_C',
+  'Build_ConveyorBeltMk2_C',
+  'Build_ConveyorBeltMk3_C',
+  'Build_ConveyorBeltMk4_C',
+  'Build_ConveyorBeltMk5_C',
+  'Build_ConveyorBeltMk6_C',
+];
+const PIPES = ['Build_Pipeline_C', 'Build_PipelineMK2_C'];
+const WATER_EXTRACTOR = 'Build_WaterPump_C';
+const OIL_EXTRACTOR = 'Build_OilPump_C';
+const SPLITTER = 'Build_ConveyorAttachmentSplitter_C';
+const MERGER = 'Build_ConveyorAttachmentMerger_C';
+const WATER = 'Desc_Water_C';
+const CRUDE_OIL = 'Desc_LiquidOil_C';
+const PURITY: Record<string, number> = { impure: 0.5, normal: 1, pure: 2 };
+
+export interface FullProductionLineOptions {
+  minerMark?: number; // 1–3
+  purity?: 'impure' | 'normal' | 'pure';
+  beltMetresPerLink?: number;
+}
+
+/** Scales a building's build cost by `n` whole machines into displayable cost lines. */
+function costLinesFor(ctx: QueryContext, buildingClass: string, n: number): CostLine[] {
+  const building = ctx.gameData.buildings[buildingClass];
+  if (building === undefined) {
+    return [];
+  }
+  return building.buildCost.map((line) => ({
+    item: displayForItem(ctx.gameData, line.itemClassName),
+    itemClassName: line.itemClassName,
+    amount: round(line.amount * n),
+  }));
+}
+
+/**
+ * Costs a whole production line for `item` at `targetPerMinute`: the exact build
+ * cost of every production machine (honouring chosen recipes), the miners /
+ * extractors to feed it, and a close-enough estimate of belts, pipes, splitters
+ * and mergers — aggregated into one shopping list (#66). Logistics figures are
+ * estimates (layout/length aren't in the game data) and flagged as such.
+ */
+export async function fullProductionLine(
+  ctx: QueryContext,
+  itemName: string,
+  targetPerMinute: number,
+  recipeChoices?: Record<string, string>,
+  options: FullProductionLineOptions = {},
+): Promise<FullProductionLineResult | undefined> {
+  const tree = await ingredientTree(ctx, itemName, targetPerMinute, recipeChoices);
+  if (tree === undefined) {
+    return undefined;
+  }
+  const warnings = [...tree.warnings];
+  const minerMark = Math.min(3, Math.max(1, Math.round(options.minerMark ?? 1)));
+  const purity = options.purity ?? 'normal';
+  const beltMetresPerLink = options.beltMetresPerLink ?? 10;
+
+  const totals = new Map<string, CostLine>();
+  const addCost = (lines: CostLine[]): void => {
+    for (const line of lines) {
+      const existing = totals.get(line.itemClassName);
+      if (existing === undefined) {
+        totals.set(line.itemClassName, { ...line });
+      } else {
+        existing.amount = round(existing.amount + line.amount);
+      }
+    }
+  };
+
+  // ── Production machines (exact) — target + every non-raw component. ─────────
+  let splitterMergerLinks = 0;
+  const productionMachines: ProductionMachineCost[] = [];
+  const producers: { machine: string; recipe: string; exactCount: number }[] = [];
+  if (tree.machine !== undefined && tree.machineCount !== undefined) {
+    producers.push({ machine: tree.machine, recipe: tree.recipe, exactCount: tree.machineCount });
+  }
+  for (const c of tree.components) {
+    if (
+      !c.isRaw &&
+      c.machine !== undefined &&
+      c.machineCount !== undefined &&
+      c.recipe !== undefined
+    ) {
+      producers.push({ machine: c.machine, recipe: c.recipe, exactCount: c.machineCount });
+    }
+  }
+  for (const p of producers) {
+    const count = Math.max(1, Math.ceil(p.exactCount));
+    splitterMergerLinks += count - 1; // an N-machine manifold ≈ N-1 splitters + N-1 mergers
+    const buildingClass = ctx.resolver.resolveBuilding(p.machine);
+    const buildCost = buildingClass !== undefined ? costLinesFor(ctx, buildingClass, count) : [];
+    if (buildingClass === undefined || buildCost.length === 0) {
+      warnings.push(`No build cost found for '${p.machine}'; excluded from the total.`);
+    }
+    addCost(buildCost);
+    productionMachines.push({
+      building: p.machine,
+      recipe: p.recipe,
+      count,
+      exactCount: round(p.exactCount),
+      buildCost,
+    });
+  }
+
+  // ── Extraction (exact) — miners for solids, pumps for water / crude oil. ────
+  const extraction: ExtractionCost[] = [];
+  for (const c of tree.components) {
+    if (!c.isRaw) {
+      continue;
+    }
+    let buildingClass: string | undefined;
+    let purityScaled = true;
+    if (c.itemClassName === WATER) {
+      buildingClass = WATER_EXTRACTOR;
+      purityScaled = false; // water extractors sit on water, not a purity-graded node
+    } else if (c.itemClassName === CRUDE_OIL) {
+      buildingClass = OIL_EXTRACTOR;
+    } else if (c.unit === 'm³') {
+      warnings.push(`'${c.item}' is extracted via a resource well; not costed here.`);
+      continue;
+    } else {
+      buildingClass = MINERS[minerMark - 1];
+    }
+    const building =
+      buildingClass !== undefined ? ctx.gameData.buildings[buildingClass] : undefined;
+    const baseRate = building?.extractionRatePerMin;
+    if (building === undefined || baseRate === undefined || baseRate <= 0) {
+      warnings.push(`No extraction rate for '${c.item}'; extractor count omitted.`);
+      continue;
+    }
+    const effectiveRate = baseRate * (purityScaled ? PURITY[purity]! : 1);
+    const count = Math.max(1, Math.ceil(c.perMinute / effectiveRate));
+    splitterMergerLinks += count - 1;
+    const buildCost = costLinesFor(ctx, buildingClass!, count);
+    addCost(buildCost);
+    extraction.push({
+      building: building.displayName,
+      resource: c.item,
+      ratePerMin: c.perMinute,
+      count,
+      buildCost,
+    });
+  }
+
+  // ── Belts / pipes (estimate) — one carrying link per item flow in the tree. ─
+  const logistics: LogisticsCost[] = [];
+  const flows = tree.components.filter((c) => c.perMinute > 0);
+  for (const flow of flows) {
+    const fluid = flow.unit === 'm³';
+    const marks = fluid ? PIPES : BELTS;
+    const rateOf = (b: string): number =>
+      (fluid
+        ? ctx.gameData.buildings[b]?.pipeFlowPerMin
+        : ctx.gameData.buildings[b]?.conveyorSpeedPerMin) ?? 0;
+    // Smallest mark that carries the flow in one line; else the top mark in parallel.
+    let markIndex = marks.findIndex((b) => rateOf(b) >= flow.perMinute);
+    if (markIndex === -1) {
+      markIndex = marks.length - 1;
+    }
+    const buildingClass = marks[markIndex]!;
+    const throughput = rateOf(buildingClass);
+    if (throughput <= 0) {
+      continue;
+    }
+    const lines = Math.max(1, Math.ceil(flow.perMinute / throughput));
+    const units = fluid ? lines : lines * beltMetresPerLink; // belts cost per metre
+    const buildCost = costLinesFor(ctx, buildingClass, units);
+    addCost(buildCost);
+    logistics.push({
+      kind: fluid ? 'pipe' : 'belt',
+      building: ctx.gameData.buildings[buildingClass]?.displayName ?? buildingClass,
+      mark: markIndex + 1,
+      lines,
+      forItem: flow.item,
+      count: lines,
+      estimated: true,
+      buildCost,
+    });
+  }
+
+  // ── Splitters / mergers (estimate) — manifolds around parallel machines. ────
+  for (const [kind, buildingClass] of [
+    ['splitter', SPLITTER],
+    ['merger', MERGER],
+  ] as const) {
+    if (splitterMergerLinks <= 0) {
+      break;
+    }
+    const buildCost = costLinesFor(ctx, buildingClass, splitterMergerLinks);
+    addCost(buildCost);
+    logistics.push({
+      kind,
+      building: ctx.gameData.buildings[buildingClass]?.displayName ?? buildingClass,
+      count: splitterMergerLinks,
+      estimated: true,
+      buildCost,
+    });
+  }
+
+  warnings.push(
+    'Belt, pipe, splitter and merger figures are estimates — they depend on factory layout, ' +
+      `which is not in the game data (assumed ${beltMetresPerLink} m of belt per machine link).`,
+  );
+
+  return {
+    item: tree.item,
+    itemClassName: tree.itemClassName,
+    targetPerMinute,
+    unit: tree.unit,
+    recipe: tree.recipe,
+    productionMachines,
+    extraction,
+    logistics,
+    totalBuildCost: [...totals.values()],
+    assumptions: { minerMark, purity, beltMetresPerLink },
+    warnings,
   };
 }
 

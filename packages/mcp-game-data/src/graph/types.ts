@@ -53,6 +53,62 @@ export interface RawInput {
   unit: IngredientUnit;
 }
 
+/** A line of a build cost (item × amount). */
+export interface CostLine {
+  item: string;
+  itemClassName: string;
+  amount: number;
+}
+
+export interface ProductionMachineCost {
+  building: string;
+  recipe: string;
+  /** Whole machines to build (ceil of the exact count). */
+  count: number;
+  /** Exact (fractional) machines the rate needs, for reference. */
+  exactCount: number;
+  buildCost: CostLine[];
+}
+
+export interface ExtractionCost {
+  building: string;
+  resource: string;
+  /** Demand for this raw resource (resource's native unit per minute). */
+  ratePerMin: number;
+  count: number;
+  buildCost: CostLine[];
+}
+
+export interface LogisticsCost {
+  kind: 'belt' | 'pipe' | 'splitter' | 'merger';
+  building: string;
+  /** Belt/pipe mark, when applicable. */
+  mark?: number;
+  /** Parallel lines of that mark needed to carry the flow (belts/pipes). */
+  lines?: number;
+  /** The item the belt/pipe carries (belts/pipes). */
+  forItem?: string;
+  count: number;
+  /** Always true — logistics figures are estimates (see warnings). */
+  estimated: true;
+  buildCost: CostLine[];
+}
+
+export interface FullProductionLineResult {
+  item: string;
+  itemClassName: string;
+  targetPerMinute: number;
+  unit: IngredientUnit;
+  recipe: string;
+  productionMachines: ProductionMachineCost[];
+  extraction: ExtractionCost[];
+  logistics: LogisticsCost[];
+  /** Aggregated shopping list across every machine above (logistics estimated). */
+  totalBuildCost: CostLine[];
+  assumptions: { minerMark: number; purity: string; beltMetresPerLink: number };
+  warnings: string[];
+}
+
 export interface AlternateComparisonRow {
   recipe: string;
   className: string;

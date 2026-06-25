@@ -60,6 +60,16 @@ async function run(): Promise<void> {
     case 'total_raw_inputs':
       result = await graph.totalRawInputs(str('item'), num('targetPerMinute'));
       break;
+    case 'full_production_line':
+      result = await graph.fullProductionLine(
+        str('item'),
+        num('targetPerMinute'),
+        args['recipeChoices'] as Record<string, string> | undefined,
+        args['assumptions'] as
+          | { minerMark?: number; purity?: 'impure' | 'normal' | 'pure'; beltMetresPerLink?: number }
+          | undefined,
+      );
+      break;
     case 'what_consumes':
       result = await graph.whatConsumes(str('item'));
       break;

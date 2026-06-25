@@ -105,6 +105,16 @@ export interface Building {
   variablePowerProduction?: boolean;
   /** Fuel options and their derived rates. Present only for fuel generators. */
   fuels?: GeneratorFuel[];
+  /** Conveyor throughput in items/min (`mSpeed / 2`). Present only for belts. */
+  conveyorSpeedPerMin?: number;
+  /** Pipe throughput in m³/min (`mFlowLimit * 60`). Present only for pipelines. */
+  pipeFlowPerMin?: number;
+  /**
+   * Base extraction rate at a normal-purity node, in the resource's native unit
+   * (items/min for solids, m³/min for fluids). Present only for miners /
+   * water + oil extractors. Scale by node purity (impure 0.5 / normal 1 / pure 2).
+   */
+  extractionRatePerMin?: number;
   buildCost: BuildCostLine[];
 }
 

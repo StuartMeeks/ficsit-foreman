@@ -53,6 +53,60 @@ describe('total_raw_inputs', () => {
   });
 });
 
+describe('full_production_line', () => {
+  it('costs production machines (exact), extraction, and estimated logistics', async () => {
+    const line = await graph.fullProductionLine('Reinforced Iron Plate', 5);
+    expect(line).toBeDefined();
+
+    // Production machines: exact, every tier, whole-machine counts ≥ exact.
+    const buildings = line!.productionMachines.map((m) => m.building);
+    expect(buildings).toContain('Assembler');
+    expect(buildings).toContain('Smelter');
+    expect(buildings).toContain('Constructor');
+    for (const m of line!.productionMachines) {
+      expect(m.count).toBeGreaterThanOrEqual(Math.ceil(m.exactCount));
+      expect(m.buildCost.length).toBeGreaterThan(0);
+    }
+
+    // Extraction: a miner for the iron ore leaf.
+    const miner = line!.extraction.find((e) => e.resource === 'Iron Ore');
+    expect(miner?.building).toBe('Miner Mk.1');
+    expect(miner!.count).toBeGreaterThanOrEqual(1);
+
+    // Logistics: estimated belts + splitters + mergers, all flagged.
+    const kinds = new Set(line!.logistics.map((l) => l.kind));
+    expect(kinds.has('belt')).toBe(true);
+    expect(kinds.has('splitter')).toBe(true);
+    expect(kinds.has('merger')).toBe(true);
+    expect(line!.logistics.every((l) => l.estimated)).toBe(true);
+
+    // One aggregated shopping list + the estimate caveat.
+    expect(line!.totalBuildCost.length).toBeGreaterThan(0);
+    expect(line!.assumptions).toMatchObject({ minerMark: 1, purity: 'normal' });
+    expect(line!.warnings.some((w) => w.toLowerCase().includes('estimate'))).toBe(true);
+  });
+
+  it('honours an alt-recipe choice (changes the production set)', async () => {
+    const line = await graph.fullProductionLine('Reinforced Iron Plate', 15, {
+      'Reinforced Iron Plate': 'Alternate: Bolted Iron Plate',
+    });
+    expect(line?.recipe).toBe('Alternate: Bolted Iron Plate');
+  });
+
+  it('scales miners down on a pure node vs a normal one', async () => {
+    const normal = await graph.fullProductionLine('Reinforced Iron Plate', 120, {});
+    const pure = await graph.fullProductionLine(
+      'Reinforced Iron Plate',
+      120,
+      {},
+      { purity: 'pure' },
+    );
+    const minersOf = (r: typeof normal): number =>
+      r!.extraction.find((e) => e.resource === 'Iron Ore')!.count;
+    expect(minersOf(pure)).toBeLessThan(minersOf(normal));
+  });
+});
+
 describe('recipes_for', () => {
   it('returns all producing recipes and flags the standard one', async () => {
     const result = await graph.recipesFor('Reinforced Iron Plate');
