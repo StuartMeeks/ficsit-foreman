@@ -5,20 +5,10 @@
  * (no game-data lookup; this server does not duplicate the game-data graph).
  */
 
-import type { CollectibleKind } from '../constants.js';
-
 export interface Vec3 {
   x: number;
   y: number;
   z: number;
-}
-
-/** An axis-aligned XY bounding box of a streamed World-Partition cell. */
-export interface BoundingBox {
-  x0: number;
-  x1: number;
-  y0: number;
-  y1: number;
 }
 
 export interface InventoryStack {
@@ -66,32 +56,6 @@ export interface AssemblyPhase {
   target?: string;
 }
 
-/**
- * One un-collected collectible still present in the save, with its world
- * location. Collected ones are destroyed (absent), so this is "what's left to
- * grab, and where".
- */
-export interface RemainingCollectible {
-  kind: CollectibleKind;
-  label: string;
-  location?: Vec3;
-}
-
-/**
- * Per-type collectible visibility. `presentInSave` is the count of un-collected
- * actors of that type the save actually contains — i.e. those in World-Partition
- * cells the pioneer has streamed in. The save reveals nothing about cells not yet
- * streamed and does not record which collectibles were picked up, so a reliable
- * "collected" or "remaining" total cannot be derived from the save alone (only
- * `worldTotal`, a fixed public constant, and what is currently present).
- */
-export interface CollectibleCount {
-  kind: CollectibleKind;
-  label: string;
-  worldTotal: number;
-  presentInSave: number;
-}
-
 export interface SaveState {
   /** Detected game version (build number, with save version), or 'unknown'. */
   version: string;
@@ -111,16 +75,14 @@ export interface SaveState {
   /** Unlocked MAM research-tree names. */
   mamResearch: string[];
   assemblyPhase?: AssemblyPhase;
-  /** Per-type collection progress (Mercer Spheres, Somersloops, slugs, hard drives). */
-  collectibleProgress: CollectibleCount[];
-  /** Un-collected collectibles still in the save, with locations (for proximity). */
-  remainingCollectibles: RemainingCollectible[];
   /**
-   * Bounding boxes of the World-Partition cells this save has streamed in (the
-   * explored region). Lets a "collected" count be scoped to where the present/
-   * absent inference is valid — see `collectibleProgressView`.
+   * GUIDs of collected collectibles (spheres/sloops/slugs), from
+   * `FGScannableSubsystem.mDestroyedPickups` — matched against the world-locations
+   * dataset for exact per-kind collected counts. See `collectibleProgressView`.
    */
-  streamedCellBoxes: BoundingBox[];
+  collectedPickupGuids: string[];
+  /** GUIDs of looted hard-drive drop pods (`FGScannableSubsystem.mLootedDropPods`). */
+  lootedDropPodGuids: string[];
   /** Non-fatal issues collected during normalisation. */
   warnings: string[];
 }
@@ -136,9 +98,8 @@ export function emptySaveState(version: string, saveName: string, parsedAt: stri
     recipes: [],
     milestones: [],
     mamResearch: [],
-    collectibleProgress: [],
-    remainingCollectibles: [],
-    streamedCellBoxes: [],
+    collectedPickupGuids: [],
+    lootedDropPodGuids: [],
     warnings: [],
   };
 }

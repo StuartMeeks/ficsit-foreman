@@ -120,6 +120,11 @@ see "Upstreaming" below.
   `mResourceClass` → trailing `Desc_*_C`. Purity = `mPurity` (`RP_Inpure`/`RP_Pure`;
   **absent means Normal** — the unversioned default is omitted; the game misspells
   impure as "Inpure").
+- Each collectible carries a `guid` (32 hex chars, the four FGuid uint32s in file
+  order): `mItemPickupGuid` for pickups (spheres/sloops/slugs), `mDropPodGuid` for
+  hard-drive pods. This is the key a *save* records when a collectible is collected
+  (`FGScannableSubsystem.mDestroyedPickups` / `mLootedDropPods`), so the save-game
+  MCP can compute exact, per-actor collected status at any progression by GUID match.
 
 ## Upstreaming the fix
 

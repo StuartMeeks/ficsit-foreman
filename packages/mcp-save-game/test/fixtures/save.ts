@@ -52,6 +52,11 @@ export function inventoryStacks(items: { item: string; num: number }[]): unknown
   };
 }
 
+/** A SetProperty of FGuid structs (each a 4×uint32 array), as FGScannableSubsystem stores. */
+export function guidSetProp(guids: number[][]): unknown {
+  return { type: 'SetProperty', values: guids };
+}
+
 /** An mStoredItems ArrayProperty of ItemAmount structs (the depot shape). */
 export function itemAmounts(items: { item: string; amount: number }[]): unknown {
   return {
@@ -198,6 +203,20 @@ export const FIXTURE_SAVE: RawSave = makeSave({
         mTargetGamePhase: objectProp('/Game/FactoryGame/GamePhases/GP_Project_Assembly_Phase_3.GP_Project_Assembly_Phase_3'),
       },
       { instanceName: `${LVL}.GamePhaseManager` },
+    ),
+
+    // Scannable subsystem: the collected-collectible record. Two collected
+    // pickups (spheres/slugs) and one looted drop pod, by GUID (4×uint32 each).
+    obj(
+      '/Script/FactoryGame.FGScannableSubsystem',
+      {
+        mDestroyedPickups: guidSetProp([
+          [1, 2, 3, 4],
+          [5, 6, 7, 8],
+        ]),
+        mLootedDropPods: guidSetProp([[9, 10, 11, 12]]),
+      },
+      { instanceName: `${LVL}.ScannableSubsystem` },
     ),
 
     // A malformed object (properties is not a record) — must be skipped, not throw.

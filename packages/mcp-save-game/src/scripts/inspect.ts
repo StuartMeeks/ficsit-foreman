@@ -18,6 +18,7 @@ import { classNameFromPath } from '../normalise/classRef.js';
 import type { RawObject, RawSave } from '../parser/types.js';
 import { parseSaveFile } from '../parser/index.js';
 import {
+  collectedGuidSet,
   collectibleProgressView,
   milestones,
   nearbyFromWorld,
@@ -38,7 +39,12 @@ const TOOL_RUNNERS: Record<string, (state: ReturnType<typeof loadState>) => unkn
   get_nearby: (s) =>
     s.player.location === undefined
       ? { error: 'player location unknown in this save' }
-      : nearbyFromWorld(loadWorldLocations().world.collectibles, s.player.location),
+      : nearbyFromWorld(
+          loadWorldLocations().world.collectibles,
+          s.player.location,
+          {},
+          collectedGuidSet(s),
+        ),
 };
 
 function out(value: unknown): void {
@@ -154,8 +160,8 @@ function runSummary(savePath: string): void {
     milestones: state.milestones.length,
     mamResearch: state.mamResearch.length,
     assemblyPhase: state.assemblyPhase?.phase,
-    collectibleProgress: state.collectibleProgress,
-    remainingCollectibles: state.remainingCollectibles.length,
+    collectedPickups: state.collectedPickupGuids.length,
+    lootedDropPods: state.lootedDropPodGuids.length,
     warnings: state.warnings.length,
   });
 }

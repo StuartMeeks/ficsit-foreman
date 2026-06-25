@@ -56,65 +56,13 @@ export const MAM_SCHEMATIC = /\/Research\/|Schematic_(?:MAM|Research)/i;
 /** `Schematic_3-2_C` → tier 3. */
 export const SCHEMATIC_TIER = /Schematic_(\d+)-/;
 
-/** A collectible type the save can classify by an actor's typePath. */
-export type CollectibleKind =
-  | 'mercerSphere'
-  | 'somersloop'
-  | 'powerSlugBlue'
-  | 'powerSlugYellow'
-  | 'powerSlugPurple';
-
 /**
- * Present-actor matchers for *un-collected* collectibles, keyed on the actor's
- * `typePath` (which is the clean class — reliable, unlike the instanceName-only
- * `collectables` destroyed registry). A collected collectible is destroyed and
- * absent, so what remains in the save is what's left to grab. Calibrated against
- * a real save: remaining-actor counts matched ground truth exactly per colour
- * (e.g. blue 410, yellow 270, purple 195), so `collected = total − remaining`
- * is exact on a fully-explored save. The matchers are mutually exclusive
- * (`BP_Crystal_C` does not match `BP_Crystal_mk2_C`).
- *
- * `BP_WAT2_C` is the Mercer Sphere and `BP_WAT1_C` the Somersloop — confirmed by
- * first-party asset extraction (the packaged level files carry exactly 298
- * `BP_WAT2_C` and 106 `BP_WAT1_C` instances, matching the known world totals).
+ * The subsystem that records exactly which collectibles a pioneer has collected,
+ * by GUID: `mDestroyedPickups` (spheres/sloops/slugs) and `mLootedDropPods`
+ * (hard-drive pods). Matched against each collectible's GUID in the world-
+ * locations dataset for exact, per-actor collected status at any progression —
+ * see [[save-game-test-data]]. (The save stores collected collectibles by GUID,
+ * not class, and only here — not in the per-level `collectables`/destroyed-actor
+ * lists, which proved unreliable.)
  */
-export const COLLECTIBLE_ACTORS: { kind: CollectibleKind; typePath: RegExp; label: string }[] = [
-  { kind: 'mercerSphere', typePath: /BP_WAT2_C/, label: 'Mercer Sphere' },
-  { kind: 'somersloop', typePath: /BP_WAT1_C/, label: 'Somersloop' },
-  { kind: 'powerSlugPurple', typePath: /BP_Crystal_mk3_C/, label: 'Purple Power Slug' },
-  { kind: 'powerSlugYellow', typePath: /BP_Crystal_mk2_C/, label: 'Yellow Power Slug' },
-  { kind: 'powerSlugBlue', typePath: /BP_Crystal_C/, label: 'Blue Power Slug' },
-];
-// Hard-drive crash sites (BP_DropPod_C) are deliberately NOT here: looted pods
-// persist as actors (they are world structures, not destroyed pickups) and the
-// parser cannot read their looted flag on current builds, so total − remaining
-// is unreliable. Hard drives are a game-data v3 (world-locations) concern.
-
-/**
- * Known world totals for a fresh v1.0+ game, used to derive
- * `collected = total − remaining`. Fixed public constants (not from the save);
- * may vary by game version or with mods. Resource nodes are NOT here — the save
- * carries no resource type or purity for them, so they are a game-data v3
- * (world-locations dataset) concern.
- */
-export const WORLD_TOTALS: Record<CollectibleKind, number> = {
-  mercerSphere: 298,
-  somersloop: 106,
-  powerSlugBlue: 596,
-  powerSlugYellow: 389,
-  powerSlugPurple: 257,
-};
-
-/**
- * Tuning for streamed-cell detection (used to scope a real "collected" count to
- * the explored area). Each save sublevel is a World-Partition cell; its objects
- * cluster tightly. A cell is a streamed region we can trust the present/absent
- * inference within. `LOOSE_CELL_DIAGONAL` excludes the one outsized level (the
- * persistent level of globally-scattered actors), whose bounding box would
- * otherwise swallow the whole map. `STREAMED_CELL_MARGIN` pads each cell box so a
- * collectible near a sparsely-populated cell's edge still counts. Calibrated
- * against real saves (a 0%-collected save yields ~0 collected; a near-complete
- * one yields ~the full total).
- */
-export const LOOSE_CELL_DIAGONAL = 50000;
-export const STREAMED_CELL_MARGIN = 2000;
+export const FG_SCANNABLE_SUBSYSTEM = /FGScannableSubsystem/;

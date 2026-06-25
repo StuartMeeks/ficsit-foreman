@@ -4,10 +4,8 @@ import type {
   WorldLocations,
 } from '@foreman/game-data-core';
 
-import { STREAMED_CELL_MARGIN } from '../constants.js';
 import type {
   AssemblyPhase,
-  BoundingBox,
   Inventory,
   Milestone,
   SaveState,
@@ -136,26 +134,30 @@ export function storageView(state: SaveState, location?: Vec3): StorageView {
   };
 }
 
+const COLLECTIBLE_KINDS: WorldCollectibleKind[] = [
+  'mercerSphere',
+  'somersloop',
+  'powerSlugBlue',
+  'powerSlugYellow',
+  'powerSlugPurple',
+  'hardDrive',
+];
+
 const COVERAGE_NOTE =
-  'worldTotal is the fixed map-wide count. The map streams in by region as the pioneer ' +
-  'explores, and within an explored region collected collectibles are absent while ' +
-  'un-collected ones are present — so collectedInExplored and presentInSave are derived only ' +
-  'over the regions this save has loaded (approximate, ±a few at region edges). ' +
-  'inUnexploredAreas are collectibles in regions not yet loaded — status unknown (could be ' +
-  'collected or not). presentInSave + collectedInExplored + inUnexploredAreas ≈ worldTotal. ' +
-  'For actual locations to grab, use get_nearby.';
+  "Exact per-kind counts. collected is read from the save's own collected record " +
+  "(FGScannableSubsystem), matched to the world dataset by each collectible's GUID, so it is " +
+  'accurate at any exploration level — never an estimate. remaining = worldTotal − collected ' +
+  '(still out there); use get_nearby for the locations of those remaining ones.';
 
 export interface CollectibleProgress {
   kind: WorldCollectibleKind;
   label: string;
   /** Fixed map-wide total for this kind. */
   worldTotal: number;
-  /** Un-collected and present in an explored (streamed) region — i.e. still grabbable. */
-  presentInSave: number;
-  /** Collected, inferred over explored regions only (absent where the region is loaded). */
-  collectedInExplored: number;
-  /** In regions not yet loaded — collection status unknown. */
-  inUnexploredAreas: number;
+  /** Exactly how many the pioneer has collected (from the save's GUID record). */
+  collected: number;
+  /** Still out there to grab (worldTotal − collected). */
+  remaining: number;
 }
 
 export interface CollectibleProgressView {
@@ -164,44 +166,41 @@ export interface CollectibleProgressView {
 }
 
 /**
- * Per-type collectible progress (Mercer Spheres, Somersloops, blue/yellow/purple
- * slugs). Scopes a real "collected" count to the explored region: a kind's
- * collectibles from the world dataset that fall inside a streamed cell, minus
- * those still present, are collected; the rest lie in unexplored regions and are
- * left as unknown. Accurate at both extremes (0%-explored ⇒ ~0 collected;
- * fully-explored ⇒ ~the full collected total), approximate at the margins.
+ * Exact per-kind collectible progress. The save's `FGScannableSubsystem` records
+ * the GUID of every collected pickup (spheres/sloops/slugs) and looted hard-drive
+ * pod; matching those against each world-dataset collectible's GUID gives an exact
+ * collected count at any progression — no exploration-based estimation.
  */
 export function collectibleProgressView(
   state: SaveState,
   world: WorldLocations,
 ): CollectibleProgressView {
-  const inExplored = explorationTest(state.streamedCellBoxes);
-  const streamedByKind = new Map<string, number>();
-  for (const collectible of world.collectibles) {
-    if (inExplored(collectible)) {
-      streamedByKind.set(collectible.kind, (streamedByKind.get(collectible.kind) ?? 0) + 1);
+  const collectedSet = collectedGuidSet(state);
+  const totals = new Map<string, number>();
+  const collected = new Map<string, number>();
+  for (const c of world.collectibles) {
+    totals.set(c.kind, (totals.get(c.kind) ?? 0) + 1);
+    if (collectedSet.has(c.guid)) {
+      collected.set(c.kind, (collected.get(c.kind) ?? 0) + 1);
     }
   }
-  const perType: CollectibleProgress[] = state.collectibleProgress.map((c) => {
-    const streamedTotal = streamedByKind.get(c.kind) ?? 0;
-    const collectedInExplored = Math.max(0, streamedTotal - c.presentInSave);
+  const perType: CollectibleProgress[] = COLLECTIBLE_KINDS.map((kind) => {
+    const worldTotal = totals.get(kind) ?? 0;
+    const got = collected.get(kind) ?? 0;
     return {
-      kind: c.kind,
-      label: c.label,
-      worldTotal: c.worldTotal,
-      presentInSave: c.presentInSave,
-      collectedInExplored,
-      inUnexploredAreas: Math.max(0, c.worldTotal - c.presentInSave - collectedInExplored),
+      kind,
+      label: KIND_LABELS[kind] ?? kind,
+      worldTotal,
+      collected: got,
+      remaining: worldTotal - got,
     };
   });
   return { perType, note: COVERAGE_NOTE };
 }
 
-/** Builds a predicate: is a point within any streamed cell box (with a margin)? */
-function explorationTest(boxes: BoundingBox[]): (p: { x: number; y: number }) => boolean {
-  const m = STREAMED_CELL_MARGIN;
-  return (p) =>
-    boxes.some((b) => p.x >= b.x0 - m && p.x <= b.x1 + m && p.y >= b.y0 - m && p.y <= b.y1 + m);
+/** Every collected-collectible GUID (pickups + looted pods) as one lookup set. */
+export function collectedGuidSet(state: SaveState): Set<string> {
+  return new Set([...state.collectedPickupGuids, ...state.lootedDropPodGuids]);
 }
 
 export interface NearbyItem {
@@ -239,25 +238,30 @@ const KIND_LABELS: Record<WorldCollectibleKind, string> = {
 };
 
 const NEARBY_NOTE =
-  'Positions come from the static world dataset (every fixed placement in the world). ' +
-  'The save cannot confirm which of these you have already collected, so some nearby ' +
-  'items may already be gone — treat this as "where collectibles are", not "what is left".';
+  'Un-collected collectibles only: positions are from the static world dataset, with the ' +
+  'ones the save records as already collected (by GUID) removed — so these are genuinely ' +
+  'still out there to grab. Coordinates are centimetres.';
 
 /**
- * Collectibles near a world location, nearest-first, from the static world-
- * location dataset (complete and accurate, unlike the save which only contains
- * collectibles in already-streamed cells). Filtered by `kinds` and `radius`,
- * capped by `limit` (default 20). Coordinates are centimetres, matching the
- * pioneer's save location.
+ * Un-collected collectibles near a world location, nearest-first. Positions come
+ * from the static world-location dataset (complete and accurate); collectibles
+ * the save records as collected (by GUID, via `excludeGuids`) are removed, so the
+ * result is exactly what is still grabbable. Filtered by `kinds` and `radius`,
+ * capped by `limit` (default 20). Coordinates are centimetres.
  */
 export function nearbyFromWorld(
   collectibles: Collectible[],
   origin: Vec3,
   options: NearbyOptions = {},
+  excludeGuids?: Set<string>,
 ): NearbyResult {
   const limit = options.limit ?? DEFAULT_NEARBY_LIMIT;
   let items: NearbyItem[] = collectibles
-    .filter((c) => options.kinds === undefined || options.kinds.includes(c.kind))
+    .filter(
+      (c) =>
+        (options.kinds === undefined || options.kinds.includes(c.kind)) &&
+        excludeGuids?.has(c.guid) !== true,
+    )
     .map((c) => {
       const location = { x: c.x, y: c.y, z: c.z };
       return {

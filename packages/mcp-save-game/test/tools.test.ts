@@ -15,14 +15,14 @@ import { FIXTURE_SAVE } from './fixtures/save.js';
 
 /** A small static world dataset for the nearby selector (centimetre coords). */
 const WORLD_COLLECTIBLES: Collectible[] = [
-  { id: 'a', kind: 'mercerSphere', x: 50, y: 0, z: 0 }, // nearest
-  { id: 'b', kind: 'mercerSphere', x: 5000, y: 0, z: 0 }, // far
-  { id: 'c', kind: 'somersloop', x: 100, y: 0, z: 0 },
-  { id: 'd', kind: 'powerSlugBlue', x: 200, y: 0, z: 0 },
-  { id: 'e', kind: 'powerSlugYellow', x: 300, y: 0, z: 0 },
-  { id: 'f', kind: 'powerSlugPurple', x: 400, y: 0, z: 0 },
-  { id: 'g', kind: 'hardDrive', x: 500, y: 0, z: 0 },
-  { id: 'h', kind: 'somersloop', x: 600, y: 0, z: 0 },
+  { id: 'a', kind: 'mercerSphere', guid: 'G1', x: 50, y: 0, z: 0 }, // nearest
+  { id: 'b', kind: 'mercerSphere', guid: 'G2', x: 5000, y: 0, z: 0 }, // far
+  { id: 'c', kind: 'somersloop', guid: 'G3', x: 100, y: 0, z: 0 },
+  { id: 'd', kind: 'powerSlugBlue', guid: 'G4', x: 200, y: 0, z: 0 },
+  { id: 'e', kind: 'powerSlugYellow', guid: 'G5', x: 300, y: 0, z: 0 },
+  { id: 'f', kind: 'powerSlugPurple', guid: 'G6', x: 400, y: 0, z: 0 },
+  { id: 'g', kind: 'hardDrive', guid: 'G7', x: 500, y: 0, z: 0 },
+  { id: 'h', kind: 'somersloop', guid: 'G8', x: 600, y: 0, z: 0 },
 ];
 
 const { state } = normaliseSave(FIXTURE_SAVE, '2026-01-01T00:00:00.000Z');
@@ -65,59 +65,39 @@ describe('selectors', () => {
     expect(view.containers[1]?.distance ?? 0).toBeGreaterThan(view.containers[0]?.distance ?? 0);
   });
 
-  it('collectibleProgress scopes collected to explored (streamed) cells', () => {
+  it('collectibleProgress gives exact collected counts from the GUID record', () => {
     const world: WorldLocations = {
       gameVersion: 'test',
       build: 0,
       source: 'test',
       counts: {},
       collectibles: [
-        { id: '1', kind: 'mercerSphere', x: 0, y: 0, z: 0 }, // explored, absent → collected
-        { id: '2', kind: 'mercerSphere', x: 100, y: 100, z: 0 }, // explored, present → grabbable
-        { id: '3', kind: 'mercerSphere', x: 9_999_999, y: 9_999_999, z: 0 }, // unexplored
+        { id: '1', kind: 'mercerSphere', guid: 'M1', x: 0, y: 0, z: 0 },
+        { id: '2', kind: 'mercerSphere', guid: 'M2', x: 0, y: 0, z: 0 },
+        { id: '3', kind: 'mercerSphere', guid: 'M3', x: 0, y: 0, z: 0 },
+        { id: '4', kind: 'hardDrive', guid: 'P1', x: 0, y: 0, z: 0 },
+        { id: '5', kind: 'hardDrive', guid: 'P2', x: 0, y: 0, z: 0 },
       ],
       resourceNodes: [],
     };
     const s = emptySaveState('v', 'n', 't');
-    s.collectibleProgress = [
-      { kind: 'mercerSphere', label: 'Mercer Sphere', worldTotal: 298, presentInSave: 1 },
-    ];
-    s.streamedCellBoxes = [{ x0: -500, x1: 500, y0: -500, y1: 500 }]; // covers ids 1 & 2
+    s.collectedPickupGuids = ['M1', 'M2']; // 2 of 3 mercer (matched via mDestroyedPickups)
+    s.lootedDropPodGuids = ['P1']; // 1 of 2 pods (matched via mLootedDropPods)
 
-    const sphere = collectibleProgressView(s, world).perType[0];
-    // streamedTotal = 2 (ids 1,2), present = 1 ⇒ collected = 1; unexplored = 298 − 1 − 1.
-    expect(sphere).toMatchObject({
-      worldTotal: 298,
-      presentInSave: 1,
-      collectedInExplored: 1,
-      inUnexploredAreas: 296,
-    });
+    const byKind = Object.fromEntries(
+      collectibleProgressView(s, world).perType.map((c) => [c.kind, c]),
+    );
+    expect(byKind['mercerSphere']).toMatchObject({ worldTotal: 3, collected: 2, remaining: 1 });
+    expect(byKind['hardDrive']).toMatchObject({ worldTotal: 2, collected: 1, remaining: 1 });
+    // A kind absent from the dataset reports zeros, not undefined.
+    expect(byKind['somersloop']).toMatchObject({ worldTotal: 0, collected: 0, remaining: 0 });
   });
 
-  it('collectibleProgress reports ~0 collected when nothing is explored', () => {
-    const world: WorldLocations = {
-      gameVersion: 'test',
-      build: 0,
-      source: 'test',
-      counts: {},
-      collectibles: [{ id: '1', kind: 'mercerSphere', x: 0, y: 0, z: 0 }],
-      resourceNodes: [],
-    };
-    const s = emptySaveState('v', 'n', 't');
-    s.collectibleProgress = [
-      { kind: 'mercerSphere', label: 'Mercer Sphere', worldTotal: 298, presentInSave: 0 },
-    ];
-    s.streamedCellBoxes = []; // nothing streamed
-    const sphere = collectibleProgressView(s, world).perType[0];
-    expect(sphere?.collectedInExplored).toBe(0);
-  });
-
-  it('nearbyFromWorld returns collectibles nearest-first, filtered and capped', () => {
+  it('nearbyFromWorld returns uncollected collectibles nearest-first, filtered and capped', () => {
     const origin = { x: 0, y: 0, z: 0 };
     const all = nearbyFromWorld(WORLD_COLLECTIBLES, origin);
     expect(all.matchCount).toBe(8);
     expect(all.items[0]).toMatchObject({ label: 'Mercer Sphere', distance: 50 }); // nearest
-    expect(all.note).toMatch(/world dataset/i);
 
     const spheres = nearbyFromWorld(WORLD_COLLECTIBLES, origin, { kinds: ['mercerSphere'] });
     expect(spheres.matchCount).toBe(2);
@@ -128,5 +108,10 @@ describe('selectors', () => {
     const capped = nearbyFromWorld(WORLD_COLLECTIBLES, origin, { limit: 3 });
     expect(capped.items).toHaveLength(3);
     expect(capped.matchCount).toBe(8); // matchCount is the full total, before the limit
+
+    // Collected ones (by GUID) are excluded — these are genuinely still grabbable.
+    const remaining = nearbyFromWorld(WORLD_COLLECTIBLES, origin, {}, new Set(['G1', 'G4']));
+    expect(remaining.matchCount).toBe(6);
+    expect(remaining.note).toMatch(/un-collected/i);
   });
 });

@@ -71,23 +71,14 @@ describe('milestones + MAM + phase', () => {
 });
 
 describe('collectibles', () => {
-  const byKind = Object.fromEntries(state.collectibleProgress.map((c) => [c.kind, c]));
-
-  it('counts present-in-save actors per type against the world total (no collected count)', () => {
-    expect(byKind['mercerSphere']).toMatchObject({ worldTotal: 298, presentInSave: 2 });
-    expect(byKind['somersloop']).toMatchObject({ worldTotal: 106, presentInSave: 1 });
-    expect(byKind['powerSlugBlue']).toMatchObject({ worldTotal: 596, presentInSave: 3 });
-    expect(byKind['powerSlugYellow']).toMatchObject({ presentInSave: 1 });
-    expect(byKind['powerSlugPurple']).toMatchObject({ presentInSave: 1 });
-    // No "collected"/"remaining" is derived (absence ≠ collected on a streamed save).
-    expect(byKind['mercerSphere']).not.toHaveProperty('collected');
-  });
-
-  it('excludes hard-drive drop pods and transient resource deposits', () => {
-    expect(state.collectibleProgress.some((c) => String(c.kind).includes('drop'))).toBe(false);
-    // 2 spheres + 1 sloop + 3 blue + 1 yellow + 1 purple = 8 (pod + deposit excluded).
-    expect(state.remainingCollectibles).toHaveLength(8);
-    expect(state.remainingCollectibles.every((c) => c.location !== undefined)).toBe(true);
+  it('reads collected-pickup + looted-drop-pod GUIDs from FGScannableSubsystem', () => {
+    // mDestroyedPickups: [1,2,3,4] and [5,6,7,8]; mLootedDropPods: [9,10,11,12].
+    // Each FGuid renders as 32 uppercase hex chars (four uint32s in file order).
+    expect(state.collectedPickupGuids).toEqual([
+      '00000001000000020000000300000004',
+      '00000005000000060000000700000008',
+    ]);
+    expect(state.lootedDropPodGuids).toEqual(['000000090000000A0000000B0000000C']);
   });
 });
 

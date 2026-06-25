@@ -4,6 +4,7 @@ import { z } from 'zod';
 
 import { logger } from '../logger.js';
 import {
+  collectedGuidSet,
   collectibleProgressView,
   milestones,
   nearbyFromWorld,
@@ -123,7 +124,7 @@ export function registerTools(server: McpServer, registry: SaveStoreRegistry): v
     {
       title: 'Get collectibles',
       description:
-        'Per-kind collectible progress (Mercer Sphere, Somersloop, blue/yellow/purple power slug): worldTotal, presentInSave (un-collected and grabbable in explored regions), collectedInExplored (collected, inferred over explored regions — approximate), and inUnexploredAreas (in regions not yet loaded, status unknown). Read the note; collectedInExplored is a lower bound, not exact. For where to find collectibles, use get_nearby.',
+        "Exact per-kind collectible progress (Mercer Sphere, Somersloop, blue/yellow/purple power slug, hard drive): worldTotal, collected, and remaining. Counts are read from the save's own collected record and are exact at any progression — not estimates. Use get_nearby for the locations of the remaining ones.",
       inputSchema: { savePath: savePathSchema },
     },
     async ({ savePath }): Promise<ToolResult> => {
@@ -137,7 +138,7 @@ export function registerTools(server: McpServer, registry: SaveStoreRegistry): v
     {
       title: 'Get nearby collectibles',
       description:
-        'Collectibles near a world location, nearest-first, each with coordinates and distance, from the complete static world dataset. Filter by kinds (mercerSphere, somersloop, powerSlugBlue/Yellow/Purple, hardDrive), cap by radius and limit (default 20). Use the player location from get_player_state as the origin to answer "what can I grab near me?". Read the note: positions are every placement in the world; the save cannot confirm which you have already collected.',
+        'Un-collected collectibles near a world location, nearest-first, each with coordinates and distance. Positions are from the complete world dataset, with the ones the save records as already collected removed — so these are genuinely still grabbable. Filter by kinds (mercerSphere, somersloop, powerSlugBlue/Yellow/Purple, hardDrive), cap by radius and limit (default 20). Use the player location from get_player_state as the origin to answer "what can I grab near me?". Distances are centimetres.',
       inputSchema: {
         location: vec3Schema,
         kinds: z.array(collectibleKindSchema).optional(),
@@ -148,8 +149,14 @@ export function registerTools(server: McpServer, registry: SaveStoreRegistry): v
     },
     async ({ location, kinds, radius, limit, savePath }): Promise<ToolResult> => {
       const store = registry.resolve(savePath);
+      const state = store.getState();
       return ok(store, {
-        nearby: nearbyFromWorld(world.collectibles, location, { kinds, radius, limit }),
+        nearby: nearbyFromWorld(
+          world.collectibles,
+          location,
+          { kinds, radius, limit },
+          collectedGuidSet(state),
+        ),
       });
     },
   );
