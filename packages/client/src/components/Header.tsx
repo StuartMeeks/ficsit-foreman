@@ -3,6 +3,8 @@ import { UserMenu } from './UserMenu.js';
 interface HeaderProps {
   /** The playthrough switcher control, rendered next to the wordmark. */
   switcher?: React.ReactNode;
+  /** The save drop-zone, rendered beside the switcher. */
+  saveDrop?: React.ReactNode;
   userName: string | null;
   userEmail: string | null;
   onOpenSettings: () => void;
@@ -12,6 +14,7 @@ interface HeaderProps {
 /** Global header: wordmark, playthrough switcher, live dot, and account menu. */
 export function Header({
   switcher,
+  saveDrop,
   userName,
   userEmail,
   onOpenSettings,
@@ -24,6 +27,7 @@ export function Header({
         FOREMAN
       </div>
       {switcher !== undefined ? <div className="header-switcher">{switcher}</div> : null}
+      {saveDrop !== undefined ? <div className="header-savedrop">{saveDrop}</div> : null}
       <div className="spacer" />
       <span className="status">
         <span className="pulse-dot" aria-hidden="true" />

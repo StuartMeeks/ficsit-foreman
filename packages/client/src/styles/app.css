@@ -1376,6 +1376,57 @@ button:disabled {
   margin-left: 14px;
 }
 
+/* Compact save drop-zone beside the switcher. Same height as the switcher
+   trigger (matching padding + font) so the header does not grow. */
+.header-savedrop {
+  margin-left: 10px;
+}
+
+.save-drop {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 10px;
+  border: 1px dashed var(--border-emphasis);
+  border-radius: var(--radius-sm);
+  background: var(--surface-inset);
+  color: var(--text-muted);
+  font-family: var(--font-numeric);
+  font-size: 12px;
+  letter-spacing: var(--tracking-label);
+  cursor: pointer;
+  white-space: nowrap;
+  transition:
+    border-color 0.15s ease,
+    color 0.15s ease,
+    background 0.15s ease;
+}
+
+.save-drop:hover {
+  border-color: var(--color-accent);
+  color: var(--text-secondary);
+}
+
+.save-drop.dragging {
+  border-color: var(--color-accent);
+  background: var(--color-accent-tint);
+  color: var(--text-primary);
+}
+
+.save-drop.error {
+  border-color: var(--color-danger-bright);
+  color: var(--color-danger-bright);
+}
+
+.save-drop[aria-disabled='true'] {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.save-drop-icon {
+  display: inline-flex;
+}
+
 .switcher {
   position: relative;
 }
