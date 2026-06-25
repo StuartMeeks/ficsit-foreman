@@ -194,6 +194,43 @@ describe('WorkOrderService — plan revisions vs execution', () => {
     expect(added?.checked).toBe(false);
   });
 
+  it('merge-forward preserves progress across all three checklists by stable id', async () => {
+    const playthrough = await seedPlaythrough();
+    const order = await service.create(playthrough, sampleInput('Merge all'), '1.0.0');
+    const materialId = order.buildMaterials[0]!.id;
+    const stepId = order.buildSteps[0]!.id;
+    const machineId = order.machines[0]!.id;
+
+    await service.setMaterialChecked(playthrough, order.id, materialId, true);
+    await service.setStepChecked(playthrough, order.id, stepId, true);
+    await service.setMachineBuiltCount(playthrough, order.id, machineId, 2);
+
+    // Revise: keep each existing item (by id), add a new one to each checklist.
+    const revised = await service.updatePlan(playthrough, order.id, {
+      buildMaterials: [
+        { id: materialId, itemName: 'Iron Ingot', requiredQuantity: 30 },
+        { itemName: 'Copper Sheet', requiredQuantity: 10 },
+      ],
+      buildSteps: [{ id: stepId, title: 'Place constructors' }, { title: 'Wire power' }],
+      machines: [
+        { id: machineId, machineName: 'Constructor', requiredCount: 2 },
+        { machineName: 'Smelter', requiredCount: 4 },
+      ],
+    });
+    expect(revised.ok).toBe(true);
+    if (!revised.ok) {
+      return;
+    }
+    const o = revised.order;
+    // Surviving ids keep their progress; brand-new items default to unchecked / 0.
+    expect(o.buildMaterials.find((m) => m.id === materialId)?.checked).toBe(true);
+    expect(o.buildMaterials.find((m) => m.itemName === 'Copper Sheet')?.checked).toBe(false);
+    expect(o.buildSteps.find((s) => s.id === stepId)?.checked).toBe(true);
+    expect(o.buildSteps.find((s) => s.title === 'Wire power')?.checked).toBe(false);
+    expect(o.machines.find((m) => m.id === machineId)?.builtCount).toBe(2);
+    expect(o.machines.find((m) => m.machineName === 'Smelter')?.builtCount).toBe(0);
+  });
+
   it('reverts the plan only, leaving execution progress intact', async () => {
     const playthrough = await seedPlaythrough();
     const order = await service.create(playthrough, sampleInput('Revert'), '1.0.0');
@@ -256,6 +293,39 @@ describe('WorkOrderService — plan revisions vs execution', () => {
     // Still only the initial revision — execution does not snapshot.
     expect(revisions).toHaveLength(1);
     expect(audit.map((e) => e.eventType)).toContain('machine_built_count_changed');
+  });
+});
+
+describe('WorkOrderService — completion proposal (Option A)', () => {
+  it('records a completion_proposed audit event without changing state', async () => {
+    const playthrough = await seedPlaythrough();
+    const order = await service.create(playthrough, sampleInput('Propose'), '1.0.0');
+    await service.transition(playthrough, order.id, 'Start', 'Pioneer');
+
+    const outcome = await service.proposeCompletion(playthrough, order.id, 'Looks finished.');
+    expect(outcome.ok).toBe(true);
+    if (!outcome.ok) {
+      return;
+    }
+    // Proposing never completes — only the pioneer may (Option A).
+    expect(outcome.order.state).toBe('active');
+
+    const audit = await service.getAuditTrail(playthrough, order.id);
+    const last = audit[audit.length - 1];
+    expect(last?.eventType).toBe('completion_proposed');
+    expect(last?.actor).toBe('Foreman');
+    expect(last?.note).toBe('Looks finished.');
+  });
+
+  it('refuses to propose completion of a terminal order', async () => {
+    const playthrough = await seedPlaythrough();
+    const order = await service.create(playthrough, sampleInput('Terminal propose'), '1.0.0');
+    await service.transition(playthrough, order.id, 'Start', 'Pioneer');
+    await service.transition(playthrough, order.id, 'Complete', 'Pioneer');
+
+    const outcome = await service.proposeCompletion(playthrough, order.id, 'too late');
+    expect(outcome.ok).toBe(false);
+    expect(!outcome.ok && outcome.reason).toBe('terminal');
   });
 });
 

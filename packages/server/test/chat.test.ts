@@ -138,6 +138,61 @@ describe('runChat tool-use loop', () => {
     expect(provider.requests[0]?.system).not.toContain('{{PERSONALITY}}');
   });
 
+  it('proposes completion: emits the order over SSE and records the audit event, state unchanged', async () => {
+    const playthroughs = new PlaythroughService(db.prisma);
+    const workOrders = new WorkOrderService(db.prisma);
+    const foremanId = await createTestForeman(db.prisma, userId, 'Gruff');
+    const playthrough = await playthroughs.create({ userId, foremanId, pioneerProfile: 'Veteran' });
+    // Arrange an active order for the foreman to propose completing.
+    const order = await workOrders.create(playthrough.id, validWorkOrderInput, '1.2.3.0');
+    await workOrders.transition(playthrough.id, order.id, 'Start', 'Pioneer');
+    await playthroughs.appendMessage(playthrough.id, 'user', 'Is the iron line done?');
+
+    // workOrderId omitted → the tool resolves the active order.
+    const provider = new FakeLlmProvider([
+      {
+        text: '',
+        toolCalls: [
+          { id: 'p1', name: 'propose_completion', arguments: { note: 'Looks finished.' } },
+        ],
+        stopReason: 'tool_use',
+      },
+      { text: 'Looks done — confirm in-game to close it out.', toolCalls: [], stopReason: 'stop' },
+    ]);
+
+    const deps: ChatDeps = {
+      systemPromptTemplate: 'Foreman {{PERSONALITY}} {{PIONEER_PROFILE}}',
+      historyWindow: 20,
+      playthroughs,
+      workOrders,
+      mcp: fakeMcp(),
+    };
+
+    const orders: WorkOrder[] = [];
+    const toolNames: string[] = [];
+    await runChat(
+      {
+        playthroughId: playthrough.id,
+        promptContext: { personality: 'Gruff', pioneerProfile: 'Veteran' },
+        provider,
+        model: 'm',
+        maxTokens: 1024,
+      },
+      deps,
+      { text: () => {}, toolUse: (name) => toolNames.push(name), workOrder: (o) => orders.push(o) },
+    );
+
+    expect(toolNames).toEqual(['propose_completion']);
+    // The proposal emits the (unchanged) order over SSE so the panel can refresh.
+    expect(orders).toHaveLength(1);
+    expect(orders[0]?.state).toBe('active'); // proposing never completes (Option A)
+    // ...and it records a completion_proposed audit event — what drives the banner.
+    const audit = await workOrders.getAuditTrail(playthrough.id, order.id);
+    expect(
+      audit.some((e) => e.eventType === 'completion_proposed' && e.note === 'Looks finished.'),
+    ).toBe(true);
+  });
+
   it('returns immediately when the first turn has no tool use', async () => {
     const playthroughs = new PlaythroughService(db.prisma);
     const workOrders = new WorkOrderService(db.prisma);
