@@ -1,7 +1,7 @@
-import type { Collectible } from '@foreman/game-data-core';
+import type { Collectible, WorldLocations } from '@foreman/game-data-core';
 import { describe, expect, it } from 'vitest';
 
-import { normaliseSave } from '../src/normalise/index.js';
+import { emptySaveState, normaliseSave } from '../src/normalise/index.js';
 import {
   collectibleProgressView,
   milestones,
@@ -65,13 +65,51 @@ describe('selectors', () => {
     expect(view.containers[1]?.distance ?? 0).toBeGreaterThan(view.containers[0]?.distance ?? 0);
   });
 
-  it('collectibleProgress reports per-type present/total without a collected count', () => {
-    const v = collectibleProgressView(store.getState());
-    const sphere = v.perType.find((c) => c.kind === 'mercerSphere');
-    expect(sphere).toMatchObject({ worldTotal: 298, presentInSave: 2 });
-    expect(sphere).not.toHaveProperty('collected');
-    expect(sphere).not.toHaveProperty('remaining');
-    expect(v.note).toMatch(/cannot be derived/i);
+  it('collectibleProgress scopes collected to explored (streamed) cells', () => {
+    const world: WorldLocations = {
+      gameVersion: 'test',
+      build: 0,
+      source: 'test',
+      counts: {},
+      collectibles: [
+        { id: '1', kind: 'mercerSphere', x: 0, y: 0, z: 0 }, // explored, absent → collected
+        { id: '2', kind: 'mercerSphere', x: 100, y: 100, z: 0 }, // explored, present → grabbable
+        { id: '3', kind: 'mercerSphere', x: 9_999_999, y: 9_999_999, z: 0 }, // unexplored
+      ],
+      resourceNodes: [],
+    };
+    const s = emptySaveState('v', 'n', 't');
+    s.collectibleProgress = [
+      { kind: 'mercerSphere', label: 'Mercer Sphere', worldTotal: 298, presentInSave: 1 },
+    ];
+    s.streamedCellBoxes = [{ x0: -500, x1: 500, y0: -500, y1: 500 }]; // covers ids 1 & 2
+
+    const sphere = collectibleProgressView(s, world).perType[0];
+    // streamedTotal = 2 (ids 1,2), present = 1 ⇒ collected = 1; unexplored = 298 − 1 − 1.
+    expect(sphere).toMatchObject({
+      worldTotal: 298,
+      presentInSave: 1,
+      collectedInExplored: 1,
+      inUnexploredAreas: 296,
+    });
+  });
+
+  it('collectibleProgress reports ~0 collected when nothing is explored', () => {
+    const world: WorldLocations = {
+      gameVersion: 'test',
+      build: 0,
+      source: 'test',
+      counts: {},
+      collectibles: [{ id: '1', kind: 'mercerSphere', x: 0, y: 0, z: 0 }],
+      resourceNodes: [],
+    };
+    const s = emptySaveState('v', 'n', 't');
+    s.collectibleProgress = [
+      { kind: 'mercerSphere', label: 'Mercer Sphere', worldTotal: 298, presentInSave: 0 },
+    ];
+    s.streamedCellBoxes = []; // nothing streamed
+    const sphere = collectibleProgressView(s, world).perType[0];
+    expect(sphere?.collectedInExplored).toBe(0);
   });
 
   it('nearbyFromWorld returns collectibles nearest-first, filtered and capped', () => {

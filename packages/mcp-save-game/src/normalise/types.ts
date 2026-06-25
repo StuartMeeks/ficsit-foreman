@@ -13,6 +13,14 @@ export interface Vec3 {
   z: number;
 }
 
+/** An axis-aligned XY bounding box of a streamed World-Partition cell. */
+export interface BoundingBox {
+  x0: number;
+  x1: number;
+  y0: number;
+  y1: number;
+}
+
 export interface InventoryStack {
   /** Item class name, e.g. `Desc_IronPlate_C`. */
   itemClass: string;
@@ -107,6 +115,12 @@ export interface SaveState {
   collectibleProgress: CollectibleCount[];
   /** Un-collected collectibles still in the save, with locations (for proximity). */
   remainingCollectibles: RemainingCollectible[];
+  /**
+   * Bounding boxes of the World-Partition cells this save has streamed in (the
+   * explored region). Lets a "collected" count be scoped to where the present/
+   * absent inference is valid — see `collectibleProgressView`.
+   */
+  streamedCellBoxes: BoundingBox[];
   /** Non-fatal issues collected during normalisation. */
   warnings: string[];
 }
@@ -124,6 +138,7 @@ export function emptySaveState(version: string, saveName: string, parsedAt: stri
     mamResearch: [],
     collectibleProgress: [],
     remainingCollectibles: [],
+    streamedCellBoxes: [],
     warnings: [],
   };
 }

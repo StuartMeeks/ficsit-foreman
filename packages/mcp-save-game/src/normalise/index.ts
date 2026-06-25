@@ -1,10 +1,11 @@
+import { LOOSE_CELL_DIAGONAL } from '../constants.js';
 import type { RawObject, RawSave } from '../parser/types.js';
 import { extractPlayer } from './player.js';
 import { extractRecipes } from './recipes.js';
 import { extractProgression } from './schematics.js';
 import { extractStorage } from './storage.js';
-import type { Inventory, SaveState } from './types.js';
-import { Warnings } from './util.js';
+import type { BoundingBox, Inventory, SaveState } from './types.js';
+import { Warnings, translation } from './util.js';
 import { computeCollectibleProgress, extractRemainingCollectibles } from './worldLocations.js';
 
 export { emptySaveState } from './types.js';
@@ -30,13 +31,22 @@ export function normaliseSave(
 
   const objects: RawObject[] = [];
   const byInstance = new Map<string, RawObject>();
+  // Each save sublevel is a World-Partition cell; its objects cluster tightly.
+  // Capture each cell's bounding box (the streamed/explored region) so a real
+  // "collected" count can be scoped to where present/absent is meaningful.
+  const streamedCellBoxes: BoundingBox[] = [];
 
   for (const level of Object.values(raw.levels ?? {})) {
-    for (const obj of level?.objects ?? []) {
+    const levelObjects = level?.objects ?? [];
+    for (const obj of levelObjects) {
       objects.push(obj);
       if (obj.instanceName !== undefined) {
         byInstance.set(obj.instanceName, obj);
       }
+    }
+    const box = cellBox(levelObjects);
+    if (box !== undefined) {
+      streamedCellBoxes.push(box);
     }
   }
 
@@ -55,6 +65,7 @@ export function normaliseSave(
     assemblyPhase: progression.assemblyPhase,
     collectibleProgress: computeCollectibleProgress(remainingCollectibles),
     remainingCollectibles,
+    streamedCellBoxes,
     warnings: warnings.all(),
   };
 
@@ -86,6 +97,38 @@ function applyDisplayNames(state: SaveState, names: Map<string, string>): void {
   for (const recipe of state.recipes) {
     recipe.displayName = names.get(recipe.recipeClass) ?? recipe.displayName;
   }
+}
+
+/**
+ * The XY bounding box of a sublevel's positioned objects, treated as one
+ * streamed World-Partition cell. Returns undefined for cells with too few
+ * positioned objects to be meaningful, or for an outsized box (the persistent
+ * level of globally-scattered actors, which would otherwise span the whole map).
+ */
+function cellBox(levelObjects: RawObject[]): BoundingBox | undefined {
+  let x0 = Infinity;
+  let x1 = -Infinity;
+  let y0 = Infinity;
+  let y1 = -Infinity;
+  let count = 0;
+  for (const obj of levelObjects) {
+    const t = translation(obj);
+    if (t === undefined) {
+      continue;
+    }
+    count += 1;
+    x0 = Math.min(x0, t.x);
+    x1 = Math.max(x1, t.x);
+    y0 = Math.min(y0, t.y);
+    y1 = Math.max(y1, t.y);
+  }
+  if (count < 3) {
+    return undefined;
+  }
+  if (Math.hypot(x1 - x0, y1 - y0) > LOOSE_CELL_DIAGONAL) {
+    return undefined;
+  }
+  return { x0, x1, y0, y1 };
 }
 
 function detectVersion(raw: RawSave): string {

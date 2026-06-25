@@ -1,8 +1,13 @@
-import type { Collectible, CollectibleKind as WorldCollectibleKind } from '@foreman/game-data-core';
+import type {
+  Collectible,
+  CollectibleKind as WorldCollectibleKind,
+  WorldLocations,
+} from '@foreman/game-data-core';
 
+import { STREAMED_CELL_MARGIN } from '../constants.js';
 import type {
   AssemblyPhase,
-  CollectibleCount,
+  BoundingBox,
   Inventory,
   Milestone,
   SaveState,
@@ -132,20 +137,71 @@ export function storageView(state: SaveState, location?: Vec3): StorageView {
 }
 
 const COVERAGE_NOTE =
-  'presentInSave = un-collected collectibles of this kind found in the World-Partition ' +
-  'cells this save has streamed in (cells load as the pioneer explores). The save reveals ' +
-  'nothing about cells not yet streamed and does not record which collectibles were picked ' +
-  'up, so a reliable "collected" or "remaining" total CANNOT be derived from it — only the ' +
-  'fixed worldTotal and what is currently present. For actual locations to grab, use get_nearby.';
+  'worldTotal is the fixed map-wide count. The map streams in by region as the pioneer ' +
+  'explores, and within an explored region collected collectibles are absent while ' +
+  'un-collected ones are present — so collectedInExplored and presentInSave are derived only ' +
+  'over the regions this save has loaded (approximate, ±a few at region edges). ' +
+  'inUnexploredAreas are collectibles in regions not yet loaded — status unknown (could be ' +
+  'collected or not). presentInSave + collectedInExplored + inUnexploredAreas ≈ worldTotal. ' +
+  'For actual locations to grab, use get_nearby.';
+
+export interface CollectibleProgress {
+  kind: WorldCollectibleKind;
+  label: string;
+  /** Fixed map-wide total for this kind. */
+  worldTotal: number;
+  /** Un-collected and present in an explored (streamed) region — i.e. still grabbable. */
+  presentInSave: number;
+  /** Collected, inferred over explored regions only (absent where the region is loaded). */
+  collectedInExplored: number;
+  /** In regions not yet loaded — collection status unknown. */
+  inUnexploredAreas: number;
+}
 
 export interface CollectibleProgressView {
-  perType: CollectibleCount[];
+  perType: CollectibleProgress[];
   note: string;
 }
 
-/** Per-type collection progress (Mercer Spheres, Somersloops, blue/yellow/purple slugs). */
-export function collectibleProgressView(state: SaveState): CollectibleProgressView {
-  return { perType: state.collectibleProgress, note: COVERAGE_NOTE };
+/**
+ * Per-type collectible progress (Mercer Spheres, Somersloops, blue/yellow/purple
+ * slugs). Scopes a real "collected" count to the explored region: a kind's
+ * collectibles from the world dataset that fall inside a streamed cell, minus
+ * those still present, are collected; the rest lie in unexplored regions and are
+ * left as unknown. Accurate at both extremes (0%-explored ⇒ ~0 collected;
+ * fully-explored ⇒ ~the full collected total), approximate at the margins.
+ */
+export function collectibleProgressView(
+  state: SaveState,
+  world: WorldLocations,
+): CollectibleProgressView {
+  const inExplored = explorationTest(state.streamedCellBoxes);
+  const streamedByKind = new Map<string, number>();
+  for (const collectible of world.collectibles) {
+    if (inExplored(collectible)) {
+      streamedByKind.set(collectible.kind, (streamedByKind.get(collectible.kind) ?? 0) + 1);
+    }
+  }
+  const perType: CollectibleProgress[] = state.collectibleProgress.map((c) => {
+    const streamedTotal = streamedByKind.get(c.kind) ?? 0;
+    const collectedInExplored = Math.max(0, streamedTotal - c.presentInSave);
+    return {
+      kind: c.kind,
+      label: c.label,
+      worldTotal: c.worldTotal,
+      presentInSave: c.presentInSave,
+      collectedInExplored,
+      inUnexploredAreas: Math.max(0, c.worldTotal - c.presentInSave - collectedInExplored),
+    };
+  });
+  return { perType, note: COVERAGE_NOTE };
+}
+
+/** Builds a predicate: is a point within any streamed cell box (with a margin)? */
+function explorationTest(boxes: BoundingBox[]): (p: { x: number; y: number }) => boolean {
+  const m = STREAMED_CELL_MARGIN;
+  return (p) =>
+    boxes.some((b) => p.x >= b.x0 - m && p.x <= b.x1 + m && p.y >= b.y0 - m && p.y <= b.y1 + m);
 }
 
 export interface NearbyItem {

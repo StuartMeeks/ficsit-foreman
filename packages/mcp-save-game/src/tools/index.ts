@@ -123,12 +123,12 @@ export function registerTools(server: McpServer, registry: SaveStoreRegistry): v
     {
       title: 'Get collectibles',
       description:
-        'Per-kind collectible visibility (Mercer Sphere, Somersloop, blue/yellow/purple power slug): the fixed world total, and how many un-collected ones are PRESENT in the regions this save has loaded. The save cannot tell collected from not-yet-explored, so it does NOT report a "collected" or "remaining" total — read the note, and never claim a collected count. For where to find collectibles, use get_nearby.',
+        'Per-kind collectible progress (Mercer Sphere, Somersloop, blue/yellow/purple power slug): worldTotal, presentInSave (un-collected and grabbable in explored regions), collectedInExplored (collected, inferred over explored regions — approximate), and inUnexploredAreas (in regions not yet loaded, status unknown). Read the note; collectedInExplored is a lower bound, not exact. For where to find collectibles, use get_nearby.',
       inputSchema: { savePath: savePathSchema },
     },
     async ({ savePath }): Promise<ToolResult> => {
       const store = registry.resolve(savePath);
-      return ok(store, { collectibles: collectibleProgressView(store.getState()) });
+      return ok(store, { collectibles: collectibleProgressView(store.getState(), world) });
     },
   );
 

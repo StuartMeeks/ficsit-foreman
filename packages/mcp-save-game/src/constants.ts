@@ -104,3 +104,17 @@ export const WORLD_TOTALS: Record<CollectibleKind, number> = {
   powerSlugYellow: 389,
   powerSlugPurple: 257,
 };
+
+/**
+ * Tuning for streamed-cell detection (used to scope a real "collected" count to
+ * the explored area). Each save sublevel is a World-Partition cell; its objects
+ * cluster tightly. A cell is a streamed region we can trust the present/absent
+ * inference within. `LOOSE_CELL_DIAGONAL` excludes the one outsized level (the
+ * persistent level of globally-scattered actors), whose bounding box would
+ * otherwise swallow the whole map. `STREAMED_CELL_MARGIN` pads each cell box so a
+ * collectible near a sparsely-populated cell's edge still counts. Calibrated
+ * against real saves (a 0%-collected save yields ~0 collected; a near-complete
+ * one yields ~the full total).
+ */
+export const LOOSE_CELL_DIAGONAL = 50000;
+export const STREAMED_CELL_MARGIN = 2000;

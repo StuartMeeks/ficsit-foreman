@@ -32,7 +32,7 @@ const TOOL_RUNNERS: Record<string, (state: ReturnType<typeof loadState>) => unkn
   get_unlocked_recipes: (s) => unlockedRecipes(s),
   get_milestones: (s) => milestones(s),
   get_storage: (s) => storageView(s),
-  get_collectibles: (s) => collectibleProgressView(s),
+  get_collectibles: (s) => collectibleProgressView(s, loadWorldLocations().world),
   // Nearby uses the player's own location as the origin (when known), querying
   // the static world dataset (same source the MCP tool uses).
   get_nearby: (s) =>
