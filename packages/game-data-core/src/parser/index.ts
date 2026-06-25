@@ -24,9 +24,10 @@ interface Buckets {
   schematics: RawClass[];
 }
 
-export function emptyGameData(version: string): GameData {
+export function emptyGameData(version: string, build?: number): GameData {
   return {
     version,
+    build,
     parsedAt: new Date().toISOString(),
     items: {},
     resources: {},
@@ -125,14 +126,34 @@ function detectVersion(filePath: string): string {
 }
 
 /**
+ * The Satisfactory changelist/build number from the channel `meta.json` sidecar
+ * (`build`), or undefined when absent/unparsable. Best-effort, like
+ * `detectVersion`. A save's `buildVersion` is this same integer.
+ */
+function detectBuild(filePath: string): number | undefined {
+  try {
+    const metaPath = path.join(path.dirname(filePath), 'meta.json');
+    if (fs.existsSync(metaPath)) {
+      const meta: unknown = JSON.parse(fs.readFileSync(metaPath, 'utf8'));
+      if (isRecord(meta) && typeof meta['build'] === 'number') {
+        return meta['build'];
+      }
+    }
+  } catch {
+    // Best-effort; fall through to undefined.
+  }
+  return undefined;
+}
+
+/**
  * Parses the docs file into clean `GameData`. Never throws on bad entries —
  * problems are collected into `parseWarnings`. The only throwing path is an
  * unreadable file or invalid JSON, which the caller handles.
  */
-export function parseGameData(raw: unknown, version: string): ParseResult {
+export function parseGameData(raw: unknown, version: string, build?: number): ParseResult {
   const warnings = new Warnings();
   const buckets = bucketRawClasses(raw, warnings);
-  const gameData = emptyGameData(version);
+  const gameData = emptyGameData(version, build);
 
   // 1. Items and resources first — recipes need item forms for fluid scaling.
   for (const rawItem of buckets.items) {
@@ -241,8 +262,9 @@ function count(record: Record<string, unknown>): number {
 /** Public API: read, decode and parse the docs file at `filePath`. */
 export function parseDocsFile(filePath: string): ParseResult {
   const version = detectVersion(filePath);
+  const build = detectBuild(filePath);
   const raw = readDocsFile(filePath);
-  return parseGameData(raw, version);
+  return parseGameData(raw, version, build);
 }
 
 export type { GameData, Item, Recipe, Building, ParseResult } from './types.js';

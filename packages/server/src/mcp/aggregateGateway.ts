@@ -29,6 +29,10 @@ export class McpAggregateGateway implements McpGateway {
     return this.primary.gameVersion;
   }
 
+  public get gameBuild(): number | undefined {
+    return this.primary.gameBuild;
+  }
+
   public async listTools(): Promise<ToolDefinition[]> {
     const gateways = [this.primary, ...this.secondaries];
     const listings = await Promise.all(

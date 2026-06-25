@@ -28,6 +28,7 @@ docs/               product.md · architecture.md · work-orders.md · playthrou
 | How it fits together — services, MCP boundary, graph, deployment | [`docs/architecture.md`](./docs/architecture.md) |
 | The work-order design (states, revisions, audit, plan/execution split) | [`docs/work-orders.md`](./docs/work-orders.md) |
 | The session/playthrough & foreman model (design) | [`docs/playthroughs.md`](./docs/playthroughs.md) |
+| The save subsystem (identity, re-upload history, same-game) — design & roadmap | [`docs/save-subsystem.md`](./docs/save-subsystem.md) |
 | The game-data parser & class-map design | [`packages/game-data-core/PARSER.md`](./packages/game-data-core/PARSER.md) |
 | The foreman persona (runtime prompt) | [`packages/server/SYSTEM_PROMPT.md`](./packages/server/SYSTEM_PROMPT.md) |
 | A package's usage, tools, and setup | that package's `README.md` |

@@ -130,6 +130,12 @@ export interface Schematic {
 export interface GameData {
   /** Detected from the install context, or 'unknown'. */
   version: string;
+  /**
+   * Satisfactory changelist/build number this data was extracted from (the
+   * `build` field of the channel `meta.json`), or undefined when unknown. A save
+   * file's `buildVersion` is this same integer, so the two can be compared.
+   */
+  build?: number;
   /** ISO timestamp of when the parse ran. */
   parsedAt: string;
   /** Manufactured/inventory items, keyed by class name. Excludes raw resources. */

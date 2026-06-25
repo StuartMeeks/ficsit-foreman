@@ -334,9 +334,14 @@ describe('HTTP routes', () => {
       body: form,
     });
     expect(upload.status).toBe(201);
-    const save = (await upload.json()) as { fileName: string; sizeBytes: number };
-    expect(save.fileName).toBe('MyWorld.sav');
-    expect(save.sizeBytes).toBe(4);
+    const result = (await upload.json()) as {
+      save: { fileName: string; sizeBytes: number };
+      warnings: unknown[];
+    };
+    expect(result.save.fileName).toBe('MyWorld.sav');
+    expect(result.save.sizeBytes).toBe(4);
+    // No game-data build wired in this test's fake MCP, so no version warning.
+    expect(result.warnings).toEqual([]);
     // The bytes landed on the data volume, and the playthrough now reports a save.
     expect(fs.existsSync(path.join(saveDir, `${playthrough.id}.sav`))).toBe(true);
     const fetched = await fetch(`${baseUrl}/api/playthroughs/${playthrough.id}`, {

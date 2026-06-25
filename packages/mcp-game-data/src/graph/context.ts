@@ -10,6 +10,8 @@ export interface QueryContext {
   gameData: GameData;
   resolver: Resolver;
   version: string;
+  /** Satisfactory build/CL number the data was extracted from, if known. */
+  build?: number;
 }
 
 /** Looks up an item (or resource) by class name across the combined sets. */

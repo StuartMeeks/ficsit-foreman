@@ -62,7 +62,7 @@ export async function startHttpServer(
   app.delete(MCP_ENDPOINT, methodNotAllowed);
 
   app.get('/health', (_req, res) => {
-    res.json({ status: 'ok', version: graph.version });
+    res.json({ status: 'ok', version: graph.version, build: graph.build });
   });
 
   await new Promise<void>((resolve) => {

@@ -168,18 +168,26 @@ export function registerTools(server: McpServer, registry: SaveStoreRegistry): v
     {
       title: 'Describe save',
       description:
-        "Host-internal: returns only a save file's in-game name and game/build version, used by the backend to seed a playthrough name on upload. Not for answering pioneer questions — for play time, location, or progress use get_player_state / get_milestones.",
+        "Host-internal: returns a save file's identity (in-game name, session/map, build & save version, play time), used by the backend to seed a playthrough name and detect version/same-game on upload. Not for answering pioneer questions — for play time, location, or progress use get_player_state / get_milestones.",
       inputSchema: { savePath: z.string().describe('The save file to describe.') },
     },
     async ({ savePath }): Promise<ToolResult> => {
       const store = registry.resolve(savePath);
-      // Touch the state so the header is parsed, then surface the metadata.
-      store.getState();
+      // Parse (mtime-gated) and surface the header identity.
+      const state = store.getState();
       return {
         content: [
           {
             type: 'text',
-            text: JSON.stringify({ saveName: store.saveName, version: store.version }),
+            text: JSON.stringify({
+              saveName: state.saveName,
+              version: state.version,
+              sessionName: state.sessionName,
+              mapName: state.mapName,
+              buildVersion: state.buildVersion,
+              saveVersion: state.saveVersion,
+              playDurationSeconds: state.playDurationSeconds,
+            }),
           },
         ],
       };

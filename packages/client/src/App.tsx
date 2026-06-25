@@ -7,6 +7,7 @@ import { NewPlaythroughModal } from './components/NewPlaythroughModal.js';
 import { Onboarding } from './components/Onboarding.js';
 import { PlaythroughSwitcher } from './components/PlaythroughSwitcher.js';
 import { SaveDropZone } from './components/SaveDropZone.js';
+import { SaveWarningBanner } from './components/SaveWarningBanner.js';
 import { DrawerDock } from './components/DrawerDock.js';
 import { SettingsDialog } from './components/SettingsDialog.js';
 import { WorkHistoryDrawerBody } from './components/WorkHistoryDrawer.js';
@@ -147,6 +148,8 @@ export function App(): React.JSX.Element {
           <span>{foreman.bootError}</span>
         </div>
       ) : null}
+
+      <SaveWarningBanner warnings={foreman.saveWarnings} onDismiss={foreman.dismissSaveWarnings} />
 
       <main
         className="main"

@@ -146,11 +146,11 @@ export function playthroughsRouter(deps: AppDeps): Router {
       res.status(400).json({ error: "Expected a 'save' file upload." });
       return;
     }
-    const save = await deps.saves.upsertSave(playthroughId(req), {
+    const result = await deps.saves.upsertSave(playthroughId(req), {
       fileName: file.originalname,
       bytes: file.buffer,
     });
-    res.status(201).json(save);
+    res.status(201).json(result);
   });
 
   return router;

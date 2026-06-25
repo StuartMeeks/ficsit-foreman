@@ -339,10 +339,40 @@ export interface Save {
   fileName: string;
   /** In-game session/save name parsed from the header (if available). */
   saveName?: string;
-  /** Game build + save format parsed from the header (if available). */
+  /** Humanised game build + save format parsed from the header (if available). */
   version?: string;
+  /** Raw in-game session name from the header (if available). */
+  sessionName?: string;
+  /** Map name from the header, e.g. `Persistent_Level` (if available). */
+  mapName?: string;
+  /** Satisfactory build/CL number from the header (if available). */
+  buildVersion?: number;
+  /** Save-format version from the header (if available). */
+  saveVersion?: number;
+  /** Total in-game play time in seconds (if available). */
+  playDurationSeconds?: number;
   sizeBytes: number;
   uploadedAt: string;
+}
+
+/**
+ * A non-fatal advisory surfaced on the upload response. Additive shape carries
+ * the build-version mismatch now; play-time-regression and same-game ambiguity
+ * (#76 later slices) reuse it.
+ */
+export interface SaveWarning {
+  kind: 'build_mismatch';
+  message: string;
+  /** Build the save was written by. */
+  saveBuild?: number;
+  /** Build the loaded game data was extracted from. */
+  gameDataBuild?: number;
+}
+
+/** Response of the save-upload route: the stored save plus any advisories. */
+export interface SaveUploadResult {
+  save: Save;
+  warnings: SaveWarning[];
 }
 
 export interface Playthrough {

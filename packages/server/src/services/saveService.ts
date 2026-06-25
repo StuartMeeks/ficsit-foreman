@@ -5,7 +5,7 @@ import type { PrismaClient } from '@prisma/client';
 
 import { logger } from '../logger.js';
 import type { McpGateway } from '../mcp/client.js';
-import type { Save } from '../types.js';
+import type { SaveUploadResult, SaveWarning } from '../types.js';
 import { rowToSave } from './playthroughService.js';
 
 /** An uploaded file's bytes + metadata, as handed over by the upload route. */
@@ -18,6 +18,11 @@ export interface UploadedSave {
 interface SaveMetadata {
   saveName?: string;
   version?: string;
+  sessionName?: string;
+  mapName?: string;
+  buildVersion?: number;
+  saveVersion?: number;
+  playDurationSeconds?: number;
 }
 
 /**
@@ -67,29 +72,28 @@ export class SaveService {
    * metadata, upserts the Save row, and — when the playthrough has no name yet —
    * seeds its name from the save. Returns the stored save's API shape.
    */
-  public async upsertSave(playthroughId: string, file: UploadedSave): Promise<Save> {
+  public async upsertSave(playthroughId: string, file: UploadedSave): Promise<SaveUploadResult> {
     fs.mkdirSync(this.saveDataDir, { recursive: true });
     const filePath = this.savePathFor(playthroughId);
     fs.writeFileSync(filePath, file.bytes);
 
     const metadata = await this.describe(filePath);
+    const data = {
+      fileName: file.fileName,
+      saveName: metadata.saveName ?? null,
+      version: metadata.version ?? null,
+      sessionName: metadata.sessionName ?? null,
+      mapName: metadata.mapName ?? null,
+      buildVersion: metadata.buildVersion ?? null,
+      saveVersion: metadata.saveVersion ?? null,
+      playDurationSeconds: metadata.playDurationSeconds ?? null,
+      sizeBytes: file.bytes.length,
+    };
 
     const row = await this.prisma.save.upsert({
       where: { playthroughId },
-      create: {
-        playthroughId,
-        fileName: file.fileName,
-        saveName: metadata.saveName ?? null,
-        version: metadata.version ?? null,
-        sizeBytes: file.bytes.length,
-      },
-      update: {
-        fileName: file.fileName,
-        saveName: metadata.saveName ?? null,
-        version: metadata.version ?? null,
-        sizeBytes: file.bytes.length,
-        uploadedAt: new Date(),
-      },
+      create: { playthroughId, ...data },
+      update: { ...data, uploadedAt: new Date() },
     });
 
     // Default the playthrough's name from the save's in-game name when unset.
@@ -106,7 +110,32 @@ export class SaveService {
       }
     }
 
-    return rowToSave(row);
+    return { save: rowToSave(row), warnings: this.versionWarnings(metadata) };
+  }
+
+  /**
+   * Advisory warnings for an uploaded save. For now: the save's build vs the
+   * loaded game-data build. Only warns when BOTH are known and differ — an
+   * unknown build (older data, MCP unreachable) is silent rather than a false
+   * positive.
+   */
+  private versionWarnings(metadata: SaveMetadata): SaveWarning[] {
+    const saveBuild = metadata.buildVersion;
+    const gameDataBuild = this.mcp.gameBuild;
+    if (saveBuild === undefined || gameDataBuild === undefined || saveBuild === gameDataBuild) {
+      return [];
+    }
+    return [
+      {
+        kind: 'build_mismatch',
+        saveBuild,
+        gameDataBuild,
+        message:
+          `This save is from Satisfactory build ${saveBuild}, but the foreman's game ` +
+          `data is build ${gameDataBuild}. Recipes or build costs may not match — ` +
+          `update the game data, or expect occasional discrepancies.`,
+      },
+    ];
   }
 
   /** Removes the stored save file for a playthrough (best-effort). */
@@ -135,6 +164,21 @@ export class SaveService {
       }
       if (typeof parsed.version === 'string' && parsed.version.length > 0) {
         metadata.version = parsed.version;
+      }
+      if (typeof parsed.sessionName === 'string' && parsed.sessionName.length > 0) {
+        metadata.sessionName = parsed.sessionName;
+      }
+      if (typeof parsed.mapName === 'string' && parsed.mapName.length > 0) {
+        metadata.mapName = parsed.mapName;
+      }
+      if (typeof parsed.buildVersion === 'number') {
+        metadata.buildVersion = parsed.buildVersion;
+      }
+      if (typeof parsed.saveVersion === 'number') {
+        metadata.saveVersion = parsed.saveVersion;
+      }
+      if (typeof parsed.playDurationSeconds === 'number') {
+        metadata.playDurationSeconds = parsed.playDurationSeconds;
       }
       return metadata;
     } catch (error) {

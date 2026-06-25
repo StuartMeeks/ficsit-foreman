@@ -45,6 +45,10 @@ export function normaliseSave(
   const state: SaveState = {
     version: detectVersion(raw),
     saveName: detectSaveName(raw),
+    sessionName: raw.header?.sessionName,
+    mapName: raw.header?.mapName,
+    buildVersion: raw.header?.buildVersion,
+    saveVersion: raw.header?.saveVersion,
     playDurationSeconds: raw.header?.playDurationSeconds,
     parsedAt,
     player: extractPlayer(objects, byInstance, warnings),

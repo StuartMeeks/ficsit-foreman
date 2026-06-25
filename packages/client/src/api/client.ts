@@ -6,7 +6,7 @@ import { parseSseStream } from './sse.js';
 import type {
   Foreman,
   Playthrough,
-  Save,
+  SaveUploadResult,
   StoredMessage,
   WorkOrder,
   WorkOrderAction,
@@ -201,7 +201,7 @@ export async function listMessages(playthroughId: string): Promise<StoredMessage
 }
 
 /** Uploads (or replaces) the playthrough's current save. Multipart `save` field. */
-export async function uploadSave(playthroughId: string, file: File): Promise<Save> {
+export async function uploadSave(playthroughId: string, file: File): Promise<SaveUploadResult> {
   const form = new FormData();
   form.append('save', file);
   // No explicit content-type: the browser sets the multipart boundary itself.
@@ -213,7 +213,7 @@ export async function uploadSave(playthroughId: string, file: File): Promise<Sav
   if (!response.ok) {
     throw new Error(await readError(response));
   }
-  return (await response.json()) as Save;
+  return (await response.json()) as SaveUploadResult;
 }
 
 export async function getActiveWorkOrder(playthroughId: string): Promise<WorkOrder | null> {

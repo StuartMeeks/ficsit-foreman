@@ -70,13 +70,20 @@ model Playthrough {
 // from the save (its in-game name + game/build version) which seeds the
 // playthrough's default name and is surfaced in the UI.
 model Save {
-  id            String   @id @default(uuid())
-  playthroughId String   @unique
-  fileName      String // the original uploaded filename
-  saveName      String? // in-game session/save name parsed from the header
-  version       String? // game build + save format parsed from the header
-  sizeBytes     Int
-  uploadedAt    DateTime @default(now())
+  id                  String   @id @default(uuid())
+  playthroughId       String   @unique
+  fileName            String // the original uploaded filename
+  saveName            String? // in-game session/save name parsed from the header
+  version             String? // humanised game build + save format parsed from the header
+  // Discrete header identity (parsed via describe_save) — powers the
+  // build-version warning now and same-game recognition later (#76).
+  sessionName         String? // raw in-game session name
+  mapName             String? // e.g. Persistent_Level
+  buildVersion        Int? // Satisfactory changelist/build number (comparable to game data's build)
+  saveVersion         Int? // save-format version
+  playDurationSeconds Int? // total in-game play time
+  sizeBytes           Int
+  uploadedAt          DateTime @default(now())
 
   playthrough Playthrough @relation(fields: [playthroughId], references: [id], onDelete: Cascade)
 }
