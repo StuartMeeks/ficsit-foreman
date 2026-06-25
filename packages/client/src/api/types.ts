@@ -276,8 +276,27 @@ export interface Save {
   fileName: string;
   saveName?: string;
   version?: string;
+  sessionName?: string;
+  mapName?: string;
+  buildVersion?: number;
+  saveVersion?: number;
+  playDurationSeconds?: number;
   sizeBytes: number;
   uploadedAt: string;
+}
+
+/** A non-fatal advisory returned alongside an uploaded save. */
+export interface SaveWarning {
+  kind: 'build_mismatch';
+  message: string;
+  saveBuild?: number;
+  gameDataBuild?: number;
+}
+
+/** The save-upload response: the stored save plus any advisories. */
+export interface SaveUploadResult {
+  save: Save;
+  warnings: SaveWarning[];
 }
 
 export interface Playthrough {

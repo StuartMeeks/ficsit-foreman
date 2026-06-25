@@ -42,6 +42,7 @@ export type CypherResult = { rows: Record<string, unknown>[] } | { error: string
  */
 export class GraphDB implements QueryContext {
   public readonly version: string;
+  public readonly build?: number;
   public readonly resolver: Resolver;
 
   constructor(
@@ -49,6 +50,7 @@ export class GraphDB implements QueryContext {
     public readonly gameData: GameData,
   ) {
     this.version = gameData.version;
+    this.build = gameData.build;
     this.resolver = new Resolver(gameData);
   }
 

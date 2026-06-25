@@ -10,6 +10,13 @@ describe('header + version', () => {
     expect(state.version).toBe('build 999999 (save 60)');
     expect(state.saveName).toBe('Fixture');
   });
+
+  it('surfaces discrete header identity for the host', () => {
+    expect(state.sessionName).toBe('Fixture');
+    expect(state.buildVersion).toBe(999999);
+    expect(state.saveVersion).toBe(60);
+    expect(state.playDurationSeconds).toBe(1234);
+  });
 });
 
 describe('player', () => {

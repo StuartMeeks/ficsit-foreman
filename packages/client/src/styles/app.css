@@ -1359,6 +1359,13 @@ button:disabled {
   font-size: 12px;
 }
 
+/* Build-version mismatch is advisory, not an error — keep the amber banner but
+   right-align its dismiss control past the longer message. */
+.banner.save-warning button {
+  margin-left: auto;
+  flex: none;
+}
+
 /* ── Splash (boot) ──────────────────────────────────────────────────────── */
 .splash {
   height: 100%;

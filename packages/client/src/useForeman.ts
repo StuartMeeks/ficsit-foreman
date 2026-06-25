@@ -39,6 +39,7 @@ import {
   TERMINAL_STATES,
   type Foreman,
   type Playthrough,
+  type SaveWarning,
   type StoredMessage,
   type WorkOrder,
   type WorkOrderAction,
@@ -118,6 +119,10 @@ export interface ForemanState {
   viewOrder(id: string | null): void;
   history: WorkOrder[];
   workOrders: WorkOrderActions;
+  /** Advisories from the most recent save upload (e.g. build-version mismatch). */
+  saveWarnings: SaveWarning[];
+  /** Dismiss the save advisories. */
+  dismissSaveWarnings(): void;
   sending: boolean;
   booting: boolean;
   needsOnboarding: boolean;
@@ -232,6 +237,9 @@ export function useForeman(): ForemanState {
   // live `history`, so SSE/mutation updates flow through; falls back to the
   // active order if the viewed order is gone (e.g. after a playthrough switch).
   const [viewingId, setViewingId] = useState<string | null>(null);
+  // Advisories from the most recent save upload (e.g. build-version mismatch),
+  // surfaced as a dismissible banner. Cleared on dismiss and playthrough switch.
+  const [saveWarnings, setSaveWarnings] = useState<SaveWarning[]>([]);
   const displayedOrder = useMemo(() => {
     if (viewingId !== null) {
       const viewed = history.find((o) => o.id === viewingId);
@@ -278,6 +286,7 @@ export function useForeman(): ForemanState {
    */
   const activate = useCallback(async (target: Playthrough, knownForemen: Foreman[]) => {
     setViewingId(null);
+    setSaveWarnings([]);
     writeStorage(PLAYTHROUGH_KEY, target.id);
     const attached =
       knownForemen.find((f) => f.id === target.foremanId) ?? (await getForeman(target.foremanId));
@@ -608,7 +617,8 @@ export function useForeman(): ForemanState {
         pioneerProfile: input.pioneerProfile,
       });
       if (input.saveFile !== undefined) {
-        await uploadSave(created.id, input.saveFile);
+        const { warnings } = await uploadSave(created.id, input.saveFile);
+        setSaveWarnings(warnings);
       }
       // Re-fetch so a save-derived default name + save metadata are reflected.
       const fresh = (await getPlaythrough(created.id)) ?? created;
@@ -623,7 +633,8 @@ export function useForeman(): ForemanState {
       if (playthrough === null) {
         return;
       }
-      await uploadSave(playthrough.id, file);
+      const { warnings } = await uploadSave(playthrough.id, file);
+      setSaveWarnings(warnings);
       // Re-fetch so the refreshed save metadata is reflected in state + the list.
       const fresh = (await getPlaythrough(playthrough.id)) ?? playthrough;
       setPlaythrough(fresh);
@@ -720,6 +731,8 @@ export function useForeman(): ForemanState {
     viewOrder,
     history,
     workOrders,
+    saveWarnings,
+    dismissSaveWarnings: () => setSaveWarnings([]),
     sending,
     booting,
     needsOnboarding,

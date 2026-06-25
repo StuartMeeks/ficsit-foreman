@@ -61,6 +61,14 @@ export interface SaveState {
   version: string;
   /** Save session name, or the file base name. */
   saveName: string;
+  /** Raw in-game session name from the header (undefined if absent). */
+  sessionName?: string;
+  /** Map name from the header, e.g. `Persistent_Level` (undefined if absent). */
+  mapName?: string;
+  /** Satisfactory changelist/build number from the header — comparable to game data's `build`. */
+  buildVersion?: number;
+  /** Save-format version from the header. */
+  saveVersion?: number;
   /** Total in-game play time in seconds, if the header carries it. */
   playDurationSeconds?: number;
   /** ISO timestamp of when this state was parsed. */

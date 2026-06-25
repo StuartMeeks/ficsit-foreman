@@ -228,6 +228,11 @@ export function rowToSave(row: SaveRow): NonNullable<Playthrough['save']> {
     fileName: row.fileName,
     saveName: row.saveName ?? undefined,
     version: row.version ?? undefined,
+    sessionName: row.sessionName ?? undefined,
+    mapName: row.mapName ?? undefined,
+    buildVersion: row.buildVersion ?? undefined,
+    saveVersion: row.saveVersion ?? undefined,
+    playDurationSeconds: row.playDurationSeconds ?? undefined,
     sizeBytes: row.sizeBytes,
     uploadedAt: row.uploadedAt.toISOString(),
   };

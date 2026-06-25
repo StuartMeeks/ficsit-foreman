@@ -34,6 +34,12 @@ export interface ToolCallContext {
 export interface McpGateway {
   /** Game data version reported by the MCP server (for stamping work orders). */
   readonly gameVersion: string;
+  /**
+   * Satisfactory build/CL number the loaded game data was extracted from, if the
+   * server reported it. Comparable to a save's `buildVersion`. Undefined when
+   * unknown (older data, /health unavailable, or a test fake).
+   */
+  readonly gameBuild?: number;
   listTools(): Promise<ToolDefinition[]>;
   callTool(
     name: string,
@@ -58,11 +64,16 @@ export class McpHttpClient implements McpGateway {
   private connecting: Promise<Client> | undefined;
   private cachedTools: ToolDefinition[] | undefined;
   private version = 'unknown';
+  private build: number | undefined;
 
   public constructor(private readonly mcpUrl: string) {}
 
   public get gameVersion(): string {
     return this.version;
+  }
+
+  public get gameBuild(): number | undefined {
+    return this.build;
   }
 
   /** Establishes the MCP session and reads the game data version. Idempotent. */
@@ -100,7 +111,9 @@ export class McpHttpClient implements McpGateway {
       throw error;
     }
     this.client = client;
-    this.version = await this.fetchVersion();
+    const health = await this.fetchHealth();
+    this.version = health.version;
+    this.build = health.build;
     logger.info(`Connected to MCP server at ${this.mcpUrl} (game version ${this.version})`);
     return client;
   }
@@ -165,20 +178,23 @@ export class McpHttpClient implements McpGateway {
     }
   }
 
-  /** Reads the version from the MCP server's HTTP /health sibling endpoint. */
-  private async fetchVersion(): Promise<string> {
+  /** Reads version + build from the MCP server's HTTP /health sibling endpoint. */
+  private async fetchHealth(): Promise<{ version: string; build: number | undefined }> {
     try {
       const healthUrl = new URL(this.mcpUrl);
       healthUrl.pathname = healthUrl.pathname.replace(/\/mcp\/?$/, '/health');
       const response = await fetch(healthUrl);
       if (!response.ok) {
-        return 'unknown';
+        return { version: 'unknown', build: undefined };
       }
-      const body = (await response.json()) as { version?: unknown };
-      return typeof body.version === 'string' ? body.version : 'unknown';
+      const body = (await response.json()) as { version?: unknown; build?: unknown };
+      return {
+        version: typeof body.version === 'string' ? body.version : 'unknown',
+        build: typeof body.build === 'number' ? body.build : undefined,
+      };
     } catch (error) {
       logger.warn('Could not read game data version from MCP /health:', describeError(error));
-      return 'unknown';
+      return { version: 'unknown', build: undefined };
     }
   }
 }
