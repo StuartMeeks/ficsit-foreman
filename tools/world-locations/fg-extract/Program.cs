@@ -123,15 +123,14 @@ if (Environment.GetEnvironmentVariable("DISCOVER") != null)
 
                 if (e.ExportType == "FGItemPickup_Spawnable")
                 {
-                    if (sampleProps.Count < 3)
+                    var prop = e.Properties.FirstOrDefault(p => p.Name.Text == "mPickupItems")?.Tag?.GenericValue;
+                    if (sampleProps.Count < 3 && prop != null)
                     {
-                        sampleProps.Add($"{e.Name}: {string.Join(", ", e.Properties.Select(p => p.Name.Text))}");
+                        sampleProps.Add($"{prop.GetType().Name} :: {prop}");
                     }
-                    // The contained item(s): regex every Desc_*_C out of the item-stack property.
-                    var raw = e.Properties.FirstOrDefault(p => p.Name.Text == "mPickupItems")?.Tag?.GenericValue?.ToString()
-                        ?? e.Properties.FirstOrDefault(p => p.Name.Text == "mItemType")?.Tag?.GenericValue?.ToString();
-                    var item = raw == null ? "(none)" : (Regex.Match(raw, @"(Desc_[A-Za-z0-9_]+_C|BP_[A-Za-z0-9_]+_C)").Value);
-                    if (string.IsNullOrEmpty(item)) { item = "(unparsed)"; }
+                    var raw = prop?.ToString() ?? "";
+                    var item = Regex.Match(raw, @"(Desc_[A-Za-z0-9_]+_C|BP_[A-Za-z0-9_]+_C)").Value;
+                    if (string.IsNullOrEmpty(item)) { item = $"(unparsed:{prop?.GetType().Name ?? "null"})"; }
                     spawnableItems[item] = spawnableItems.GetValueOrDefault(item) + 1;
                 }
             }
