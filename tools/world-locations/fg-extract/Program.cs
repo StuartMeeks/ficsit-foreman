@@ -104,6 +104,38 @@ string Purity(UObject e)
 // and few, and likely NOT keyed by mItemPickupGuid). Histograms every class across
 // cells + persistent level, lists the rare ones, and dumps actors whose class or
 // any property value mentions customization/helmet/tape — with location + guid keying.
+// DISCOVER3: full property dump of the customizer pickups (helmet + tapes), to
+// get exact locations and the schematic each grants (collected-status key).
+if (Environment.GetEnvironmentVariable("DISCOVER3") != null)
+{
+    var targets = new HashSet<string> { "BP_UnlockPickup_Customization_C", "BP_TapePickup_C" };
+    var pkgs = provider.Files.Keys
+        .Where(k => (k.Contains("/_Generated_/") || k.Contains("/GameLevel01/")) && k.EndsWith(".umap"))
+        .ToList();
+    Console.WriteLine($"[discover3] scanning {pkgs.Count} packages for {string.Join(", ", targets)}...");
+    foreach (var pkg in pkgs)
+    {
+        try
+        {
+            foreach (var e in provider.LoadPackage(pkg).GetExports())
+            {
+                if (!targets.Contains(e.ExportType)) { continue; }
+                var loc = Loc(e);
+                Console.WriteLine($"--- {e.ExportType} | {e.Name} | loc={(loc == null ? "?" : $"{(int) loc.Value.X},{(int) loc.Value.Y},{(int) loc.Value.Z}")} ---");
+                foreach (var p in e.Properties)
+                {
+                    var v = p.Tag?.GenericValue?.ToString() ?? "";
+                    if (v.Length > 200) { v = v.Substring(0, 200) + "…"; }
+                    Console.WriteLine($"    {p.Name.Text} = {v}");
+                }
+            }
+        }
+        catch (Exception ex) { Console.Error.WriteLine($"[pkg] {pkg}: {ex.Message}"); }
+    }
+    Console.WriteLine("DONE-DISCOVER3");
+    return;
+}
+
 if (Environment.GetEnvironmentVariable("DISCOVER2") != null)
 {
     var rx = new Regex(@"(Customiz|Helmet|Cassette|Boombox|Mtape|Beanie|UnlockPickup|MercerShrine|Tape_|_Tape|Hat_|_Hat)", RegexOptions.IgnoreCase);
