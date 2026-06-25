@@ -38,6 +38,40 @@ textarea {
   outline-offset: 2px;
 }
 
+/* ── Scrollbars ─────────────────────────────────────────────────────────── */
+/* Slim, near-black track with a warm-grey thumb that warms to amber on hover —
+   in keeping with the SCADA palette. Firefox uses scrollbar-color; WebKit/Blink
+   the pseudo-elements below. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-text-dim) transparent;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-text-dim);
+  border: 2px solid transparent;
+  background-clip: padding-box;
+  border-radius: var(--radius-md);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-accent);
+  background-clip: padding-box;
+}
+
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
 /* Shared mono label treatment — the HUD voice. */
 .label {
   font-family: var(--font-numeric);
