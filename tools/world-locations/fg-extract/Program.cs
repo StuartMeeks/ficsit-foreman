@@ -123,14 +123,23 @@ if (Environment.GetEnvironmentVariable("DISCOVER") != null)
 
                 if (e.ExportType == "FGItemPickup_Spawnable")
                 {
-                    var prop = e.Properties.FirstOrDefault(p => p.Name.Text == "mPickupItems")?.Tag?.GenericValue;
-                    if (sampleProps.Count < 3 && prop != null)
+                    var stack = e.GetOrDefault<CUE4Parse.UE4.Assets.Objects.FStructFallback?>("mPickupItems");
+                    var text = "";
+                    if (stack != null)
                     {
-                        sampleProps.Add($"{prop.GetType().Name} :: {prop}");
+                        foreach (var p in stack.Properties)
+                        {
+                            var v = p.Tag?.GenericValue;
+                            text += $" {p.Name.Text}={v}";
+                            if (v is CUE4Parse.UE4.Assets.Objects.FStructFallback sf)
+                            {
+                                foreach (var q in sf.Properties) { text += $" {p.Name.Text}.{q.Name.Text}={q.Tag?.GenericValue}"; }
+                            }
+                        }
                     }
-                    var raw = prop?.ToString() ?? "";
-                    var item = Regex.Match(raw, @"(Desc_[A-Za-z0-9_]+_C|BP_[A-Za-z0-9_]+_C)").Value;
-                    if (string.IsNullOrEmpty(item)) { item = $"(unparsed:{prop?.GetType().Name ?? "null"})"; }
+                    if (sampleProps.Count < 3) { sampleProps.Add(text.Trim()); }
+                    var item = Regex.Match(text, @"(Desc_[A-Za-z0-9_]+_C|BP_[A-Za-z0-9_]+_C)").Value;
+                    if (string.IsNullOrEmpty(item)) { item = "(unparsed)"; }
                     spawnableItems[item] = spawnableItems.GetValueOrDefault(item) + 1;
                 }
             }
