@@ -79,6 +79,12 @@ function classifyMilestone(
   return 'other';
 }
 
+/**
+ * The unlocked MAM research *trees* (the save's `mUnlockedResearchTrees`), e.g.
+ * "Alien Organisms", "Hard Drive", "Power Slugs" — the categories the pioneer can
+ * research in, NOT the individual completed nodes. The class names humanise to a
+ * verbose "BPD Research Tree X"; trim that prefix to the bare tree name.
+ */
 function extractMamResearch(objects: RawObject[]): string[] {
   const manager = objects.find((o) => RESEARCH_MANAGER.test(o.typePath ?? ''));
   if (manager === undefined) {
@@ -88,10 +94,15 @@ function extractMamResearch(objects: RawObject[]): string[] {
   for (const ref of arrayField(propMap(manager), UNLOCKED_RESEARCH_PROP)) {
     const path = asString(dig(ref, 'pathName'));
     if (path !== undefined && path.length > 0) {
-      names.add(humaniseClassName(classNameFromPath(path)));
+      names.add(cleanResearchTreeName(humaniseClassName(classNameFromPath(path))));
     }
   }
   return [...names].sort((a, b) => a.localeCompare(b));
+}
+
+/** Strips the "BPD Research Tree" / "Research Tree" prefix from a humanised name. */
+function cleanResearchTreeName(name: string): string {
+  return name.replace(/^(?:BPD\s+)?Research Tree\s+/i, '').trim();
 }
 
 function extractAssemblyPhase(objects: RawObject[]): AssemblyPhase | undefined {

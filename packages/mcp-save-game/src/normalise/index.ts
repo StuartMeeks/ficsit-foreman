@@ -16,14 +16,15 @@ export type { SaveState } from './types.js';
  * delegates to the per-domain normalisers. Never throws: bad entries are skipped
  * and recorded in `warnings`, so a partial parse still yields a usable state.
  *
- * `itemNames` (className → display name, from the parsed game data) upgrades
- * inventory/storage/depot display names from the humanised fallback to the real
- * in-game names. Optional: an empty map keeps the humanised fallback.
+ * `displayNames` (className → display name, from the parsed game data) upgrades
+ * inventory/storage/depot, unlocked-recipe and storage-container display names
+ * from the humanised fallback to the real in-game names. Optional: an empty map
+ * keeps the humanised fallback.
  */
 export function normaliseSave(
   raw: RawSave,
   parsedAt: string,
-  itemNames: Map<string, string> = new Map(),
+  displayNames: Map<string, string> = new Map(),
 ): { state: SaveState; warnings: string[] } {
   const warnings = new Warnings();
 
@@ -44,6 +45,7 @@ export function normaliseSave(
   const state: SaveState = {
     version: detectVersion(raw),
     saveName: detectSaveName(raw),
+    playDurationSeconds: raw.header?.playDurationSeconds,
     parsedAt,
     player: extractPlayer(objects, byInstance, warnings),
     storage: extractStorage(objects, byInstance, warnings),
@@ -56,24 +58,33 @@ export function normaliseSave(
     warnings: warnings.all(),
   };
 
-  applyItemNames(state, itemNames);
+  applyDisplayNames(state, displayNames);
   return { state, warnings: warnings.all() };
 }
 
-/** Rewrites item display names from the real game data where available. */
-function applyItemNames(state: SaveState, itemNames: Map<string, string>): void {
-  if (itemNames.size === 0) {
+/**
+ * Rewrites display names from the real game data where available: inventory and
+ * storage item stacks, unlocked recipes, and storage-container building names.
+ * (MAM/milestone schematics are not in the game data, so they keep the humanised
+ * fallback.)
+ */
+function applyDisplayNames(state: SaveState, names: Map<string, string>): void {
+  if (names.size === 0) {
     return;
   }
-  const rename = (inventory: Inventory): void => {
+  const renameStacks = (inventory: Inventory): void => {
     for (const stack of inventory) {
-      stack.displayName = itemNames.get(stack.itemClass) ?? stack.displayName;
+      stack.displayName = names.get(stack.itemClass) ?? stack.displayName;
     }
   };
-  rename(state.player.inventory);
-  rename(state.storage.dimensionalDepot);
+  renameStacks(state.player.inventory);
+  renameStacks(state.storage.dimensionalDepot);
   for (const container of state.storage.containers) {
-    rename(container.inventory);
+    renameStacks(container.inventory);
+    container.displayName = names.get(container.buildingClass) ?? container.displayName;
+  }
+  for (const recipe of state.recipes) {
+    recipe.displayName = names.get(recipe.recipeClass) ?? recipe.displayName;
   }
 }
 

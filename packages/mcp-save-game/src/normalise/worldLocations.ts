@@ -24,24 +24,24 @@ export function extractRemainingCollectibles(objects: RawObject[]): RemainingCol
 }
 
 /**
- * Per-type collection progress: `collected = max(0, worldTotal − remaining)`.
- * One row per collectible kind, in `COLLECTIBLE_ACTORS` order, even when none
- * remain (so the full picture is always reported).
+ * Per-type collectible visibility: how many un-collected collectibles of each
+ * kind are actually present in the save (i.e. in streamed-in World-Partition
+ * cells), alongside the fixed world total. One row per kind, in
+ * `COLLECTIBLE_ACTORS` order, even when none are present.
+ *
+ * Deliberately does NOT derive a "collected" count: absence means *either*
+ * collected *or* in a cell not yet streamed, and the two cannot be told apart
+ * from the save (see the tool's coverage note).
  */
-export function computeCollectibleProgress(remaining: RemainingCollectible[]): CollectibleCount[] {
-  const remainingByKind = new Map<CollectibleKind, number>();
-  for (const item of remaining) {
-    remainingByKind.set(item.kind, (remainingByKind.get(item.kind) ?? 0) + 1);
+export function computeCollectibleProgress(present: RemainingCollectible[]): CollectibleCount[] {
+  const presentByKind = new Map<CollectibleKind, number>();
+  for (const item of present) {
+    presentByKind.set(item.kind, (presentByKind.get(item.kind) ?? 0) + 1);
   }
-  return COLLECTIBLE_ACTORS.map((matcher) => {
-    const worldTotal = WORLD_TOTALS[matcher.kind];
-    const remainingCount = remainingByKind.get(matcher.kind) ?? 0;
-    return {
-      kind: matcher.kind,
-      label: matcher.label,
-      worldTotal,
-      remaining: remainingCount,
-      collected: Math.max(0, worldTotal - remainingCount),
-    };
-  });
+  return COLLECTIBLE_ACTORS.map((matcher) => ({
+    kind: matcher.kind,
+    label: matcher.label,
+    worldTotal: WORLD_TOTALS[matcher.kind],
+    presentInSave: presentByKind.get(matcher.kind) ?? 0,
+  }));
 }

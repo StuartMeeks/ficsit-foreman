@@ -20,20 +20,28 @@ describe('player', () => {
 
   it('decodes inventory via the mInventory reference and skips empty slots', () => {
     expect(state.player.inventory).toHaveLength(1);
-    expect(state.player.inventory[0]).toMatchObject({ itemClass: 'Desc_IronPlate_C', quantity: 50 });
+    expect(state.player.inventory[0]).toMatchObject({
+      itemClass: 'Desc_IronPlate_C',
+      quantity: 50,
+    });
   });
 });
 
 describe('storage + depot', () => {
   it('extracts containers with their inventories', () => {
     expect(state.storage.containers).toHaveLength(2);
-    const coal = state.storage.containers.flatMap((c) => c.inventory).find((i) => i.itemClass === 'Desc_Coal_C');
+    const coal = state.storage.containers
+      .flatMap((c) => c.inventory)
+      .find((i) => i.itemClass === 'Desc_Coal_C');
     expect(coal?.quantity).toBe(200);
   });
 
   it('decodes the dimensional depot (ItemAmount shape)', () => {
     expect(state.storage.dimensionalDepot).toHaveLength(1);
-    expect(state.storage.dimensionalDepot[0]).toMatchObject({ itemClass: 'Desc_SAMIngot_C', quantity: 500 });
+    expect(state.storage.dimensionalDepot[0]).toMatchObject({
+      itemClass: 'Desc_SAMIngot_C',
+      quantity: 500,
+    });
   });
 });
 
@@ -65,12 +73,14 @@ describe('milestones + MAM + phase', () => {
 describe('collectibles', () => {
   const byKind = Object.fromEntries(state.collectibleProgress.map((c) => [c.kind, c]));
 
-  it('derives per-type collected = worldTotal − remaining from present actors', () => {
-    expect(byKind['mercerSphere']).toMatchObject({ worldTotal: 298, remaining: 2, collected: 296 });
-    expect(byKind['somersloop']).toMatchObject({ worldTotal: 106, remaining: 1, collected: 105 });
-    expect(byKind['powerSlugBlue']).toMatchObject({ worldTotal: 596, remaining: 3, collected: 593 });
-    expect(byKind['powerSlugYellow']).toMatchObject({ remaining: 1, collected: 388 });
-    expect(byKind['powerSlugPurple']).toMatchObject({ remaining: 1, collected: 256 });
+  it('counts present-in-save actors per type against the world total (no collected count)', () => {
+    expect(byKind['mercerSphere']).toMatchObject({ worldTotal: 298, presentInSave: 2 });
+    expect(byKind['somersloop']).toMatchObject({ worldTotal: 106, presentInSave: 1 });
+    expect(byKind['powerSlugBlue']).toMatchObject({ worldTotal: 596, presentInSave: 3 });
+    expect(byKind['powerSlugYellow']).toMatchObject({ presentInSave: 1 });
+    expect(byKind['powerSlugPurple']).toMatchObject({ presentInSave: 1 });
+    // No "collected"/"remaining" is derived (absence ≠ collected on a streamed save).
+    expect(byKind['mercerSphere']).not.toHaveProperty('collected');
   });
 
   it('excludes hard-drive drop pods and transient resource deposits', () => {

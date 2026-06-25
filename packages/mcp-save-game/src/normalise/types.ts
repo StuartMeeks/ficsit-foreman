@@ -70,18 +70,18 @@ export interface RemainingCollectible {
 }
 
 /**
- * Per-type collection progress. `collected = max(0, worldTotal − remaining)`,
- * where `remaining` is the count of un-collected actors of that type present in
- * the save. Exact on a fully-explored save; on an under-explored one (World
- * Partition cells not yet streamed in) `collected` is over-counted — surfaced
- * via the tool's coverage note.
+ * Per-type collectible visibility. `presentInSave` is the count of un-collected
+ * actors of that type the save actually contains — i.e. those in World-Partition
+ * cells the pioneer has streamed in. The save reveals nothing about cells not yet
+ * streamed and does not record which collectibles were picked up, so a reliable
+ * "collected" or "remaining" total cannot be derived from the save alone (only
+ * `worldTotal`, a fixed public constant, and what is currently present).
  */
 export interface CollectibleCount {
   kind: CollectibleKind;
   label: string;
   worldTotal: number;
-  remaining: number;
-  collected: number;
+  presentInSave: number;
 }
 
 export interface SaveState {
@@ -89,6 +89,8 @@ export interface SaveState {
   version: string;
   /** Save session name, or the file base name. */
   saveName: string;
+  /** Total in-game play time in seconds, if the header carries it. */
+  playDurationSeconds?: number;
   /** ISO timestamp of when this state was parsed. */
   parsedAt: string;
   player: PlayerState;

@@ -1,6 +1,6 @@
 import path from 'node:path';
 
-import { loadItemNames } from '../gameData.js';
+import { loadDisplayNames } from '../gameData.js';
 import { logger } from '../logger.js';
 import { emptySaveState, normaliseSave, type SaveState } from '../normalise/index.js';
 import { parseSaveFile } from '../parser/index.js';
@@ -12,7 +12,7 @@ export interface SaveStoreDeps {
   load?: (filePath: string) => SaveState;
   now?: () => string;
   /** Override the className→displayName map (tests); otherwise loaded lazily. */
-  itemNames?: Map<string, string>;
+  displayNames?: Map<string, string>;
 }
 
 /**
@@ -34,17 +34,17 @@ export class SaveStore {
   ) {
     this.statMtime = deps.statMtime ?? statMtimeMs;
     this.now = deps.now ?? (() => new Date().toISOString());
-    // Item display names from the game data, loaded once on the first real parse
+    // Display names from the game data, loaded once on the first real parse
     // (lazy so tests that inject `load` never trigger the game-data read).
-    let itemNames = deps.itemNames;
+    let displayNames = deps.displayNames;
     this.load =
       deps.load ??
       ((filePath: string): SaveState => {
-        itemNames ??= loadItemNames();
+        displayNames ??= loadDisplayNames();
         return normaliseSave(
           parseSaveFile(filePath, path.basename(filePath)),
           this.now(),
-          itemNames,
+          displayNames,
         ).state;
       });
     this.current = emptySaveState(

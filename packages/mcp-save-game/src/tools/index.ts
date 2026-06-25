@@ -1,10 +1,12 @@
+import { loadWorldLocations, type WorldLocations } from '@foreman/game-data-core';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 
+import { logger } from '../logger.js';
 import {
   collectibleProgressView,
   milestones,
-  nearby,
+  nearbyFromWorld,
   playerSummary,
   storageView,
   unlockedRecipes,
@@ -24,6 +26,7 @@ const collectibleKindSchema = z.enum([
   'powerSlugBlue',
   'powerSlugYellow',
   'powerSlugPurple',
+  'hardDrive',
 ]);
 
 // The host (foreman backend) injects the active playthrough's save path; the
@@ -42,6 +45,15 @@ const savePathSchema = z
  * playthrough's save; the {@link SaveStoreRegistry} resolves (and caches) it.
  */
 export function registerTools(server: McpServer, registry: SaveStoreRegistry): void {
+  // The static world-location dataset (every fixed collectible placement), loaded
+  // once at startup. Backs get_nearby — complete and accurate, unlike the save,
+  // which only contains collectibles in already-streamed World-Partition cells.
+  const worldResolution = loadWorldLocations();
+  if (worldResolution.warning !== undefined) {
+    logger.warn(worldResolution.warning);
+  }
+  const world: WorldLocations = worldResolution.world;
+
   const ok = (store: SaveStore, payload: object): ToolResult => ({
     content: [
       {
@@ -56,7 +68,7 @@ export function registerTools(server: McpServer, registry: SaveStoreRegistry): v
     {
       title: 'Get player state',
       description:
-        "The pioneer's current world location, HUB location, and personal inventory (aggregated per item).",
+        "The pioneer's current world location, HUB location, total play time, and personal inventory (aggregated per item).",
       inputSchema: { savePath: savePathSchema },
     },
     async ({ savePath }): Promise<ToolResult> => {
@@ -83,7 +95,7 @@ export function registerTools(server: McpServer, registry: SaveStoreRegistry): v
     {
       title: 'Get milestones',
       description:
-        'Unlocked milestones grouped by tier, plus tutorial schematics, MAM research unlocks, and the current Project Assembly (Space Elevator) phase.',
+        'Purchased milestones grouped by tier, the current Project Assembly (Space Elevator) phase, and `mamResearch` — the MAM research TREES the pioneer has unlocked (e.g. "Power Slugs", "Hard Drive"), i.e. the categories available to research, NOT individual completed nodes. `other` is a catch-all of remaining schematics; do not present it as completed MAM research.',
       inputSchema: { savePath: savePathSchema },
     },
     async ({ savePath }): Promise<ToolResult> => {
@@ -111,7 +123,7 @@ export function registerTools(server: McpServer, registry: SaveStoreRegistry): v
     {
       title: 'Get collectibles',
       description:
-        'Per-type collection progress — for each kind (Mercer Sphere, Somersloop, blue/yellow/purple power slug): how many of the world total remain uncollected in this save and how many are collected. Exact on a fully-explored save; read the note (under-explored saves over-count collected). Hard drives and resource nodes are not covered yet (the save cannot reliably classify them).',
+        'Per-kind collectible visibility (Mercer Sphere, Somersloop, blue/yellow/purple power slug): the fixed world total, and how many un-collected ones are PRESENT in the regions this save has loaded. The save cannot tell collected from not-yet-explored, so it does NOT report a "collected" or "remaining" total — read the note, and never claim a collected count. For where to find collectibles, use get_nearby.',
       inputSchema: { savePath: savePathSchema },
     },
     async ({ savePath }): Promise<ToolResult> => {
@@ -125,7 +137,7 @@ export function registerTools(server: McpServer, registry: SaveStoreRegistry): v
     {
       title: 'Get nearby collectibles',
       description:
-        'Un-collected collectibles near a world location, nearest-first, each with its coordinates and distance. Filter by kinds (mercerSphere, somersloop, powerSlugBlue/Yellow/Purple), cap by radius and limit (default 20). Use the player location from get_player_state as the origin to answer "what can I grab near me?".',
+        'Collectibles near a world location, nearest-first, each with coordinates and distance, from the complete static world dataset. Filter by kinds (mercerSphere, somersloop, powerSlugBlue/Yellow/Purple, hardDrive), cap by radius and limit (default 20). Use the player location from get_player_state as the origin to answer "what can I grab near me?". Read the note: positions are every placement in the world; the save cannot confirm which you have already collected.',
       inputSchema: {
         location: vec3Schema,
         kinds: z.array(collectibleKindSchema).optional(),
@@ -136,7 +148,9 @@ export function registerTools(server: McpServer, registry: SaveStoreRegistry): v
     },
     async ({ location, kinds, radius, limit, savePath }): Promise<ToolResult> => {
       const store = registry.resolve(savePath);
-      return ok(store, { nearby: nearby(store.getState(), location, { kinds, radius, limit }) });
+      return ok(store, {
+        nearby: nearbyFromWorld(world.collectibles, location, { kinds, radius, limit }),
+      });
     },
   );
 
@@ -147,7 +161,7 @@ export function registerTools(server: McpServer, registry: SaveStoreRegistry): v
     {
       title: 'Describe save',
       description:
-        'Return the in-game save name and game/build version of a save file. Managed by the host.',
+        "Host-internal: returns only a save file's in-game name and game/build version, used by the backend to seed a playthrough name on upload. Not for answering pioneer questions — for play time, location, or progress use get_player_state / get_milestones.",
       inputSchema: { savePath: z.string().describe('The save file to describe.') },
     },
     async ({ savePath }): Promise<ToolResult> => {
