@@ -164,8 +164,18 @@ function validateMeta(channel, channelDir) {
   } catch {
     baseBuild = null; // channel did not exist on the base branch — first one is fine.
   }
-  if (Number.isInteger(baseBuild) && Number.isInteger(meta.build) && meta.build <= baseBuild) {
-    fail(`build (${meta.build}) must be greater than the current ${channel} build (${baseBuild}).`);
+  // A channel only moves forward, never back. A meta.json change is a new
+  // build/version and must advance the build; a world-locations.json-only
+  // re-extraction at the same build is allowed (build stays equal).
+  const metaChanged = changed.includes(metaPath);
+  if (Number.isInteger(baseBuild) && Number.isInteger(meta.build)) {
+    if (meta.build < baseBuild) {
+      fail(`build (${meta.build}) must not be lower than the current ${channel} build (${baseBuild}).`);
+    } else if (metaChanged && meta.build === baseBuild) {
+      fail(
+        `meta.json changed but build (${meta.build}) did not advance past the current ${channel} build (${baseBuild}).`,
+      );
+    }
   }
 
   return meta;
