@@ -35,9 +35,22 @@ export class SaveService {
     private readonly saveDataDir: string,
   ) {}
 
-  /** Absolute on-disk path for a playthrough's save (whether or not it exists). */
+  /**
+   * Absolute on-disk path for a playthrough's save (whether or not it exists).
+   *
+   * The playthrough id can originate from a client (it may be supplied when
+   * claiming a pre-accounts playthrough), so it is untrusted input flowing into
+   * a filesystem path. Resolve against the data directory and require the result
+   * to stay directly within it, rejecting any traversal (`..`) or separators —
+   * defence-in-depth alongside the filename-safe id validation at the route.
+   */
   public savePathFor(playthroughId: string): string {
-    return path.join(this.saveDataDir, `${playthroughId}.sav`);
+    const root = path.resolve(this.saveDataDir);
+    const resolved = path.resolve(root, `${playthroughId}.sav`);
+    if (path.dirname(resolved) !== root || !resolved.startsWith(root + path.sep)) {
+      throw new Error(`Unsafe save path for playthrough id '${playthroughId}'.`);
+    }
+    return resolved;
   }
 
   /** The save path if a save is attached to the playthrough, else undefined. */
