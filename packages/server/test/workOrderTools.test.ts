@@ -114,12 +114,13 @@ describe('handleWorkOrderTool', () => {
     expect(await deps.workOrders.list(playthrough)).toHaveLength(1);
   });
 
-  it('proposes completion of a new (unstarted) order', async () => {
+  it('refuses to propose completion of a new (unstarted) order', async () => {
     const playthrough = await seedPlaythrough();
     await handleWorkOrderTool(playthrough, CREATE_WORK_ORDER, validCreateInput, deps);
     const outcome = await handleWorkOrderTool(playthrough, PROPOSE_COMPLETION, {}, deps);
-    expect(outcome.isError).toBe(false);
-    expect(outcome.workOrder?.state).toBe('new');
+    // A work order can't be completed before the pioneer has started it.
+    expect(outcome.isError).toBe(true);
+    expect(outcome.text).toMatch(/started/i);
   });
 
   it('proposes completion of the active order without completing it', async () => {

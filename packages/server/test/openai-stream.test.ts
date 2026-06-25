@@ -23,18 +23,43 @@ describe('consumeOpenAiStream', () => {
     expect(result.text).toBe('Hello there.');
     expect(result.stopReason).toBe('stop');
     expect(result.toolCalls).toEqual([]);
-    expect(events.filter((e) => e.type === 'text').map((e) => (e.type === 'text' ? e.delta : ''))).toEqual([
-      'Hello ',
-      'there.',
-    ]);
+    expect(
+      events.filter((e) => e.type === 'text').map((e) => (e.type === 'text' ? e.delta : '')),
+    ).toEqual(['Hello ', 'there.']);
   });
 
   it('reassembles multiple tool calls with arguments split across chunks', async () => {
     const result = await consumeOpenAiStream(
       chunks([
-        { choices: [{ delta: { tool_calls: [{ index: 0, id: 'a', function: { name: 'get_item', arguments: '{"name":' } }] } }] },
-        { choices: [{ delta: { tool_calls: [{ index: 0, function: { arguments: '"Iron"}' } }] } }] },
-        { choices: [{ delta: { tool_calls: [{ index: 1, id: 'b', function: { name: 'get_recipe', arguments: '{"name":"Plate"}' } }] } }] },
+        {
+          choices: [
+            {
+              delta: {
+                tool_calls: [
+                  { index: 0, id: 'a', function: { name: 'get_item', arguments: '{"name":' } },
+                ],
+              },
+            },
+          ],
+        },
+        {
+          choices: [{ delta: { tool_calls: [{ index: 0, function: { arguments: '"Iron"}' } }] } }],
+        },
+        {
+          choices: [
+            {
+              delta: {
+                tool_calls: [
+                  {
+                    index: 1,
+                    id: 'b',
+                    function: { name: 'get_recipe', arguments: '{"name":"Plate"}' },
+                  },
+                ],
+              },
+            },
+          ],
+        },
         { choices: [{ delta: {}, finish_reason: 'tool_calls' }] },
       ]),
       () => {},
@@ -49,7 +74,18 @@ describe('consumeOpenAiStream', () => {
   it('handles a tool-only turn with no text content', async () => {
     const result = await consumeOpenAiStream(
       chunks([
-        { choices: [{ delta: { tool_calls: [{ index: 0, id: 'x', function: { name: 'list_schematics', arguments: '' } }] }, finish_reason: 'tool_calls' }] },
+        {
+          choices: [
+            {
+              delta: {
+                tool_calls: [
+                  { index: 0, id: 'x', function: { name: 'list_schematics', arguments: '' } },
+                ],
+              },
+              finish_reason: 'tool_calls',
+            },
+          ],
+        },
       ]),
       () => {},
     );
@@ -61,7 +97,16 @@ describe('consumeOpenAiStream', () => {
   it('treats empty/whitespace arguments as an empty object without throwing', async () => {
     const result = await consumeOpenAiStream(
       chunks([
-        { choices: [{ delta: { tool_calls: [{ index: 0, id: 'y', function: { name: 'noargs', arguments: '   ' } }] }, finish_reason: 'tool_calls' }] },
+        {
+          choices: [
+            {
+              delta: {
+                tool_calls: [{ index: 0, id: 'y', function: { name: 'noargs', arguments: '   ' } }],
+              },
+              finish_reason: 'tool_calls',
+            },
+          ],
+        },
       ]),
       () => {},
     );
