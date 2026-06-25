@@ -12366,87 +12366,6 @@
   ],
   "resourceNodes": [
     {
-      "id": "BP_FrackingCore6_UAID_40B076DF2F79D3DF01_1961476789",
-      "kind": "frackingCore",
-      "resourceClass": "Desc_LiquidOil_C",
-      "purity": null,
-      "x": -261572,
-      "y": 74704,
-      "z": -1344
-    },
-    {
-      "id": "BP_FrackingCore7",
-      "kind": "frackingCore",
-      "resourceClass": "Desc_LiquidOil_C",
-      "purity": null,
-      "x": 268155,
-      "y": 112797,
-      "z": -173
-    },
-    {
-      "id": "BP_FrackingCore9",
-      "kind": "frackingCore",
-      "resourceClass": "Desc_LiquidOil_C",
-      "purity": null,
-      "x": -40180,
-      "y": -7911,
-      "z": 24980
-    },
-    {
-      "id": "BP_FrackingCore2",
-      "kind": "frackingCore",
-      "resourceClass": "Desc_NitrogenGas_C",
-      "purity": null,
-      "x": 215923,
-      "y": 135917,
-      "z": -438
-    },
-    {
-      "id": "BP_FrackingCore3",
-      "kind": "frackingCore",
-      "resourceClass": "Desc_NitrogenGas_C",
-      "purity": null,
-      "x": 223618,
-      "y": -311503,
-      "z": 7674
-    },
-    {
-      "id": "BP_FrackingCore4",
-      "kind": "frackingCore",
-      "resourceClass": "Desc_NitrogenGas_C",
-      "purity": null,
-      "x": -251395,
-      "y": -187070,
-      "z": -1668
-    },
-    {
-      "id": "BP_FrackingCore5",
-      "kind": "frackingCore",
-      "resourceClass": "Desc_NitrogenGas_C",
-      "purity": null,
-      "x": -143896,
-      "y": 122197,
-      "z": 15133
-    },
-    {
-      "id": "BP_FrackingCore6",
-      "kind": "frackingCore",
-      "resourceClass": "Desc_NitrogenGas_C",
-      "purity": null,
-      "x": 84979,
-      "y": 104525,
-      "z": 10067
-    },
-    {
-      "id": "BP_FrackingCore_8",
-      "kind": "frackingCore",
-      "resourceClass": "Desc_NitrogenGas_C",
-      "purity": null,
-      "x": 128310,
-      "y": 256759,
-      "z": 269
-    },
-    {
       "id": "BP_FrackingCore10",
       "kind": "frackingCore",
       "resourceClass": "Desc_Water_C",
@@ -12519,166 +12438,85 @@
       "z": 3002
     },
     {
-      "id": "BP_FrackingSatellite45",
-      "kind": "frackingSatellite",
-      "resourceClass": "Desc_LiquidOil_C",
-      "purity": "impure",
-      "x": 267123,
-      "y": 115156,
-      "z": -101
+      "id": "BP_FrackingCore2",
+      "kind": "frackingCore",
+      "resourceClass": "Desc_NitrogenGas_C",
+      "purity": null,
+      "x": 215923,
+      "y": 135917,
+      "z": -438
     },
     {
-      "id": "BP_FrackingSatellite46",
-      "kind": "frackingSatellite",
-      "resourceClass": "Desc_LiquidOil_C",
-      "purity": "impure",
-      "x": 264051,
-      "y": 112280,
-      "z": -66
+      "id": "BP_FrackingCore3",
+      "kind": "frackingCore",
+      "resourceClass": "Desc_NitrogenGas_C",
+      "purity": null,
+      "x": 223618,
+      "y": -311503,
+      "z": 7674
     },
     {
-      "id": "BP_FrackingSatellite47",
-      "kind": "frackingSatellite",
-      "resourceClass": "Desc_LiquidOil_C",
-      "purity": "impure",
-      "x": 264231,
-      "y": 114518,
-      "z": -77
+      "id": "BP_FrackingCore4",
+      "kind": "frackingCore",
+      "resourceClass": "Desc_NitrogenGas_C",
+      "purity": null,
+      "x": -251395,
+      "y": -187070,
+      "z": -1668
     },
     {
-      "id": "BP_FrackingSatellite48",
-      "kind": "frackingSatellite",
-      "resourceClass": "Desc_LiquidOil_C",
-      "purity": "impure",
-      "x": 271425,
-      "y": 111504,
-      "z": -102
+      "id": "BP_FrackingCore5",
+      "kind": "frackingCore",
+      "resourceClass": "Desc_NitrogenGas_C",
+      "purity": null,
+      "x": -143896,
+      "y": 122197,
+      "z": 15133
     },
     {
-      "id": "BP_FrackingSatellite49",
-      "kind": "frackingSatellite",
-      "resourceClass": "Desc_LiquidOil_C",
-      "purity": "impure",
-      "x": 269500,
-      "y": 115587,
-      "z": -83
+      "id": "BP_FrackingCore6",
+      "kind": "frackingCore",
+      "resourceClass": "Desc_NitrogenGas_C",
+      "purity": null,
+      "x": 84979,
+      "y": 104525,
+      "z": 10067
     },
     {
-      "id": "BP_FrackingSatellite50",
-      "kind": "frackingSatellite",
+      "id": "BP_FrackingCore6_UAID_40B076DF2F79D3DF01_1961476789",
+      "kind": "frackingCore",
       "resourceClass": "Desc_LiquidOil_C",
-      "purity": "impure",
-      "x": 267439,
-      "y": 110349,
-      "z": -91
+      "purity": null,
+      "x": -261572,
+      "y": 74704,
+      "z": -1344
     },
     {
-      "id": "BP_FrackingSatellite57",
-      "kind": "frackingSatellite",
+      "id": "BP_FrackingCore7",
+      "kind": "frackingCore",
       "resourceClass": "Desc_LiquidOil_C",
-      "purity": "normal",
-      "x": -40199,
-      "y": -4304,
-      "z": 25053
+      "purity": null,
+      "x": 268155,
+      "y": 112797,
+      "z": -173
     },
     {
-      "id": "BP_FrackingSatellite59",
-      "kind": "frackingSatellite",
+      "id": "BP_FrackingCore9",
+      "kind": "frackingCore",
       "resourceClass": "Desc_LiquidOil_C",
-      "purity": "normal",
-      "x": -43758,
-      "y": -8409,
-      "z": 25138
+      "purity": null,
+      "x": -40180,
+      "y": -7911,
+      "z": 24980
     },
     {
-      "id": "BP_FrackingSatellite60",
-      "kind": "frackingSatellite",
-      "resourceClass": "Desc_LiquidOil_C",
-      "purity": "normal",
-      "x": -41776,
-      "y": -9868,
-      "z": 25142
-    },
-    {
-      "id": "BP_FrackingSatellite61",
-      "kind": "frackingSatellite",
-      "resourceClass": "Desc_LiquidOil_C",
-      "purity": "pure",
-      "x": -38956,
-      "y": -10362,
-      "z": 25325
-    },
-    {
-      "id": "BP_FrackingSatellite61_UAID_40B076DF2F79D7DF01_1933830510",
-      "kind": "frackingSatellite",
-      "resourceClass": "Desc_LiquidOil_C",
-      "purity": "normal",
-      "x": -260625,
-      "y": 72573,
-      "z": -1188
-    },
-    {
-      "id": "BP_FrackingSatellite61_UAID_40B076DF2F79D7DF01_2053713511",
-      "kind": "frackingSatellite",
-      "resourceClass": "Desc_LiquidOil_C",
-      "purity": "impure",
-      "x": -261941,
-      "y": 70474,
-      "z": -1159
-    },
-    {
-      "id": "BP_FrackingSatellite61_UAID_40B076DF2F79D8DF01_1587984689",
-      "kind": "frackingSatellite",
-      "resourceClass": "Desc_LiquidOil_C",
-      "purity": "normal",
-      "x": -264372,
-      "y": 76059,
-      "z": -1296
-    },
-    {
-      "id": "BP_FrackingSatellite61_UAID_40B076DF2F79D8DF01_1704280690",
-      "kind": "frackingSatellite",
-      "resourceClass": "Desc_LiquidOil_C",
-      "purity": "pure",
-      "x": -266194,
-      "y": 75227,
-      "z": -1279
-    },
-    {
-      "id": "BP_FrackingSatellite61_UAID_40B076DF2F79D8DF01_1999134691",
-      "kind": "frackingSatellite",
-      "resourceClass": "Desc_LiquidOil_C",
-      "purity": "impure",
-      "x": -263341,
-      "y": 72359,
-      "z": -1353
-    },
-    {
-      "id": "BP_FrackingSatellite61_UAID_40B076DF2F79D9DF01_1230935868",
-      "kind": "frackingSatellite",
-      "resourceClass": "Desc_LiquidOil_C",
-      "purity": "normal",
-      "x": -265378,
-      "y": 72493,
-      "z": -1342
-    },
-    {
-      "id": "BP_FrackingSatellite62",
-      "kind": "frackingSatellite",
-      "resourceClass": "Desc_LiquidOil_C",
-      "purity": "pure",
-      "x": -36959,
-      "y": -7833,
-      "z": 25170
-    },
-    {
-      "id": "BP_FrackingSatellite63",
-      "kind": "frackingSatellite",
-      "resourceClass": "Desc_LiquidOil_C",
-      "purity": "pure",
-      "x": -43238,
-      "y": -6518,
-      "z": 25053
+      "id": "BP_FrackingCore_8",
+      "kind": "frackingCore",
+      "resourceClass": "Desc_NitrogenGas_C",
+      "purity": null,
+      "x": 128310,
+      "y": 256759,
+      "z": 269
     },
     {
       "id": "BP_FrackingSatellite10",
@@ -12690,6 +12528,60 @@
       "z": -126
     },
     {
+      "id": "BP_FrackingSatellite100",
+      "kind": "frackingSatellite",
+      "resourceClass": "Desc_Water_C",
+      "purity": "impure",
+      "x": 9269,
+      "y": 190201,
+      "z": -10440
+    },
+    {
+      "id": "BP_FrackingSatellite101",
+      "kind": "frackingSatellite",
+      "resourceClass": "Desc_Water_C",
+      "purity": "impure",
+      "x": 3582,
+      "y": 187082,
+      "z": -10305
+    },
+    {
+      "id": "BP_FrackingSatellite102",
+      "kind": "frackingSatellite",
+      "resourceClass": "Desc_Water_C",
+      "purity": "impure",
+      "x": 185693,
+      "y": -61072,
+      "z": 5431
+    },
+    {
+      "id": "BP_FrackingSatellite103_8",
+      "kind": "frackingSatellite",
+      "resourceClass": "Desc_Water_C",
+      "purity": "normal",
+      "x": 314408,
+      "y": -292941,
+      "z": 1253
+    },
+    {
+      "id": "BP_FrackingSatellite108",
+      "kind": "frackingSatellite",
+      "resourceClass": "Desc_Water_C",
+      "purity": "pure",
+      "x": -22450,
+      "y": 171714,
+      "z": -27
+    },
+    {
+      "id": "BP_FrackingSatellite109",
+      "kind": "frackingSatellite",
+      "resourceClass": "Desc_Water_C",
+      "purity": "pure",
+      "x": -17700,
+      "y": 174876,
+      "z": -70
+    },
+    {
       "id": "BP_FrackingSatellite11",
       "kind": "frackingSatellite",
       "resourceClass": "Desc_NitrogenGas_C",
@@ -12699,6 +12591,96 @@
       "z": -212
     },
     {
+      "id": "BP_FrackingSatellite110",
+      "kind": "frackingSatellite",
+      "resourceClass": "Desc_Water_C",
+      "purity": "pure",
+      "x": -16087,
+      "y": 170350,
+      "z": 351
+    },
+    {
+      "id": "BP_FrackingSatellite111",
+      "kind": "frackingSatellite",
+      "resourceClass": "Desc_Water_C",
+      "purity": "pure",
+      "x": -15611,
+      "y": 172710,
+      "z": 239
+    },
+    {
+      "id": "BP_FrackingSatellite112",
+      "kind": "frackingSatellite",
+      "resourceClass": "Desc_Water_C",
+      "purity": "pure",
+      "x": -23406,
+      "y": 174254,
+      "z": -437
+    },
+    {
+      "id": "BP_FrackingSatellite113",
+      "kind": "frackingSatellite",
+      "resourceClass": "Desc_Water_C",
+      "purity": "pure",
+      "x": -20451,
+      "y": 175654,
+      "z": -99
+    },
+    {
+      "id": "BP_FrackingSatellite114_7",
+      "kind": "frackingSatellite",
+      "resourceClass": "Desc_Water_C",
+      "purity": "pure",
+      "x": -111801,
+      "y": 73189,
+      "z": 3120
+    },
+    {
+      "id": "BP_FrackingSatellite115",
+      "kind": "frackingSatellite",
+      "resourceClass": "Desc_Water_C",
+      "purity": "pure",
+      "x": -111814,
+      "y": 71121,
+      "z": 3061
+    },
+    {
+      "id": "BP_FrackingSatellite116",
+      "kind": "frackingSatellite",
+      "resourceClass": "Desc_Water_C",
+      "purity": "pure",
+      "x": -107606,
+      "y": 71069,
+      "z": 2912
+    },
+    {
+      "id": "BP_FrackingSatellite117",
+      "kind": "frackingSatellite",
+      "resourceClass": "Desc_Water_C",
+      "purity": "pure",
+      "x": -104692,
+      "y": 73355,
+      "z": 3096
+    },
+    {
+      "id": "BP_FrackingSatellite118",
+      "kind": "frackingSatellite",
+      "resourceClass": "Desc_Water_C",
+      "purity": "pure",
+      "x": -110139,
+      "y": 75375,
+      "z": 3196
+    },
+    {
+      "id": "BP_FrackingSatellite119",
+      "kind": "frackingSatellite",
+      "resourceClass": "Desc_Water_C",
+      "purity": "pure",
+      "x": -104200,
+      "y": 70976,
+      "z": 2859
+    },
+    {
       "id": "BP_FrackingSatellite12",
       "kind": "frackingSatellite",
       "resourceClass": "Desc_NitrogenGas_C",
@@ -12706,6 +12688,24 @@
       "x": 218169,
       "y": 137548,
       "z": -209
+    },
+    {
+      "id": "BP_FrackingSatellite120",
+      "kind": "frackingSatellite",
+      "resourceClass": "Desc_Water_C",
+      "purity": "pure",
+      "x": -108478,
+      "y": 77599,
+      "z": 3709
+    },
+    {
+      "id": "BP_FrackingSatellite121",
+      "kind": "frackingSatellite",
+      "resourceClass": "Desc_Water_C",
+      "purity": "normal",
+      "x": -20347,
+      "y": 170787,
+      "z": 6
     },
     {
       "id": "BP_FrackingSatellite13",
@@ -13023,6 +13023,51 @@
       "z": 9962
     },
     {
+      "id": "BP_FrackingSatellite45",
+      "kind": "frackingSatellite",
+      "resourceClass": "Desc_LiquidOil_C",
+      "purity": "impure",
+      "x": 267123,
+      "y": 115156,
+      "z": -101
+    },
+    {
+      "id": "BP_FrackingSatellite46",
+      "kind": "frackingSatellite",
+      "resourceClass": "Desc_LiquidOil_C",
+      "purity": "impure",
+      "x": 264051,
+      "y": 112280,
+      "z": -66
+    },
+    {
+      "id": "BP_FrackingSatellite47",
+      "kind": "frackingSatellite",
+      "resourceClass": "Desc_LiquidOil_C",
+      "purity": "impure",
+      "x": 264231,
+      "y": 114518,
+      "z": -77
+    },
+    {
+      "id": "BP_FrackingSatellite48",
+      "kind": "frackingSatellite",
+      "resourceClass": "Desc_LiquidOil_C",
+      "purity": "impure",
+      "x": 271425,
+      "y": 111504,
+      "z": -102
+    },
+    {
+      "id": "BP_FrackingSatellite49",
+      "kind": "frackingSatellite",
+      "resourceClass": "Desc_LiquidOil_C",
+      "purity": "impure",
+      "x": 269500,
+      "y": 115587,
+      "z": -83
+    },
+    {
       "id": "BP_FrackingSatellite5",
       "kind": "frackingSatellite",
       "resourceClass": "Desc_NitrogenGas_C",
@@ -13030,6 +13075,15 @@
       "x": 131025,
       "y": 257428,
       "z": 238
+    },
+    {
+      "id": "BP_FrackingSatellite50",
+      "kind": "frackingSatellite",
+      "resourceClass": "Desc_LiquidOil_C",
+      "purity": "impure",
+      "x": 267439,
+      "y": 110349,
+      "z": -91
     },
     {
       "id": "BP_FrackingSatellite51_1",
@@ -13041,211 +13095,13 @@
       "z": -1460
     },
     {
-      "id": "BP_FrackingSatellite6",
+      "id": "BP_FrackingSatellite57",
       "kind": "frackingSatellite",
-      "resourceClass": "Desc_NitrogenGas_C",
-      "purity": "impure",
-      "x": 214659,
-      "y": 137993,
-      "z": -225
-    },
-    {
-      "id": "BP_FrackingSatellite7",
-      "kind": "frackingSatellite",
-      "resourceClass": "Desc_NitrogenGas_C",
-      "purity": "impure",
-      "x": 213448,
-      "y": 132706,
-      "z": -317
-    },
-    {
-      "id": "BP_FrackingSatellite8",
-      "kind": "frackingSatellite",
-      "resourceClass": "Desc_NitrogenGas_C",
+      "resourceClass": "Desc_LiquidOil_C",
       "purity": "normal",
-      "x": 215726,
-      "y": 132791,
-      "z": -285
-    },
-    {
-      "id": "BP_FrackingSatellite9",
-      "kind": "frackingSatellite",
-      "resourceClass": "Desc_NitrogenGas_C",
-      "purity": "normal",
-      "x": 218040,
-      "y": 134223,
-      "z": -187
-    },
-    {
-      "id": "BP_FrackingSatellite_2",
-      "kind": "frackingSatellite",
-      "resourceClass": "Desc_NitrogenGas_C",
-      "purity": "pure",
-      "x": 128216,
-      "y": 258878,
-      "z": 890
-    },
-    {
-      "id": "BP_FrackingSatellite100",
-      "kind": "frackingSatellite",
-      "resourceClass": "Desc_Water_C",
-      "purity": "impure",
-      "x": 9269,
-      "y": 190201,
-      "z": -10440
-    },
-    {
-      "id": "BP_FrackingSatellite101",
-      "kind": "frackingSatellite",
-      "resourceClass": "Desc_Water_C",
-      "purity": "impure",
-      "x": 3582,
-      "y": 187082,
-      "z": -10305
-    },
-    {
-      "id": "BP_FrackingSatellite102",
-      "kind": "frackingSatellite",
-      "resourceClass": "Desc_Water_C",
-      "purity": "impure",
-      "x": 185693,
-      "y": -61072,
-      "z": 5431
-    },
-    {
-      "id": "BP_FrackingSatellite103_8",
-      "kind": "frackingSatellite",
-      "resourceClass": "Desc_Water_C",
-      "purity": "normal",
-      "x": 314408,
-      "y": -292941,
-      "z": 1253
-    },
-    {
-      "id": "BP_FrackingSatellite108",
-      "kind": "frackingSatellite",
-      "resourceClass": "Desc_Water_C",
-      "purity": "pure",
-      "x": -22450,
-      "y": 171714,
-      "z": -27
-    },
-    {
-      "id": "BP_FrackingSatellite109",
-      "kind": "frackingSatellite",
-      "resourceClass": "Desc_Water_C",
-      "purity": "pure",
-      "x": -17700,
-      "y": 174876,
-      "z": -70
-    },
-    {
-      "id": "BP_FrackingSatellite110",
-      "kind": "frackingSatellite",
-      "resourceClass": "Desc_Water_C",
-      "purity": "pure",
-      "x": -16087,
-      "y": 170350,
-      "z": 351
-    },
-    {
-      "id": "BP_FrackingSatellite111",
-      "kind": "frackingSatellite",
-      "resourceClass": "Desc_Water_C",
-      "purity": "pure",
-      "x": -15611,
-      "y": 172710,
-      "z": 239
-    },
-    {
-      "id": "BP_FrackingSatellite112",
-      "kind": "frackingSatellite",
-      "resourceClass": "Desc_Water_C",
-      "purity": "pure",
-      "x": -23406,
-      "y": 174254,
-      "z": -437
-    },
-    {
-      "id": "BP_FrackingSatellite113",
-      "kind": "frackingSatellite",
-      "resourceClass": "Desc_Water_C",
-      "purity": "pure",
-      "x": -20451,
-      "y": 175654,
-      "z": -99
-    },
-    {
-      "id": "BP_FrackingSatellite114_7",
-      "kind": "frackingSatellite",
-      "resourceClass": "Desc_Water_C",
-      "purity": "pure",
-      "x": -111801,
-      "y": 73189,
-      "z": 3120
-    },
-    {
-      "id": "BP_FrackingSatellite115",
-      "kind": "frackingSatellite",
-      "resourceClass": "Desc_Water_C",
-      "purity": "pure",
-      "x": -111814,
-      "y": 71121,
-      "z": 3061
-    },
-    {
-      "id": "BP_FrackingSatellite116",
-      "kind": "frackingSatellite",
-      "resourceClass": "Desc_Water_C",
-      "purity": "pure",
-      "x": -107606,
-      "y": 71069,
-      "z": 2912
-    },
-    {
-      "id": "BP_FrackingSatellite117",
-      "kind": "frackingSatellite",
-      "resourceClass": "Desc_Water_C",
-      "purity": "pure",
-      "x": -104692,
-      "y": 73355,
-      "z": 3096
-    },
-    {
-      "id": "BP_FrackingSatellite118",
-      "kind": "frackingSatellite",
-      "resourceClass": "Desc_Water_C",
-      "purity": "pure",
-      "x": -110139,
-      "y": 75375,
-      "z": 3196
-    },
-    {
-      "id": "BP_FrackingSatellite119",
-      "kind": "frackingSatellite",
-      "resourceClass": "Desc_Water_C",
-      "purity": "pure",
-      "x": -104200,
-      "y": 70976,
-      "z": 2859
-    },
-    {
-      "id": "BP_FrackingSatellite120",
-      "kind": "frackingSatellite",
-      "resourceClass": "Desc_Water_C",
-      "purity": "pure",
-      "x": -108478,
-      "y": 77599,
-      "z": 3709
-    },
-    {
-      "id": "BP_FrackingSatellite121",
-      "kind": "frackingSatellite",
-      "resourceClass": "Desc_Water_C",
-      "purity": "normal",
-      "x": -20347,
-      "y": 170787,
-      "z": 6
+      "x": -40199,
+      "y": -4304,
+      "z": 25053
     },
     {
       "id": "BP_FrackingSatellite58",
@@ -13255,6 +13111,114 @@
       "x": 313890,
       "y": -287979,
       "z": 1212
+    },
+    {
+      "id": "BP_FrackingSatellite59",
+      "kind": "frackingSatellite",
+      "resourceClass": "Desc_LiquidOil_C",
+      "purity": "normal",
+      "x": -43758,
+      "y": -8409,
+      "z": 25138
+    },
+    {
+      "id": "BP_FrackingSatellite6",
+      "kind": "frackingSatellite",
+      "resourceClass": "Desc_NitrogenGas_C",
+      "purity": "impure",
+      "x": 214659,
+      "y": 137993,
+      "z": -225
+    },
+    {
+      "id": "BP_FrackingSatellite60",
+      "kind": "frackingSatellite",
+      "resourceClass": "Desc_LiquidOil_C",
+      "purity": "normal",
+      "x": -41776,
+      "y": -9868,
+      "z": 25142
+    },
+    {
+      "id": "BP_FrackingSatellite61",
+      "kind": "frackingSatellite",
+      "resourceClass": "Desc_LiquidOil_C",
+      "purity": "pure",
+      "x": -38956,
+      "y": -10362,
+      "z": 25325
+    },
+    {
+      "id": "BP_FrackingSatellite61_UAID_40B076DF2F79D7DF01_1933830510",
+      "kind": "frackingSatellite",
+      "resourceClass": "Desc_LiquidOil_C",
+      "purity": "normal",
+      "x": -260625,
+      "y": 72573,
+      "z": -1188
+    },
+    {
+      "id": "BP_FrackingSatellite61_UAID_40B076DF2F79D7DF01_2053713511",
+      "kind": "frackingSatellite",
+      "resourceClass": "Desc_LiquidOil_C",
+      "purity": "impure",
+      "x": -261941,
+      "y": 70474,
+      "z": -1159
+    },
+    {
+      "id": "BP_FrackingSatellite61_UAID_40B076DF2F79D8DF01_1587984689",
+      "kind": "frackingSatellite",
+      "resourceClass": "Desc_LiquidOil_C",
+      "purity": "normal",
+      "x": -264372,
+      "y": 76059,
+      "z": -1296
+    },
+    {
+      "id": "BP_FrackingSatellite61_UAID_40B076DF2F79D8DF01_1704280690",
+      "kind": "frackingSatellite",
+      "resourceClass": "Desc_LiquidOil_C",
+      "purity": "pure",
+      "x": -266194,
+      "y": 75227,
+      "z": -1279
+    },
+    {
+      "id": "BP_FrackingSatellite61_UAID_40B076DF2F79D8DF01_1999134691",
+      "kind": "frackingSatellite",
+      "resourceClass": "Desc_LiquidOil_C",
+      "purity": "impure",
+      "x": -263341,
+      "y": 72359,
+      "z": -1353
+    },
+    {
+      "id": "BP_FrackingSatellite61_UAID_40B076DF2F79D9DF01_1230935868",
+      "kind": "frackingSatellite",
+      "resourceClass": "Desc_LiquidOil_C",
+      "purity": "normal",
+      "x": -265378,
+      "y": 72493,
+      "z": -1342
+    },
+    {
+      "id": "BP_FrackingSatellite62",
+      "kind": "frackingSatellite",
+      "resourceClass": "Desc_LiquidOil_C",
+      "purity": "pure",
+      "x": -36959,
+      "y": -7833,
+      "z": 25170
+    },
+    {
+      "id": "BP_FrackingSatellite63",
+      "kind": "frackingSatellite",
+      "resourceClass": "Desc_LiquidOil_C",
+      "purity": "pure",
+      "x": -43238,
+      "y": -6518,
+      "z": 25053
     },
     {
       "id": "BP_FrackingSatellite64",
@@ -13309,6 +13273,15 @@
       "x": 188862,
       "y": -57590,
       "z": 5566
+    },
+    {
+      "id": "BP_FrackingSatellite7",
+      "kind": "frackingSatellite",
+      "resourceClass": "Desc_NitrogenGas_C",
+      "purity": "impure",
+      "x": 213448,
+      "y": 132706,
+      "z": -317
     },
     {
       "id": "BP_FrackingSatellite70",
@@ -13401,6 +13374,15 @@
       "z": 4617
     },
     {
+      "id": "BP_FrackingSatellite8",
+      "kind": "frackingSatellite",
+      "resourceClass": "Desc_NitrogenGas_C",
+      "purity": "normal",
+      "x": 215726,
+      "y": 132791,
+      "z": -285
+    },
+    {
       "id": "BP_FrackingSatellite80",
       "kind": "frackingSatellite",
       "resourceClass": "Desc_Water_C",
@@ -13491,6 +13473,15 @@
       "z": 6632
     },
     {
+      "id": "BP_FrackingSatellite9",
+      "kind": "frackingSatellite",
+      "resourceClass": "Desc_NitrogenGas_C",
+      "purity": "normal",
+      "x": 218040,
+      "y": 134223,
+      "z": -187
+    },
+    {
       "id": "BP_FrackingSatellite90",
       "kind": "frackingSatellite",
       "resourceClass": "Desc_Water_C",
@@ -13579,6 +13570,15 @@
       "x": 10342,
       "y": 187520,
       "z": -10473
+    },
+    {
+      "id": "BP_FrackingSatellite_2",
+      "kind": "frackingSatellite",
+      "resourceClass": "Desc_NitrogenGas_C",
+      "purity": "pure",
+      "x": 128216,
+      "y": 258878,
+      "z": 890
     },
     {
       "id": "BP_ResourceNodeGeyser10_3650",
@@ -13860,6 +13860,222 @@
       "z": 22813
     },
     {
+      "id": "BP_ResourceNode100",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_LiquidOil_C",
+      "purity": "normal",
+      "x": 178265,
+      "y": 206095,
+      "z": -9238
+    },
+    {
+      "id": "BP_ResourceNode101_1893",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_SAM_C",
+      "purity": "impure",
+      "x": 161928,
+      "y": 103777,
+      "z": 5602
+    },
+    {
+      "id": "BP_ResourceNode101_UAID_40B076DF2F79E6D901_1551800812",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_SAM_C",
+      "purity": "impure",
+      "x": 119148,
+      "y": 71321,
+      "z": 18673
+    },
+    {
+      "id": "BP_ResourceNode101_UAID_40B076DF2F79E7D901_2125168992",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_SAM_C",
+      "purity": "pure",
+      "x": 162898,
+      "y": 65413,
+      "z": 9782
+    },
+    {
+      "id": "BP_ResourceNode102_2068",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_Stone_C",
+      "purity": "normal",
+      "x": -280836,
+      "y": -42089,
+      "z": -1276
+    },
+    {
+      "id": "BP_ResourceNode103",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_Stone_C",
+      "purity": "normal",
+      "x": -267051,
+      "y": -24386,
+      "z": -723
+    },
+    {
+      "id": "BP_ResourceNode104",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_Stone_C",
+      "purity": "normal",
+      "x": -273321,
+      "y": -19667,
+      "z": -1537
+    },
+    {
+      "id": "BP_ResourceNode105_2463",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreIron_C",
+      "purity": "normal",
+      "x": -263873,
+      "y": -30848,
+      "z": -411
+    },
+    {
+      "id": "BP_ResourceNode106",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreIron_C",
+      "purity": "normal",
+      "x": -260110,
+      "y": -27673,
+      "z": -640
+    },
+    {
+      "id": "BP_ResourceNode107",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreIron_C",
+      "purity": "normal",
+      "x": -256244,
+      "y": -29564,
+      "z": -668
+    },
+    {
+      "id": "BP_ResourceNode108",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreIron_C",
+      "purity": "normal",
+      "x": -259120,
+      "y": -44688,
+      "z": -494
+    },
+    {
+      "id": "BP_ResourceNode109",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreIron_C",
+      "purity": "normal",
+      "x": -261358,
+      "y": -41228,
+      "z": -327
+    },
+    {
+      "id": "BP_ResourceNode110",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_Stone_C",
+      "purity": "pure",
+      "x": -178099,
+      "y": -165241,
+      "z": 7616
+    },
+    {
+      "id": "BP_ResourceNode111_3367",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreCopper_C",
+      "purity": "normal",
+      "x": -268264,
+      "y": -54991,
+      "z": -343
+    },
+    {
+      "id": "BP_ResourceNode112",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreCopper_C",
+      "purity": "normal",
+      "x": -266711,
+      "y": -51317,
+      "z": -331
+    },
+    {
+      "id": "BP_ResourceNode113",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_Stone_C",
+      "purity": "pure",
+      "x": -165001,
+      "y": -133278,
+      "z": 1610
+    },
+    {
+      "id": "BP_ResourceNode114",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreIron_C",
+      "purity": "pure",
+      "x": -152490,
+      "y": -45786,
+      "z": 692
+    },
+    {
+      "id": "BP_ResourceNode115",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreIron_C",
+      "purity": "pure",
+      "x": -166731,
+      "y": -26566,
+      "z": -509
+    },
+    {
+      "id": "BP_ResourceNode116",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreIron_C",
+      "purity": "pure",
+      "x": -170447,
+      "y": -28321,
+      "z": -596
+    },
+    {
+      "id": "BP_ResourceNode117",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreCopper_C",
+      "purity": "pure",
+      "x": -148008,
+      "y": -30185,
+      "z": -556
+    },
+    {
+      "id": "BP_ResourceNode118_4340",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_Stone_C",
+      "purity": "normal",
+      "x": -133444,
+      "y": -35240,
+      "z": 3832
+    },
+    {
+      "id": "BP_ResourceNode119",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_Stone_C",
+      "purity": "normal",
+      "x": -145781,
+      "y": -31969,
+      "z": 3281
+    },
+    {
+      "id": "BP_ResourceNode121_4877",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreGold_C",
+      "purity": "pure",
+      "x": -178491,
+      "y": -79788,
+      "z": 3331
+    },
+    {
+      "id": "BP_ResourceNode121_UAID_40B076DF2F7938DF01_2097772508",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreGold_C",
+      "purity": "normal",
+      "x": -135468,
+      "y": -174682,
+      "z": 7753
+    },
+    {
       "id": "BP_ResourceNode122",
       "kind": "resourceNode",
       "resourceClass": "Desc_Coal_C",
@@ -13867,6 +14083,60 @@
       "x": -99604,
       "y": -146823,
       "z": -1631
+    },
+    {
+      "id": "BP_ResourceNode123_5084",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreIron_C",
+      "purity": "pure",
+      "x": -110588,
+      "y": -135153,
+      "z": 1911
+    },
+    {
+      "id": "BP_ResourceNode124_5785",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_Stone_C",
+      "purity": "normal",
+      "x": -90457,
+      "y": -152279,
+      "z": -1700
+    },
+    {
+      "id": "BP_ResourceNode125_5930",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreCopper_C",
+      "purity": "normal",
+      "x": -96801,
+      "y": -135276,
+      "z": 166
+    },
+    {
+      "id": "BP_ResourceNode126_6409",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreIron_C",
+      "purity": "pure",
+      "x": -96100,
+      "y": 163752,
+      "z": -3734
+    },
+    {
+      "id": "BP_ResourceNode127",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreCopper_C",
+      "purity": "normal",
+      "x": -94265,
+      "y": 165842,
+      "z": -3734
+    },
+    {
+      "id": "BP_ResourceNode128_5242",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreIron_C",
+      "purity": "normal",
+      "x": -190787,
+      "y": -117690,
+      "z": 706
     },
     {
       "id": "BP_ResourceNode129",
@@ -13878,6 +14148,24 @@
       "z": 16266
     },
     {
+      "id": "BP_ResourceNode12_91",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreIron_C",
+      "purity": "impure",
+      "x": 248481,
+      "y": -146160,
+      "z": 3561
+    },
+    {
+      "id": "BP_ResourceNode13",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreIron_C",
+      "purity": "impure",
+      "x": 242691,
+      "y": -149432,
+      "z": 2590
+    },
+    {
       "id": "BP_ResourceNode130",
       "kind": "resourceNode",
       "resourceClass": "Desc_Coal_C",
@@ -13885,6 +14173,1455 @@
       "x": -107640,
       "y": -52375,
       "z": 16193
+    },
+    {
+      "id": "BP_ResourceNode131",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreCopper_C",
+      "purity": "impure",
+      "x": -266903,
+      "y": -133355,
+      "z": 5973
+    },
+    {
+      "id": "BP_ResourceNode132_5908",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_Stone_C",
+      "purity": "normal",
+      "x": -173249,
+      "y": -112172,
+      "z": 31
+    },
+    {
+      "id": "BP_ResourceNode133_6963",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_Stone_C",
+      "purity": "normal",
+      "x": 109989,
+      "y": 196758,
+      "z": -3246
+    },
+    {
+      "id": "BP_ResourceNode134_8590",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreGold_C",
+      "purity": "normal",
+      "x": 109619,
+      "y": 155798,
+      "z": 4175
+    },
+    {
+      "id": "BP_ResourceNode135",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_SAM_C",
+      "purity": "normal",
+      "x": -182183,
+      "y": -142367,
+      "z": -1743
+    },
+    {
+      "id": "BP_ResourceNode136",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_RawQuartz_C",
+      "purity": "pure",
+      "x": 37926,
+      "y": 120939,
+      "z": 13370
+    },
+    {
+      "id": "BP_ResourceNode136_UAID_40B076DF2F7975DF01_1587576239",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_RawQuartz_C",
+      "purity": "pure",
+      "x": 61653,
+      "y": 196432,
+      "z": -3725
+    },
+    {
+      "id": "BP_ResourceNode136_UAID_40B076DF2F7975DF01_1617269241",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_RawQuartz_C",
+      "purity": "impure",
+      "x": 62111,
+      "y": 207627,
+      "z": -4197
+    },
+    {
+      "id": "BP_ResourceNode136_UAID_40B076DF2F7975DF01_1622351243",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_RawQuartz_C",
+      "purity": "normal",
+      "x": 55253,
+      "y": 205856,
+      "z": -5763
+    },
+    {
+      "id": "BP_ResourceNode137_2248",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_RawQuartz_C",
+      "purity": "normal",
+      "x": 34968,
+      "y": 118464,
+      "z": 13410
+    },
+    {
+      "id": "BP_ResourceNode138_590",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_Stone_C",
+      "purity": "normal",
+      "x": 175981,
+      "y": -40156,
+      "z": 6611
+    },
+    {
+      "id": "BP_ResourceNode139_909",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_Stone_C",
+      "purity": "normal",
+      "x": 158314,
+      "y": -65002,
+      "z": 2591
+    },
+    {
+      "id": "BP_ResourceNode140",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreGold_C",
+      "purity": "pure",
+      "x": 236608,
+      "y": -260095,
+      "z": 11784
+    },
+    {
+      "id": "BP_ResourceNode141",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreCopper_C",
+      "purity": "normal",
+      "x": 297710,
+      "y": -107995,
+      "z": 5475
+    },
+    {
+      "id": "BP_ResourceNode142",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreGold_C",
+      "purity": "normal",
+      "x": 224307,
+      "y": -128741,
+      "z": 7240
+    },
+    {
+      "id": "BP_ResourceNode142_UAID_40B076DF2F79E8DD01_2087440367",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreGold_C",
+      "purity": "normal",
+      "x": 211843,
+      "y": -18819,
+      "z": -29
+    },
+    {
+      "id": "BP_ResourceNode142_UAID_40B076DF2F79E9DD01_1434900545",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreGold_C",
+      "purity": "pure",
+      "x": 208139,
+      "y": -23983,
+      "z": 594
+    },
+    {
+      "id": "BP_ResourceNode142_UAID_40B076DF2F79E9DD01_1872254547",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreGold_C",
+      "purity": "normal",
+      "x": 208006,
+      "y": -16382,
+      "z": -55
+    },
+    {
+      "id": "BP_ResourceNode143_1543",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_Stone_C",
+      "purity": "normal",
+      "x": -129599,
+      "y": -96956,
+      "z": 4129
+    },
+    {
+      "id": "BP_ResourceNode144_1644",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_Stone_C",
+      "purity": "normal",
+      "x": -231390,
+      "y": -89529,
+      "z": 823
+    },
+    {
+      "id": "BP_ResourceNode145_1749",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_Stone_C",
+      "purity": "normal",
+      "x": -194906,
+      "y": -25779,
+      "z": -627
+    },
+    {
+      "id": "BP_ResourceNode146",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreIron_C",
+      "purity": "normal",
+      "x": 96959,
+      "y": 157163,
+      "z": 2110
+    },
+    {
+      "id": "BP_ResourceNode147",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreIron_C",
+      "purity": "normal",
+      "x": 96326,
+      "y": 159762,
+      "z": 2102
+    },
+    {
+      "id": "BP_ResourceNode148",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreIron_C",
+      "purity": "normal",
+      "x": 93730,
+      "y": 160263,
+      "z": 2111
+    },
+    {
+      "id": "BP_ResourceNode149",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreIron_C",
+      "purity": "normal",
+      "x": 92724,
+      "y": 163305,
+      "z": 1881
+    },
+    {
+      "id": "BP_ResourceNode14_609",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_LiquidOil_C",
+      "purity": "normal",
+      "x": 26597,
+      "y": -193983,
+      "z": -1683
+    },
+    {
+      "id": "BP_ResourceNode15",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_LiquidOil_C",
+      "purity": "impure",
+      "x": -32599,
+      "y": -192537,
+      "z": 2280
+    },
+    {
+      "id": "BP_ResourceNode150",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreCopper_C",
+      "purity": "normal",
+      "x": 108117,
+      "y": 152283,
+      "z": 3387
+    },
+    {
+      "id": "BP_ResourceNode151",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_LiquidOil_C",
+      "purity": "normal",
+      "x": 185124,
+      "y": 214441,
+      "z": -8910
+    },
+    {
+      "id": "BP_ResourceNode152_995",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_LiquidOil_C",
+      "purity": "pure",
+      "x": 184226,
+      "y": 217101,
+      "z": -8910
+    },
+    {
+      "id": "BP_ResourceNode153",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreIron_C",
+      "purity": "normal",
+      "x": -258432,
+      "y": -40560,
+      "z": -327
+    },
+    {
+      "id": "BP_ResourceNode154",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_LiquidOil_C",
+      "purity": "pure",
+      "x": 182115,
+      "y": 188396,
+      "z": -5640
+    },
+    {
+      "id": "BP_ResourceNode155",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_LiquidOil_C",
+      "purity": "pure",
+      "x": 184782,
+      "y": 191090,
+      "z": -5732
+    },
+    {
+      "id": "BP_ResourceNode156",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreCopper_C",
+      "purity": "normal",
+      "x": -281345,
+      "y": -71999,
+      "z": -1200
+    },
+    {
+      "id": "BP_ResourceNode157",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_Stone_C",
+      "purity": "normal",
+      "x": -268787,
+      "y": -79095,
+      "z": -292
+    },
+    {
+      "id": "BP_ResourceNode158",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_Stone_C",
+      "purity": "normal",
+      "x": -129015,
+      "y": -39541,
+      "z": 2898
+    },
+    {
+      "id": "BP_ResourceNode159",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreCopper_C",
+      "purity": "normal",
+      "x": -166357,
+      "y": -129627,
+      "z": 1600
+    },
+    {
+      "id": "BP_ResourceNode16",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_LiquidOil_C",
+      "purity": "impure",
+      "x": -43612,
+      "y": -190316,
+      "z": 2291
+    },
+    {
+      "id": "BP_ResourceNode160",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreIron_C",
+      "purity": "pure",
+      "x": -250080,
+      "y": -126362,
+      "z": 3837
+    },
+    {
+      "id": "BP_ResourceNode161",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreIron_C",
+      "purity": "pure",
+      "x": -252032,
+      "y": -125001,
+      "z": 3847
+    },
+    {
+      "id": "BP_ResourceNode162_5199",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreCopper_C",
+      "purity": "normal",
+      "x": -163354,
+      "y": -192096,
+      "z": 10761
+    },
+    {
+      "id": "BP_ResourceNode163",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_Stone_C",
+      "purity": "pure",
+      "x": -221696,
+      "y": -104736,
+      "z": 4105
+    },
+    {
+      "id": "BP_ResourceNode164",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_Stone_C",
+      "purity": "pure",
+      "x": -261495,
+      "y": -116492,
+      "z": 4302
+    },
+    {
+      "id": "BP_ResourceNode165",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_Stone_C",
+      "purity": "pure",
+      "x": -281761,
+      "y": -134704,
+      "z": 1998
+    },
+    {
+      "id": "BP_ResourceNode166",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_Stone_C",
+      "purity": "pure",
+      "x": -206172,
+      "y": -141688,
+      "z": 4859
+    },
+    {
+      "id": "BP_ResourceNode167",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreIron_C",
+      "purity": "normal",
+      "x": -186902,
+      "y": -118339,
+      "z": 706
+    },
+    {
+      "id": "BP_ResourceNode168",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreIron_C",
+      "purity": "normal",
+      "x": -187932,
+      "y": -114624,
+      "z": 706
+    },
+    {
+      "id": "BP_ResourceNode169_UAID_40B076DF2F7939DE01_2083925623",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreGold_C",
+      "purity": "normal",
+      "x": 114180,
+      "y": -16999,
+      "z": 14021
+    },
+    {
+      "id": "BP_ResourceNode170_363",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_Sulfur_C",
+      "purity": "impure",
+      "x": -41122,
+      "y": -72631,
+      "z": 23212
+    },
+    {
+      "id": "BP_ResourceNode172",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_SAM_C",
+      "purity": "normal",
+      "x": -24065,
+      "y": 269858,
+      "z": -13353
+    },
+    {
+      "id": "BP_ResourceNode172_UAID_40B076DF2F79DFD901_1471130569",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_SAM_C",
+      "purity": "impure",
+      "x": 80730,
+      "y": 204811,
+      "z": 5722
+    },
+    {
+      "id": "BP_ResourceNode173",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreIron_C",
+      "purity": "impure",
+      "x": 264240,
+      "y": -162899,
+      "z": 3331
+    },
+    {
+      "id": "BP_ResourceNode174",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreIron_C",
+      "purity": "pure",
+      "x": -227410,
+      "y": -118862,
+      "z": 3931
+    },
+    {
+      "id": "BP_ResourceNode175",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreIron_C",
+      "purity": "pure",
+      "x": -230852,
+      "y": -115124,
+      "z": 3917
+    },
+    {
+      "id": "BP_ResourceNode176_UAID_40B076DF2F793BDF01_1694110039",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreGold_C",
+      "purity": "pure",
+      "x": -153387,
+      "y": 82252,
+      "z": 20330
+    },
+    {
+      "id": "BP_ResourceNode177",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_Sulfur_C",
+      "purity": "impure",
+      "x": 34655,
+      "y": 284303,
+      "z": 905
+    },
+    {
+      "id": "BP_ResourceNode178",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_Stone_C",
+      "purity": "normal",
+      "x": 186164,
+      "y": 77069,
+      "z": 1138
+    },
+    {
+      "id": "BP_ResourceNode179",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreCopper_C",
+      "purity": "pure",
+      "x": 225503,
+      "y": 55772,
+      "z": -1303
+    },
+    {
+      "id": "BP_ResourceNode180",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreIron_C",
+      "purity": "pure",
+      "x": 285860,
+      "y": -127665,
+      "z": 3875
+    },
+    {
+      "id": "BP_ResourceNode181",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_Stone_C",
+      "purity": "impure",
+      "x": 237354,
+      "y": -164936,
+      "z": 2636
+    },
+    {
+      "id": "BP_ResourceNode182",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_Stone_C",
+      "purity": "impure",
+      "x": 244591,
+      "y": -190902,
+      "z": 1832
+    },
+    {
+      "id": "BP_ResourceNode184",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreIron_C",
+      "purity": "impure",
+      "x": 311229,
+      "y": -128705,
+      "z": 4669
+    },
+    {
+      "id": "BP_ResourceNode185",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreCopper_C",
+      "purity": "normal",
+      "x": 252874,
+      "y": -161693,
+      "z": 3452
+    },
+    {
+      "id": "BP_ResourceNode186",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_Stone_C",
+      "purity": "normal",
+      "x": 295895,
+      "y": -272876,
+      "z": 1237
+    },
+    {
+      "id": "BP_ResourceNode187_0",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_Stone_C",
+      "purity": "normal",
+      "x": 225406,
+      "y": -237056,
+      "z": 1043
+    },
+    {
+      "id": "BP_ResourceNode188",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreCopper_C",
+      "purity": "impure",
+      "x": 256401,
+      "y": -184355,
+      "z": 3519
+    },
+    {
+      "id": "BP_ResourceNode189",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_Stone_C",
+      "purity": "normal",
+      "x": 308652,
+      "y": -100658,
+      "z": 6378
+    },
+    {
+      "id": "BP_ResourceNode190",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_Stone_C",
+      "purity": "pure",
+      "x": 311622,
+      "y": -69811,
+      "z": 5620
+    },
+    {
+      "id": "BP_ResourceNode191",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_Stone_C",
+      "purity": "impure",
+      "x": 299122,
+      "y": -85512,
+      "z": 5936
+    },
+    {
+      "id": "BP_ResourceNode192_0",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreCopper_C",
+      "purity": "normal",
+      "x": 270316,
+      "y": -211596,
+      "z": 3051
+    },
+    {
+      "id": "BP_ResourceNode193",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_Stone_C",
+      "purity": "impure",
+      "x": 383045,
+      "y": -92549,
+      "z": 207
+    },
+    {
+      "id": "BP_ResourceNode194",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreCopper_C",
+      "purity": "normal",
+      "x": 297397,
+      "y": -96437,
+      "z": 6021
+    },
+    {
+      "id": "BP_ResourceNode195",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreCopper_C",
+      "purity": "normal",
+      "x": 277591,
+      "y": -94119,
+      "z": 5535
+    },
+    {
+      "id": "BP_ResourceNode196",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreIron_C",
+      "purity": "pure",
+      "x": 255249,
+      "y": -91659,
+      "z": 5523
+    },
+    {
+      "id": "BP_ResourceNode197",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreCopper_C",
+      "purity": "normal",
+      "x": 355997,
+      "y": -66386,
+      "z": -396
+    },
+    {
+      "id": "BP_ResourceNode198",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreIron_C",
+      "purity": "normal",
+      "x": 268524,
+      "y": -116944,
+      "z": 4206
+    },
+    {
+      "id": "BP_ResourceNode199",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreIron_C",
+      "purity": "normal",
+      "x": 266880,
+      "y": -120714,
+      "z": 4084
+    },
+    {
+      "id": "BP_ResourceNode200",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreIron_C",
+      "purity": "impure",
+      "x": 283968,
+      "y": -121598,
+      "z": 4452
+    },
+    {
+      "id": "BP_ResourceNode201",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreIron_C",
+      "purity": "pure",
+      "x": 347227,
+      "y": -58490,
+      "z": -748
+    },
+    {
+      "id": "BP_ResourceNode202",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreCopper_C",
+      "purity": "normal",
+      "x": 233446,
+      "y": -247935,
+      "z": 1056
+    },
+    {
+      "id": "BP_ResourceNode203",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreIron_C",
+      "purity": "pure",
+      "x": 319464,
+      "y": -158098,
+      "z": 3864
+    },
+    {
+      "id": "BP_ResourceNode204_0",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreIron_C",
+      "purity": "impure",
+      "x": 330433,
+      "y": -142399,
+      "z": 3965
+    },
+    {
+      "id": "BP_ResourceNode205",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreIron_C",
+      "purity": "normal",
+      "x": 313010,
+      "y": -133841,
+      "z": 4861
+    },
+    {
+      "id": "BP_ResourceNode206",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreIron_C",
+      "purity": "normal",
+      "x": 339300,
+      "y": -183354,
+      "z": 4477
+    },
+    {
+      "id": "BP_ResourceNode207",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreIron_C",
+      "purity": "pure",
+      "x": 273729,
+      "y": -148172,
+      "z": 4082
+    },
+    {
+      "id": "BP_ResourceNode208",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreIron_C",
+      "purity": "normal",
+      "x": 338207,
+      "y": -177564,
+      "z": 4959
+    },
+    {
+      "id": "BP_ResourceNode209",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreIron_C",
+      "purity": "pure",
+      "x": 372373,
+      "y": -153420,
+      "z": 4005
+    },
+    {
+      "id": "BP_ResourceNode20_3137",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_Stone_C",
+      "purity": "pure",
+      "x": -280305,
+      "y": -181362,
+      "z": 338
+    },
+    {
+      "id": "BP_ResourceNode20_UAID_04D9F5D42711A7C902_1245462149",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_Stone_C",
+      "purity": "pure",
+      "x": -278905,
+      "y": -186362,
+      "z": 338
+    },
+    {
+      "id": "BP_ResourceNode210",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreIron_C",
+      "purity": "pure",
+      "x": 348525,
+      "y": -123750,
+      "z": 4283
+    },
+    {
+      "id": "BP_ResourceNode211",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreCopper_C",
+      "purity": "normal",
+      "x": 348939,
+      "y": -185584,
+      "z": 4235
+    },
+    {
+      "id": "BP_ResourceNode212",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreCopper_C",
+      "purity": "impure",
+      "x": 329409,
+      "y": -186014,
+      "z": 3740
+    },
+    {
+      "id": "BP_ResourceNode213",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreCopper_C",
+      "purity": "pure",
+      "x": 355461,
+      "y": -149808,
+      "z": 4214
+    },
+    {
+      "id": "BP_ResourceNode214",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreCopper_C",
+      "purity": "impure",
+      "x": 326947,
+      "y": -209586,
+      "z": 3687
+    },
+    {
+      "id": "BP_ResourceNode215",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreCopper_C",
+      "purity": "normal",
+      "x": 287767,
+      "y": -274886,
+      "z": 1242
+    },
+    {
+      "id": "BP_ResourceNode216",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreCopper_C",
+      "purity": "pure",
+      "x": 342806,
+      "y": -114728,
+      "z": 6020
+    },
+    {
+      "id": "BP_ResourceNode217",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreIron_C",
+      "purity": "pure",
+      "x": 278266,
+      "y": -210771,
+      "z": 3221
+    },
+    {
+      "id": "BP_ResourceNode218",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreIron_C",
+      "purity": "normal",
+      "x": 298733,
+      "y": -199292,
+      "z": 2709
+    },
+    {
+      "id": "BP_ResourceNode219",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreIron_C",
+      "purity": "pure",
+      "x": 282689,
+      "y": -179305,
+      "z": 4212
+    },
+    {
+      "id": "BP_ResourceNode220",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreIron_C",
+      "purity": "pure",
+      "x": 385302,
+      "y": -189927,
+      "z": 4280
+    },
+    {
+      "id": "BP_ResourceNode221",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreIron_C",
+      "purity": "impure",
+      "x": 311798,
+      "y": -215343,
+      "z": 2436
+    },
+    {
+      "id": "BP_ResourceNode222",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreIron_C",
+      "purity": "impure",
+      "x": 314598,
+      "y": -196773,
+      "z": 3905
+    },
+    {
+      "id": "BP_ResourceNode223",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreIron_C",
+      "purity": "normal",
+      "x": 276673,
+      "y": -195099,
+      "z": 2898
+    },
+    {
+      "id": "BP_ResourceNode224",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_Stone_C",
+      "purity": "impure",
+      "x": 359885,
+      "y": -200469,
+      "z": 4110
+    },
+    {
+      "id": "BP_ResourceNode225",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_Stone_C",
+      "purity": "pure",
+      "x": 391118,
+      "y": -208702,
+      "z": 4998
+    },
+    {
+      "id": "BP_ResourceNode226",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_Stone_C",
+      "purity": "impure",
+      "x": 338761,
+      "y": -205718,
+      "z": 4225
+    },
+    {
+      "id": "BP_ResourceNode227",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_Stone_C",
+      "purity": "pure",
+      "x": 348908,
+      "y": -163350,
+      "z": 4238
+    },
+    {
+      "id": "BP_ResourceNode228",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_Stone_C",
+      "purity": "normal",
+      "x": 370713,
+      "y": -221971,
+      "z": 4225
+    },
+    {
+      "id": "BP_ResourceNode229",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_Stone_C",
+      "purity": "normal",
+      "x": 385953,
+      "y": -254364,
+      "z": 3420
+    },
+    {
+      "id": "BP_ResourceNode230",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreIron_C",
+      "purity": "normal",
+      "x": 280137,
+      "y": -261096,
+      "z": 1859
+    },
+    {
+      "id": "BP_ResourceNode231",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_RawQuartz_C",
+      "purity": "normal",
+      "x": 305659,
+      "y": -301305,
+      "z": 1232
+    },
+    {
+      "id": "BP_ResourceNode232",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_RawQuartz_C",
+      "purity": "normal",
+      "x": 308597,
+      "y": -296079,
+      "z": 1256
+    },
+    {
+      "id": "BP_ResourceNode233",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreIron_C",
+      "purity": "normal",
+      "x": 374874,
+      "y": -259903,
+      "z": 3231
+    },
+    {
+      "id": "BP_ResourceNode234",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_Stone_C",
+      "purity": "pure",
+      "x": 355115,
+      "y": -122969,
+      "z": 5003
+    },
+    {
+      "id": "BP_ResourceNode235",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreCopper_C",
+      "purity": "pure",
+      "x": 380813,
+      "y": -169867,
+      "z": 4187
+    },
+    {
+      "id": "BP_ResourceNode236",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreIron_C",
+      "purity": "normal",
+      "x": 377738,
+      "y": -254225,
+      "z": 3347
+    },
+    {
+      "id": "BP_ResourceNode237",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreCopper_C",
+      "purity": "impure",
+      "x": 381666,
+      "y": -268289,
+      "z": 3485
+    },
+    {
+      "id": "BP_ResourceNode238",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreIron_C",
+      "purity": "pure",
+      "x": 304839,
+      "y": -172907,
+      "z": 3801
+    },
+    {
+      "id": "BP_ResourceNode239",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreIron_C",
+      "purity": "pure",
+      "x": 297575,
+      "y": -150186,
+      "z": 3972
+    },
+    {
+      "id": "BP_ResourceNode23_96",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_LiquidOil_C",
+      "purity": "impure",
+      "x": 57144,
+      "y": -191300,
+      "z": -1744
+    },
+    {
+      "id": "BP_ResourceNode240",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreGold_C",
+      "purity": "pure",
+      "x": 406563,
+      "y": -206810,
+      "z": -1539
+    },
+    {
+      "id": "BP_ResourceNode241",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_SAM_C",
+      "purity": "normal",
+      "x": 172559,
+      "y": -285516,
+      "z": 21591
+    },
+    {
+      "id": "BP_ResourceNode241_UAID_40B076DF2F7947D301_1723440520",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_SAM_C",
+      "purity": "impure",
+      "x": 272832,
+      "y": -261865,
+      "z": 1087
+    },
+    {
+      "id": "BP_ResourceNode24_97",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_LiquidOil_C",
+      "purity": "impure",
+      "x": 15357,
+      "y": -197672,
+      "z": -1606
+    },
+    {
+      "id": "BP_ResourceNode25_98",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_LiquidOil_C",
+      "purity": "impure",
+      "x": 29991,
+      "y": -186849,
+      "z": -1689
+    },
+    {
+      "id": "BP_ResourceNode26_99",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_LiquidOil_C",
+      "purity": "pure",
+      "x": 44495,
+      "y": -228950,
+      "z": -1743
+    },
+    {
+      "id": "BP_ResourceNode27_100",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_LiquidOil_C",
+      "purity": "pure",
+      "x": 12162,
+      "y": -225348,
+      "z": -1744
+    },
+    {
+      "id": "BP_ResourceNode28_101",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_LiquidOil_C",
+      "purity": "normal",
+      "x": -35725,
+      "y": -209521,
+      "z": -1708
+    },
+    {
+      "id": "BP_ResourceNode29_102",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_LiquidOil_C",
+      "purity": "normal",
+      "x": 52471,
+      "y": -201464,
+      "z": -1658
+    },
+    {
+      "id": "BP_ResourceNode30_103",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_LiquidOil_C",
+      "purity": "normal",
+      "x": 148477,
+      "y": -193869,
+      "z": -1603
+    },
+    {
+      "id": "BP_ResourceNode31_104",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_LiquidOil_C",
+      "purity": "impure",
+      "x": 147769,
+      "y": -212912,
+      "z": -1429
+    },
+    {
+      "id": "BP_ResourceNode32_105",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_LiquidOil_C",
+      "purity": "impure",
+      "x": 146451,
+      "y": -222638,
+      "z": -1580
+    },
+    {
+      "id": "BP_ResourceNode35",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreIron_C",
+      "purity": "normal",
+      "x": 256611,
+      "y": -197978,
+      "z": 3561
+    },
+    {
+      "id": "BP_ResourceNode36",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreIron_C",
+      "purity": "normal",
+      "x": 241090,
+      "y": -239787,
+      "z": 1048
+    },
+    {
+      "id": "BP_ResourceNode37_178",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_Stone_C",
+      "purity": "normal",
+      "x": 177197,
+      "y": -86516,
+      "z": 2459
+    },
+    {
+      "id": "BP_ResourceNode38_902",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreCopper_C",
+      "purity": "normal",
+      "x": 167904,
+      "y": -116373,
+      "z": 2426
+    },
+    {
+      "id": "BP_ResourceNode39",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreIron_C",
+      "purity": "pure",
+      "x": 181723,
+      "y": -116280,
+      "z": 2150
+    },
+    {
+      "id": "BP_ResourceNode40",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreIron_C",
+      "purity": "pure",
+      "x": 178061,
+      "y": -120503,
+      "z": 2250
+    },
+    {
+      "id": "BP_ResourceNode41_1099",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_Stone_C",
+      "purity": "normal",
+      "x": 107368,
+      "y": -43239,
+      "z": 14774
+    },
+    {
+      "id": "BP_ResourceNode426",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreIron_C",
+      "purity": "pure",
+      "x": 68075,
+      "y": -81001,
+      "z": 9944
+    },
+    {
+      "id": "BP_ResourceNode427",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreIron_C",
+      "purity": "pure",
+      "x": 70865,
+      "y": -78125,
+      "z": 10451
+    },
+    {
+      "id": "BP_ResourceNode42_1294",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_Stone_C",
+      "purity": "normal",
+      "x": 63823,
+      "y": 8376,
+      "z": 14012
+    },
+    {
+      "id": "BP_ResourceNode43",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_SAM_C",
+      "purity": "pure",
+      "x": 82558,
+      "y": -219609,
+      "z": 8929
+    },
+    {
+      "id": "BP_ResourceNode430",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreIron_C",
+      "purity": "pure",
+      "x": 59113,
+      "y": -71501,
+      "z": 10568
+    },
+    {
+      "id": "BP_ResourceNode431",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreIron_C",
+      "purity": "pure",
+      "x": 64576,
+      "y": -71386,
+      "z": 10641
+    },
+    {
+      "id": "BP_ResourceNode435_26",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreIron_C",
+      "purity": "pure",
+      "x": 84199,
+      "y": -86393,
+      "z": 9766
+    },
+    {
+      "id": "BP_ResourceNode437_30",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreIron_C",
+      "purity": "pure",
+      "x": 83508,
+      "y": -90506,
+      "z": 9590
+    },
+    {
+      "id": "BP_ResourceNode439_1",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_Stone_C",
+      "purity": "normal",
+      "x": 79670,
+      "y": -75852,
+      "z": 12028
+    },
+    {
+      "id": "BP_ResourceNode43_UAID_40B076DF2F7932D901_1711042113",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_SAM_C",
+      "purity": "impure",
+      "x": -46645,
+      "y": -252947,
+      "z": 4931
+    },
+    {
+      "id": "BP_ResourceNode43_UAID_40B076DF2F7936D401_1733397541",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_SAM_C",
+      "purity": "impure",
+      "x": -80869,
+      "y": -32418,
+      "z": 15656
+    },
+    {
+      "id": "BP_ResourceNode43_UAID_40B076DF2F793ED901_1532454233",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_SAM_C",
+      "purity": "impure",
+      "x": 152961,
+      "y": -24054,
+      "z": 4287
+    },
+    {
+      "id": "BP_ResourceNode43_UAID_40B076DF2F7941D901_1404601764",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_SAM_C",
+      "purity": "impure",
+      "x": 230542,
+      "y": -33617,
+      "z": 2185
+    },
+    {
+      "id": "BP_ResourceNode440",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_Stone_C",
+      "purity": "pure",
+      "x": 69552,
+      "y": -100368,
+      "z": 9391
+    },
+    {
+      "id": "BP_ResourceNode441",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_Stone_C",
+      "purity": "normal",
+      "x": 67878,
+      "y": -95777,
+      "z": 9362
+    },
+    {
+      "id": "BP_ResourceNode442",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_Stone_C",
+      "purity": "normal",
+      "x": 60592,
+      "y": -77890,
+      "z": 9437
+    },
+    {
+      "id": "BP_ResourceNode443",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_Stone_C",
+      "purity": "normal",
+      "x": -6448,
+      "y": -120483,
+      "z": 10380
+    },
+    {
+      "id": "BP_ResourceNode444_0",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_LiquidOil_C",
+      "purity": "normal",
+      "x": 173702,
+      "y": -91776,
+      "z": 1051
+    },
+    {
+      "id": "BP_ResourceNode445",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreCopper_C",
+      "purity": "pure",
+      "x": 56109,
+      "y": -85970,
+      "z": 9944
+    },
+    {
+      "id": "BP_ResourceNode446_1",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_LiquidOil_C",
+      "purity": "impure",
+      "x": 167391,
+      "y": -88953,
+      "z": 1049
+    },
+    {
+      "id": "BP_ResourceNode447",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_LiquidOil_C",
+      "purity": "impure",
+      "x": 176296,
+      "y": -94196,
+      "z": 1419
+    },
+    {
+      "id": "BP_ResourceNode448",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_LiquidOil_C",
+      "purity": "normal",
+      "x": 172814,
+      "y": -94608,
+      "z": 1042
     },
     {
       "id": "BP_ResourceNode449",
@@ -13914,6 +15651,186 @@
       "z": 7998
     },
     {
+      "id": "BP_ResourceNode453",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreIron_C",
+      "purity": "pure",
+      "x": -44869,
+      "y": -139479,
+      "z": 7983
+    },
+    {
+      "id": "BP_ResourceNode454",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreIron_C",
+      "purity": "pure",
+      "x": -43381,
+      "y": -136820,
+      "z": 8046
+    },
+    {
+      "id": "BP_ResourceNode457",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreIron_C",
+      "purity": "pure",
+      "x": 116236,
+      "y": -15552,
+      "z": 14026
+    },
+    {
+      "id": "BP_ResourceNode458",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_LiquidOil_C",
+      "purity": "normal",
+      "x": 49403,
+      "y": -4743,
+      "z": 13191
+    },
+    {
+      "id": "BP_ResourceNode459",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_LiquidOil_C",
+      "purity": "normal",
+      "x": 52588,
+      "y": -8859,
+      "z": 13593
+    },
+    {
+      "id": "BP_ResourceNode460",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_LiquidOil_C",
+      "purity": "pure",
+      "x": 49638,
+      "y": 655,
+      "z": 13149
+    },
+    {
+      "id": "BP_ResourceNode461",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_Sulfur_C",
+      "purity": "impure",
+      "x": 128296,
+      "y": -75942,
+      "z": 3668
+    },
+    {
+      "id": "BP_ResourceNode462",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreIron_C",
+      "purity": "pure",
+      "x": -37614,
+      "y": -142250,
+      "z": 7971
+    },
+    {
+      "id": "BP_ResourceNode462_UAID_40B076DF2F7902E201_1630060169",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreIron_C",
+      "purity": "normal",
+      "x": -58995,
+      "y": -224574,
+      "z": 9573
+    },
+    {
+      "id": "BP_ResourceNode462_UAID_40B076DF2F7907E201_1624182051",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreIron_C",
+      "purity": "impure",
+      "x": -64962,
+      "y": -201169,
+      "z": 6925
+    },
+    {
+      "id": "BP_ResourceNode462_UAID_40B076DF2F790CE201_2008279933",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreIron_C",
+      "purity": "impure",
+      "x": -52876,
+      "y": -201761,
+      "z": 6792
+    },
+    {
+      "id": "BP_ResourceNode463",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_Stone_C",
+      "purity": "pure",
+      "x": -55554,
+      "y": -129406,
+      "z": 6951
+    },
+    {
+      "id": "BP_ResourceNode464",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_Stone_C",
+      "purity": "pure",
+      "x": 50259,
+      "y": -157152,
+      "z": -144
+    },
+    {
+      "id": "BP_ResourceNode464_UAID_40B076DF2F790EE201_1850696287",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_Stone_C",
+      "purity": "impure",
+      "x": 15240,
+      "y": -158578,
+      "z": -1397
+    },
+    {
+      "id": "BP_ResourceNode464_UAID_40B076DF2F790FE201_1577140465",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_Stone_C",
+      "purity": "normal",
+      "x": 66756,
+      "y": -150676,
+      "z": -1180
+    },
+    {
+      "id": "BP_ResourceNode464_UAID_40B076DF2F7914E201_2026233335",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_Stone_C",
+      "purity": "impure",
+      "x": 92494,
+      "y": -132749,
+      "z": 700
+    },
+    {
+      "id": "BP_ResourceNode464_UAID_40B076DF2F7915E201_1334543513",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_Stone_C",
+      "purity": "normal",
+      "x": 40251,
+      "y": -144690,
+      "z": 369
+    },
+    {
+      "id": "BP_ResourceNode465",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_Stone_C",
+      "purity": "normal",
+      "x": 121322,
+      "y": -88295,
+      "z": 13669
+    },
+    {
+      "id": "BP_ResourceNode466",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_Stone_C",
+      "purity": "normal",
+      "x": 168496,
+      "y": -108029,
+      "z": 1587
+    },
+    {
+      "id": "BP_ResourceNode467",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_Sulfur_C",
+      "purity": "normal",
+      "x": 92072,
+      "y": 3163,
+      "z": 16079
+    },
+    {
       "id": "BP_ResourceNode469",
       "kind": "resourceNode",
       "resourceClass": "Desc_Coal_C",
@@ -13921,6 +15838,249 @@
       "x": 138805,
       "y": -23952,
       "z": 9410
+    },
+    {
+      "id": "BP_ResourceNode46_2284",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_Stone_C",
+      "purity": "normal",
+      "x": 343519,
+      "y": -83469,
+      "z": 5618
+    },
+    {
+      "id": "BP_ResourceNode474_UAID_40B076DF2F7983DF01_2128950703",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_RawQuartz_C",
+      "purity": "normal",
+      "x": 196667,
+      "y": -13955,
+      "z": 9398
+    },
+    {
+      "id": "BP_ResourceNode474_UAID_40B076DF2F798DDF01_1645035472",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_RawQuartz_C",
+      "purity": "pure",
+      "x": 193979,
+      "y": -5467,
+      "z": 10260
+    },
+    {
+      "id": "BP_ResourceNode474_UAID_40B076DF2F798EDF01_2134364650",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_RawQuartz_C",
+      "purity": "normal",
+      "x": 190097,
+      "y": -17280,
+      "z": 9456
+    },
+    {
+      "id": "BP_ResourceNode476",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreBauxite_C",
+      "purity": "normal",
+      "x": 263148,
+      "y": 53611,
+      "z": -1325
+    },
+    {
+      "id": "BP_ResourceNode477",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreBauxite_C",
+      "purity": "impure",
+      "x": 261127,
+      "y": 48274,
+      "z": -816
+    },
+    {
+      "id": "BP_ResourceNode479",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreBauxite_C",
+      "purity": "pure",
+      "x": 260298,
+      "y": 56227,
+      "z": -866
+    },
+    {
+      "id": "BP_ResourceNode47_3066",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_SAM_C",
+      "purity": "normal",
+      "x": 15459,
+      "y": -803,
+      "z": 14671
+    },
+    {
+      "id": "BP_ResourceNode480",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreBauxite_C",
+      "purity": "normal",
+      "x": 199007,
+      "y": 89173,
+      "z": 1096
+    },
+    {
+      "id": "BP_ResourceNode481",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreBauxite_C",
+      "purity": "impure",
+      "x": 198936,
+      "y": 93354,
+      "z": 1238
+    },
+    {
+      "id": "BP_ResourceNode484",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreUranium_C",
+      "purity": "impure",
+      "x": 168712,
+      "y": 50839,
+      "z": -9
+    },
+    {
+      "id": "BP_ResourceNode484_UAID_40B076DF2F79E0DF01_2091429101",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreUranium_C",
+      "purity": "impure",
+      "x": 180193,
+      "y": -189199,
+      "z": 23503
+    },
+    {
+      "id": "BP_ResourceNode485",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreBauxite_C",
+      "purity": "pure",
+      "x": -59322,
+      "y": 14594,
+      "z": 23995
+    },
+    {
+      "id": "BP_ResourceNode486",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreBauxite_C",
+      "purity": "normal",
+      "x": 2570,
+      "y": 9834,
+      "z": 24001
+    },
+    {
+      "id": "BP_ResourceNode487",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreGold_C",
+      "purity": "normal",
+      "x": -12814,
+      "y": -104642,
+      "z": 10908
+    },
+    {
+      "id": "BP_ResourceNode487_UAID_40B076DF2F7934DF01_1597642799",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreGold_C",
+      "purity": "normal",
+      "x": 103845,
+      "y": -94854,
+      "z": 12651
+    },
+    {
+      "id": "BP_ResourceNode488",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreIron_C",
+      "purity": "impure",
+      "x": -94905,
+      "y": 262677,
+      "z": -4620
+    },
+    {
+      "id": "BP_ResourceNode489",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreIron_C",
+      "purity": "impure",
+      "x": -97178,
+      "y": 264232,
+      "z": -4625
+    },
+    {
+      "id": "BP_ResourceNode49",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreIron_C",
+      "purity": "impure",
+      "x": 265501,
+      "y": -178205,
+      "z": 3456
+    },
+    {
+      "id": "BP_ResourceNode490",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreIron_C",
+      "purity": "impure",
+      "x": -98579,
+      "y": 265801,
+      "z": -4634
+    },
+    {
+      "id": "BP_ResourceNode491",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreIron_C",
+      "purity": "impure",
+      "x": -91267,
+      "y": 253077,
+      "z": -4513
+    },
+    {
+      "id": "BP_ResourceNode492",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreCopper_C",
+      "purity": "impure",
+      "x": -83962,
+      "y": 273576,
+      "z": -6240
+    },
+    {
+      "id": "BP_ResourceNode493",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreCopper_C",
+      "purity": "impure",
+      "x": -83133,
+      "y": 275762,
+      "z": -6264
+    },
+    {
+      "id": "BP_ResourceNode494",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreIron_C",
+      "purity": "impure",
+      "x": -36499,
+      "y": 243893,
+      "z": -2502
+    },
+    {
+      "id": "BP_ResourceNode495",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreIron_C",
+      "purity": "impure",
+      "x": -35040,
+      "y": 245805,
+      "z": -2504
+    },
+    {
+      "id": "BP_ResourceNode496",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreIron_C",
+      "purity": "normal",
+      "x": -49077,
+      "y": 231707,
+      "z": -3845
+    },
+    {
+      "id": "BP_ResourceNode497_1",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreIron_C",
+      "purity": "normal",
+      "x": -51644,
+      "y": 229391,
+      "z": -3845
     },
     {
       "id": "BP_ResourceNode498",
@@ -13986,6 +16146,528 @@
       "z": -3648
     },
     {
+      "id": "BP_ResourceNode505",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreCopper_C",
+      "purity": "normal",
+      "x": 7171,
+      "y": 155231,
+      "z": -12082
+    },
+    {
+      "id": "BP_ResourceNode506",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreCopper_C",
+      "purity": "normal",
+      "x": 5251,
+      "y": 157169,
+      "z": -12082
+    },
+    {
+      "id": "BP_ResourceNode507",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreCopper_C",
+      "purity": "normal",
+      "x": 5023,
+      "y": 159951,
+      "z": -12082
+    },
+    {
+      "id": "BP_ResourceNode508",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_Stone_C",
+      "purity": "pure",
+      "x": 120084,
+      "y": -9957,
+      "z": 10448
+    },
+    {
+      "id": "BP_ResourceNode509",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_Stone_C",
+      "purity": "normal",
+      "x": -108119,
+      "y": 261059,
+      "z": -4801
+    },
+    {
+      "id": "BP_ResourceNode510",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_Sulfur_C",
+      "purity": "impure",
+      "x": -39889,
+      "y": -93579,
+      "z": 343
+    },
+    {
+      "id": "BP_ResourceNode511",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_Stone_C",
+      "purity": "normal",
+      "x": -52587,
+      "y": 264646,
+      "z": -3819
+    },
+    {
+      "id": "BP_ResourceNode512",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_Stone_C",
+      "purity": "normal",
+      "x": -89046,
+      "y": 153285,
+      "z": -3019
+    },
+    {
+      "id": "BP_ResourceNode513",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreCopper_C",
+      "purity": "pure",
+      "x": 152648,
+      "y": 5227,
+      "z": 15168
+    },
+    {
+      "id": "BP_ResourceNode514",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreCopper_C",
+      "purity": "pure",
+      "x": 157737,
+      "y": 14877,
+      "z": 15369
+    },
+    {
+      "id": "BP_ResourceNode515",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreCopper_C",
+      "purity": "pure",
+      "x": 149936,
+      "y": 4686,
+      "z": 15468
+    },
+    {
+      "id": "BP_ResourceNode516",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_Stone_C",
+      "purity": "pure",
+      "x": 166452,
+      "y": 7804,
+      "z": 15934
+    },
+    {
+      "id": "BP_ResourceNode517",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreIron_C",
+      "purity": "pure",
+      "x": 124933,
+      "y": 5226,
+      "z": 15573
+    },
+    {
+      "id": "BP_ResourceNode518",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreIron_C",
+      "purity": "pure",
+      "x": 128572,
+      "y": 1795,
+      "z": 15542
+    },
+    {
+      "id": "BP_ResourceNode519",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_SAM_C",
+      "purity": "pure",
+      "x": -48375,
+      "y": 128937,
+      "z": 23613
+    },
+    {
+      "id": "BP_ResourceNode519_UAID_40B076DF2F79D3D901_1586151453",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_SAM_C",
+      "purity": "normal",
+      "x": -181813,
+      "y": 89076,
+      "z": 17039
+    },
+    {
+      "id": "BP_ResourceNode520",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_RawQuartz_C",
+      "purity": "pure",
+      "x": -90474,
+      "y": 67259,
+      "z": 2145
+    },
+    {
+      "id": "BP_ResourceNode521",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_Stone_C",
+      "purity": "pure",
+      "x": -107864,
+      "y": 60190,
+      "z": 2653
+    },
+    {
+      "id": "BP_ResourceNode521_UAID_40B076DF2F79C3E101_1100698081",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_Stone_C",
+      "purity": "normal",
+      "x": -164380,
+      "y": 64840,
+      "z": 24379
+    },
+    {
+      "id": "BP_ResourceNode521_UAID_40B076DF2F79C3E101_1735462083",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_Stone_C",
+      "purity": "normal",
+      "x": -167201,
+      "y": 61297,
+      "z": 24000
+    },
+    {
+      "id": "BP_ResourceNode522",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_RawQuartz_C",
+      "purity": "pure",
+      "x": -90370,
+      "y": 63712,
+      "z": 2145
+    },
+    {
+      "id": "BP_ResourceNode523_UAID_40B076DF2F7987DF01_1117795413",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreIron_C",
+      "purity": "normal",
+      "x": 245043,
+      "y": -22318,
+      "z": 8820
+    },
+    {
+      "id": "BP_ResourceNode524_UAID_40B076DF2F798ADF01_1172524943",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreIron_C",
+      "purity": "normal",
+      "x": 237724,
+      "y": -23005,
+      "z": 8796
+    },
+    {
+      "id": "BP_ResourceNode528",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreIron_C",
+      "purity": "normal",
+      "x": 233141,
+      "y": -26440,
+      "z": 8976
+    },
+    {
+      "id": "BP_ResourceNode529",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreBauxite_C",
+      "purity": "normal",
+      "x": 39477,
+      "y": 52119,
+      "z": 23601
+    },
+    {
+      "id": "BP_ResourceNode530",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreIron_C",
+      "purity": "impure",
+      "x": -99586,
+      "y": 267811,
+      "z": -4660
+    },
+    {
+      "id": "BP_ResourceNode531",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreIron_C",
+      "purity": "impure",
+      "x": -93267,
+      "y": 254146,
+      "z": -4509
+    },
+    {
+      "id": "BP_ResourceNode532",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreIron_C",
+      "purity": "impure",
+      "x": -94006,
+      "y": 268116,
+      "z": -3127
+    },
+    {
+      "id": "BP_ResourceNode533",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreIron_C",
+      "purity": "impure",
+      "x": -92372,
+      "y": 266081,
+      "z": -3125
+    },
+    {
+      "id": "BP_ResourceNode534",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_Stone_C",
+      "purity": "impure",
+      "x": -55951,
+      "y": 271564,
+      "z": -3776
+    },
+    {
+      "id": "BP_ResourceNode535",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreIron_C",
+      "purity": "impure",
+      "x": -65049,
+      "y": 137463,
+      "z": 8488
+    },
+    {
+      "id": "BP_ResourceNode536",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreIron_C",
+      "purity": "impure",
+      "x": -42273,
+      "y": 132150,
+      "z": 8668
+    },
+    {
+      "id": "BP_ResourceNode537",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreIron_C",
+      "purity": "impure",
+      "x": -60453,
+      "y": 141695,
+      "z": 8416
+    },
+    {
+      "id": "BP_ResourceNode538",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreIron_C",
+      "purity": "impure",
+      "x": -41928,
+      "y": 206907,
+      "z": -2228
+    },
+    {
+      "id": "BP_ResourceNode539",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreIron_C",
+      "purity": "impure",
+      "x": -43940,
+      "y": 207992,
+      "z": -2228
+    },
+    {
+      "id": "BP_ResourceNode53_510",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreCopper_C",
+      "purity": "pure",
+      "x": -21758,
+      "y": -145311,
+      "z": 10021
+    },
+    {
+      "id": "BP_ResourceNode540",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreCopper_C",
+      "purity": "normal",
+      "x": -33328,
+      "y": 231626,
+      "z": -1394
+    },
+    {
+      "id": "BP_ResourceNode541",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreIron_C",
+      "purity": "impure",
+      "x": -38249,
+      "y": 127975,
+      "z": 8811
+    },
+    {
+      "id": "BP_ResourceNode542",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreIron_C",
+      "purity": "impure",
+      "x": -41484,
+      "y": 125793,
+      "z": 8644
+    },
+    {
+      "id": "BP_ResourceNode543",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreIron_C",
+      "purity": "normal",
+      "x": 571,
+      "y": 283802,
+      "z": -1139
+    },
+    {
+      "id": "BP_ResourceNode544",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreIron_C",
+      "purity": "normal",
+      "x": -1126,
+      "y": 285301,
+      "z": -1139
+    },
+    {
+      "id": "BP_ResourceNode545",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreIron_C",
+      "purity": "normal",
+      "x": -44922,
+      "y": 302273,
+      "z": -2543
+    },
+    {
+      "id": "BP_ResourceNode546",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreIron_C",
+      "purity": "normal",
+      "x": -50406,
+      "y": 302870,
+      "z": -2583
+    },
+    {
+      "id": "BP_ResourceNode547",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreCopper_C",
+      "purity": "normal",
+      "x": -21265,
+      "y": 283147,
+      "z": -2531
+    },
+    {
+      "id": "BP_ResourceNode547_UAID_40B076DF2F79ADE101_1836911209",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreCopper_C",
+      "purity": "pure",
+      "x": 80832,
+      "y": 242478,
+      "z": -4444
+    },
+    {
+      "id": "BP_ResourceNode547_UAID_40B076DF2F79AEE101_1979010387",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreCopper_C",
+      "purity": "normal",
+      "x": 58030,
+      "y": 82304,
+      "z": 11800
+    },
+    {
+      "id": "BP_ResourceNode548",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_Stone_C",
+      "purity": "normal",
+      "x": 3998,
+      "y": 271120,
+      "z": -4107
+    },
+    {
+      "id": "BP_ResourceNode549",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_Stone_C",
+      "purity": "normal",
+      "x": 4127,
+      "y": 273241,
+      "z": -4107
+    },
+    {
+      "id": "BP_ResourceNode54_833",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_Stone_C",
+      "purity": "pure",
+      "x": -41844,
+      "y": -152412,
+      "z": 9227
+    },
+    {
+      "id": "BP_ResourceNode550",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_Stone_C",
+      "purity": "normal",
+      "x": 16091,
+      "y": 264153,
+      "z": -3824
+    },
+    {
+      "id": "BP_ResourceNode551",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreIron_C",
+      "purity": "normal",
+      "x": -54100,
+      "y": 229417,
+      "z": -3845
+    },
+    {
+      "id": "BP_ResourceNode552",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_RawQuartz_C",
+      "purity": "normal",
+      "x": -194230,
+      "y": -140421,
+      "z": -1241
+    },
+    {
+      "id": "BP_ResourceNode553",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_Stone_C",
+      "purity": "impure",
+      "x": -41301,
+      "y": 288558,
+      "z": -2545
+    },
+    {
+      "id": "BP_ResourceNode554",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_Stone_C",
+      "purity": "normal",
+      "x": -37142,
+      "y": 201538,
+      "z": -3056
+    },
+    {
+      "id": "BP_ResourceNode555",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_Stone_C",
+      "purity": "impure",
+      "x": -62536,
+      "y": 228042,
+      "z": -3279
+    },
+    {
+      "id": "BP_ResourceNode556",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_Stone_C",
+      "purity": "impure",
+      "x": -110521,
+      "y": 249721,
+      "z": -5349
+    },
+    {
+      "id": "BP_ResourceNode557",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_Stone_C",
+      "purity": "impure",
+      "x": -94477,
+      "y": 228243,
+      "z": -2399
+    },
+    {
+      "id": "BP_ResourceNode558",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreIron_C",
+      "purity": "normal",
+      "x": -8996,
+      "y": 293512,
+      "z": -2527
+    },
+    {
       "id": "BP_ResourceNode559",
       "kind": "resourceNode",
       "resourceClass": "Desc_Coal_C",
@@ -13995,6 +16677,15 @@
       "z": -3948
     },
     {
+      "id": "BP_ResourceNode55_1215",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreIron_C",
+      "purity": "pure",
+      "x": -47085,
+      "y": -141054,
+      "z": 8074
+    },
+    {
       "id": "BP_ResourceNode560",
       "kind": "resourceNode",
       "resourceClass": "Desc_Coal_C",
@@ -14002,6 +16693,141 @@
       "x": -86788,
       "y": 138201,
       "z": -3613
+    },
+    {
+      "id": "BP_ResourceNode561",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_Stone_C",
+      "purity": "pure",
+      "x": -55288,
+      "y": 129002,
+      "z": 8671
+    },
+    {
+      "id": "BP_ResourceNode562",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreCopper_C",
+      "purity": "impure",
+      "x": -71673,
+      "y": 106511,
+      "z": 8466
+    },
+    {
+      "id": "BP_ResourceNode563",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreIron_C",
+      "purity": "pure",
+      "x": 271770,
+      "y": 100432,
+      "z": -1294
+    },
+    {
+      "id": "BP_ResourceNode563_UAID_40B076DF2F79B7E101_1869159978",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreIron_C",
+      "purity": "impure",
+      "x": 225650,
+      "y": 147647,
+      "z": -193
+    },
+    {
+      "id": "BP_ResourceNode563_UAID_40B076DF2F79B8E101_1620414156",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreIron_C",
+      "purity": "impure",
+      "x": 221480,
+      "y": 146593,
+      "z": -200
+    },
+    {
+      "id": "BP_ResourceNode563_UAID_40B076DF2F79B9E101_1570060334",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreIron_C",
+      "purity": "impure",
+      "x": 233432,
+      "y": 145602,
+      "z": -267
+    },
+    {
+      "id": "BP_ResourceNode563_UAID_40B076DF2F79BBE101_1434258671",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreIron_C",
+      "purity": "impure",
+      "x": 233292,
+      "y": 139879,
+      "z": -304
+    },
+    {
+      "id": "BP_ResourceNode564",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_Stone_C",
+      "purity": "pure",
+      "x": 284986,
+      "y": 111894,
+      "z": -1605
+    },
+    {
+      "id": "BP_ResourceNode565_8",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreIron_C",
+      "purity": "pure",
+      "x": 242756,
+      "y": 87933,
+      "z": -617
+    },
+    {
+      "id": "BP_ResourceNode566",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreBauxite_C",
+      "purity": "impure",
+      "x": -5633,
+      "y": 44274,
+      "z": 21065
+    },
+    {
+      "id": "BP_ResourceNode567",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreIron_C",
+      "purity": "pure",
+      "x": 245861,
+      "y": 4378,
+      "z": 573
+    },
+    {
+      "id": "BP_ResourceNode568",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreBauxite_C",
+      "purity": "pure",
+      "x": -5292,
+      "y": 92075,
+      "z": 22756
+    },
+    {
+      "id": "BP_ResourceNode569",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreIron_C",
+      "purity": "impure",
+      "x": -43326,
+      "y": 130254,
+      "z": 8662
+    },
+    {
+      "id": "BP_ResourceNode570",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreGold_C",
+      "purity": "pure",
+      "x": 270786,
+      "y": 120111,
+      "z": -54
+    },
+    {
+      "id": "BP_ResourceNode571",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_Stone_C",
+      "purity": "pure",
+      "x": -53615,
+      "y": 160375,
+      "z": 3355
     },
     {
       "id": "BP_ResourceNode573_UAID_40B076DF2F795EE801_1339162695",
@@ -14148,6 +16974,87 @@
       "z": 1526
     },
     {
+      "id": "BP_ResourceNode574",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreGold_C",
+      "purity": "normal",
+      "x": 90375,
+      "y": 80713,
+      "z": 10116
+    },
+    {
+      "id": "BP_ResourceNode575",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_Stone_C",
+      "purity": "pure",
+      "x": -80089,
+      "y": 204746,
+      "z": 1544
+    },
+    {
+      "id": "BP_ResourceNode576",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreUranium_C",
+      "purity": "normal",
+      "x": 38000,
+      "y": 91735,
+      "z": -4809
+    },
+    {
+      "id": "BP_ResourceNode577",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreIron_C",
+      "purity": "impure",
+      "x": -55693,
+      "y": 194370,
+      "z": -2557
+    },
+    {
+      "id": "BP_ResourceNode578",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreIron_C",
+      "purity": "impure",
+      "x": -57161,
+      "y": 192772,
+      "z": -2513
+    },
+    {
+      "id": "BP_ResourceNode579",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreIron_C",
+      "purity": "impure",
+      "x": -58919,
+      "y": 195892,
+      "z": -2195
+    },
+    {
+      "id": "BP_ResourceNode57_UAID_40B076DF2F7935DF01_1413169977",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_RawQuartz_C",
+      "purity": "impure",
+      "x": 55041,
+      "y": -130641,
+      "z": 7156
+    },
+    {
+      "id": "BP_ResourceNode57_UAID_40B076DF2F7991DF01_1459615180",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_RawQuartz_C",
+      "purity": "impure",
+      "x": 62289,
+      "y": -137424,
+      "z": 8325
+    },
+    {
+      "id": "BP_ResourceNode580",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreIron_C",
+      "purity": "impure",
+      "x": -61757,
+      "y": 194633,
+      "z": -2042
+    },
+    {
       "id": "BP_ResourceNode581",
       "kind": "resourceNode",
       "resourceClass": "Desc_Coal_C",
@@ -14155,6 +17062,51 @@
       "x": 276452,
       "y": -250331,
       "z": 1260
+    },
+    {
+      "id": "BP_ResourceNode582",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_Sulfur_C",
+      "purity": "impure",
+      "x": 296499,
+      "y": 13253,
+      "z": -881
+    },
+    {
+      "id": "BP_ResourceNode583_1",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreIron_C",
+      "purity": "pure",
+      "x": 255908,
+      "y": -3071,
+      "z": 3583
+    },
+    {
+      "id": "BP_ResourceNode584",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_Stone_C",
+      "purity": "normal",
+      "x": -8700,
+      "y": 283439,
+      "z": -1137
+    },
+    {
+      "id": "BP_ResourceNode585",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreIron_C",
+      "purity": "normal",
+      "x": -10233,
+      "y": 291034,
+      "z": -2475
+    },
+    {
+      "id": "BP_ResourceNode586",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_Stone_C",
+      "purity": "impure",
+      "x": -43321,
+      "y": 239553,
+      "z": -3810
     },
     {
       "id": "BP_ResourceNode587",
@@ -14166,6 +17118,51 @@
       "z": -6102
     },
     {
+      "id": "BP_ResourceNode588",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_RawQuartz_C",
+      "purity": "pure",
+      "x": -167359,
+      "y": -145682,
+      "z": -1914
+    },
+    {
+      "id": "BP_ResourceNode588_UAID_40B076DF2F79CEDF01_1910960903",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_RawQuartz_C",
+      "purity": "pure",
+      "x": -171986,
+      "y": -144145,
+      "z": -2030
+    },
+    {
+      "id": "BP_ResourceNode589",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_Stone_C",
+      "purity": "normal",
+      "x": 8341,
+      "y": 147571,
+      "z": -9599
+    },
+    {
+      "id": "BP_ResourceNode589_UAID_40B076DF2F79B1E101_1767545917",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_Stone_C",
+      "purity": "impure",
+      "x": 135005,
+      "y": 123175,
+      "z": 12311
+    },
+    {
+      "id": "BP_ResourceNode589_UAID_40B076DF2F79B2E101_1298360096",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_Stone_C",
+      "purity": "pure",
+      "x": 146861,
+      "y": 115062,
+      "z": 12296
+    },
+    {
       "id": "BP_ResourceNode590",
       "kind": "resourceNode",
       "resourceClass": "Desc_Coal_C",
@@ -14173,6 +17170,33 @@
       "x": 17163,
       "y": 280787,
       "z": 2768
+    },
+    {
+      "id": "BP_ResourceNode591",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreIron_C",
+      "purity": "impure",
+      "x": -47534,
+      "y": 289606,
+      "z": -2526
+    },
+    {
+      "id": "BP_ResourceNode592",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreIron_C",
+      "purity": "impure",
+      "x": -50101,
+      "y": 284478,
+      "z": -2614
+    },
+    {
+      "id": "BP_ResourceNode593",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreCopper_C",
+      "purity": "normal",
+      "x": -28703,
+      "y": 198210,
+      "z": -1997
     },
     {
       "id": "BP_ResourceNode594",
@@ -14184,6 +17208,42 @@
       "z": 634
     },
     {
+      "id": "BP_ResourceNode595",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreBauxite_C",
+      "purity": "pure",
+      "x": -217052,
+      "y": 11242,
+      "z": 17705
+    },
+    {
+      "id": "BP_ResourceNode596",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreBauxite_C",
+      "purity": "pure",
+      "x": -177367,
+      "y": 44998,
+      "z": 23765
+    },
+    {
+      "id": "BP_ResourceNode597",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreBauxite_C",
+      "purity": "normal",
+      "x": -150574,
+      "y": -22,
+      "z": 19505
+    },
+    {
+      "id": "BP_ResourceNode598_0",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreUranium_C",
+      "purity": "normal",
+      "x": -75893,
+      "y": 51636,
+      "z": 19145
+    },
+    {
       "id": "BP_ResourceNode599",
       "kind": "resourceNode",
       "resourceClass": "Desc_Coal_C",
@@ -14191,6 +17251,15 @@
       "x": -60960,
       "y": 96196,
       "z": 21234
+    },
+    {
+      "id": "BP_ResourceNode59_755",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_Stone_C",
+      "purity": "normal",
+      "x": 20776,
+      "y": -134970,
+      "z": 16881
     },
     {
       "id": "BP_ResourceNode5_381",
@@ -14265,6 +17334,15 @@
       "z": 19144
     },
     {
+      "id": "BP_ResourceNode607",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_SAM_C",
+      "purity": "impure",
+      "x": -143612,
+      "y": 20728,
+      "z": 19457
+    },
+    {
       "id": "BP_ResourceNode609",
       "kind": "resourceNode",
       "resourceClass": "Desc_Coal_C",
@@ -14272,6 +17350,15 @@
       "x": -53781,
       "y": 33003,
       "z": 20012
+    },
+    {
+      "id": "BP_ResourceNode60_984",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_Stone_C",
+      "purity": "normal",
+      "x": 75114,
+      "y": -123003,
+      "z": 13630
     },
     {
       "id": "BP_ResourceNode610",
@@ -14299,6 +17386,15 @@
       "x": 365436,
       "y": -80081,
       "z": -63
+    },
+    {
+      "id": "BP_ResourceNode613",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_Sulfur_C",
+      "purity": "normal",
+      "x": 380366,
+      "y": -109496,
+      "z": 9236
     },
     {
       "id": "BP_ResourceNode614",
@@ -14355,6 +17451,15 @@
       "z": 5255
     },
     {
+      "id": "BP_ResourceNode62",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_Stone_C",
+      "purity": "pure",
+      "x": -227331,
+      "y": -158278,
+      "z": 8947
+    },
+    {
       "id": "BP_ResourceNode620",
       "kind": "resourceNode",
       "resourceClass": "Desc_Coal_C",
@@ -14391,418 +17496,22 @@
       "z": 1673
     },
     {
-      "id": "BP_ResourceNode6_379",
+      "id": "BP_ResourceNode624",
       "kind": "resourceNode",
-      "resourceClass": "Desc_Coal_C",
-      "purity": "normal",
-      "x": -110109,
-      "y": -129159,
-      "z": -1405
-    },
-    {
-      "id": "BP_ResourceNode7_380",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_Coal_C",
-      "purity": "normal",
-      "x": -102630,
-      "y": -140319,
-      "z": -1581
-    },
-    {
-      "id": "BP_ResourceNode_700",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_Coal_C",
+      "resourceClass": "Desc_Sulfur_C",
       "purity": "pure",
-      "x": -113215,
-      "y": -44145,
-      "z": 16295
+      "x": 246502,
+      "y": -276999,
+      "z": 1498
     },
     {
-      "id": "BP_ResourceNode100",
+      "id": "BP_ResourceNode632",
       "kind": "resourceNode",
-      "resourceClass": "Desc_LiquidOil_C",
-      "purity": "normal",
-      "x": 178265,
-      "y": 206095,
-      "z": -9238
-    },
-    {
-      "id": "BP_ResourceNode14_609",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_LiquidOil_C",
-      "purity": "normal",
-      "x": 26597,
-      "y": -193983,
-      "z": -1683
-    },
-    {
-      "id": "BP_ResourceNode15",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_LiquidOil_C",
+      "resourceClass": "Desc_OreUranium_C",
       "purity": "impure",
-      "x": -32599,
-      "y": -192537,
-      "z": 2280
-    },
-    {
-      "id": "BP_ResourceNode151",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_LiquidOil_C",
-      "purity": "normal",
-      "x": 185124,
-      "y": 214441,
-      "z": -8910
-    },
-    {
-      "id": "BP_ResourceNode152_995",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_LiquidOil_C",
-      "purity": "pure",
-      "x": 184226,
-      "y": 217101,
-      "z": -8910
-    },
-    {
-      "id": "BP_ResourceNode154",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_LiquidOil_C",
-      "purity": "pure",
-      "x": 182115,
-      "y": 188396,
-      "z": -5640
-    },
-    {
-      "id": "BP_ResourceNode155",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_LiquidOil_C",
-      "purity": "pure",
-      "x": 184782,
-      "y": 191090,
-      "z": -5732
-    },
-    {
-      "id": "BP_ResourceNode16",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_LiquidOil_C",
-      "purity": "impure",
-      "x": -43612,
-      "y": -190316,
-      "z": 2291
-    },
-    {
-      "id": "BP_ResourceNode23_96",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_LiquidOil_C",
-      "purity": "impure",
-      "x": 57144,
-      "y": -191300,
-      "z": -1744
-    },
-    {
-      "id": "BP_ResourceNode24_97",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_LiquidOil_C",
-      "purity": "impure",
-      "x": 15357,
-      "y": -197672,
-      "z": -1606
-    },
-    {
-      "id": "BP_ResourceNode25_98",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_LiquidOil_C",
-      "purity": "impure",
-      "x": 29991,
-      "y": -186849,
-      "z": -1689
-    },
-    {
-      "id": "BP_ResourceNode26_99",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_LiquidOil_C",
-      "purity": "pure",
-      "x": 44495,
-      "y": -228950,
-      "z": -1743
-    },
-    {
-      "id": "BP_ResourceNode27_100",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_LiquidOil_C",
-      "purity": "pure",
-      "x": 12162,
-      "y": -225348,
-      "z": -1744
-    },
-    {
-      "id": "BP_ResourceNode28_101",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_LiquidOil_C",
-      "purity": "normal",
-      "x": -35725,
-      "y": -209521,
-      "z": -1708
-    },
-    {
-      "id": "BP_ResourceNode29_102",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_LiquidOil_C",
-      "purity": "normal",
-      "x": 52471,
-      "y": -201464,
-      "z": -1658
-    },
-    {
-      "id": "BP_ResourceNode30_103",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_LiquidOil_C",
-      "purity": "normal",
-      "x": 148477,
-      "y": -193869,
-      "z": -1603
-    },
-    {
-      "id": "BP_ResourceNode31_104",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_LiquidOil_C",
-      "purity": "impure",
-      "x": 147769,
-      "y": -212912,
-      "z": -1429
-    },
-    {
-      "id": "BP_ResourceNode32_105",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_LiquidOil_C",
-      "purity": "impure",
-      "x": 146451,
-      "y": -222638,
-      "z": -1580
-    },
-    {
-      "id": "BP_ResourceNode444_0",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_LiquidOil_C",
-      "purity": "normal",
-      "x": 173702,
-      "y": -91776,
-      "z": 1051
-    },
-    {
-      "id": "BP_ResourceNode446_1",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_LiquidOil_C",
-      "purity": "impure",
-      "x": 167391,
-      "y": -88953,
-      "z": 1049
-    },
-    {
-      "id": "BP_ResourceNode447",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_LiquidOil_C",
-      "purity": "impure",
-      "x": 176296,
-      "y": -94196,
-      "z": 1419
-    },
-    {
-      "id": "BP_ResourceNode448",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_LiquidOil_C",
-      "purity": "normal",
-      "x": 172814,
-      "y": -94608,
-      "z": 1042
-    },
-    {
-      "id": "BP_ResourceNode458",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_LiquidOil_C",
-      "purity": "normal",
-      "x": 49403,
-      "y": -4743,
-      "z": 13191
-    },
-    {
-      "id": "BP_ResourceNode459",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_LiquidOil_C",
-      "purity": "normal",
-      "x": 52588,
-      "y": -8859,
-      "z": 13593
-    },
-    {
-      "id": "BP_ResourceNode460",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_LiquidOil_C",
-      "purity": "pure",
-      "x": 49638,
-      "y": 655,
-      "z": 13149
-    },
-    {
-      "id": "BP_ResourceNode86",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_LiquidOil_C",
-      "purity": "normal",
-      "x": -229053,
-      "y": 78058,
-      "z": -1684
-    },
-    {
-      "id": "BP_ResourceNode87",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_LiquidOil_C",
-      "purity": "pure",
-      "x": -245048,
-      "y": 90588,
-      "z": -1652
-    },
-    {
-      "id": "BP_ResourceNode88",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_LiquidOil_C",
-      "purity": "normal",
-      "x": -232468,
-      "y": 62838,
-      "z": -1676
-    },
-    {
-      "id": "BP_ResourceNode89",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_LiquidOil_C",
-      "purity": "pure",
-      "x": -252533,
-      "y": 69813,
-      "z": -1562
-    },
-    {
-      "id": "BP_ResourceNode98",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_LiquidOil_C",
-      "purity": "impure",
-      "x": 169716,
-      "y": 203386,
-      "z": -9242
-    },
-    {
-      "id": "BP_ResourceNode476",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreBauxite_C",
-      "purity": "normal",
-      "x": 263148,
-      "y": 53611,
-      "z": -1325
-    },
-    {
-      "id": "BP_ResourceNode477",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreBauxite_C",
-      "purity": "impure",
-      "x": 261127,
-      "y": 48274,
-      "z": -816
-    },
-    {
-      "id": "BP_ResourceNode479",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreBauxite_C",
-      "purity": "pure",
-      "x": 260298,
-      "y": 56227,
-      "z": -866
-    },
-    {
-      "id": "BP_ResourceNode480",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreBauxite_C",
-      "purity": "normal",
-      "x": 199007,
-      "y": 89173,
-      "z": 1096
-    },
-    {
-      "id": "BP_ResourceNode481",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreBauxite_C",
-      "purity": "impure",
-      "x": 198936,
-      "y": 93354,
-      "z": 1238
-    },
-    {
-      "id": "BP_ResourceNode485",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreBauxite_C",
-      "purity": "pure",
-      "x": -59322,
-      "y": 14594,
-      "z": 23995
-    },
-    {
-      "id": "BP_ResourceNode486",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreBauxite_C",
-      "purity": "normal",
-      "x": 2570,
-      "y": 9834,
-      "z": 24001
-    },
-    {
-      "id": "BP_ResourceNode529",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreBauxite_C",
-      "purity": "normal",
-      "x": 39477,
-      "y": 52119,
-      "z": 23601
-    },
-    {
-      "id": "BP_ResourceNode566",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreBauxite_C",
-      "purity": "impure",
-      "x": -5633,
-      "y": 44274,
-      "z": 21065
-    },
-    {
-      "id": "BP_ResourceNode568",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreBauxite_C",
-      "purity": "pure",
-      "x": -5292,
-      "y": 92075,
-      "z": 22756
-    },
-    {
-      "id": "BP_ResourceNode595",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreBauxite_C",
-      "purity": "pure",
-      "x": -217052,
-      "y": 11242,
-      "z": 17705
-    },
-    {
-      "id": "BP_ResourceNode596",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreBauxite_C",
-      "purity": "pure",
-      "x": -177367,
-      "y": 44998,
-      "z": 23765
-    },
-    {
-      "id": "BP_ResourceNode597",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreBauxite_C",
-      "purity": "normal",
-      "x": -150574,
-      "y": -22,
-      "z": 19505
+      "x": -132772,
+      "y": -187579,
+      "z": 46528
     },
     {
       "id": "BP_ResourceNode633",
@@ -14841,1707 +17550,6 @@
       "z": 10375
     },
     {
-      "id": "BP_ResourceNode111_3367",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreCopper_C",
-      "purity": "normal",
-      "x": -268264,
-      "y": -54991,
-      "z": -343
-    },
-    {
-      "id": "BP_ResourceNode112",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreCopper_C",
-      "purity": "normal",
-      "x": -266711,
-      "y": -51317,
-      "z": -331
-    },
-    {
-      "id": "BP_ResourceNode117",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreCopper_C",
-      "purity": "pure",
-      "x": -148008,
-      "y": -30185,
-      "z": -556
-    },
-    {
-      "id": "BP_ResourceNode125_5930",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreCopper_C",
-      "purity": "normal",
-      "x": -96801,
-      "y": -135276,
-      "z": 166
-    },
-    {
-      "id": "BP_ResourceNode127",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreCopper_C",
-      "purity": "normal",
-      "x": -94265,
-      "y": 165842,
-      "z": -3734
-    },
-    {
-      "id": "BP_ResourceNode131",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreCopper_C",
-      "purity": "impure",
-      "x": -266903,
-      "y": -133355,
-      "z": 5973
-    },
-    {
-      "id": "BP_ResourceNode141",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreCopper_C",
-      "purity": "normal",
-      "x": 297710,
-      "y": -107995,
-      "z": 5475
-    },
-    {
-      "id": "BP_ResourceNode150",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreCopper_C",
-      "purity": "normal",
-      "x": 108117,
-      "y": 152283,
-      "z": 3387
-    },
-    {
-      "id": "BP_ResourceNode156",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreCopper_C",
-      "purity": "normal",
-      "x": -281345,
-      "y": -71999,
-      "z": -1200
-    },
-    {
-      "id": "BP_ResourceNode159",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreCopper_C",
-      "purity": "normal",
-      "x": -166357,
-      "y": -129627,
-      "z": 1600
-    },
-    {
-      "id": "BP_ResourceNode162_5199",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreCopper_C",
-      "purity": "normal",
-      "x": -163354,
-      "y": -192096,
-      "z": 10761
-    },
-    {
-      "id": "BP_ResourceNode179",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreCopper_C",
-      "purity": "pure",
-      "x": 225503,
-      "y": 55772,
-      "z": -1303
-    },
-    {
-      "id": "BP_ResourceNode185",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreCopper_C",
-      "purity": "normal",
-      "x": 252874,
-      "y": -161693,
-      "z": 3452
-    },
-    {
-      "id": "BP_ResourceNode188",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreCopper_C",
-      "purity": "impure",
-      "x": 256401,
-      "y": -184355,
-      "z": 3519
-    },
-    {
-      "id": "BP_ResourceNode192_0",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreCopper_C",
-      "purity": "normal",
-      "x": 270316,
-      "y": -211596,
-      "z": 3051
-    },
-    {
-      "id": "BP_ResourceNode194",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreCopper_C",
-      "purity": "normal",
-      "x": 297397,
-      "y": -96437,
-      "z": 6021
-    },
-    {
-      "id": "BP_ResourceNode195",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreCopper_C",
-      "purity": "normal",
-      "x": 277591,
-      "y": -94119,
-      "z": 5535
-    },
-    {
-      "id": "BP_ResourceNode197",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreCopper_C",
-      "purity": "normal",
-      "x": 355997,
-      "y": -66386,
-      "z": -396
-    },
-    {
-      "id": "BP_ResourceNode202",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreCopper_C",
-      "purity": "normal",
-      "x": 233446,
-      "y": -247935,
-      "z": 1056
-    },
-    {
-      "id": "BP_ResourceNode211",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreCopper_C",
-      "purity": "normal",
-      "x": 348939,
-      "y": -185584,
-      "z": 4235
-    },
-    {
-      "id": "BP_ResourceNode212",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreCopper_C",
-      "purity": "impure",
-      "x": 329409,
-      "y": -186014,
-      "z": 3740
-    },
-    {
-      "id": "BP_ResourceNode213",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreCopper_C",
-      "purity": "pure",
-      "x": 355461,
-      "y": -149808,
-      "z": 4214
-    },
-    {
-      "id": "BP_ResourceNode214",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreCopper_C",
-      "purity": "impure",
-      "x": 326947,
-      "y": -209586,
-      "z": 3687
-    },
-    {
-      "id": "BP_ResourceNode215",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreCopper_C",
-      "purity": "normal",
-      "x": 287767,
-      "y": -274886,
-      "z": 1242
-    },
-    {
-      "id": "BP_ResourceNode216",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreCopper_C",
-      "purity": "pure",
-      "x": 342806,
-      "y": -114728,
-      "z": 6020
-    },
-    {
-      "id": "BP_ResourceNode235",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreCopper_C",
-      "purity": "pure",
-      "x": 380813,
-      "y": -169867,
-      "z": 4187
-    },
-    {
-      "id": "BP_ResourceNode237",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreCopper_C",
-      "purity": "impure",
-      "x": 381666,
-      "y": -268289,
-      "z": 3485
-    },
-    {
-      "id": "BP_ResourceNode38_902",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreCopper_C",
-      "purity": "normal",
-      "x": 167904,
-      "y": -116373,
-      "z": 2426
-    },
-    {
-      "id": "BP_ResourceNode445",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreCopper_C",
-      "purity": "pure",
-      "x": 56109,
-      "y": -85970,
-      "z": 9944
-    },
-    {
-      "id": "BP_ResourceNode492",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreCopper_C",
-      "purity": "impure",
-      "x": -83962,
-      "y": 273576,
-      "z": -6240
-    },
-    {
-      "id": "BP_ResourceNode493",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreCopper_C",
-      "purity": "impure",
-      "x": -83133,
-      "y": 275762,
-      "z": -6264
-    },
-    {
-      "id": "BP_ResourceNode505",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreCopper_C",
-      "purity": "normal",
-      "x": 7171,
-      "y": 155231,
-      "z": -12082
-    },
-    {
-      "id": "BP_ResourceNode506",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreCopper_C",
-      "purity": "normal",
-      "x": 5251,
-      "y": 157169,
-      "z": -12082
-    },
-    {
-      "id": "BP_ResourceNode507",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreCopper_C",
-      "purity": "normal",
-      "x": 5023,
-      "y": 159951,
-      "z": -12082
-    },
-    {
-      "id": "BP_ResourceNode513",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreCopper_C",
-      "purity": "pure",
-      "x": 152648,
-      "y": 5227,
-      "z": 15168
-    },
-    {
-      "id": "BP_ResourceNode514",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreCopper_C",
-      "purity": "pure",
-      "x": 157737,
-      "y": 14877,
-      "z": 15369
-    },
-    {
-      "id": "BP_ResourceNode515",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreCopper_C",
-      "purity": "pure",
-      "x": 149936,
-      "y": 4686,
-      "z": 15468
-    },
-    {
-      "id": "BP_ResourceNode53_510",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreCopper_C",
-      "purity": "pure",
-      "x": -21758,
-      "y": -145311,
-      "z": 10021
-    },
-    {
-      "id": "BP_ResourceNode540",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreCopper_C",
-      "purity": "normal",
-      "x": -33328,
-      "y": 231626,
-      "z": -1394
-    },
-    {
-      "id": "BP_ResourceNode547",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreCopper_C",
-      "purity": "normal",
-      "x": -21265,
-      "y": 283147,
-      "z": -2531
-    },
-    {
-      "id": "BP_ResourceNode547_UAID_40B076DF2F79ADE101_1836911209",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreCopper_C",
-      "purity": "pure",
-      "x": 80832,
-      "y": 242478,
-      "z": -4444
-    },
-    {
-      "id": "BP_ResourceNode547_UAID_40B076DF2F79AEE101_1979010387",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreCopper_C",
-      "purity": "normal",
-      "x": 58030,
-      "y": 82304,
-      "z": 11800
-    },
-    {
-      "id": "BP_ResourceNode562",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreCopper_C",
-      "purity": "impure",
-      "x": -71673,
-      "y": 106511,
-      "z": 8466
-    },
-    {
-      "id": "BP_ResourceNode593",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreCopper_C",
-      "purity": "normal",
-      "x": -28703,
-      "y": 198210,
-      "z": -1997
-    },
-    {
-      "id": "BP_ResourceNode68_2514",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreCopper_C",
-      "purity": "normal",
-      "x": -36771,
-      "y": 296778,
-      "z": -2366
-    },
-    {
-      "id": "BP_ResourceNode75_6425",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreCopper_C",
-      "purity": "impure",
-      "x": 130551,
-      "y": 179528,
-      "z": -5545
-    },
-    {
-      "id": "BP_ResourceNode83",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreCopper_C",
-      "purity": "pure",
-      "x": -171878,
-      "y": 185789,
-      "z": 1077
-    },
-    {
-      "id": "BP_ResourceNode83_UAID_40B076DF2F79FBE101_1618730935",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreCopper_C",
-      "purity": "impure",
-      "x": -159616,
-      "y": 112857,
-      "z": 16254
-    },
-    {
-      "id": "BP_ResourceNode83_UAID_40B076DF2F79FFE101_1122581639",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreCopper_C",
-      "purity": "impure",
-      "x": -156723,
-      "y": 109165,
-      "z": 16113
-    },
-    {
-      "id": "BP_ResourceNode91_785",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreCopper_C",
-      "purity": "normal",
-      "x": 282284,
-      "y": 63326,
-      "z": -1601
-    },
-    {
-      "id": "BP_ResourceNode92",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreCopper_C",
-      "purity": "normal",
-      "x": 297499,
-      "y": -7312,
-      "z": -298
-    },
-    {
-      "id": "BP_ResourceNode94_406",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreCopper_C",
-      "purity": "normal",
-      "x": 160085,
-      "y": 259420,
-      "z": -1094
-    },
-    {
-      "id": "BP_ResourceNode_C_UAID_40B076DF2F794DE201_1841969367",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreCopper_C",
-      "purity": "impure",
-      "x": 20143,
-      "y": -169847,
-      "z": 15477
-    },
-    {
-      "id": "BP_ResourceNode_C_UAID_40B076DF2F794FE201_2126930721",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreCopper_C",
-      "purity": "impure",
-      "x": 95345,
-      "y": -168441,
-      "z": 13262
-    },
-    {
-      "id": "BP_ResourceNode_C_UAID_A036BCACDEB0A6A601_2086848673",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreCopper_C",
-      "purity": "pure",
-      "x": -26897,
-      "y": -145468,
-      "z": 8397
-    },
-    {
-      "id": "BP_ResourceNode121_4877",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreGold_C",
-      "purity": "pure",
-      "x": -178491,
-      "y": -79788,
-      "z": 3331
-    },
-    {
-      "id": "BP_ResourceNode121_UAID_40B076DF2F7938DF01_2097772508",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreGold_C",
-      "purity": "normal",
-      "x": -135468,
-      "y": -174682,
-      "z": 7753
-    },
-    {
-      "id": "BP_ResourceNode134_8590",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreGold_C",
-      "purity": "normal",
-      "x": 109619,
-      "y": 155798,
-      "z": 4175
-    },
-    {
-      "id": "BP_ResourceNode140",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreGold_C",
-      "purity": "pure",
-      "x": 236608,
-      "y": -260095,
-      "z": 11784
-    },
-    {
-      "id": "BP_ResourceNode142",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreGold_C",
-      "purity": "normal",
-      "x": 224307,
-      "y": -128741,
-      "z": 7240
-    },
-    {
-      "id": "BP_ResourceNode142_UAID_40B076DF2F79E8DD01_2087440367",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreGold_C",
-      "purity": "normal",
-      "x": 211843,
-      "y": -18819,
-      "z": -29
-    },
-    {
-      "id": "BP_ResourceNode142_UAID_40B076DF2F79E9DD01_1434900545",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreGold_C",
-      "purity": "pure",
-      "x": 208139,
-      "y": -23983,
-      "z": 594
-    },
-    {
-      "id": "BP_ResourceNode142_UAID_40B076DF2F79E9DD01_1872254547",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreGold_C",
-      "purity": "normal",
-      "x": 208006,
-      "y": -16382,
-      "z": -55
-    },
-    {
-      "id": "BP_ResourceNode169_UAID_40B076DF2F7939DE01_2083925623",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreGold_C",
-      "purity": "normal",
-      "x": 114180,
-      "y": -16999,
-      "z": 14021
-    },
-    {
-      "id": "BP_ResourceNode176_UAID_40B076DF2F793BDF01_1694110039",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreGold_C",
-      "purity": "pure",
-      "x": -153387,
-      "y": 82252,
-      "z": 20330
-    },
-    {
-      "id": "BP_ResourceNode240",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreGold_C",
-      "purity": "pure",
-      "x": 406563,
-      "y": -206810,
-      "z": -1539
-    },
-    {
-      "id": "BP_ResourceNode487",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreGold_C",
-      "purity": "normal",
-      "x": -12814,
-      "y": -104642,
-      "z": 10908
-    },
-    {
-      "id": "BP_ResourceNode487_UAID_40B076DF2F7934DF01_1597642799",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreGold_C",
-      "purity": "normal",
-      "x": 103845,
-      "y": -94854,
-      "z": 12651
-    },
-    {
-      "id": "BP_ResourceNode570",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreGold_C",
-      "purity": "pure",
-      "x": 270786,
-      "y": 120111,
-      "z": -54
-    },
-    {
-      "id": "BP_ResourceNode574",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreGold_C",
-      "purity": "normal",
-      "x": 90375,
-      "y": 80713,
-      "z": 10116
-    },
-    {
-      "id": "BP_ResourceNode70_3132",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreGold_C",
-      "purity": "pure",
-      "x": -131573,
-      "y": 227253,
-      "z": -787
-    },
-    {
-      "id": "BP_ResourceNode72_998",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreGold_C",
-      "purity": "pure",
-      "x": -92343,
-      "y": 281605,
-      "z": -4620
-    },
-    {
-      "id": "BP_ResourceNode105_2463",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreIron_C",
-      "purity": "normal",
-      "x": -263873,
-      "y": -30848,
-      "z": -411
-    },
-    {
-      "id": "BP_ResourceNode106",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreIron_C",
-      "purity": "normal",
-      "x": -260110,
-      "y": -27673,
-      "z": -640
-    },
-    {
-      "id": "BP_ResourceNode107",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreIron_C",
-      "purity": "normal",
-      "x": -256244,
-      "y": -29564,
-      "z": -668
-    },
-    {
-      "id": "BP_ResourceNode108",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreIron_C",
-      "purity": "normal",
-      "x": -259120,
-      "y": -44688,
-      "z": -494
-    },
-    {
-      "id": "BP_ResourceNode109",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreIron_C",
-      "purity": "normal",
-      "x": -261358,
-      "y": -41228,
-      "z": -327
-    },
-    {
-      "id": "BP_ResourceNode114",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreIron_C",
-      "purity": "pure",
-      "x": -152490,
-      "y": -45786,
-      "z": 692
-    },
-    {
-      "id": "BP_ResourceNode115",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreIron_C",
-      "purity": "pure",
-      "x": -166731,
-      "y": -26566,
-      "z": -509
-    },
-    {
-      "id": "BP_ResourceNode116",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreIron_C",
-      "purity": "pure",
-      "x": -170447,
-      "y": -28321,
-      "z": -596
-    },
-    {
-      "id": "BP_ResourceNode123_5084",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreIron_C",
-      "purity": "pure",
-      "x": -110588,
-      "y": -135153,
-      "z": 1911
-    },
-    {
-      "id": "BP_ResourceNode126_6409",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreIron_C",
-      "purity": "pure",
-      "x": -96100,
-      "y": 163752,
-      "z": -3734
-    },
-    {
-      "id": "BP_ResourceNode128_5242",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreIron_C",
-      "purity": "normal",
-      "x": -190787,
-      "y": -117690,
-      "z": 706
-    },
-    {
-      "id": "BP_ResourceNode12_91",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreIron_C",
-      "purity": "impure",
-      "x": 248481,
-      "y": -146160,
-      "z": 3561
-    },
-    {
-      "id": "BP_ResourceNode13",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreIron_C",
-      "purity": "impure",
-      "x": 242691,
-      "y": -149432,
-      "z": 2590
-    },
-    {
-      "id": "BP_ResourceNode146",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreIron_C",
-      "purity": "normal",
-      "x": 96959,
-      "y": 157163,
-      "z": 2110
-    },
-    {
-      "id": "BP_ResourceNode147",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreIron_C",
-      "purity": "normal",
-      "x": 96326,
-      "y": 159762,
-      "z": 2102
-    },
-    {
-      "id": "BP_ResourceNode148",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreIron_C",
-      "purity": "normal",
-      "x": 93730,
-      "y": 160263,
-      "z": 2111
-    },
-    {
-      "id": "BP_ResourceNode149",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreIron_C",
-      "purity": "normal",
-      "x": 92724,
-      "y": 163305,
-      "z": 1881
-    },
-    {
-      "id": "BP_ResourceNode153",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreIron_C",
-      "purity": "normal",
-      "x": -258432,
-      "y": -40560,
-      "z": -327
-    },
-    {
-      "id": "BP_ResourceNode160",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreIron_C",
-      "purity": "pure",
-      "x": -250080,
-      "y": -126362,
-      "z": 3837
-    },
-    {
-      "id": "BP_ResourceNode161",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreIron_C",
-      "purity": "pure",
-      "x": -252032,
-      "y": -125001,
-      "z": 3847
-    },
-    {
-      "id": "BP_ResourceNode167",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreIron_C",
-      "purity": "normal",
-      "x": -186902,
-      "y": -118339,
-      "z": 706
-    },
-    {
-      "id": "BP_ResourceNode168",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreIron_C",
-      "purity": "normal",
-      "x": -187932,
-      "y": -114624,
-      "z": 706
-    },
-    {
-      "id": "BP_ResourceNode173",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreIron_C",
-      "purity": "impure",
-      "x": 264240,
-      "y": -162899,
-      "z": 3331
-    },
-    {
-      "id": "BP_ResourceNode174",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreIron_C",
-      "purity": "pure",
-      "x": -227410,
-      "y": -118862,
-      "z": 3931
-    },
-    {
-      "id": "BP_ResourceNode175",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreIron_C",
-      "purity": "pure",
-      "x": -230852,
-      "y": -115124,
-      "z": 3917
-    },
-    {
-      "id": "BP_ResourceNode180",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreIron_C",
-      "purity": "pure",
-      "x": 285860,
-      "y": -127665,
-      "z": 3875
-    },
-    {
-      "id": "BP_ResourceNode184",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreIron_C",
-      "purity": "impure",
-      "x": 311229,
-      "y": -128705,
-      "z": 4669
-    },
-    {
-      "id": "BP_ResourceNode196",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreIron_C",
-      "purity": "pure",
-      "x": 255249,
-      "y": -91659,
-      "z": 5523
-    },
-    {
-      "id": "BP_ResourceNode198",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreIron_C",
-      "purity": "normal",
-      "x": 268524,
-      "y": -116944,
-      "z": 4206
-    },
-    {
-      "id": "BP_ResourceNode199",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreIron_C",
-      "purity": "normal",
-      "x": 266880,
-      "y": -120714,
-      "z": 4084
-    },
-    {
-      "id": "BP_ResourceNode200",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreIron_C",
-      "purity": "impure",
-      "x": 283968,
-      "y": -121598,
-      "z": 4452
-    },
-    {
-      "id": "BP_ResourceNode201",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreIron_C",
-      "purity": "pure",
-      "x": 347227,
-      "y": -58490,
-      "z": -748
-    },
-    {
-      "id": "BP_ResourceNode203",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreIron_C",
-      "purity": "pure",
-      "x": 319464,
-      "y": -158098,
-      "z": 3864
-    },
-    {
-      "id": "BP_ResourceNode204_0",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreIron_C",
-      "purity": "impure",
-      "x": 330433,
-      "y": -142399,
-      "z": 3965
-    },
-    {
-      "id": "BP_ResourceNode205",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreIron_C",
-      "purity": "normal",
-      "x": 313010,
-      "y": -133841,
-      "z": 4861
-    },
-    {
-      "id": "BP_ResourceNode206",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreIron_C",
-      "purity": "normal",
-      "x": 339300,
-      "y": -183354,
-      "z": 4477
-    },
-    {
-      "id": "BP_ResourceNode207",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreIron_C",
-      "purity": "pure",
-      "x": 273729,
-      "y": -148172,
-      "z": 4082
-    },
-    {
-      "id": "BP_ResourceNode208",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreIron_C",
-      "purity": "normal",
-      "x": 338207,
-      "y": -177564,
-      "z": 4959
-    },
-    {
-      "id": "BP_ResourceNode209",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreIron_C",
-      "purity": "pure",
-      "x": 372373,
-      "y": -153420,
-      "z": 4005
-    },
-    {
-      "id": "BP_ResourceNode210",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreIron_C",
-      "purity": "pure",
-      "x": 348525,
-      "y": -123750,
-      "z": 4283
-    },
-    {
-      "id": "BP_ResourceNode217",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreIron_C",
-      "purity": "pure",
-      "x": 278266,
-      "y": -210771,
-      "z": 3221
-    },
-    {
-      "id": "BP_ResourceNode218",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreIron_C",
-      "purity": "normal",
-      "x": 298733,
-      "y": -199292,
-      "z": 2709
-    },
-    {
-      "id": "BP_ResourceNode219",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreIron_C",
-      "purity": "pure",
-      "x": 282689,
-      "y": -179305,
-      "z": 4212
-    },
-    {
-      "id": "BP_ResourceNode220",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreIron_C",
-      "purity": "pure",
-      "x": 385302,
-      "y": -189927,
-      "z": 4280
-    },
-    {
-      "id": "BP_ResourceNode221",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreIron_C",
-      "purity": "impure",
-      "x": 311798,
-      "y": -215343,
-      "z": 2436
-    },
-    {
-      "id": "BP_ResourceNode222",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreIron_C",
-      "purity": "impure",
-      "x": 314598,
-      "y": -196773,
-      "z": 3905
-    },
-    {
-      "id": "BP_ResourceNode223",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreIron_C",
-      "purity": "normal",
-      "x": 276673,
-      "y": -195099,
-      "z": 2898
-    },
-    {
-      "id": "BP_ResourceNode230",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreIron_C",
-      "purity": "normal",
-      "x": 280137,
-      "y": -261096,
-      "z": 1859
-    },
-    {
-      "id": "BP_ResourceNode233",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreIron_C",
-      "purity": "normal",
-      "x": 374874,
-      "y": -259903,
-      "z": 3231
-    },
-    {
-      "id": "BP_ResourceNode236",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreIron_C",
-      "purity": "normal",
-      "x": 377738,
-      "y": -254225,
-      "z": 3347
-    },
-    {
-      "id": "BP_ResourceNode238",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreIron_C",
-      "purity": "pure",
-      "x": 304839,
-      "y": -172907,
-      "z": 3801
-    },
-    {
-      "id": "BP_ResourceNode239",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreIron_C",
-      "purity": "pure",
-      "x": 297575,
-      "y": -150186,
-      "z": 3972
-    },
-    {
-      "id": "BP_ResourceNode35",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreIron_C",
-      "purity": "normal",
-      "x": 256611,
-      "y": -197978,
-      "z": 3561
-    },
-    {
-      "id": "BP_ResourceNode36",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreIron_C",
-      "purity": "normal",
-      "x": 241090,
-      "y": -239787,
-      "z": 1048
-    },
-    {
-      "id": "BP_ResourceNode39",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreIron_C",
-      "purity": "pure",
-      "x": 181723,
-      "y": -116280,
-      "z": 2150
-    },
-    {
-      "id": "BP_ResourceNode40",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreIron_C",
-      "purity": "pure",
-      "x": 178061,
-      "y": -120503,
-      "z": 2250
-    },
-    {
-      "id": "BP_ResourceNode426",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreIron_C",
-      "purity": "pure",
-      "x": 68075,
-      "y": -81001,
-      "z": 9944
-    },
-    {
-      "id": "BP_ResourceNode427",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreIron_C",
-      "purity": "pure",
-      "x": 70865,
-      "y": -78125,
-      "z": 10451
-    },
-    {
-      "id": "BP_ResourceNode430",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreIron_C",
-      "purity": "pure",
-      "x": 59113,
-      "y": -71501,
-      "z": 10568
-    },
-    {
-      "id": "BP_ResourceNode431",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreIron_C",
-      "purity": "pure",
-      "x": 64576,
-      "y": -71386,
-      "z": 10641
-    },
-    {
-      "id": "BP_ResourceNode435_26",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreIron_C",
-      "purity": "pure",
-      "x": 84199,
-      "y": -86393,
-      "z": 9766
-    },
-    {
-      "id": "BP_ResourceNode437_30",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreIron_C",
-      "purity": "pure",
-      "x": 83508,
-      "y": -90506,
-      "z": 9590
-    },
-    {
-      "id": "BP_ResourceNode453",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreIron_C",
-      "purity": "pure",
-      "x": -44869,
-      "y": -139479,
-      "z": 7983
-    },
-    {
-      "id": "BP_ResourceNode454",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreIron_C",
-      "purity": "pure",
-      "x": -43381,
-      "y": -136820,
-      "z": 8046
-    },
-    {
-      "id": "BP_ResourceNode457",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreIron_C",
-      "purity": "pure",
-      "x": 116236,
-      "y": -15552,
-      "z": 14026
-    },
-    {
-      "id": "BP_ResourceNode462",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreIron_C",
-      "purity": "pure",
-      "x": -37614,
-      "y": -142250,
-      "z": 7971
-    },
-    {
-      "id": "BP_ResourceNode462_UAID_40B076DF2F7902E201_1630060169",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreIron_C",
-      "purity": "normal",
-      "x": -58995,
-      "y": -224574,
-      "z": 9573
-    },
-    {
-      "id": "BP_ResourceNode462_UAID_40B076DF2F7907E201_1624182051",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreIron_C",
-      "purity": "impure",
-      "x": -64962,
-      "y": -201169,
-      "z": 6925
-    },
-    {
-      "id": "BP_ResourceNode462_UAID_40B076DF2F790CE201_2008279933",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreIron_C",
-      "purity": "impure",
-      "x": -52876,
-      "y": -201761,
-      "z": 6792
-    },
-    {
-      "id": "BP_ResourceNode488",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreIron_C",
-      "purity": "impure",
-      "x": -94905,
-      "y": 262677,
-      "z": -4620
-    },
-    {
-      "id": "BP_ResourceNode489",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreIron_C",
-      "purity": "impure",
-      "x": -97178,
-      "y": 264232,
-      "z": -4625
-    },
-    {
-      "id": "BP_ResourceNode49",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreIron_C",
-      "purity": "impure",
-      "x": 265501,
-      "y": -178205,
-      "z": 3456
-    },
-    {
-      "id": "BP_ResourceNode490",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreIron_C",
-      "purity": "impure",
-      "x": -98579,
-      "y": 265801,
-      "z": -4634
-    },
-    {
-      "id": "BP_ResourceNode491",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreIron_C",
-      "purity": "impure",
-      "x": -91267,
-      "y": 253077,
-      "z": -4513
-    },
-    {
-      "id": "BP_ResourceNode494",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreIron_C",
-      "purity": "impure",
-      "x": -36499,
-      "y": 243893,
-      "z": -2502
-    },
-    {
-      "id": "BP_ResourceNode495",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreIron_C",
-      "purity": "impure",
-      "x": -35040,
-      "y": 245805,
-      "z": -2504
-    },
-    {
-      "id": "BP_ResourceNode496",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreIron_C",
-      "purity": "normal",
-      "x": -49077,
-      "y": 231707,
-      "z": -3845
-    },
-    {
-      "id": "BP_ResourceNode497_1",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreIron_C",
-      "purity": "normal",
-      "x": -51644,
-      "y": 229391,
-      "z": -3845
-    },
-    {
-      "id": "BP_ResourceNode517",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreIron_C",
-      "purity": "pure",
-      "x": 124933,
-      "y": 5226,
-      "z": 15573
-    },
-    {
-      "id": "BP_ResourceNode518",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreIron_C",
-      "purity": "pure",
-      "x": 128572,
-      "y": 1795,
-      "z": 15542
-    },
-    {
-      "id": "BP_ResourceNode523_UAID_40B076DF2F7987DF01_1117795413",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreIron_C",
-      "purity": "normal",
-      "x": 245043,
-      "y": -22318,
-      "z": 8820
-    },
-    {
-      "id": "BP_ResourceNode524_UAID_40B076DF2F798ADF01_1172524943",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreIron_C",
-      "purity": "normal",
-      "x": 237724,
-      "y": -23005,
-      "z": 8796
-    },
-    {
-      "id": "BP_ResourceNode528",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreIron_C",
-      "purity": "normal",
-      "x": 233141,
-      "y": -26440,
-      "z": 8976
-    },
-    {
-      "id": "BP_ResourceNode530",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreIron_C",
-      "purity": "impure",
-      "x": -99586,
-      "y": 267811,
-      "z": -4660
-    },
-    {
-      "id": "BP_ResourceNode531",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreIron_C",
-      "purity": "impure",
-      "x": -93267,
-      "y": 254146,
-      "z": -4509
-    },
-    {
-      "id": "BP_ResourceNode532",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreIron_C",
-      "purity": "impure",
-      "x": -94006,
-      "y": 268116,
-      "z": -3127
-    },
-    {
-      "id": "BP_ResourceNode533",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreIron_C",
-      "purity": "impure",
-      "x": -92372,
-      "y": 266081,
-      "z": -3125
-    },
-    {
-      "id": "BP_ResourceNode535",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreIron_C",
-      "purity": "impure",
-      "x": -65049,
-      "y": 137463,
-      "z": 8488
-    },
-    {
-      "id": "BP_ResourceNode536",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreIron_C",
-      "purity": "impure",
-      "x": -42273,
-      "y": 132150,
-      "z": 8668
-    },
-    {
-      "id": "BP_ResourceNode537",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreIron_C",
-      "purity": "impure",
-      "x": -60453,
-      "y": 141695,
-      "z": 8416
-    },
-    {
-      "id": "BP_ResourceNode538",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreIron_C",
-      "purity": "impure",
-      "x": -41928,
-      "y": 206907,
-      "z": -2228
-    },
-    {
-      "id": "BP_ResourceNode539",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreIron_C",
-      "purity": "impure",
-      "x": -43940,
-      "y": 207992,
-      "z": -2228
-    },
-    {
-      "id": "BP_ResourceNode541",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreIron_C",
-      "purity": "impure",
-      "x": -38249,
-      "y": 127975,
-      "z": 8811
-    },
-    {
-      "id": "BP_ResourceNode542",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreIron_C",
-      "purity": "impure",
-      "x": -41484,
-      "y": 125793,
-      "z": 8644
-    },
-    {
-      "id": "BP_ResourceNode543",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreIron_C",
-      "purity": "normal",
-      "x": 571,
-      "y": 283802,
-      "z": -1139
-    },
-    {
-      "id": "BP_ResourceNode544",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreIron_C",
-      "purity": "normal",
-      "x": -1126,
-      "y": 285301,
-      "z": -1139
-    },
-    {
-      "id": "BP_ResourceNode545",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreIron_C",
-      "purity": "normal",
-      "x": -44922,
-      "y": 302273,
-      "z": -2543
-    },
-    {
-      "id": "BP_ResourceNode546",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreIron_C",
-      "purity": "normal",
-      "x": -50406,
-      "y": 302870,
-      "z": -2583
-    },
-    {
-      "id": "BP_ResourceNode551",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreIron_C",
-      "purity": "normal",
-      "x": -54100,
-      "y": 229417,
-      "z": -3845
-    },
-    {
-      "id": "BP_ResourceNode558",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreIron_C",
-      "purity": "normal",
-      "x": -8996,
-      "y": 293512,
-      "z": -2527
-    },
-    {
-      "id": "BP_ResourceNode55_1215",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreIron_C",
-      "purity": "pure",
-      "x": -47085,
-      "y": -141054,
-      "z": 8074
-    },
-    {
-      "id": "BP_ResourceNode563",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreIron_C",
-      "purity": "pure",
-      "x": 271770,
-      "y": 100432,
-      "z": -1294
-    },
-    {
-      "id": "BP_ResourceNode563_UAID_40B076DF2F79B7E101_1869159978",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreIron_C",
-      "purity": "impure",
-      "x": 225650,
-      "y": 147647,
-      "z": -193
-    },
-    {
-      "id": "BP_ResourceNode563_UAID_40B076DF2F79B8E101_1620414156",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreIron_C",
-      "purity": "impure",
-      "x": 221480,
-      "y": 146593,
-      "z": -200
-    },
-    {
-      "id": "BP_ResourceNode563_UAID_40B076DF2F79B9E101_1570060334",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreIron_C",
-      "purity": "impure",
-      "x": 233432,
-      "y": 145602,
-      "z": -267
-    },
-    {
-      "id": "BP_ResourceNode563_UAID_40B076DF2F79BBE101_1434258671",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreIron_C",
-      "purity": "impure",
-      "x": 233292,
-      "y": 139879,
-      "z": -304
-    },
-    {
-      "id": "BP_ResourceNode565_8",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreIron_C",
-      "purity": "pure",
-      "x": 242756,
-      "y": 87933,
-      "z": -617
-    },
-    {
-      "id": "BP_ResourceNode567",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreIron_C",
-      "purity": "pure",
-      "x": 245861,
-      "y": 4378,
-      "z": 573
-    },
-    {
-      "id": "BP_ResourceNode569",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreIron_C",
-      "purity": "impure",
-      "x": -43326,
-      "y": 130254,
-      "z": 8662
-    },
-    {
-      "id": "BP_ResourceNode577",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreIron_C",
-      "purity": "impure",
-      "x": -55693,
-      "y": 194370,
-      "z": -2557
-    },
-    {
-      "id": "BP_ResourceNode578",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreIron_C",
-      "purity": "impure",
-      "x": -57161,
-      "y": 192772,
-      "z": -2513
-    },
-    {
-      "id": "BP_ResourceNode579",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreIron_C",
-      "purity": "impure",
-      "x": -58919,
-      "y": 195892,
-      "z": -2195
-    },
-    {
-      "id": "BP_ResourceNode580",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreIron_C",
-      "purity": "impure",
-      "x": -61757,
-      "y": 194633,
-      "z": -2042
-    },
-    {
-      "id": "BP_ResourceNode583_1",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreIron_C",
-      "purity": "pure",
-      "x": 255908,
-      "y": -3071,
-      "z": 3583
-    },
-    {
-      "id": "BP_ResourceNode585",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreIron_C",
-      "purity": "normal",
-      "x": -10233,
-      "y": 291034,
-      "z": -2475
-    },
-    {
-      "id": "BP_ResourceNode591",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreIron_C",
-      "purity": "impure",
-      "x": -47534,
-      "y": 289606,
-      "z": -2526
-    },
-    {
-      "id": "BP_ResourceNode592",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreIron_C",
-      "purity": "impure",
-      "x": -50101,
-      "y": 284478,
-      "z": -2614
-    },
-    {
       "id": "BP_ResourceNode65_1865",
       "kind": "resourceNode",
       "resourceClass": "Desc_OreIron_C",
@@ -16560,1221 +17568,6 @@
       "z": -847
     },
     {
-      "id": "BP_ResourceNode73_6071",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreIron_C",
-      "purity": "normal",
-      "x": 133276,
-      "y": 197857,
-      "z": -7378
-    },
-    {
-      "id": "BP_ResourceNode74",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreIron_C",
-      "purity": "normal",
-      "x": 131967,
-      "y": 194729,
-      "z": -7424
-    },
-    {
-      "id": "BP_ResourceNode76",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreIron_C",
-      "purity": "pure",
-      "x": 133637,
-      "y": 205791,
-      "z": -7424
-    },
-    {
-      "id": "BP_ResourceNode80",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreIron_C",
-      "purity": "pure",
-      "x": -167603,
-      "y": 179557,
-      "z": 1589
-    },
-    {
-      "id": "BP_ResourceNode81",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreIron_C",
-      "purity": "pure",
-      "x": -164442,
-      "y": 171771,
-      "z": 1612
-    },
-    {
-      "id": "BP_ResourceNode82",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreIron_C",
-      "purity": "pure",
-      "x": -162723,
-      "y": 182453,
-      "z": 712
-    },
-    {
-      "id": "BP_ResourceNode90_482",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreIron_C",
-      "purity": "normal",
-      "x": 252751,
-      "y": 29139,
-      "z": -798
-    },
-    {
-      "id": "BP_ResourceNode95_579",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreIron_C",
-      "purity": "pure",
-      "x": 164518,
-      "y": 238317,
-      "z": -8588
-    },
-    {
-      "id": "BP_ResourceNode484",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreUranium_C",
-      "purity": "impure",
-      "x": 168712,
-      "y": 50839,
-      "z": -9
-    },
-    {
-      "id": "BP_ResourceNode484_UAID_40B076DF2F79E0DF01_2091429101",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreUranium_C",
-      "purity": "impure",
-      "x": 180193,
-      "y": -189199,
-      "z": 23503
-    },
-    {
-      "id": "BP_ResourceNode576",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreUranium_C",
-      "purity": "normal",
-      "x": 38000,
-      "y": 91735,
-      "z": -4809
-    },
-    {
-      "id": "BP_ResourceNode598_0",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreUranium_C",
-      "purity": "normal",
-      "x": -75893,
-      "y": 51636,
-      "z": 19145
-    },
-    {
-      "id": "BP_ResourceNode632",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_OreUranium_C",
-      "purity": "impure",
-      "x": -132772,
-      "y": -187579,
-      "z": 46528
-    },
-    {
-      "id": "BP_ResourceNode136",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_RawQuartz_C",
-      "purity": "pure",
-      "x": 37926,
-      "y": 120939,
-      "z": 13370
-    },
-    {
-      "id": "BP_ResourceNode136_UAID_40B076DF2F7975DF01_1587576239",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_RawQuartz_C",
-      "purity": "pure",
-      "x": 61653,
-      "y": 196432,
-      "z": -3725
-    },
-    {
-      "id": "BP_ResourceNode136_UAID_40B076DF2F7975DF01_1617269241",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_RawQuartz_C",
-      "purity": "impure",
-      "x": 62111,
-      "y": 207627,
-      "z": -4197
-    },
-    {
-      "id": "BP_ResourceNode136_UAID_40B076DF2F7975DF01_1622351243",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_RawQuartz_C",
-      "purity": "normal",
-      "x": 55253,
-      "y": 205856,
-      "z": -5763
-    },
-    {
-      "id": "BP_ResourceNode137_2248",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_RawQuartz_C",
-      "purity": "normal",
-      "x": 34968,
-      "y": 118464,
-      "z": 13410
-    },
-    {
-      "id": "BP_ResourceNode231",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_RawQuartz_C",
-      "purity": "normal",
-      "x": 305659,
-      "y": -301305,
-      "z": 1232
-    },
-    {
-      "id": "BP_ResourceNode232",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_RawQuartz_C",
-      "purity": "normal",
-      "x": 308597,
-      "y": -296079,
-      "z": 1256
-    },
-    {
-      "id": "BP_ResourceNode474_UAID_40B076DF2F7983DF01_2128950703",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_RawQuartz_C",
-      "purity": "normal",
-      "x": 196667,
-      "y": -13955,
-      "z": 9398
-    },
-    {
-      "id": "BP_ResourceNode474_UAID_40B076DF2F798DDF01_1645035472",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_RawQuartz_C",
-      "purity": "pure",
-      "x": 193979,
-      "y": -5467,
-      "z": 10260
-    },
-    {
-      "id": "BP_ResourceNode474_UAID_40B076DF2F798EDF01_2134364650",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_RawQuartz_C",
-      "purity": "normal",
-      "x": 190097,
-      "y": -17280,
-      "z": 9456
-    },
-    {
-      "id": "BP_ResourceNode520",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_RawQuartz_C",
-      "purity": "pure",
-      "x": -90474,
-      "y": 67259,
-      "z": 2145
-    },
-    {
-      "id": "BP_ResourceNode522",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_RawQuartz_C",
-      "purity": "pure",
-      "x": -90370,
-      "y": 63712,
-      "z": 2145
-    },
-    {
-      "id": "BP_ResourceNode552",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_RawQuartz_C",
-      "purity": "normal",
-      "x": -194230,
-      "y": -140421,
-      "z": -1241
-    },
-    {
-      "id": "BP_ResourceNode57_UAID_40B076DF2F7935DF01_1413169977",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_RawQuartz_C",
-      "purity": "impure",
-      "x": 55041,
-      "y": -130641,
-      "z": 7156
-    },
-    {
-      "id": "BP_ResourceNode57_UAID_40B076DF2F7991DF01_1459615180",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_RawQuartz_C",
-      "purity": "impure",
-      "x": 62289,
-      "y": -137424,
-      "z": 8325
-    },
-    {
-      "id": "BP_ResourceNode588",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_RawQuartz_C",
-      "purity": "pure",
-      "x": -167359,
-      "y": -145682,
-      "z": -1914
-    },
-    {
-      "id": "BP_ResourceNode588_UAID_40B076DF2F79CEDF01_1910960903",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_RawQuartz_C",
-      "purity": "pure",
-      "x": -171986,
-      "y": -144145,
-      "z": -2030
-    },
-    {
-      "id": "BP_ResourceNode101_1893",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_SAM_C",
-      "purity": "impure",
-      "x": 161928,
-      "y": 103777,
-      "z": 5602
-    },
-    {
-      "id": "BP_ResourceNode101_UAID_40B076DF2F79E6D901_1551800812",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_SAM_C",
-      "purity": "impure",
-      "x": 119148,
-      "y": 71321,
-      "z": 18673
-    },
-    {
-      "id": "BP_ResourceNode101_UAID_40B076DF2F79E7D901_2125168992",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_SAM_C",
-      "purity": "pure",
-      "x": 162898,
-      "y": 65413,
-      "z": 9782
-    },
-    {
-      "id": "BP_ResourceNode135",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_SAM_C",
-      "purity": "normal",
-      "x": -182183,
-      "y": -142367,
-      "z": -1743
-    },
-    {
-      "id": "BP_ResourceNode172",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_SAM_C",
-      "purity": "normal",
-      "x": -24065,
-      "y": 269858,
-      "z": -13353
-    },
-    {
-      "id": "BP_ResourceNode172_UAID_40B076DF2F79DFD901_1471130569",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_SAM_C",
-      "purity": "impure",
-      "x": 80730,
-      "y": 204811,
-      "z": 5722
-    },
-    {
-      "id": "BP_ResourceNode241",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_SAM_C",
-      "purity": "normal",
-      "x": 172559,
-      "y": -285516,
-      "z": 21591
-    },
-    {
-      "id": "BP_ResourceNode241_UAID_40B076DF2F7947D301_1723440520",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_SAM_C",
-      "purity": "impure",
-      "x": 272832,
-      "y": -261865,
-      "z": 1087
-    },
-    {
-      "id": "BP_ResourceNode43",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_SAM_C",
-      "purity": "pure",
-      "x": 82558,
-      "y": -219609,
-      "z": 8929
-    },
-    {
-      "id": "BP_ResourceNode43_UAID_40B076DF2F7932D901_1711042113",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_SAM_C",
-      "purity": "impure",
-      "x": -46645,
-      "y": -252947,
-      "z": 4931
-    },
-    {
-      "id": "BP_ResourceNode43_UAID_40B076DF2F7936D401_1733397541",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_SAM_C",
-      "purity": "impure",
-      "x": -80869,
-      "y": -32418,
-      "z": 15656
-    },
-    {
-      "id": "BP_ResourceNode43_UAID_40B076DF2F793ED901_1532454233",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_SAM_C",
-      "purity": "impure",
-      "x": 152961,
-      "y": -24054,
-      "z": 4287
-    },
-    {
-      "id": "BP_ResourceNode43_UAID_40B076DF2F7941D901_1404601764",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_SAM_C",
-      "purity": "impure",
-      "x": 230542,
-      "y": -33617,
-      "z": 2185
-    },
-    {
-      "id": "BP_ResourceNode47_3066",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_SAM_C",
-      "purity": "normal",
-      "x": 15459,
-      "y": -803,
-      "z": 14671
-    },
-    {
-      "id": "BP_ResourceNode519",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_SAM_C",
-      "purity": "pure",
-      "x": -48375,
-      "y": 128937,
-      "z": 23613
-    },
-    {
-      "id": "BP_ResourceNode519_UAID_40B076DF2F79D3D901_1586151453",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_SAM_C",
-      "purity": "normal",
-      "x": -181813,
-      "y": 89076,
-      "z": 17039
-    },
-    {
-      "id": "BP_ResourceNode607",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_SAM_C",
-      "purity": "impure",
-      "x": -143612,
-      "y": 20728,
-      "z": 19457
-    },
-    {
-      "id": "BP_ResourceNode78_1097",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_SAM_C",
-      "purity": "normal",
-      "x": 228273,
-      "y": 116287,
-      "z": -1581
-    },
-    {
-      "id": "BP_ResourceNode99",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_SAM_C",
-      "purity": "impure",
-      "x": 132957,
-      "y": 240892,
-      "z": -14192
-    },
-    {
-      "id": "BP_ResourceNode102_2068",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_Stone_C",
-      "purity": "normal",
-      "x": -280836,
-      "y": -42089,
-      "z": -1276
-    },
-    {
-      "id": "BP_ResourceNode103",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_Stone_C",
-      "purity": "normal",
-      "x": -267051,
-      "y": -24386,
-      "z": -723
-    },
-    {
-      "id": "BP_ResourceNode104",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_Stone_C",
-      "purity": "normal",
-      "x": -273321,
-      "y": -19667,
-      "z": -1537
-    },
-    {
-      "id": "BP_ResourceNode110",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_Stone_C",
-      "purity": "pure",
-      "x": -178099,
-      "y": -165241,
-      "z": 7616
-    },
-    {
-      "id": "BP_ResourceNode113",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_Stone_C",
-      "purity": "pure",
-      "x": -165001,
-      "y": -133278,
-      "z": 1610
-    },
-    {
-      "id": "BP_ResourceNode118_4340",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_Stone_C",
-      "purity": "normal",
-      "x": -133444,
-      "y": -35240,
-      "z": 3832
-    },
-    {
-      "id": "BP_ResourceNode119",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_Stone_C",
-      "purity": "normal",
-      "x": -145781,
-      "y": -31969,
-      "z": 3281
-    },
-    {
-      "id": "BP_ResourceNode124_5785",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_Stone_C",
-      "purity": "normal",
-      "x": -90457,
-      "y": -152279,
-      "z": -1700
-    },
-    {
-      "id": "BP_ResourceNode132_5908",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_Stone_C",
-      "purity": "normal",
-      "x": -173249,
-      "y": -112172,
-      "z": 31
-    },
-    {
-      "id": "BP_ResourceNode133_6963",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_Stone_C",
-      "purity": "normal",
-      "x": 109989,
-      "y": 196758,
-      "z": -3246
-    },
-    {
-      "id": "BP_ResourceNode138_590",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_Stone_C",
-      "purity": "normal",
-      "x": 175981,
-      "y": -40156,
-      "z": 6611
-    },
-    {
-      "id": "BP_ResourceNode139_909",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_Stone_C",
-      "purity": "normal",
-      "x": 158314,
-      "y": -65002,
-      "z": 2591
-    },
-    {
-      "id": "BP_ResourceNode143_1543",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_Stone_C",
-      "purity": "normal",
-      "x": -129599,
-      "y": -96956,
-      "z": 4129
-    },
-    {
-      "id": "BP_ResourceNode144_1644",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_Stone_C",
-      "purity": "normal",
-      "x": -231390,
-      "y": -89529,
-      "z": 823
-    },
-    {
-      "id": "BP_ResourceNode145_1749",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_Stone_C",
-      "purity": "normal",
-      "x": -194906,
-      "y": -25779,
-      "z": -627
-    },
-    {
-      "id": "BP_ResourceNode157",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_Stone_C",
-      "purity": "normal",
-      "x": -268787,
-      "y": -79095,
-      "z": -292
-    },
-    {
-      "id": "BP_ResourceNode158",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_Stone_C",
-      "purity": "normal",
-      "x": -129015,
-      "y": -39541,
-      "z": 2898
-    },
-    {
-      "id": "BP_ResourceNode163",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_Stone_C",
-      "purity": "pure",
-      "x": -221696,
-      "y": -104736,
-      "z": 4105
-    },
-    {
-      "id": "BP_ResourceNode164",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_Stone_C",
-      "purity": "pure",
-      "x": -261495,
-      "y": -116492,
-      "z": 4302
-    },
-    {
-      "id": "BP_ResourceNode165",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_Stone_C",
-      "purity": "pure",
-      "x": -281761,
-      "y": -134704,
-      "z": 1998
-    },
-    {
-      "id": "BP_ResourceNode166",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_Stone_C",
-      "purity": "pure",
-      "x": -206172,
-      "y": -141688,
-      "z": 4859
-    },
-    {
-      "id": "BP_ResourceNode178",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_Stone_C",
-      "purity": "normal",
-      "x": 186164,
-      "y": 77069,
-      "z": 1138
-    },
-    {
-      "id": "BP_ResourceNode181",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_Stone_C",
-      "purity": "impure",
-      "x": 237354,
-      "y": -164936,
-      "z": 2636
-    },
-    {
-      "id": "BP_ResourceNode182",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_Stone_C",
-      "purity": "impure",
-      "x": 244591,
-      "y": -190902,
-      "z": 1832
-    },
-    {
-      "id": "BP_ResourceNode186",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_Stone_C",
-      "purity": "normal",
-      "x": 295895,
-      "y": -272876,
-      "z": 1237
-    },
-    {
-      "id": "BP_ResourceNode187_0",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_Stone_C",
-      "purity": "normal",
-      "x": 225406,
-      "y": -237056,
-      "z": 1043
-    },
-    {
-      "id": "BP_ResourceNode189",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_Stone_C",
-      "purity": "normal",
-      "x": 308652,
-      "y": -100658,
-      "z": 6378
-    },
-    {
-      "id": "BP_ResourceNode190",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_Stone_C",
-      "purity": "pure",
-      "x": 311622,
-      "y": -69811,
-      "z": 5620
-    },
-    {
-      "id": "BP_ResourceNode191",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_Stone_C",
-      "purity": "impure",
-      "x": 299122,
-      "y": -85512,
-      "z": 5936
-    },
-    {
-      "id": "BP_ResourceNode193",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_Stone_C",
-      "purity": "impure",
-      "x": 383045,
-      "y": -92549,
-      "z": 207
-    },
-    {
-      "id": "BP_ResourceNode20_3137",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_Stone_C",
-      "purity": "pure",
-      "x": -280305,
-      "y": -181362,
-      "z": 338
-    },
-    {
-      "id": "BP_ResourceNode20_UAID_04D9F5D42711A7C902_1245462149",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_Stone_C",
-      "purity": "pure",
-      "x": -278905,
-      "y": -186362,
-      "z": 338
-    },
-    {
-      "id": "BP_ResourceNode224",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_Stone_C",
-      "purity": "impure",
-      "x": 359885,
-      "y": -200469,
-      "z": 4110
-    },
-    {
-      "id": "BP_ResourceNode225",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_Stone_C",
-      "purity": "pure",
-      "x": 391118,
-      "y": -208702,
-      "z": 4998
-    },
-    {
-      "id": "BP_ResourceNode226",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_Stone_C",
-      "purity": "impure",
-      "x": 338761,
-      "y": -205718,
-      "z": 4225
-    },
-    {
-      "id": "BP_ResourceNode227",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_Stone_C",
-      "purity": "pure",
-      "x": 348908,
-      "y": -163350,
-      "z": 4238
-    },
-    {
-      "id": "BP_ResourceNode228",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_Stone_C",
-      "purity": "normal",
-      "x": 370713,
-      "y": -221971,
-      "z": 4225
-    },
-    {
-      "id": "BP_ResourceNode229",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_Stone_C",
-      "purity": "normal",
-      "x": 385953,
-      "y": -254364,
-      "z": 3420
-    },
-    {
-      "id": "BP_ResourceNode234",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_Stone_C",
-      "purity": "pure",
-      "x": 355115,
-      "y": -122969,
-      "z": 5003
-    },
-    {
-      "id": "BP_ResourceNode37_178",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_Stone_C",
-      "purity": "normal",
-      "x": 177197,
-      "y": -86516,
-      "z": 2459
-    },
-    {
-      "id": "BP_ResourceNode41_1099",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_Stone_C",
-      "purity": "normal",
-      "x": 107368,
-      "y": -43239,
-      "z": 14774
-    },
-    {
-      "id": "BP_ResourceNode42_1294",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_Stone_C",
-      "purity": "normal",
-      "x": 63823,
-      "y": 8376,
-      "z": 14012
-    },
-    {
-      "id": "BP_ResourceNode439_1",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_Stone_C",
-      "purity": "normal",
-      "x": 79670,
-      "y": -75852,
-      "z": 12028
-    },
-    {
-      "id": "BP_ResourceNode440",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_Stone_C",
-      "purity": "pure",
-      "x": 69552,
-      "y": -100368,
-      "z": 9391
-    },
-    {
-      "id": "BP_ResourceNode441",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_Stone_C",
-      "purity": "normal",
-      "x": 67878,
-      "y": -95777,
-      "z": 9362
-    },
-    {
-      "id": "BP_ResourceNode442",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_Stone_C",
-      "purity": "normal",
-      "x": 60592,
-      "y": -77890,
-      "z": 9437
-    },
-    {
-      "id": "BP_ResourceNode443",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_Stone_C",
-      "purity": "normal",
-      "x": -6448,
-      "y": -120483,
-      "z": 10380
-    },
-    {
-      "id": "BP_ResourceNode463",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_Stone_C",
-      "purity": "pure",
-      "x": -55554,
-      "y": -129406,
-      "z": 6951
-    },
-    {
-      "id": "BP_ResourceNode464",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_Stone_C",
-      "purity": "pure",
-      "x": 50259,
-      "y": -157152,
-      "z": -144
-    },
-    {
-      "id": "BP_ResourceNode464_UAID_40B076DF2F790EE201_1850696287",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_Stone_C",
-      "purity": "impure",
-      "x": 15240,
-      "y": -158578,
-      "z": -1397
-    },
-    {
-      "id": "BP_ResourceNode464_UAID_40B076DF2F790FE201_1577140465",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_Stone_C",
-      "purity": "normal",
-      "x": 66756,
-      "y": -150676,
-      "z": -1180
-    },
-    {
-      "id": "BP_ResourceNode464_UAID_40B076DF2F7914E201_2026233335",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_Stone_C",
-      "purity": "impure",
-      "x": 92494,
-      "y": -132749,
-      "z": 700
-    },
-    {
-      "id": "BP_ResourceNode464_UAID_40B076DF2F7915E201_1334543513",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_Stone_C",
-      "purity": "normal",
-      "x": 40251,
-      "y": -144690,
-      "z": 369
-    },
-    {
-      "id": "BP_ResourceNode465",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_Stone_C",
-      "purity": "normal",
-      "x": 121322,
-      "y": -88295,
-      "z": 13669
-    },
-    {
-      "id": "BP_ResourceNode466",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_Stone_C",
-      "purity": "normal",
-      "x": 168496,
-      "y": -108029,
-      "z": 1587
-    },
-    {
-      "id": "BP_ResourceNode46_2284",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_Stone_C",
-      "purity": "normal",
-      "x": 343519,
-      "y": -83469,
-      "z": 5618
-    },
-    {
-      "id": "BP_ResourceNode508",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_Stone_C",
-      "purity": "pure",
-      "x": 120084,
-      "y": -9957,
-      "z": 10448
-    },
-    {
-      "id": "BP_ResourceNode509",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_Stone_C",
-      "purity": "normal",
-      "x": -108119,
-      "y": 261059,
-      "z": -4801
-    },
-    {
-      "id": "BP_ResourceNode511",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_Stone_C",
-      "purity": "normal",
-      "x": -52587,
-      "y": 264646,
-      "z": -3819
-    },
-    {
-      "id": "BP_ResourceNode512",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_Stone_C",
-      "purity": "normal",
-      "x": -89046,
-      "y": 153285,
-      "z": -3019
-    },
-    {
-      "id": "BP_ResourceNode516",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_Stone_C",
-      "purity": "pure",
-      "x": 166452,
-      "y": 7804,
-      "z": 15934
-    },
-    {
-      "id": "BP_ResourceNode521",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_Stone_C",
-      "purity": "pure",
-      "x": -107864,
-      "y": 60190,
-      "z": 2653
-    },
-    {
-      "id": "BP_ResourceNode521_UAID_40B076DF2F79C3E101_1100698081",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_Stone_C",
-      "purity": "normal",
-      "x": -164380,
-      "y": 64840,
-      "z": 24379
-    },
-    {
-      "id": "BP_ResourceNode521_UAID_40B076DF2F79C3E101_1735462083",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_Stone_C",
-      "purity": "normal",
-      "x": -167201,
-      "y": 61297,
-      "z": 24000
-    },
-    {
-      "id": "BP_ResourceNode534",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_Stone_C",
-      "purity": "impure",
-      "x": -55951,
-      "y": 271564,
-      "z": -3776
-    },
-    {
-      "id": "BP_ResourceNode548",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_Stone_C",
-      "purity": "normal",
-      "x": 3998,
-      "y": 271120,
-      "z": -4107
-    },
-    {
-      "id": "BP_ResourceNode549",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_Stone_C",
-      "purity": "normal",
-      "x": 4127,
-      "y": 273241,
-      "z": -4107
-    },
-    {
-      "id": "BP_ResourceNode54_833",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_Stone_C",
-      "purity": "pure",
-      "x": -41844,
-      "y": -152412,
-      "z": 9227
-    },
-    {
-      "id": "BP_ResourceNode550",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_Stone_C",
-      "purity": "normal",
-      "x": 16091,
-      "y": 264153,
-      "z": -3824
-    },
-    {
-      "id": "BP_ResourceNode553",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_Stone_C",
-      "purity": "impure",
-      "x": -41301,
-      "y": 288558,
-      "z": -2545
-    },
-    {
-      "id": "BP_ResourceNode554",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_Stone_C",
-      "purity": "normal",
-      "x": -37142,
-      "y": 201538,
-      "z": -3056
-    },
-    {
-      "id": "BP_ResourceNode555",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_Stone_C",
-      "purity": "impure",
-      "x": -62536,
-      "y": 228042,
-      "z": -3279
-    },
-    {
-      "id": "BP_ResourceNode556",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_Stone_C",
-      "purity": "impure",
-      "x": -110521,
-      "y": 249721,
-      "z": -5349
-    },
-    {
-      "id": "BP_ResourceNode557",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_Stone_C",
-      "purity": "impure",
-      "x": -94477,
-      "y": 228243,
-      "z": -2399
-    },
-    {
-      "id": "BP_ResourceNode561",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_Stone_C",
-      "purity": "pure",
-      "x": -55288,
-      "y": 129002,
-      "z": 8671
-    },
-    {
-      "id": "BP_ResourceNode564",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_Stone_C",
-      "purity": "pure",
-      "x": 284986,
-      "y": 111894,
-      "z": -1605
-    },
-    {
-      "id": "BP_ResourceNode571",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_Stone_C",
-      "purity": "pure",
-      "x": -53615,
-      "y": 160375,
-      "z": 3355
-    },
-    {
-      "id": "BP_ResourceNode575",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_Stone_C",
-      "purity": "pure",
-      "x": -80089,
-      "y": 204746,
-      "z": 1544
-    },
-    {
-      "id": "BP_ResourceNode584",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_Stone_C",
-      "purity": "normal",
-      "x": -8700,
-      "y": 283439,
-      "z": -1137
-    },
-    {
-      "id": "BP_ResourceNode586",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_Stone_C",
-      "purity": "impure",
-      "x": -43321,
-      "y": 239553,
-      "z": -3810
-    },
-    {
-      "id": "BP_ResourceNode589",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_Stone_C",
-      "purity": "normal",
-      "x": 8341,
-      "y": 147571,
-      "z": -9599
-    },
-    {
-      "id": "BP_ResourceNode589_UAID_40B076DF2F79B1E101_1767545917",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_Stone_C",
-      "purity": "impure",
-      "x": 135005,
-      "y": 123175,
-      "z": 12311
-    },
-    {
-      "id": "BP_ResourceNode589_UAID_40B076DF2F79B2E101_1298360096",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_Stone_C",
-      "purity": "pure",
-      "x": 146861,
-      "y": 115062,
-      "z": 12296
-    },
-    {
-      "id": "BP_ResourceNode59_755",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_Stone_C",
-      "purity": "normal",
-      "x": 20776,
-      "y": -134970,
-      "z": 16881
-    },
-    {
-      "id": "BP_ResourceNode60_984",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_Stone_C",
-      "purity": "normal",
-      "x": 75114,
-      "y": -123003,
-      "z": 13630
-    },
-    {
-      "id": "BP_ResourceNode62",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_Stone_C",
-      "purity": "pure",
-      "x": -227331,
-      "y": -158278,
-      "z": 8947
-    },
-    {
       "id": "BP_ResourceNode67_2193",
       "kind": "resourceNode",
       "resourceClass": "Desc_Stone_C",
@@ -17782,6 +17575,15 @@
       "x": 270772,
       "y": 47035,
       "z": -1613
+    },
+    {
+      "id": "BP_ResourceNode68_2514",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreCopper_C",
+      "purity": "normal",
+      "x": -36771,
+      "y": 296778,
+      "z": -2366
     },
     {
       "id": "BP_ResourceNode69_UAID_A036BCACDEB0A7A601_1261875850",
@@ -17793,130 +17595,22 @@
       "z": -1549
     },
     {
-      "id": "BP_ResourceNode77",
+      "id": "BP_ResourceNode6_379",
       "kind": "resourceNode",
-      "resourceClass": "Desc_Stone_C",
+      "resourceClass": "Desc_Coal_C",
       "purity": "normal",
-      "x": 226320,
-      "y": -200702,
-      "z": 1079
+      "x": -110109,
+      "y": -129159,
+      "z": -1405
     },
     {
-      "id": "BP_ResourceNode84",
+      "id": "BP_ResourceNode70_3132",
       "kind": "resourceNode",
-      "resourceClass": "Desc_Stone_C",
+      "resourceClass": "Desc_OreGold_C",
       "purity": "pure",
-      "x": -156728,
-      "y": 202159,
-      "z": 961
-    },
-    {
-      "id": "BP_ResourceNode85",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_Stone_C",
-      "purity": "pure",
-      "x": -151152,
-      "y": 184381,
-      "z": 998
-    },
-    {
-      "id": "BP_ResourceNode93_5",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_Stone_C",
-      "purity": "pure",
-      "x": 219900,
-      "y": 42217,
-      "z": -1597
-    },
-    {
-      "id": "BP_ResourceNode96_886",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_Stone_C",
-      "purity": "normal",
-      "x": 141567,
-      "y": 230906,
-      "z": -5835
-    },
-    {
-      "id": "BP_ResourceNode97_1",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_Stone_C",
-      "purity": "normal",
-      "x": 245860,
-      "y": -218934,
-      "z": 1311
-    },
-    {
-      "id": "BP_ResourceNode170_363",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_Sulfur_C",
-      "purity": "impure",
-      "x": -41122,
-      "y": -72631,
-      "z": 23212
-    },
-    {
-      "id": "BP_ResourceNode177",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_Sulfur_C",
-      "purity": "impure",
-      "x": 34655,
-      "y": 284303,
-      "z": 905
-    },
-    {
-      "id": "BP_ResourceNode461",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_Sulfur_C",
-      "purity": "impure",
-      "x": 128296,
-      "y": -75942,
-      "z": 3668
-    },
-    {
-      "id": "BP_ResourceNode467",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_Sulfur_C",
-      "purity": "normal",
-      "x": 92072,
-      "y": 3163,
-      "z": 16079
-    },
-    {
-      "id": "BP_ResourceNode510",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_Sulfur_C",
-      "purity": "impure",
-      "x": -39889,
-      "y": -93579,
-      "z": 343
-    },
-    {
-      "id": "BP_ResourceNode582",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_Sulfur_C",
-      "purity": "impure",
-      "x": 296499,
-      "y": 13253,
-      "z": -881
-    },
-    {
-      "id": "BP_ResourceNode613",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_Sulfur_C",
-      "purity": "normal",
-      "x": 380366,
-      "y": -109496,
-      "z": 9236
-    },
-    {
-      "id": "BP_ResourceNode624",
-      "kind": "resourceNode",
-      "resourceClass": "Desc_Sulfur_C",
-      "purity": "pure",
-      "x": 246502,
-      "y": -276999,
-      "z": 1498
+      "x": -131573,
+      "y": 227253,
+      "z": -787
     },
     {
       "id": "BP_ResourceNode71_736",
@@ -17989,6 +17683,312 @@
       "x": -213022,
       "y": -170020,
       "z": -1317
+    },
+    {
+      "id": "BP_ResourceNode72_998",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreGold_C",
+      "purity": "pure",
+      "x": -92343,
+      "y": 281605,
+      "z": -4620
+    },
+    {
+      "id": "BP_ResourceNode73_6071",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreIron_C",
+      "purity": "normal",
+      "x": 133276,
+      "y": 197857,
+      "z": -7378
+    },
+    {
+      "id": "BP_ResourceNode74",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreIron_C",
+      "purity": "normal",
+      "x": 131967,
+      "y": 194729,
+      "z": -7424
+    },
+    {
+      "id": "BP_ResourceNode75_6425",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreCopper_C",
+      "purity": "impure",
+      "x": 130551,
+      "y": 179528,
+      "z": -5545
+    },
+    {
+      "id": "BP_ResourceNode76",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreIron_C",
+      "purity": "pure",
+      "x": 133637,
+      "y": 205791,
+      "z": -7424
+    },
+    {
+      "id": "BP_ResourceNode77",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_Stone_C",
+      "purity": "normal",
+      "x": 226320,
+      "y": -200702,
+      "z": 1079
+    },
+    {
+      "id": "BP_ResourceNode78_1097",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_SAM_C",
+      "purity": "normal",
+      "x": 228273,
+      "y": 116287,
+      "z": -1581
+    },
+    {
+      "id": "BP_ResourceNode7_380",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_Coal_C",
+      "purity": "normal",
+      "x": -102630,
+      "y": -140319,
+      "z": -1581
+    },
+    {
+      "id": "BP_ResourceNode80",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreIron_C",
+      "purity": "pure",
+      "x": -167603,
+      "y": 179557,
+      "z": 1589
+    },
+    {
+      "id": "BP_ResourceNode81",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreIron_C",
+      "purity": "pure",
+      "x": -164442,
+      "y": 171771,
+      "z": 1612
+    },
+    {
+      "id": "BP_ResourceNode82",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreIron_C",
+      "purity": "pure",
+      "x": -162723,
+      "y": 182453,
+      "z": 712
+    },
+    {
+      "id": "BP_ResourceNode83",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreCopper_C",
+      "purity": "pure",
+      "x": -171878,
+      "y": 185789,
+      "z": 1077
+    },
+    {
+      "id": "BP_ResourceNode83_UAID_40B076DF2F79FBE101_1618730935",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreCopper_C",
+      "purity": "impure",
+      "x": -159616,
+      "y": 112857,
+      "z": 16254
+    },
+    {
+      "id": "BP_ResourceNode83_UAID_40B076DF2F79FFE101_1122581639",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreCopper_C",
+      "purity": "impure",
+      "x": -156723,
+      "y": 109165,
+      "z": 16113
+    },
+    {
+      "id": "BP_ResourceNode84",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_Stone_C",
+      "purity": "pure",
+      "x": -156728,
+      "y": 202159,
+      "z": 961
+    },
+    {
+      "id": "BP_ResourceNode85",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_Stone_C",
+      "purity": "pure",
+      "x": -151152,
+      "y": 184381,
+      "z": 998
+    },
+    {
+      "id": "BP_ResourceNode86",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_LiquidOil_C",
+      "purity": "normal",
+      "x": -229053,
+      "y": 78058,
+      "z": -1684
+    },
+    {
+      "id": "BP_ResourceNode87",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_LiquidOil_C",
+      "purity": "pure",
+      "x": -245048,
+      "y": 90588,
+      "z": -1652
+    },
+    {
+      "id": "BP_ResourceNode88",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_LiquidOil_C",
+      "purity": "normal",
+      "x": -232468,
+      "y": 62838,
+      "z": -1676
+    },
+    {
+      "id": "BP_ResourceNode89",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_LiquidOil_C",
+      "purity": "pure",
+      "x": -252533,
+      "y": 69813,
+      "z": -1562
+    },
+    {
+      "id": "BP_ResourceNode90_482",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreIron_C",
+      "purity": "normal",
+      "x": 252751,
+      "y": 29139,
+      "z": -798
+    },
+    {
+      "id": "BP_ResourceNode91_785",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreCopper_C",
+      "purity": "normal",
+      "x": 282284,
+      "y": 63326,
+      "z": -1601
+    },
+    {
+      "id": "BP_ResourceNode92",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreCopper_C",
+      "purity": "normal",
+      "x": 297499,
+      "y": -7312,
+      "z": -298
+    },
+    {
+      "id": "BP_ResourceNode93_5",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_Stone_C",
+      "purity": "pure",
+      "x": 219900,
+      "y": 42217,
+      "z": -1597
+    },
+    {
+      "id": "BP_ResourceNode94_406",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreCopper_C",
+      "purity": "normal",
+      "x": 160085,
+      "y": 259420,
+      "z": -1094
+    },
+    {
+      "id": "BP_ResourceNode95_579",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreIron_C",
+      "purity": "pure",
+      "x": 164518,
+      "y": 238317,
+      "z": -8588
+    },
+    {
+      "id": "BP_ResourceNode96_886",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_Stone_C",
+      "purity": "normal",
+      "x": 141567,
+      "y": 230906,
+      "z": -5835
+    },
+    {
+      "id": "BP_ResourceNode97_1",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_Stone_C",
+      "purity": "normal",
+      "x": 245860,
+      "y": -218934,
+      "z": 1311
+    },
+    {
+      "id": "BP_ResourceNode98",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_LiquidOil_C",
+      "purity": "impure",
+      "x": 169716,
+      "y": 203386,
+      "z": -9242
+    },
+    {
+      "id": "BP_ResourceNode99",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_SAM_C",
+      "purity": "impure",
+      "x": 132957,
+      "y": 240892,
+      "z": -14192
+    },
+    {
+      "id": "BP_ResourceNode_700",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_Coal_C",
+      "purity": "pure",
+      "x": -113215,
+      "y": -44145,
+      "z": 16295
+    },
+    {
+      "id": "BP_ResourceNode_C_UAID_40B076DF2F794DE201_1841969367",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreCopper_C",
+      "purity": "impure",
+      "x": 20143,
+      "y": -169847,
+      "z": 15477
+    },
+    {
+      "id": "BP_ResourceNode_C_UAID_40B076DF2F794FE201_2126930721",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreCopper_C",
+      "purity": "impure",
+      "x": 95345,
+      "y": -168441,
+      "z": 13262
+    },
+    {
+      "id": "BP_ResourceNode_C_UAID_A036BCACDEB0A6A601_2086848673",
+      "kind": "resourceNode",
+      "resourceClass": "Desc_OreCopper_C",
+      "purity": "pure",
+      "x": -26897,
+      "y": -145468,
+      "z": 8397
     }
   ]
 }
