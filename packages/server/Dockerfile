@@ -81,9 +81,13 @@ COPY --from=builder /app/packages/server/prisma.config.ts ./packages/server/pris
 # The foreman system prompt lives in the server package (loaded at runtime).
 COPY packages/server/SYSTEM_PROMPT.md ./SYSTEM_PROMPT.md
 
-# Writable data dir for the SQLite database; the named volume inherits this
-# ownership on first creation so the unprivileged user can write.
-RUN mkdir -p /data && chown -R node:node /data
+# Writable data dirs: the SQLite database lives in /data, and uploaded
+# playthrough saves in /data/saves (a separate shared volume). Both mount points
+# must exist and be owned by the unprivileged runtime user BEFORE the named
+# volumes are first mounted, so each fresh volume inherits this ownership and the
+# `node` user can write. (An already-created volume keeps its old ownership — it
+# must be removed once for this to take effect.)
+RUN mkdir -p /data/saves && chown -R node:node /data
 VOLUME ["/data"]
 
 USER node

@@ -52,6 +52,14 @@ COPY --from=builder /app/packages/game-data-core/dist ./packages/game-data-core/
 COPY --from=builder /app/packages/game-data-core/data ./packages/game-data-core/data
 COPY --from=builder /app/packages/mcp-save-game/dist ./packages/mcp-save-game/dist
 
+# Shared saves volume (SAVE_DATA_DIR=/data/saves, read here, written by the
+# server). This service starts first (the server depends on it), so it is the
+# one that first-mounts the volume and fixes its ownership: create the mount
+# point owned by the unprivileged user so a fresh volume inherits it, letting the
+# server (same uid) write. node:22 uses uid 1000 in both images, so ownership is
+# consistent. (An already-created volume keeps its old ownership — remove it once.)
+RUN mkdir -p /data/saves && chown -R node:node /data
+
 USER node
 EXPOSE 8726
 
