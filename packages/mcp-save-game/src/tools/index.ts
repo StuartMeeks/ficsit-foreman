@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { logger } from '../logger.js';
 import {
   collectedGuidSet,
+  unlockedSchematicSet,
   collectibleProgressView,
   milestones,
   nearbyFromWorld,
@@ -156,6 +157,7 @@ export function registerTools(server: McpServer, registry: SaveStoreRegistry): v
           location,
           { kinds, radius, limit },
           collectedGuidSet(state),
+          unlockedSchematicSet(state),
         ),
       });
     },

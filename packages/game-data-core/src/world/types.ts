@@ -10,14 +10,20 @@
  * British English is used throughout comments and documentation.
  */
 
-/** A collectible the player picks up once; absent from the world after pickup. */
+/**
+ * A collectible the player picks up once; absent from the world after pickup.
+ * Most are GUID-keyed pickups; the customizer kinds (`helmet`, `mtape`) carry no
+ * pickup GUID and instead grant a cosmetic schematic — see {@link Collectible}.
+ */
 export type CollectibleKind =
   | 'mercerSphere'
   | 'somersloop'
   | 'powerSlugBlue'
   | 'powerSlugYellow'
   | 'powerSlugPurple'
-  | 'hardDrive';
+  | 'hardDrive'
+  | 'helmet'
+  | 'mtape';
 
 /** A permanent resource extraction point (always present in the world). */
 export type ResourceNodeKind = 'resourceNode' | 'frackingSatellite' | 'frackingCore' | 'geyser';
@@ -34,9 +40,16 @@ export interface Collectible {
    * order) — `mItemPickupGuid` for pickups, `mDropPodGuid` for hard-drive pods.
    * This is the key a save records when the collectible is collected (in
    * `FGScannableSubsystem.mDestroyedPickups` / `mLootedDropPods`), so it lets a
-   * save be matched to exact per-collectible collected status.
+   * save be matched to exact per-collectible collected status. Absent for the
+   * schematic-keyed customizer kinds (`helmet`, `mtape`).
    */
-  guid: string;
+  guid?: string;
+  /**
+   * For schematic-keyed kinds (`helmet`, `mtape`): the cosmetic schematic class
+   * the pickup grants (e.g. `Schematic_Helmet_Beta_C`). These carry no pickup
+   * GUID — collected status is read from the save's unlocked schematics instead.
+   */
+  schematic?: string;
   x: number;
   y: number;
   z: number;

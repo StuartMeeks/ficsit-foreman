@@ -7,7 +7,9 @@
     "frackingSatellite": 118,
     "geyser": 31,
     "hardDrive": 118,
+    "helmet": 1,
     "mercerSphere": 298,
+    "mtape": 3,
     "powerSlugBlue": 596,
     "powerSlugPurple": 257,
     "powerSlugYellow": 389,
@@ -958,6 +960,14 @@
       "x": 182825,
       "y": 93880,
       "z": 17755
+    },
+    {
+      "id": "BP_UnlockPickup_Customization_C_UAID_40B076DF2F796CF701_1075566000",
+      "kind": "helmet",
+      "schematic": "Schematic_Helmet_Beta_C",
+      "x": -160356,
+      "y": 66416,
+      "z": 3980
     },
     {
       "id": "BP_WAT102",
@@ -3342,6 +3352,30 @@
       "x": 51761,
       "y": 202143,
       "z": -1560
+    },
+    {
+      "id": "BP_TapePickup1",
+      "kind": "mtape",
+      "schematic": "Schematic_Huntdown_C",
+      "x": 194667,
+      "y": -187625,
+      "z": 26092
+    },
+    {
+      "id": "BP_TapePickup2_11",
+      "kind": "mtape",
+      "schematic": "Schematic_SongsOfConquest_C",
+      "x": -37230,
+      "y": -60710,
+      "z": 15850
+    },
+    {
+      "id": "BP_TapePickup3",
+      "kind": "mtape",
+      "schematic": "Schematic_DeepRockGalactic_C",
+      "x": -125140,
+      "y": 168530,
+      "z": -6120
     },
     {
       "id": "BP_Crystal1",

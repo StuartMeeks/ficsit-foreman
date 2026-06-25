@@ -19,6 +19,7 @@ import type { RawObject, RawSave } from '../parser/types.js';
 import { parseSaveFile } from '../parser/index.js';
 import {
   collectedGuidSet,
+  unlockedSchematicSet,
   collectibleProgressView,
   milestones,
   nearbyFromWorld,
@@ -41,7 +42,13 @@ const TOOL_RUNNERS: Record<string, (state: ReturnType<typeof loadState>) => unkn
     const origin = playerSummary(s).location;
     return origin === undefined
       ? { error: 'player location unknown in this save' }
-      : nearbyFromWorld(loadWorldLocations().world.collectibles, origin, {}, collectedGuidSet(s));
+      : nearbyFromWorld(
+          loadWorldLocations().world.collectibles,
+          origin,
+          {},
+          collectedGuidSet(s),
+          unlockedSchematicSet(s),
+        );
   },
 };
 

@@ -41,6 +41,8 @@ const KNOWN_COLLECTIBLE_TOTALS = {
   powerSlugYellow: 389,
   powerSlugPurple: 257,
   hardDrive: 118,
+  helmet: 1,
+  mtape: 3,
 };
 
 const baseSha = process.env.BASE_SHA;

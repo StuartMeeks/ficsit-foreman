@@ -45,6 +45,8 @@ const COLLECTIBLE_KINDS: readonly CollectibleKind[] = [
   'powerSlugYellow',
   'powerSlugPurple',
   'hardDrive',
+  'helmet',
+  'mtape',
 ];
 
 function distance(origin: Coord, point: { x: number; y: number; z: number }): number {

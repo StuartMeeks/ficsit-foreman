@@ -66,7 +66,11 @@ async function run(): Promise<void> {
         num('targetPerMinute'),
         args['recipeChoices'] as Record<string, string> | undefined,
         args['assumptions'] as
-          | { minerMark?: number; purity?: 'impure' | 'normal' | 'pure'; beltMetresPerLink?: number }
+          | {
+              minerMark?: number;
+              purity?: 'impure' | 'normal' | 'pure';
+              beltMetresPerLink?: number;
+            }
           | undefined,
       );
       break;
