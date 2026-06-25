@@ -124,22 +124,16 @@ if (Environment.GetEnvironmentVariable("DISCOVER") != null)
                 if (e.ExportType == "FGItemPickup_Spawnable")
                 {
                     var stack = e.GetOrDefault<CUE4Parse.UE4.Assets.Objects.FStructFallback?>("mPickupItems");
-                    var text = "";
-                    if (stack != null)
+                    var inner = stack?.GetOrDefault<CUE4Parse.UE4.Assets.Objects.FStructFallback?>("Item");
+                    if (sampleProps.Count < 3 && inner != null)
                     {
-                        foreach (var p in stack.Properties)
-                        {
-                            var v = p.Tag?.GenericValue;
-                            text += $" {p.Name.Text}={v}";
-                            if (v is CUE4Parse.UE4.Assets.Objects.FStructFallback sf)
-                            {
-                                foreach (var q in sf.Properties) { text += $" {p.Name.Text}.{q.Name.Text}={q.Tag?.GenericValue}"; }
-                            }
-                        }
+                        sampleProps.Add(string.Join(" | ", inner.Properties.Select(p => $"{p.Name.Text}={p.Tag?.GenericValue}")));
                     }
-                    if (sampleProps.Count < 3) { sampleProps.Add(text.Trim()); }
-                    var item = Regex.Match(text, @"(Desc_[A-Za-z0-9_]+_C|BP_[A-Za-z0-9_]+_C)").Value;
-                    if (string.IsNullOrEmpty(item)) { item = "(unparsed)"; }
+                    var raw = inner?.Properties
+                        .FirstOrDefault(p => p.Name.Text == "ItemClass" || p.Name.Text == "ItemType")
+                        ?.Tag?.GenericValue?.ToString() ?? "";
+                    var item = Regex.Match(raw, @"(Desc_[A-Za-z0-9_]+_C|BP_[A-Za-z0-9_]+_C)").Value;
+                    if (string.IsNullOrEmpty(item)) { item = string.IsNullOrEmpty(raw) ? "(no-itemclass)" : raw; }
                     spawnableItems[item] = spawnableItems.GetValueOrDefault(item) + 1;
                 }
             }
