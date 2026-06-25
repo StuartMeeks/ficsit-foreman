@@ -48,11 +48,13 @@ const PLAYTHROUGH_KEY = 'foreman.playthroughId';
 // Pre-#86 builds stored the working id under this key; read it once as a
 // fallback so an existing browser keeps its playthrough after the rename.
 const LEGACY_SESSION_KEY = 'foreman.sessionId';
-// The LLM API key is deliberately NOT persisted: it is a secret, and storing it
-// in localStorage would leave it readable in clear text (e.g. to any XSS). It is
-// held in memory for the session only; the user re-enters it per browser session
-// (unless the server supplies its own key, in which case none is needed). The
-// non-secret provider/model/base-URL preferences are still remembered.
+// The user's own LLM provider key is deliberately persisted in localStorage so
+// they need not re-enter it every browser session. This is an accepted trade-off
+// (it trips CodeQL's clear-text-storage rule): the key is the user's own, lives
+// only in their browser, is sent solely as the request header they authorised,
+// and is never stored server-side. Do not "fix" this by dropping persistence —
+// that regresses the UX; see the dismissed code-scanning alert for the rationale.
+const API_KEY = 'foreman.apiKey';
 const PROVIDER_KEY = 'foreman.provider';
 const MODEL_KEY = 'foreman.model';
 const BASE_URL_KEY = 'foreman.baseUrl';
@@ -225,7 +227,7 @@ export function useForeman(): ForemanState {
   const [needsOnboarding, setNeedsOnboarding] = useState(false);
   const [bootError, setBootError] = useState<string | null>(null);
   const [llm, setLlm] = useState<LlmSettings>(() => ({
-    apiKey: '', // secret — memory-only, never read from persistent storage
+    apiKey: readStorage(API_KEY),
     provider: readStorage(PROVIDER_KEY),
     model: readStorage(MODEL_KEY),
     baseUrl: readStorage(BASE_URL_KEY),
@@ -543,10 +545,10 @@ export function useForeman(): ForemanState {
 
   const saveSettings = useCallback(
     async (input: { pioneerProfile: string; llm: LlmSettings }) => {
-      // The provider key is a secret: kept in React state for the session only
-      // (see API_KEY note above) and sent solely as the request header the user
-      // authorised — never written to storage nor persisted server-side. Only the
-      // non-secret provider/model/base-URL preferences are remembered.
+      // The user's own provider key, held only in their browser so they need not
+      // re-enter it each visit. It is sent solely as the request header they
+      // authorised and never persisted server-side.
+      writeStorage(API_KEY, input.llm.apiKey);
       writeStorage(PROVIDER_KEY, input.llm.provider);
       writeStorage(MODEL_KEY, input.llm.model);
       writeStorage(BASE_URL_KEY, input.llm.baseUrl);
