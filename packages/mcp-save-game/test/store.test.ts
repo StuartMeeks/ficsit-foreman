@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { emptySaveState, type SaveState } from '../src/normalise/index.js';
+import { emptySaveState, type SaveState } from '@foreman/sf-save-data';
 import { SaveStore } from '../src/store/saveStore.js';
 
 const NOW = '2026-01-01T00:00:00.000Z';

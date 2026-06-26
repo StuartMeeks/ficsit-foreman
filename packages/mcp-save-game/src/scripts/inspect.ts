@@ -13,10 +13,10 @@ import { loadWorldLocations } from '@foreman/sf-game-data';
 
 import { expandHome } from '../config.js';
 import { loadDisplayNames } from '../gameData.js';
-import { normaliseSave } from '../normalise/index.js';
-import { classNameFromPath } from '../normalise/classRef.js';
-import type { RawObject, RawSave } from '../parser/types.js';
-import { parseSaveFile } from '../parser/index.js';
+import { normaliseSave } from '@foreman/sf-save-data';
+import { classNameFromPath } from '@foreman/sf-save-data';
+import type { RawObject, RawSave } from '@foreman/sf-save-data';
+import { parseSaveFile } from '@foreman/sf-save-data';
 import {
   collectedGuidSet,
   unlockedSchematicSet,

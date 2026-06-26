@@ -1,7 +1,7 @@
 import type { Collectible, WorldLocations } from '@foreman/sf-game-data';
 import { describe, expect, it } from 'vitest';
 
-import { emptySaveState, normaliseSave } from '../src/normalise/index.js';
+import { emptySaveState, normaliseSave } from '@foreman/sf-save-data';
 import {
   collectedGuidSet,
   collectibleProgressView,
@@ -13,7 +13,7 @@ import {
   unlockedSchematicSet,
 } from '../src/query/selectors.js';
 import { SaveStore } from '../src/store/saveStore.js';
-import { FIXTURE_SAVE } from './fixtures/save.js';
+import { FIXTURE_SAVE } from '../../sf-save-data/test/fixtures/save.js';
 
 /** A small static world dataset for the nearby selector (centimetre coords). */
 const WORLD_COLLECTIBLES: Collectible[] = [

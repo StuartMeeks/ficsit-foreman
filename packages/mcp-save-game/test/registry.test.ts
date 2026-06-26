@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { emptySaveState } from '../src/normalise/index.js';
+import { emptySaveState } from '@foreman/sf-save-data';
 import { SaveStoreRegistry } from '../src/store/registry.js';
 import { SaveStore } from '../src/store/saveStore.js';
 
