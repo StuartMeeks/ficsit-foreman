@@ -95,11 +95,44 @@ shared scalar types, channel/version logic) — no unit or formatting helpers.
 **Namespace:** `sf-*` are the reusable, community-shippable components; `ff-*` are the
 app. The prefix marks which side of the reuse boundary a package sits on.
 
-**Dependency DAG (acyclic):**
+**Dependency DAG (acyclic).** Solid arrows are npm/compile-time dependencies; dashed
+arrows are runtime edges (`ff-client → ff-server` over HTTP/SSE, `ff-server → sf-mcp` over
+the MCP transport via the gateway — `ff-server` does not `import` `sf-mcp`). `kuzu` (the
+graph engine, ~541 MB of native binaries) lives only under the `-graph` packages, so it
+never reaches `sf-core` or the parser packages.
 
+```mermaid
+graph TD
+    subgraph app["Ficsit Foreman app (ff-*)"]
+        ffc["ff-client"]
+        ffs["ff-server"]
+    end
+    subgraph reusable["Reusable Satisfactory components (sf-*)"]
+        mcp["sf-mcp"]
+        gdg["sf-game-data-graph<br/><i>+ kuzu</i>"]
+        gd["sf-game-data"]
+        sdg["sf-save-data-graph<br/><i>+ kuzu</i>"]
+        sd["sf-save-data"]
+        core["sf-core"]
+    end
+
+    ffc -. "HTTP / SSE" .-> ffs
+    ffs -. "MCP transport" .-> mcp
+    mcp --> gdg
+    mcp --> sdg
+    gdg --> gd
+    gd --> core
+    sdg --> sd
+    sd --> core
+
+    classDef app fill:#fde8e8,stroke:#d98880,color:#000;
+    classDef sf fill:#e8f0fe,stroke:#7fa8e0,color:#000;
+    class ffc,ffs app;
+    class mcp,gdg,gd,sdg,sd,core sf;
 ```
-sf-core ← {game,save}/parser ← {game,save}/graph ← sf-mcp ← ff-server ← ff-client
-```
+
+Text form (deps point right-to-left): `sf-core ← {game,save}-data ← {game,save}-data-graph
+← sf-mcp ← ff-server ← ff-client`.
 
 ### Guards
 
