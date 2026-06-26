@@ -6,8 +6,10 @@ using CUE4Parse.Encryption.Aes;
 using CUE4Parse.FileProvider;
 using CUE4Parse.MappingsProvider.Usmap;
 using CUE4Parse.UE4.Assets.Exports;
+using CUE4Parse.UE4.Assets.Objects;
 using CUE4Parse.UE4.Objects.Core.Math;
 using CUE4Parse.UE4.Objects.Core.Misc;
+using CUE4Parse.UE4.Objects.UObject;
 using CUE4Parse.UE4.Versions;
 
 OodleHelper.DownloadOodleDll();
@@ -118,11 +120,138 @@ string Purity(UObject e)
     return "normal";
 }
 
+// --- Helpers for loose crash-site parts + drop-pod unlock costs ---------------------
+
+// Trailing class/asset identifier from a full object path, e.g.
+// "/Game/.../Desc_Computer.Desc_Computer_C" -> "Desc_Computer_C".
+static string? Trail(string? path)
+{
+    if (path == null) { return null; }
+    var i = path.LastIndexOf('.');
+    var s = i >= 0 ? path[(i + 1)..] : path;
+    return s.TrimEnd('\'');
+}
+
+// The full object path an ObjectProperty points at (resolved), or null.
+static string? ObjPath(UObject e, string prop)
+    => (e.Properties.FirstOrDefault(p => p.Name.Text == prop)?.Tag?.GenericValue as FPackageIndex)?.ResolvedObject?.GetPathName();
+
+// Unwrap a StructProperty value (an FScriptStruct wrapper) to its FStructFallback.
+static FStructFallback? Struct(object? v) => v as FStructFallback ?? (v as FScriptStruct)?.StructType as FStructFallback;
+
+static FStructFallback? StructProp(UObject e, string prop) => Struct(e.Properties.FirstOrDefault(p => p.Name.Text == prop)?.Tag?.GenericValue);
+
+// --- Build a mesh -> item-descriptor map ----------------------------------------------
+// A loose crash-site pickup (FGItemPickup_Spawnable) does not store its item class; the
+// item is recovered from the static mesh the pickup displays, which is the item
+// descriptor's `mConveyorMesh`. We build mesh-path -> Desc_*_C across all descriptors.
+// Collisions (a mesh shared by several descriptors — mostly a solid item and its
+// fluid/packaged twin) are resolved by preferring the SOLID form, then by name overlap.
+Console.WriteLine("building mesh -> item map from descriptors...");
+var meshCandidates = new Dictionary<string, List<(string item, bool fluid)>>();
+var descFiles = provider.Files.Keys.Where(k =>
+{
+    if (!k.EndsWith(".uasset")) { return false; }
+    var name = k[(k.LastIndexOf('/') + 1)..];
+    return name.StartsWith("Desc_") || name.Contains("EquipmentDescriptor") || name.StartsWith("BP_ItemDescriptor");
+}).ToList();
+foreach (var f in descFiles)
+{
+    try
+    {
+        var cdo = provider.LoadPackage(f).GetExports().FirstOrDefault(x => x.Name.StartsWith("Default__"));
+        if (cdo == null) { continue; }
+        var mesh = ObjPath(cdo, "mConveyorMesh");
+        if (mesh == null) { continue; }
+        var item = cdo.Name.Replace("Default__", "");
+        var form = cdo.Properties.FirstOrDefault(p => p.Name.Text == "mForm")?.Tag?.GenericValue?.ToString() ?? "";
+        var fluid = form.Contains("LIQUID") || form.Contains("GAS");
+        meshCandidates.TryAdd(mesh, new List<(string, bool)>());
+        meshCandidates[mesh].Add((item, fluid));
+    }
+    catch (Exception ex) { Console.Error.WriteLine($"[desc] {f}: {ex.Message}"); }
+}
+var meshToItem = new Dictionary<string, string>();
+foreach (var (mesh, cands) in meshCandidates)
+{
+    var solids = cands.Where(c => !c.fluid).Select(c => c.item).Distinct().ToList();
+    var pool = solids.Count > 0 ? solids : cands.Select(c => c.item).Distinct().ToList();
+    // Tie-break a genuine solid-vs-solid collision by name overlap with the mesh, then shortest name.
+    var meshName = Trail(mesh) ?? mesh;
+    meshToItem[mesh] = pool
+        .OrderByDescending(it => SharedRun(meshName, it))
+        .ThenBy(it => it.Length)
+        .ThenBy(it => it, StringComparer.Ordinal)
+        .First();
+}
+// Verified overrides: a few pickups use a dedicated "drop" mesh that differs from the
+// item's mConveyorMesh and is referenced by no descriptor (matched by trailing mesh name).
+var meshNameOverrides = new Dictionary<string, string>
+{
+    ["SM_Medkit_01"] = "Desc_Medkit_C",
+    ["SM_RifleMag_Drop"] = "Desc_CartridgeStandard_C",
+    ["SM_SuperCom_01"] = "Desc_ComputerSuper_C",
+};
+Console.WriteLine($"mesh->item: {meshToItem.Count} entries (+{meshNameOverrides.Count} overrides)");
+
+// Length of the longest run of letters shared between two identifiers (case-insensitive),
+// used only to break solid-vs-solid mesh collisions toward the best-matching descriptor.
+static int SharedRun(string a, string b)
+{
+    a = a.ToLowerInvariant(); b = b.ToLowerInvariant();
+    var best = 0;
+    for (var i = 0; i < a.Length; i++)
+        for (var j = 0; j < b.Length; j++)
+        {
+            var n = 0;
+            while (i + n < a.Length && j + n < b.Length && a[i + n] == b[j + n]) { n++; }
+            if (n > best) { best = n; }
+        }
+    return best;
+}
+
+string? ResolveItem(string? meshPath)
+{
+    if (meshPath == null) { return null; }
+    if (meshToItem.TryGetValue(meshPath, out var item)) { return item; }
+    var name = Trail(meshPath);
+    return name != null && meshNameOverrides.TryGetValue(name, out var ov) ? ov : null;
+}
+
+// The drop-pod unlock cost (item and/or power), read from `mUnlockCost`. The CostType
+// enum is omitted at its default value, so we read by the PRESENCE of the sub-fields:
+// `ItemCost { ItemClass, Amount }` and/or `PowerConsumption` (MW). Null = free (no cost).
+object? UnlockFor(UObject e)
+{
+    var uc = StructProp(e, "mUnlockCost");
+    if (uc == null) { return null; }
+    string? itemClass = null;
+    var amount = 0;
+    var itemCost = Struct(uc.Properties.FirstOrDefault(p => p.Name.Text == "ItemCost")?.Tag?.GenericValue);
+    if (itemCost != null)
+    {
+        var ic = (itemCost.Properties.FirstOrDefault(p => p.Name.Text == "ItemClass")?.Tag?.GenericValue as FPackageIndex)?.ResolvedObject?.GetPathName();
+        itemClass = Trail(ic);
+        if (itemCost.Properties.FirstOrDefault(p => p.Name.Text == "Amount")?.Tag?.GenericValue is int a) { amount = a; }
+    }
+    int? powerMW = uc.Properties.FirstOrDefault(p => p.Name.Text == "PowerConsumption")?.Tag?.GenericValue is float f && f > 0
+        ? (int) Math.Round(f)
+        : null;
+    var hasItem = itemClass != null && amount > 0;
+    if (!hasItem && powerMW == null) { return null; }
+    if (hasItem && powerMW != null) { return new { item = new { itemClass, amount }, powerMW }; }
+    if (hasItem) { return new { item = new { itemClass, amount } }; }
+    return new { powerMW };
+}
+
 var collectibles = new List<object>();
 var collCounts = new Dictionary<string, int>();
 var nodes = new List<object>();
 var nodeCounts = new Dictionary<string, int>();
+var lootPickups = new List<object>();
 var seenCollectibles = new HashSet<string>(); // dedupe by id across both passes
+var seenLoot = new HashSet<string>();          // dedupe loose parts by id across both passes
+var lootUnresolved = new Dictionary<string, int>(); // mesh -> count, for pickups we could not resolve
 
 void AddCollectible(UObject e, string kind)
 {
@@ -130,17 +259,50 @@ void AddCollectible(UObject e, string kind)
     if (loc == null) { return; }
     if (!seenCollectibles.Add($"{kind}:{e.Name}")) { return; }
     int x = (int) loc.Value.X, y = (int) loc.Value.Y, z = (int) loc.Value.Z;
-    // Schematic-keyed kinds (helmet/tapes) carry a schematic instead of a GUID.
-    object entry = schematicKinds.Contains(kind)
-        ? new { id = e.Name, kind, schematic = SchematicFor(e), x, y, z }
-        : new { id = e.Name, kind, guid = GuidFor(e, kind), x, y, z };
+    object entry;
+    if (schematicKinds.Contains(kind))
+    {
+        entry = new { id = e.Name, kind, schematic = SchematicFor(e), x, y, z };
+    }
+    else
+    {
+        var guid = GuidFor(e, kind);
+        // Hard-drive drop pods carry a per-instance unlock cost (item and/or power).
+        var unlock = kind == "hardDrive" ? UnlockFor(e) : null;
+        entry = unlock == null
+            ? new { id = e.Name, kind, guid, x, y, z }
+            : new { id = e.Name, kind, guid, x, y, z, unlock };
+    }
     collectibles.Add(entry);
     collCounts[kind] = collCounts.GetValueOrDefault(kind) + 1;
 }
 
-// --- Pass 1: collectibles (incl. the customizer helmet) from the WP cells ---
+// A loose crash-site part (FGItemPickup_Spawnable): item resolved from the mesh, amount
+// from NumItems, plus the pickup GUID (matched against the save's mDestroyedPickups).
+void AddLoot(UObject e)
+{
+    var loc = Loc(e);
+    if (loc == null) { return; }
+    if (!seenLoot.Add(e.Name)) { return; }
+    var meshComp = e.GetOrDefault<UObject?>("mMeshComponent");
+    var meshPath = meshComp == null ? null : ObjPath(meshComp, "StaticMesh");
+    var itemClass = ResolveItem(meshPath);
+    var stack = StructProp(e, "mPickupItems");
+    var amount = stack?.Properties.FirstOrDefault(p => p.Name.Text == "NumItems")?.Tag?.GenericValue is int n ? n : 0;
+    var guid = GuidFor(e, "crashSitePart");
+    if (itemClass == null)
+    {
+        var key = Trail(meshPath) ?? "(no mesh)";
+        lootUnresolved[key] = lootUnresolved.GetValueOrDefault(key) + 1;
+        return; // leave unresolved out; the run prints a warning and the count won't reach 703
+    }
+    int x = (int) loc.Value.X, y = (int) loc.Value.Y, z = (int) loc.Value.Z;
+    lootPickups.Add(new { id = e.Name, guid, itemClass, amount, x, y, z });
+}
+
+// --- Pass 1: collectibles (incl. the customizer helmet) + loose parts from the WP cells ---
 var cells = provider.Files.Keys.Where(k => k.Contains("/_Generated_/") && k.EndsWith(".umap")).ToList();
-Console.WriteLine($"sweeping {cells.Count} cells for collectibles...");
+Console.WriteLine($"sweeping {cells.Count} cells for collectibles + crash-site parts...");
 var n = 0;
 foreach (var cell in cells)
 {
@@ -150,12 +312,13 @@ foreach (var cell in cells)
         foreach (var e in provider.LoadPackage(cell).GetExports())
         {
             if (collectibleKinds.TryGetValue(e.ExportType, out var kind)) { AddCollectible(e, kind); }
+            else if (e.ExportType.Contains("ItemPickup_Spawnable")) { AddLoot(e); }
         }
     }
     catch (Exception ex) { Console.Error.WriteLine($"[cell] {cell}: {ex.Message}"); }
 }
 
-// --- Pass 2: resource nodes (+ drop pods and music tapes) from the persistent level ---
+// --- Pass 2: resource nodes (+ drop pods, music tapes, loose parts) from the persistent level ---
 var levelPkgs = provider.Files.Keys
     .Where(k => k.Contains("/GameLevel01/") && k.EndsWith(".umap") && !k.Contains("/_Generated_/"))
     .ToList();
@@ -171,6 +334,7 @@ foreach (var pkgPath in levelPkgs)
             {
                 AddCollectible(e, ck);
             }
+            if (e.ExportType.Contains("ItemPickup_Spawnable")) { AddLoot(e); }
             if (!nodeKinds.TryGetValue(e.ExportType, out var kind)) { continue; }
             var loc = Loc(e);
             if (loc == null) { continue; }
@@ -187,6 +351,7 @@ foreach (var pkgPath in levelPkgs)
 var counts = new SortedDictionary<string, int>(StringComparer.Ordinal);
 foreach (var kv in collCounts) { counts[kv.Key] = kv.Value; }
 foreach (var kv in nodeCounts) { counts[kv.Key] = kv.Value; }
+counts["crashSitePart"] = lootPickups.Count;
 
 var dataset = new
 {
@@ -202,6 +367,11 @@ var dataset = new
         .ToList(),
     resourceNodes = nodes
         .OrderBy(c => (string) ((dynamic) c).kind, StringComparer.Ordinal)
+        .ThenBy(c => (string) ((dynamic) c).id, StringComparer.Ordinal)
+        .ToList(),
+    // Loose crash-site parts, ordered by item then id for a stable diff.
+    lootPickups = lootPickups
+        .OrderBy(c => (string) ((dynamic) c).itemClass, StringComparer.Ordinal)
         .ThenBy(c => (string) ((dynamic) c).id, StringComparer.Ordinal)
         .ToList(),
 };
@@ -222,6 +392,11 @@ File.WriteAllText(outPath, json);
 
 Console.WriteLine("=== COUNTS ===");
 foreach (var kv in counts.OrderBy(k => k.Key)) { Console.WriteLine($"  {kv.Key}: {kv.Value}"); }
-Console.WriteLine($"collectibles={collectibles.Count} resourceNodes={nodes.Count}");
+Console.WriteLine($"collectibles={collectibles.Count} resourceNodes={nodes.Count} lootPickups={lootPickups.Count}");
+if (lootUnresolved.Count > 0)
+{
+    Console.WriteLine($"WARNING: {lootUnresolved.Values.Sum()} loose pickup(s) had an unresolved mesh:");
+    foreach (var (m, c) in lootUnresolved.OrderByDescending(k => k.Value)) { Console.WriteLine($"  {c,4}  {m}"); }
+}
 Console.WriteLine($"written -> {outPath}");
 Console.WriteLine("DONE");
