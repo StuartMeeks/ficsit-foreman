@@ -48,16 +48,19 @@ export function chatRouter(deps: AppDeps): Router {
       return;
     }
 
-    // A client key (header) unlocks its own provider/model/base-URL override.
-    // Without one, fall back entirely to the server's configured defaults.
+    // A client key (header) unlocks its own provider/model/base-URL override, and
+    // — being BYOK — its own conversation history window. Without a key, fall back
+    // entirely to the server's configured defaults (the hosted plan's window too).
     const headerKey = req.header(deps.config.clientKeyHeader)?.trim();
     let llm: LlmRuntimeConfig;
+    let historyWindow = deps.config.historyWindow;
     if (headerKey !== undefined && headerKey.length > 0) {
       llm = clientLlmConfig(
         deps.config,
         { provider: parsed.data.provider, model: parsed.data.model, baseUrl: parsed.data.baseUrl },
         headerKey,
       );
+      historyWindow = parsed.data.historyWindow ?? deps.config.historyWindow;
     } else if (deps.config.hostedApiKey !== undefined) {
       llm = serverLlmConfig(deps.config, deps.config.hostedApiKey);
     } else {
@@ -91,7 +94,8 @@ export function chatRouter(deps: AppDeps): Router {
           model: llm.model,
           maxTokens: llm.maxTokens,
         },
-        chatDeps,
+        // Per-request window: a BYOK caller may widen/narrow their own history.
+        { ...chatDeps, historyWindow },
         {
           text: (delta) => sse.send('text', { delta }),
           toolUse: (name) => sse.send('tool_use', { name }),
@@ -110,8 +114,9 @@ export function chatRouter(deps: AppDeps): Router {
       sse.close();
     }
 
-    // Refresh the running summary in the background, on the same provider/config.
-    void deps.summary.summariseIfNeeded(playthroughId, llm);
+    // Refresh the running summary in the background, on the same provider/config
+    // and the same effective window, so summarisation tracks the BYOK override.
+    void deps.summary.summariseIfNeeded(playthroughId, llm, historyWindow);
   });
 
   return router;

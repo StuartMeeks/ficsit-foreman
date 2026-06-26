@@ -338,4 +338,8 @@ export const chatSchema = z.object({
   provider: z.enum(['anthropic', 'openai']).optional(),
   model: z.string().optional(),
   baseUrl: z.string().optional(),
+  // Conversation history window (message count). Honoured only for a BYOK request;
+  // subscription/hosted requests always use the server default. Bounded to keep
+  // token cost sane.
+  historyWindow: z.number().int().min(2).max(100).optional(),
 });

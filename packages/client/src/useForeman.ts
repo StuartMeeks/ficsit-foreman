@@ -65,6 +65,10 @@ const API_KEY = 'foreman.apiKey';
 const PROVIDER_KEY = 'foreman.provider';
 const MODEL_KEY = 'foreman.model';
 const BASE_URL_KEY = 'foreman.baseUrl';
+// Conversation history window (message count). Like the other LLM settings it is
+// client-held and sent per request; it is BYOK-only (the server applies it only
+// when a client key is supplied). 0 / empty = use the server default.
+const HISTORY_WINDOW_KEY = 'foreman.historyWindow';
 
 /** Default name for the foreman minted during onboarding (renamed later via Settings). */
 const DEFAULT_FOREMAN_NAME = 'Foreman';
@@ -84,6 +88,8 @@ export interface LlmSettings {
   provider: string;
   model: string;
   baseUrl: string;
+  /** Conversation history window (message count); 0 = use the server default. BYOK-only. */
+  historyWindow: number;
 }
 
 /** Whether the auth check is still running, finished signed-out, or signed-in. */
@@ -279,6 +285,7 @@ export function useForeman(): ForemanState {
     provider: readStorage(PROVIDER_KEY),
     model: readStorage(MODEL_KEY),
     baseUrl: readStorage(BASE_URL_KEY),
+    historyWindow: Number.parseInt(readStorage(HISTORY_WINDOW_KEY), 10) || 0,
   }));
   const [keyNeeded, setKeyNeeded] = useState(false);
   const booted = useRef(false);
@@ -482,6 +489,7 @@ export function useForeman(): ForemanState {
           llm.provider === 'anthropic' || llm.provider === 'openai' ? llm.provider : undefined,
         model: llm.model || undefined,
         baseUrl: llm.baseUrl || undefined,
+        historyWindow: llm.historyWindow > 0 ? llm.historyWindow : undefined,
       };
 
       void streamChat(playthroughId, trimmed, llm.apiKey || undefined, override, {
@@ -604,6 +612,10 @@ export function useForeman(): ForemanState {
       writeStorage(PROVIDER_KEY, input.llm.provider);
       writeStorage(MODEL_KEY, input.llm.model);
       writeStorage(BASE_URL_KEY, input.llm.baseUrl);
+      writeStorage(
+        HISTORY_WINDOW_KEY,
+        input.llm.historyWindow > 0 ? String(input.llm.historyWindow) : '',
+      );
       setLlm(input.llm);
       if (playthrough !== null) {
         const updated = await patchPlaythrough(playthrough.id, {

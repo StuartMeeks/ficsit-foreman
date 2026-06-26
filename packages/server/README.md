@@ -104,7 +104,12 @@ set it explicitly for multi-instance/Postgres),
 `SAVE_DATA_DIR` (where uploaded playthrough saves are stored — `<id>.sav` per
 playthrough; defaults next to the database, e.g. `/data/saves`; must be a volume
 shared with the save-game MCP),
-`PORT` (default `8724`), `HISTORY_WINDOW` (default `20`).
+`PORT` (default `8724`), `HISTORY_WINDOW` (default `20`) — the conversation
+history window (message count) sent to the model each turn, and the threshold
+(2×) at which a playthrough is summarised. This is the server/hosted default; a
+**BYOK** request (one supplying its own key via `CLIENT_KEY_HEADER`) may override
+it per request with a `historyWindow` field in the chat body (clamped to 2–100).
+Subscription/hosted requests always use this default.
 
 ## Running
 

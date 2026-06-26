@@ -434,6 +434,8 @@ export interface ClientLlmConfig {
   provider?: 'anthropic' | 'openai';
   model?: string;
   baseUrl?: string;
+  /** Conversation history window (message count); BYOK-only, server-clamped. */
+  historyWindow?: number;
 }
 
 /** Callbacks invoked as the foreman's streamed turn unfolds. */
@@ -465,6 +467,9 @@ export async function streamChat(
   }
   if (llm.baseUrl !== undefined && llm.baseUrl.length > 0) {
     body['baseUrl'] = llm.baseUrl;
+  }
+  if (llm.historyWindow !== undefined && llm.historyWindow > 0) {
+    body['historyWindow'] = llm.historyWindow;
   }
 
   let response: Response;
