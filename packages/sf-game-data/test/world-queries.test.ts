@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-import { emptyGameData } from '@foreman/sf-game-data';
-import type { GameData, Item, WorldLocations } from '@foreman/sf-game-data';
+import { emptyGameData } from '../src/parser/index.js';
+import type { GameData, Item, WorldLocations } from '../src/index.js';
 import { WorldQueries } from '../src/world/queries.js';
 
 function resource(className: string, displayName: string): Item {

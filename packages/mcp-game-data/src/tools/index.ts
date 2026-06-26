@@ -1,9 +1,8 @@
 import { cmToMetres, compassBearing, metresToCm } from '@foreman/sf-game-data';
+import type { Coord, WorldQueries } from '@foreman/sf-game-data';
+import type { GraphDB } from '@foreman/sf-game-data-graph';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
-
-import type { GraphDB } from '../graph/index.js';
-import type { Coord, WorldQueries } from '../world/queries.js';
 
 type ToolResult = {
   content: { type: 'text'; text: string }[];

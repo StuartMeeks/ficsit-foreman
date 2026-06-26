@@ -1,0 +1,37 @@
+{
+  "name": "@foreman/sf-game-data-graph",
+  "version": "0.1.0",
+  "description": "Kùzu production graph for Satisfactory game data: builds the recipe/item/building/schematic graph from @foreman/sf-game-data and answers production-line, alternate-recipe, power and cost queries. Carries the heavy native `kuzu` dependency, kept out of the parser package.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": "./dist/index.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "dependencies": {
+    "@foreman/sf-game-data": "0.1.0",
+    "kuzu": "^0.11.3"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "eslint . --max-warnings 0 && prettier --check \"src/**/*.ts\"",
+    "format": "prettier --write \"src/**/*.ts\""
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/node": "^26.0.0",
+    "@typescript-eslint/eslint-plugin": "^8.62.0",
+    "@typescript-eslint/parser": "^8.62.0",
+    "eslint": "^10.5.0",
+    "prettier": "^3.3.0",
+    "tsx": "^4.16.0",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.9"
+  }
+}
