@@ -1,4 +1,4 @@
-import type { Building, Recipe, WorldLocations } from '@foreman/game-data-core';
+import type { Building, Recipe, WorldLocations } from '@foreman/sf-game-data';
 import { describe, expect, it } from 'vitest';
 
 import type { GameDataIndex } from '../src/gameData.js';

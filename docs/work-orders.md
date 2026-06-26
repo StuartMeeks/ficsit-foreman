@@ -475,7 +475,7 @@ type LocationRecommendation = {
 type ResourceNodeReference = {
   id?: string;
   resourceName: string;
-  purity?: Purity;                       // reuse Purity from @foreman/game-data-core
+  purity?: Purity;                       // reuse Purity from @foreman/sf-game-data
   coordinates?: { x: number; y: number; z?: number };  // Unreal units (cm)
   distanceFromPlayer?: number;           // cm; convert to metres for display
   distanceFromWorkOrderLocation?: number;
@@ -501,7 +501,7 @@ type WorkOrderOpportunities = {
   notes?: string[];
 };
 
-// REUSE CollectibleKind from @foreman/game-data-core — do not invent a parallel
+// REUSE CollectibleKind from @foreman/sf-game-data — do not invent a parallel
 // enum. It is: mercerSphere | somersloop | powerSlugBlue | powerSlugYellow |
 // powerSlugPurple | hardDrive.
 type CollectibleOpportunity = {

@@ -3,7 +3,7 @@
 How the system fits together **today**. For the product "why", see [`product.md`](./product.md);
 for the work-order feature, [`work-orders.md`](./work-orders.md); for the session/playthrough &
 foreman model (design), [`playthroughs.md`](./playthroughs.md); for the parser,
-[`packages/game-data-core/PARSER.md`](../packages/game-data-core/PARSER.md).
+[`packages/sf-game-data/PARSER.md`](../packages/sf-game-data/PARSER.md).
 
 > **Target architecture:** the packages are intended to split into reusable
 > Satisfactory components (`sf-*`) and the Ficsit Foreman app (`ff-*`) — see
@@ -36,7 +36,7 @@ services under one `foreman` Docker Compose project.
 │ graph + world   │   │  URL): live save state│   │ foreman persona │
 │ locations       │   │ — player, unlocks, …  │   │                 │
 └─────────────────┘   └───────────────────────┘   └─────────────────┘
-        └── both depend on packages/game-data-core (parser + bundled data) ──┘
+        └── both depend on packages/sf-game-data (parser + bundled data) ──┘
 ```
 
 The **game-data MCP** answers *"how is anything in the game made?"* from static
@@ -58,7 +58,7 @@ gateway** merges both into one tool surface for the foreman (see
 | ORM | Prisma | Readable schema, good migrations |
 | Auth | Better Auth (self-hosted) | Email+password now, passkeys/TOTP next; HttpOnly-cookie sessions; Prisma adapter |
 | Deployment | Docker Compose (local) + Railway/Render (hosted) | Laptop → production with the same images |
-| Repo | Monorepo (`game-data-core`, `mcp-game-data`, `mcp-save-game`, `server`, `client`) | Easy to navigate |
+| Repo | Monorepo (`sf-game-data`, `mcp-game-data`, `mcp-save-game`, `server`, `client`) | Easy to navigate |
 
 ## Accounts & identity
 
@@ -94,7 +94,7 @@ data for all items, recipes, buildings, and rates. FICSIT Foreman parses it with
 into Kùzu, and tags it to the detected game version. Bundled copies per release
 channel ship with the game-data package so it works out of the box; players can
 also point at a local install. Version support is additive. The full parser design
-is in [`packages/game-data-core/PARSER.md`](../packages/game-data-core/PARSER.md).
+is in [`packages/sf-game-data/PARSER.md`](../packages/sf-game-data/PARSER.md).
 
 ## Graph schema (Kùzu)
 

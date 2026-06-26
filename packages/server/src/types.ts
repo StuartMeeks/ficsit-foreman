@@ -11,7 +11,7 @@
  * trail as its history. The snapshot/definition shapes below encode that split.
  */
 
-import type { CollectibleKind, Purity } from '@foreman/game-data-core';
+import type { CollectibleKind, Purity } from '@foreman/sf-game-data';
 
 export type { CollectibleKind, Purity };
 

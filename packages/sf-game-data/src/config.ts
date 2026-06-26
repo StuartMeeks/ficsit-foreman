@@ -9,7 +9,7 @@ import { fileURLToPath } from 'node:url';
  *   1. SATISFACTORY_DOCS_PATH — full path to en-US.json
  *   2. SATISFACTORY_GAME_DIR  — install root; append CommunityResources/Docs/
  *      (en-US.json for 1.x, falling back to the pre-1.0 Docs.json)
- *   3. Bundled channel — committed game data under `<game-data-core>/data/<channel>/`,
+ *   3. Bundled channel — committed game data under `<sf-game-data>/data/<channel>/`,
  *      where <channel> is `stable` or `experimental`, selected by
  *      SATISFACTORY_GAME_CHANNEL (default `stable`; falls back to the other
  *      channel if the requested one is absent).
@@ -110,7 +110,7 @@ export function resolveDocsPath(
   }
 
   warnings.push(
-    `No game data available: set SATISFACTORY_DOCS_PATH or SATISFACTORY_GAME_DIR, or add bundled data under packages/game-data-core/data/{${GAME_CHANNELS.join(',')}}/. Starting with empty game data.`,
+    `No game data available: set SATISFACTORY_DOCS_PATH or SATISFACTORY_GAME_DIR, or add bundled data under packages/sf-game-data/data/{${GAME_CHANNELS.join(',')}}/. Starting with empty game data.`,
   );
   return { warning: warnings.join(' ') };
 }

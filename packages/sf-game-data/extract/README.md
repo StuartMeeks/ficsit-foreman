@@ -1,7 +1,7 @@
 # World-location extractor (`fg-extract`)
 
 The one-off tool that generates
-[`packages/game-data-core/data/<channel>/world-locations.json`](../../packages/game-data-core/data/stable/world-locations.json)
+[`packages/sf-game-data/data/<channel>/world-locations.json`](../data/stable/world-locations.json)
 — the static dataset of every fixed collectible and resource node in the
 Satisfactory world (coordinates, resource type, purity).
 
@@ -51,7 +51,7 @@ see "Upstreaming" below.
    submodules:
 
    ```powershell
-   cd tools/world-locations
+   cd packages/sf-game-data/extract
    git clone --recursive https://github.com/FabianFG/CUE4Parse.git
    cd CUE4Parse
    git checkout 024b005c4d15e8082ecebfb202700d59bb6113c0
@@ -81,7 +81,7 @@ see "Upstreaming" below.
    #   $env:SF_PAKS  = "D:\...\Satisfactory\FactoryGame\Content\Paks"
    #   $env:SF_USMAP = "D:\...\Satisfactory\CommunityResources\FactoryGame.usmap"
    #   $env:OUT      = "world-locations.json"
-   cd tools/world-locations/fg-extract
+   cd packages/sf-game-data/extract/fg-extract
    dotnet run -c Release
    ```
 
@@ -100,7 +100,7 @@ see "Upstreaming" below.
    value of `gameVersion` must match that channel's `meta.json`):
 
    ```
-   cp world-locations.json ../../../packages/game-data-core/data/stable/world-locations.json
+   cp world-locations.json ../../data/stable/world-locations.json
    ```
 
    `.github/scripts/check-game-data.mjs` re-validates counts and version on the PR.

@@ -1,5 +1,5 @@
 {
-  "name": "@foreman/game-data-core",
+  "name": "@foreman/sf-game-data",
   "version": "0.1.0",
   "description": "FICSIT Foreman shared game-data core: the hand-written Satisfactory en-US.json parser, shared types, docs-path resolution, and bundled game data. Consumed by both MCP servers.",
   "license": "Apache-2.0",

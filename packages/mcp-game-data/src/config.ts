@@ -2,7 +2,7 @@ import os from 'node:os';
 
 /**
  * Server transport configuration. Docs-path / bundled-data resolution lives in
- * `@foreman/game-data-core` (see `resolveDocsPath`); this file is only the
+ * `@foreman/sf-game-data` (see `resolveDocsPath`); this file is only the
  * network-transport half that the server process owns.
  */
 

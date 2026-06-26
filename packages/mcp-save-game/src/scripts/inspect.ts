@@ -9,7 +9,7 @@
  *   npm run inspect diff <saveA> <saveB>  # collectables/typePath delta
  *   npm run inspect get_player_state [save]   # run a tool (any of the five)
  */
-import { loadWorldLocations } from '@foreman/game-data-core';
+import { loadWorldLocations } from '@foreman/sf-game-data';
 
 import { expandHome } from '../config.js';
 import { loadDisplayNames } from '../gameData.js';

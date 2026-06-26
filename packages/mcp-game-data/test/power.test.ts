@@ -2,9 +2,9 @@ import { fileURLToPath } from 'node:url';
 
 import { beforeAll, describe, expect, it } from 'vitest';
 
-import { parseDocsFile } from '@foreman/game-data-core';
+import { parseDocsFile } from '@foreman/sf-game-data';
 import { GraphDB, initGraph } from '../src/graph/index.js';
-import type { GeneratorFuel } from '@foreman/game-data-core';
+import type { GeneratorFuel } from '@foreman/sf-game-data';
 
 /**
  * Power correctness is critical, so these assert against the committed bundled
@@ -12,7 +12,7 @@ import type { GeneratorFuel } from '@foreman/game-data-core';
  * in-game value — a future data update that breaks the maths will fail here.
  */
 const dataPath = fileURLToPath(
-  new URL('../../game-data-core/data/stable/en-US.json', import.meta.url),
+  new URL('../../sf-game-data/data/stable/en-US.json', import.meta.url),
 );
 
 let graph: GraphDB;

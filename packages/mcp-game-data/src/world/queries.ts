@@ -7,7 +7,7 @@ import {
   type ResourceNode,
   type ResourceNodeKind,
   type WorldLocations,
-} from '@foreman/game-data-core';
+} from '@foreman/sf-game-data';
 
 /** A point in the Satisfactory world, in Unreal units (centimetres). */
 export interface Coord {

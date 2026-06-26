@@ -31,20 +31,20 @@ COPY package.json package-lock.json tsconfig.base.json ./
 # the npm update notice (the base image bundles npm 10).
 RUN npm install -g "npm@$(node -p 'require("./package.json").packageManager.split("@")[1]')"
 # All package.json manifests must be present so npm ci wires the workspace
-# symlinks: the server depends on @foreman/game-data-core (shared types), which
+# symlinks: the server depends on @foreman/sf-game-data (shared types), which
 # depends on @foreman/sf-core (the shared kernel).
 COPY packages/sf-core/package.json ./packages/sf-core/package.json
-COPY packages/game-data-core/package.json ./packages/game-data-core/package.json
+COPY packages/sf-game-data/package.json ./packages/sf-game-data/package.json
 COPY packages/server/package.json ./packages/server/package.json
 RUN npm ci
 
-# Build the shared kernel + core first so the @foreman/game-data-core import
+# Build the shared kernel + core first so the @foreman/sf-game-data import
 # resolves, then verify the workspace symlink.
 COPY packages/sf-core ./packages/sf-core
 RUN npm run build -w @foreman/sf-core
-COPY packages/game-data-core ./packages/game-data-core
-RUN npm run build -w @foreman/game-data-core
-RUN node -e "require.resolve('@foreman/game-data-core')"
+COPY packages/sf-game-data ./packages/sf-game-data
+RUN npm run build -w @foreman/sf-game-data
+RUN node -e "require.resolve('@foreman/sf-game-data')"
 
 # Build: generate the Prisma client and compile TypeScript.
 COPY packages/server ./packages/server
@@ -72,14 +72,14 @@ COPY package.json package-lock.json ./
 # step at start-up runs via npm); also silences the notice.
 RUN npm install -g "npm@$(node -p 'require("./package.json").packageManager.split("@")[1]')"
 COPY packages/server/package.json ./packages/server/package.json
-# Core's manifest + compiled output so the @foreman/game-data-core workspace
+# Core's manifest + compiled output so the @foreman/sf-game-data workspace
 # symlink in node_modules resolves (the server uses it for shared types only),
-# plus sf-core since game-data-core depends on it.
+# plus sf-core since sf-game-data depends on it.
 COPY packages/sf-core/package.json ./packages/sf-core/package.json
-COPY packages/game-data-core/package.json ./packages/game-data-core/package.json
+COPY packages/sf-game-data/package.json ./packages/sf-game-data/package.json
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/packages/sf-core/dist ./packages/sf-core/dist
-COPY --from=builder /app/packages/game-data-core/dist ./packages/game-data-core/dist
+COPY --from=builder /app/packages/sf-game-data/dist ./packages/sf-game-data/dist
 COPY --from=builder /app/packages/server/dist ./packages/server/dist
 COPY --from=builder /app/packages/server/prisma ./packages/server/prisma
 # Prisma 7 reads the datasource URL from the config file (not schema.prisma), so

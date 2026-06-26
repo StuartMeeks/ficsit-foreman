@@ -1,7 +1,7 @@
 # @foreman/mcp-game-data
 
 The FICSIT Foreman game-data MCP server. It loads Satisfactory's `en-US.json` game
-data — parsed by the shared [`@foreman/game-data-core`](../game-data-core) package —
+data — parsed by the shared [`@foreman/sf-game-data`](../sf-game-data) package —
 into an embedded [Kùzu](https://kuzudb.com) graph database, and exposes it as a set
 of computed, token-efficient [Model Context Protocol](https://modelcontextprotocol.io)
 tools.
@@ -39,7 +39,7 @@ The server resolves the docs file in this priority order:
 |---|---|---|
 | 1 | `SATISFACTORY_DOCS_PATH` | Full path directly to `en-US.json`. Highest priority. |
 | 2 | `SATISFACTORY_GAME_DIR` | Game install root; the server appends `CommunityResources/Docs/en-US.json` (falling back to the pre-1.0 `Docs.json`). |
-| 3 | Bundled channel | Committed game data under `packages/game-data-core/data/<channel>/`, where `<channel>` is `stable` or `experimental`. Selected by `SATISFACTORY_GAME_CHANNEL` (default `stable`; falls back to the other channel if absent). Supplied via PRs — see [CONTRIBUTING.md](../../CONTRIBUTING.md). |
+| 3 | Bundled channel | Committed game data under `packages/sf-game-data/data/<channel>/`, where `<channel>` is `stable` or `experimental`. Selected by `SATISFACTORY_GAME_CHANNEL` (default `stable`; falls back to the other channel if absent). Supplied via PRs — see [CONTRIBUTING.md](../../CONTRIBUTING.md). |
 
 If none of these resolve, the server starts with an empty dataset and logs a
 warning (it never crashes). A leading `~` is expanded to your home directory.
@@ -153,7 +153,7 @@ the foreman never needs to know internal class names.
 
 `list_collectibles`, `nearest_collectibles` and `nearest_resource_nodes` are
 backed by a static, first-party **world-location dataset** bundled in
-`@foreman/game-data-core` (`data/<channel>/world-locations.json`) — every fixed
+`@foreman/sf-game-data` (`data/<channel>/world-locations.json`) — every fixed
 collectible (Mercer Spheres, Somersloops, power slugs, hard-drive drop pods) and
 resource extraction point (ore/fluid nodes, fracking satellites and cores,
 geothermal geysers) with coordinates, resource type and purity. It is loaded
@@ -171,7 +171,7 @@ in CI against the known fixed world totals.
 ## Architecture
 
 The `en-US.json` parser, shared types, and bundled game data live in
-[`@foreman/game-data-core`](../game-data-core) (see its `PARSER.md`); this package
+[`@foreman/sf-game-data`](../sf-game-data) (see its `PARSER.md`); this package
 consumes its `GameData` and builds the graph + tools on top.
 
 ```

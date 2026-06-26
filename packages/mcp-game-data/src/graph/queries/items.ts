@@ -1,4 +1,4 @@
-import type { Item } from '@foreman/game-data-core';
+import type { Item } from '@foreman/sf-game-data';
 import { type QueryContext, itemByClass } from '../context.js';
 import { rows } from '../run.js';
 

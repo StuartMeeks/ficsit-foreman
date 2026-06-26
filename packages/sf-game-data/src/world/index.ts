@@ -40,7 +40,7 @@ export function channelWorldLocationsPath(dataDir: string, channel: GameChannel)
 /**
  * Resolves and loads the world-location dataset, in priority order:
  *   1. WORLD_LOCATIONS_PATH — full path to a `world-locations.json`.
- *   2. Bundled channel data under `<game-data-core>/data/<channel>/`, selected by
+ *   2. Bundled channel data under `<sf-game-data>/data/<channel>/`, selected by
  *      SATISFACTORY_GAME_CHANNEL (default `stable`, falling back to the other
  *      channel if the requested one has no dataset).
  *   3. None available → an empty dataset plus a warning.
@@ -78,7 +78,7 @@ export function loadWorldLocations(
   }
 
   warnings.push(
-    `No world-location dataset available: set WORLD_LOCATIONS_PATH or add one under packages/game-data-core/data/{${GAME_CHANNELS.join(',')}}/${WORLD_FILENAME}. World-location tools will return empty results.`,
+    `No world-location dataset available: set WORLD_LOCATIONS_PATH or add one under packages/sf-game-data/data/{${GAME_CHANNELS.join(',')}}/${WORLD_FILENAME}. World-location tools will return empty results.`,
   );
   return { world: emptyWorldLocations(), warning: warnings.join(' ') };
 }

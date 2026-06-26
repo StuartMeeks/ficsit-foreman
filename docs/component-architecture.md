@@ -60,7 +60,7 @@ and each consumer formats to taste.
 
 - **Unit conversion** — `cmToMetres` / `metresToCm` / `vecToMetres`. Graph and parser
   keep **centimetres** (the save's native unit); the MCP/app converts to metres "for
-  the HUD". (Currently `game-data-core/world/units.ts`.)
+  the HUD". (Currently `sf-game-data/world/units.ts`.)
 - **Compass bearing** (`compassBearing`) — a derived, human-facing direction.
 - **Duration formatting** ("12h 34m") and **numeric rounding** — the graph keeps raw
   seconds / full-precision values.
