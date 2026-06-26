@@ -349,4 +349,33 @@ export function registerTools(server: McpServer, graph: GraphDB, world: WorldQue
       return ok({ nodes: hits.map((h) => placeInMetres(h, origin)) });
     },
   );
+
+  server.registerTool(
+    'list_parts',
+    {
+      title: 'List loose crash-site parts',
+      description:
+        'World summary of the loose manufactured parts strewn around crash sites (free high-tier items like Computers, Heavy Modular Frames, Motors) — per item, the number of pickups and the total quantity across the whole map. Filter by item (name or class, e.g. "Computer"). These are fixed world placements (the corrected 1.2 loot), not what a particular save has collected.',
+      inputSchema: { item: z.string().optional() },
+    },
+    async ({ item }): Promise<ToolResult> => ok(world.listParts(item)),
+  );
+
+  server.registerTool(
+    'nearest_parts',
+    {
+      title: 'Nearest loose crash-site parts',
+      description:
+        'The loose crash-site parts closest to a world location, nearest-first, each with the item, amount, coordinates (metres), straight-line distance (metres) and a compass bearing (N/NE/E/…) from the origin. Filter by item (name or class, e.g. "Heavy Modular Frame"); cap with n (default 10). Pass the pioneer location (metres, from the save) to answer "where can I grab a part I cannot craft yet?". Fixed world placements — to exclude ones already grabbed, use the save-game tool instead.',
+      inputSchema: {
+        coord,
+        item: z.string().optional(),
+        n: z.number().int().positive().optional(),
+      },
+    },
+    async ({ coord: origin, item, n }): Promise<ToolResult> => {
+      const hits = world.nearestParts(toCm(origin), item, n);
+      return ok({ parts: hits.map((h) => placeInMetres(h, origin)) });
+    },
+  );
 }

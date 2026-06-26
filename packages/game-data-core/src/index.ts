@@ -58,6 +58,8 @@ export type {
   WorldLocationsResolution,
   Collectible,
   ResourceNode,
+  LootPickup,
+  UnlockCost,
   CollectibleKind,
   ResourceNodeKind,
   Purity,

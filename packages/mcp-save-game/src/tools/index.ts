@@ -1,14 +1,21 @@
-import { loadWorldLocations, type WorldLocations } from '@foreman/game-data-core';
+import {
+  humaniseClassName,
+  loadWorldLocations,
+  type WorldLocations,
+} from '@foreman/game-data-core';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 
+import { loadDisplayNames } from '../gameData.js';
 import { logger } from '../logger.js';
 import {
   collectedGuidSet,
+  collectedLootIdSet,
   unlockedSchematicSet,
   collectibleProgressView,
   milestones,
   nearbyFromWorld,
+  nearbyParts,
   playerSummary,
   storageView,
   unlockedRecipes,
@@ -55,6 +62,12 @@ export function registerTools(server: McpServer, registry: SaveStoreRegistry): v
     logger.warn(worldResolution.warning);
   }
   const world: WorldLocations = worldResolution.world;
+
+  // Item display names (className → name), so drop-pod unlock costs and loose-part
+  // listings read as real in-game names rather than raw Desc_* classes.
+  const displayNames = loadDisplayNames();
+  const itemName = (className: string): string =>
+    displayNames.get(className) ?? humaniseClassName(className);
 
   const ok = (store: SaveStore, payload: object): ToolResult => ({
     content: [
@@ -158,6 +171,36 @@ export function registerTools(server: McpServer, registry: SaveStoreRegistry): v
           { kinds, radius, limit },
           collectedGuidSet(state),
           unlockedSchematicSet(state),
+          itemName,
+        ),
+      });
+    },
+  );
+
+  server.registerTool(
+    'get_nearby_parts',
+    {
+      title: 'Get nearby loose crash-site parts',
+      description:
+        'Un-grabbed loose crash-site parts near a world location, nearest-first, each with the item, amount, coordinates (metres), distance (metres) and a compass bearing from the origin. These are the free high-tier parts strewn around crash sites (Computers, Heavy Modular Frames, Motors, …) — answer "where can I grab a part I can\'t craft yet?". Positions come from the complete static world dataset, with the ones the save records as already picked up removed (map-wide, not just explored areas). Filter by item (name or class, e.g. "Computer"); cap by radius (metres) and limit (default 20). Pass the player location from get_player_state (metres).',
+      inputSchema: {
+        location: vec3Schema,
+        item: z.string().optional(),
+        radius: z.number().positive().optional(),
+        limit: z.number().int().positive().max(200).optional(),
+        savePath: savePathSchema,
+      },
+    },
+    async ({ location, item, radius, limit, savePath }): Promise<ToolResult> => {
+      const store = registry.resolve(savePath);
+      const state = store.getState();
+      return ok(store, {
+        nearby: nearbyParts(
+          world.lootPickups,
+          location,
+          { item, radius, limit },
+          collectedLootIdSet(state),
+          itemName,
         ),
       });
     },

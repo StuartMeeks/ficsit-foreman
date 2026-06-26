@@ -43,6 +43,7 @@ const KNOWN_COLLECTIBLE_TOTALS = {
   hardDrive: 118,
   helmet: 1,
   mtape: 3,
+  crashSitePart: 703,
 };
 
 const baseSha = process.env.BASE_SHA;
@@ -201,6 +202,11 @@ function validateWorldFile(channelDir) {
   const tally = {};
   for (const c of [...data.collectibles, ...data.resourceNodes]) {
     tally[c.kind] = (tally[c.kind] ?? 0) + 1;
+  }
+  // Loose crash-site parts are a separate array (no per-entry kind); they tally as `crashSitePart`.
+  const loot = Array.isArray(data.lootPickups) ? data.lootPickups : [];
+  if (loot.length > 0) {
+    tally['crashSitePart'] = loot.length;
   }
   for (const [kind, n] of Object.entries(tally)) {
     if (data.counts?.[kind] !== n) {

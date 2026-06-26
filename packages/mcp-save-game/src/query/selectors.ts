@@ -1,8 +1,11 @@
 import {
   cmToMetres,
   compassBearing,
+  humaniseClassName,
   type Collectible,
   type CollectibleKind as WorldCollectibleKind,
+  type LootPickup,
+  type UnlockCost,
   type WorldLocations,
 } from '@foreman/game-data-core';
 
@@ -220,6 +223,15 @@ export function collectedGuidSet(state: SaveState): Set<string> {
 }
 
 /**
+ * Instance names of loose crash-site parts the save records as collected (from each
+ * sublevel's `collectables` list). Matched against `lootPickups[].id` to drop
+ * already-grabbed parts — loose parts are tracked here, not in `mDestroyedPickups`.
+ */
+export function collectedLootIdSet(state: SaveState): Set<string> {
+  return new Set(state.collectedLootIds);
+}
+
+/**
  * The classes of every schematic the pioneer has unlocked. Customizer pickups
  * (helmet/tapes) carry no pickup GUID — picking one up unlocks a cosmetic
  * schematic, so this is how their collected status is determined.
@@ -247,6 +259,28 @@ export function isCollected(
   return false;
 }
 
+/** A drop-pod unlock cost with the item descriptor resolved to a display name. */
+export interface ResolvedUnlock {
+  item?: { itemClass: string; name: string; amount: number };
+  powerMW?: number;
+}
+
+/** Resolve a dataset unlock cost, upgrading the item class to a display name. */
+function resolveUnlock(u: UnlockCost, itemName?: (className: string) => string): ResolvedUnlock {
+  const out: ResolvedUnlock = {};
+  if (u.item !== undefined) {
+    out.item = {
+      itemClass: u.item.itemClass,
+      name: itemName?.(u.item.itemClass) ?? humaniseClassName(u.item.itemClass),
+      amount: u.item.amount,
+    };
+  }
+  if (u.powerMW !== undefined) {
+    out.powerMW = u.powerMW;
+  }
+  return out;
+}
+
 export interface NearbyItem {
   kind: WorldCollectibleKind;
   label: string;
@@ -256,6 +290,8 @@ export interface NearbyItem {
   distance: number;
   /** 8-point compass direction from the origin (N, NE, E, …). */
   bearing: string;
+  /** For hard-drive crash sites: what the pod requires to open (item and/or power). */
+  unlock?: ResolvedUnlock;
 }
 
 export interface NearbyOptions {
@@ -307,6 +343,7 @@ export function nearbyFromWorld(
   options: NearbyOptions = {},
   excludeGuids?: Set<string>,
   excludeSchematics?: Set<string>,
+  itemName?: (className: string) => string,
 ): NearbyResult {
   const limit = options.limit ?? DEFAULT_NEARBY_LIMIT;
   const collected = (c: Collectible): boolean =>
@@ -322,6 +359,7 @@ export function nearbyFromWorld(
         location,
         distance: distance(origin, location),
         bearing: compassBearing(origin, location),
+        ...(c.unlock !== undefined ? { unlock: resolveUnlock(c.unlock, itemName) } : {}),
       };
     })
     .sort((a, b) => a.distance - b.distance);
@@ -341,4 +379,93 @@ export function nearbyFromWorld(
 /** Straight-line distance between two points (same units in, same units out; exact). */
 export function distance(a: Vec3, b: Vec3): number {
   return Math.hypot(a.x - b.x, a.y - b.y, a.z - b.z);
+}
+
+export interface NearbyPart {
+  /** Item display name. */
+  item: string;
+  /** Item descriptor class (e.g. Desc_Computer_C). */
+  itemClass: string;
+  /** Stack size at this pickup. */
+  amount: number;
+  /** World position in metres. */
+  location: Vec3;
+  /** Straight-line distance from the origin, in metres. */
+  distance: number;
+  /** 8-point compass direction from the origin. */
+  bearing: string;
+}
+
+export interface NearbyPartsOptions {
+  /** Filter to items whose class or display name contains this (case-insensitive). */
+  item?: string;
+  /** Cap matches to within this many metres of the origin. */
+  radius?: number;
+  limit?: number;
+}
+
+export interface NearbyPartsResult {
+  origin: Vec3;
+  radius?: number;
+  matchCount: number;
+  items: NearbyPart[];
+  note: string;
+}
+
+const PARTS_NOTE =
+  'Un-grabbed loose crash-site parts: positions are from the complete static world dataset ' +
+  '(the corrected 1.2 loot — every spawn, map-wide), with the ones the save records as already ' +
+  'picked up removed, so these are genuinely still out there to grab. Locations + distances are ' +
+  'in metres; bearing is the compass direction from you. (A save that began before 1.2 may show ' +
+  'a few different in-world items than listed here, due to a since-fixed game bug.)';
+
+/**
+ * Un-grabbed loose crash-site parts near a world location, nearest-first, in metres.
+ * `origin`/`radius` are in metres. Positions come from the complete static world dataset;
+ * parts the save records as collected (by instance id, via `excludeIds` — the per-sublevel
+ * `collectables` record, NOT `mDestroyedPickups`) are removed, so the result is exactly what
+ * is still grabbable. `itemName` upgrades the item descriptor class to a display name.
+ */
+export function nearbyParts(
+  loot: LootPickup[],
+  origin: Vec3,
+  options: NearbyPartsOptions = {},
+  excludeIds?: Set<string>,
+  itemName?: (className: string) => string,
+): NearbyPartsResult {
+  const limit = options.limit ?? DEFAULT_NEARBY_LIMIT;
+  const needle = options.item?.trim().toLowerCase();
+  const label = (cls: string): string => itemName?.(cls) ?? humaniseClassName(cls);
+  let items: NearbyPart[] = loot
+    .filter((p) => excludeIds?.has(p.id) !== true)
+    .filter(
+      (p) =>
+        needle === undefined ||
+        needle === '' ||
+        p.itemClass.toLowerCase().includes(needle) ||
+        label(p.itemClass).toLowerCase().includes(needle),
+    )
+    .map((p) => {
+      const location = vecToMetres({ x: p.x, y: p.y, z: p.z });
+      return {
+        item: label(p.itemClass),
+        itemClass: p.itemClass,
+        amount: p.amount,
+        location,
+        distance: distance(origin, location),
+        bearing: compassBearing(origin, location),
+      };
+    })
+    .sort((a, b) => a.distance - b.distance);
+  if (options.radius !== undefined) {
+    const radius = options.radius;
+    items = items.filter((i) => i.distance <= radius);
+  }
+  return {
+    origin,
+    radius: options.radius,
+    matchCount: items.length,
+    items: items.slice(0, limit),
+    note: PARTS_NOTE,
+  };
 }

@@ -9,6 +9,8 @@ export type {
   WorldLocationsResolution,
   Collectible,
   ResourceNode,
+  LootPickup,
+  UnlockCost,
   CollectibleKind,
   ResourceNodeKind,
   Purity,
@@ -26,6 +28,7 @@ export function emptyWorldLocations(version = 'unknown'): WorldLocations {
     counts: {},
     collectibles: [],
     resourceNodes: [],
+    lootPickups: [],
   };
 }
 
@@ -91,7 +94,9 @@ function read(filePath: string): WorldLocationsResolution {
         warning: `World-location dataset at '${filePath}' is malformed; using an empty dataset.`,
       };
     }
-    return { world: parsed, path: filePath };
+    // Tolerate datasets predating lootPickups: default the array so callers needn't guard.
+    const world: WorldLocations = { ...parsed, lootPickups: parsed.lootPickups ?? [] };
+    return { world, path: filePath };
   } catch (error) {
     const detail = error instanceof Error ? error.message : String(error);
     return {
