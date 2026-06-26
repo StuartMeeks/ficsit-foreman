@@ -16,6 +16,7 @@ const SAMPLE: WorldLocations = {
   counts: { mercerSphere: 1, resourceNode: 1 },
   collectibles: [{ id: 'a', kind: 'mercerSphere', x: 0, y: 0, z: 0 }],
   resourceNodes: [{ id: 'n', kind: 'resourceNode', resourceClass: 'Desc_OreIron_C', purity: 'pure', x: 1, y: 2, z: 3 }],
+  lootPickups: [],
 };
 
 function tempFile(contents: string): string {
@@ -101,6 +102,10 @@ describe('bundled world-locations dataset', () => {
     }
     for (const n of world.resourceNodes) {
       tally[n.kind] = (tally[n.kind] ?? 0) + 1;
+    }
+    // Loose crash-site parts are a separate array, counted under `crashSitePart`.
+    if (world.lootPickups.length > 0) {
+      tally['crashSitePart'] = world.lootPickups.length;
     }
     expect(tally).toEqual(world.counts);
   });
