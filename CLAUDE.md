@@ -29,6 +29,7 @@ docs/               product.md · architecture.md · work-orders.md · playthrou
 | The work-order design (states, revisions, audit, plan/execution split) | [`docs/work-orders.md`](./docs/work-orders.md) |
 | The session/playthrough & foreman model (design) | [`docs/playthroughs.md`](./docs/playthroughs.md) |
 | The save subsystem (identity, re-upload history, same-game) — design & roadmap | [`docs/save-subsystem.md`](./docs/save-subsystem.md) |
+| Crash-site loot & drop-pod unlock costs (#107) — design | [`docs/crash-site-loot.md`](./docs/crash-site-loot.md) |
 | The game-data parser & class-map design | [`packages/game-data-core/PARSER.md`](./packages/game-data-core/PARSER.md) |
 | The foreman persona (runtime prompt) | [`packages/server/SYSTEM_PROMPT.md`](./packages/server/SYSTEM_PROMPT.md) |
 | A package's usage, tools, and setup | that package's `README.md` |
