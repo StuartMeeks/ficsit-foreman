@@ -1,9 +1,14 @@
 # FICSIT Foreman — Architecture
 
-How the system fits together. For the product "why", see [`product.md`](./product.md);
+How the system fits together **today**. For the product "why", see [`product.md`](./product.md);
 for the work-order feature, [`work-orders.md`](./work-orders.md); for the session/playthrough &
 foreman model (design), [`playthroughs.md`](./playthroughs.md); for the parser,
 [`packages/game-data-core/PARSER.md`](../packages/game-data-core/PARSER.md).
+
+> **Target architecture:** the packages are intended to split into reusable
+> Satisfactory components (`sf-*`) and the Ficsit Foreman app (`ff-*`) — see
+> [`component-architecture.md`](./component-architecture.md). That refactor is
+> sequenced foreman-first; the layout below is the current state.
 
 ---
 
