@@ -44,7 +44,8 @@ Extend `src/world/types.ts` and the bundled `data/<channel>/world-locations.json
 /** A loose crash-site part pickup (FGItemPickup_Spawnable). Collected once, then gone. */
 export interface LootPickup {
   id: string;                 // stable in-level instance name
-  guid: string;               // mItemPickupGuid (32 hex) — matched against the save's mDestroyedPickups
+  guid: string;               // mItemPickupGuid (32 hex). Kept for identity/parity; NOTE loose-part
+                              // pickups are NOT tracked in the save's mDestroyedPickups (collectibles are)
   itemClass: string;          // Desc_*_C (resolved via the mesh→descriptor map)
   amount: number;             // NumItems
   x: number; y: number; z: number;  // RootComponent.RelativeLocation (cm)
@@ -104,14 +105,19 @@ per `tools/world-locations/README.md`).
   bearing. Add `listParts(itemClass?)` for totals + per-item breakdown.
 - Surface `unlock` on the existing collectible queries so a hard-drive result can show its cost.
 
-### `mcp-save-game` (save-aware: subtract what's grabbed)
+### `mcp-save-game` (save-aware)
 
-- **`get_nearby_parts(location, itemClass?, radius?, limit?, savePath?)`** — un-grabbed loose parts
-  near the pioneer. Reuse `nearbyFromWorld` + `collectedGuidSet` (a grabbed part's `guid` is in
-  `mDestroyedPickups`, exactly like collectibles), generalised to take `lootPickups`. Returns item,
-  amount, distance (m), bearing.
-- Surface each nearby hard drive's `unlock` cost (item and/or MW) on the existing `get_nearby` /
-  `get_collectibles` output, so the foreman can say *"that crash site needs 5 Modular Frames"*.
+- **`get_nearby_parts(location, item?, radius?, limit?, savePath?)`** — loose parts near the pioneer,
+  from the static dataset (item, amount, distance (m), bearing). **Caveat (verified):** unlike
+  collectibles, loose-part pickups are **not** recorded in `FGScannableSubsystem.mDestroyedPickups`
+  (a save's destroyed-pickup GUIDs match collectibles only — 0 overlap with `lootPickups`), and the
+  save does not re-serialise `mItemPickupGuid` on present pickups. So the tool **cannot filter out
+  already-grabbed parts** — it lists where parts spawn, map-wide, and says so in its note. The
+  `excludeGuids` arg is kept for parity/forward-compat but is a no-op for parts today.
+- Surface each nearby hard drive's `unlock` cost (item and/or MW) on the existing `get_nearby`
+  output (item class resolved to a display name), so the foreman can say *"that crash site needs 5
+  Modular Frames"*. Collectible exclusion via `mDestroyedPickups` still works (it is collectibles
+  the save tracks).
 
 A thin `packages/server` passthrough is added only if the client cannot reach these tools directly.
 
@@ -128,5 +134,6 @@ A thin `packages/server` passthrough is added only if the client cannot reach th
   pod unlock breakdown looks sane (≈18 free, the rest item/power/both).
 - **`mcp-game-data`:** `nearest_parts` returns item + amount + distance + bearing; hard-drive
   queries include `unlock`.
-- **`mcp-save-game`:** `get_nearby_parts` against a real save excludes already-grabbed parts
-  (ground-truth counts in `~/saves`); nearby hard drives show their unlock cost.
+- **`mcp-save-game`:** `get_nearby_parts` against a real save returns nearby parts with item +
+  amount + distance + bearing (no grabbed-filtering — see caveat above); nearby hard drives show
+  their unlock cost with the item name resolved.
