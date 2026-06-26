@@ -1,4 +1,4 @@
-// API types, mirroring the @foreman/server contracts the client talks to
+// API types, mirroring the @foreman/ff-server contracts the client talks to
 // (Work Orders v2 — see docs/work-orders.md).
 
 export type WorkOrderState =

@@ -92,7 +92,7 @@ function firstNonEmpty(...values: (string | undefined)[]): string | undefined {
 
 /**
  * Locates the foreman system prompt. Priority: SYSTEM_PROMPT_PATH env override,
- * then the copy in the server package (`packages/server/SYSTEM_PROMPT.md`, also
+ * then the copy in the server package (`packages/ff-server/SYSTEM_PROMPT.md`, also
  * what the Docker image copies in). A legacy repo-root location is kept as a
  * last-resort fallback. Returns the first that exists, else the package path so
  * the caller's read error is explicit.

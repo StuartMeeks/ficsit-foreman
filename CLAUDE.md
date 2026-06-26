@@ -16,9 +16,9 @@ packages/
   sf-game-data-graph/ Kùzu production graph as a library (carries the kuzu addon)
   sf-save-data/       .sav → SaveState parser + normalise (lib)
   sf-mcp/             unified MCP server: game-data graph tools + live save-game tools
-  server/             Express backend: LLM proxy (SSE), sessions, work orders, MCP gateway
+  ff-server/          Express backend: LLM proxy (SSE), sessions, work orders, MCP gateway
                       (the foreman system prompt lives here: SYSTEM_PROMPT.md)
-  client/             React + Vite web UI (chat + work-order cockpit)
+  ff-client/          React + Vite web UI (chat + work-order cockpit)
 docs/                 product.md · architecture.md · work-orders.md · playthroughs.md
 ```
 
@@ -34,7 +34,7 @@ docs/                 product.md · architecture.md · work-orders.md · playthr
 | The save subsystem (identity, re-upload history, same-game) — design & roadmap | [`docs/save-subsystem.md`](./docs/save-subsystem.md) |
 | Crash-site loot & drop-pod unlock costs (#107) — design | [`docs/crash-site-loot.md`](./docs/crash-site-loot.md) |
 | The game-data parser & class-map design | [`packages/sf-game-data/PARSER.md`](./packages/sf-game-data/PARSER.md) |
-| The foreman persona (runtime prompt) | [`packages/server/SYSTEM_PROMPT.md`](./packages/server/SYSTEM_PROMPT.md) |
+| The foreman persona (runtime prompt) | [`packages/ff-server/SYSTEM_PROMPT.md`](./packages/ff-server/SYSTEM_PROMPT.md) |
 | A package's usage, tools, and setup | that package's `README.md` |
 | Conventions (commit/PR/branch/code standards) and game-data updates | [`CONTRIBUTING.md`](./CONTRIBUTING.md) |
 

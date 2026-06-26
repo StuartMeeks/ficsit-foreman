@@ -27,7 +27,7 @@ export function buildApp(deps: AppDeps): Express {
   app.get('/health', (_req, res) => {
     res.json({
       status: 'ok',
-      service: 'foreman-server',
+      service: 'foreman-ff-server',
       model: deps.config.model,
       mcpUrl: deps.config.mcpUrl,
       gameVersion: deps.mcp.gameVersion,

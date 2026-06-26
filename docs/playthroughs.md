@@ -3,7 +3,7 @@
 > **Status: slice 1 implemented (#86); slices 2–3 pending.** The domain model and
 > data-preserving migration have landed — the schema now has `Foreman` and `Playthrough`
 > (the former `Session`), and the server speaks "playthrough" with Foreman CRUD + a
-> playthrough list (see [`packages/server/prisma/schema.prisma`](../packages/server/prisma/schema.prisma)).
+> playthrough list (see [`packages/ff-server/prisma/schema.prisma`](../packages/ff-server/prisma/schema.prisma)).
 > The playthrough switcher / foreman library UI (#61) and the save subsystem (#76) build on
 > this. It supersedes the original framing of #61 and reshapes #76.
 

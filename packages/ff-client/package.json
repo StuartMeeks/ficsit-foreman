@@ -1,5 +1,5 @@
 {
-  "name": "@foreman/client",
+  "name": "@foreman/ff-client",
   "version": "0.1.0",
   "description": "FICSIT Foreman web client: foreman chat and work-order cockpit (Phase 3, boilerplate).",
   "license": "Apache-2.0",

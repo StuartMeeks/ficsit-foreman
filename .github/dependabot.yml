@@ -40,8 +40,8 @@ updates:
   # base-image updates are never detected.
   - package-ecosystem: "docker"
     directories:
-      - "/packages/server"
-      - "/packages/client"
+      - "/packages/ff-server"
+      - "/packages/ff-client"
       - "/packages/sf-mcp"
     schedule:
       interval: "monthly"

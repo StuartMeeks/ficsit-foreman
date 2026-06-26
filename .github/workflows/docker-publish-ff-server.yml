@@ -1,21 +1,29 @@
-name: Docker image (web)
+name: Docker image (ff-server)
 
-# Builds the web client image and publishes it to GHCR on pushes to main and on
-# version tags. Mirrors the other image workflows: a `changes` job gates :latest
-# so it only rebuilds when web-image-relevant files change (always builds for
-# tags, manual runs, and the path-filtered PR trigger).
+# Builds the foreman backend image and publishes it to GHCR on pushes to main
+# and on version tags. Mirrors the MCP image workflow: a `changes` job gates the
+# build so :latest is not rebuilt on every main push. It always runs for tags
+# (releases), manual runs and PRs, but for a main-branch push it builds only when
+# server-image-relevant files changed.
 
 on:
   push:
     branches: [main]
     tags: ['v*']
+  # On PRs, only run when something that affects the image changes — the docker
+  # job isn't a required check, so skipping it elsewhere blocks nothing.
   pull_request:
     paths:
-      - 'packages/client/**'
+      - 'packages/ff-server/**'
+      # The server image bundles @foreman/sf-game-data.
+      - 'packages/sf-core/**'
+      - 'packages/sf-game-data/**'
       - 'tsconfig.base.json'
-      - '.github/workflows/docker-publish-web.yml'
-      # Doc-only changes (the client README) don't affect the image.
+      - '.github/workflows/docker-publish-ff-server.yml'
+      # Doc-only changes (incl. package READMEs) don't affect the image…
       - '!**/*.md'
+      # …except the foreman prompt, which the image bakes in.
+      - 'packages/ff-server/SYSTEM_PROMPT.md'
   workflow_dispatch:
 
 permissions:
@@ -54,12 +62,16 @@ jobs:
             echo "build=true" >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          # main push: build only if web-image-relevant files changed. A dependency
-          # change is captured via packages/client/package.json; the root
+          # main push: build only if server-image-relevant files changed —
+          # excluding docs (*.md), except the prompt the image bakes in. A dependency
+          # change is captured via packages/ff-server/package.json; the root
           # package.json/lock are deliberately not listed (no rebuild-everything).
           changed=$(git diff --name-only "$BEFORE" "$AFTER" \
-            | { grep -E '^(packages/client/|tsconfig\.base\.json|\.github/workflows/docker-publish-web\.yml)' || true; } \
+            | { grep -E '^(packages/ff-server/|packages/sf-core/|packages/sf-game-data/|tsconfig\.base\.json|\.github/workflows/docker-publish-ff-server\.yml)' || true; } \
             | { grep -vE '\.md$' || true; })
+          if git diff --name-only "$BEFORE" "$AFTER" | grep -qE '^packages/ff-server/SYSTEM_PROMPT\.md$'; then
+            changed="${changed} packages/ff-server/SYSTEM_PROMPT.md"
+          fi
           if [ -n "$changed" ]; then
             echo "build=true" >> "$GITHUB_OUTPUT"
           else
@@ -90,7 +102,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v6
         with:
-          images: ghcr.io/stuartmeeks/foreman-web
+          images: ghcr.io/stuartmeeks/foreman-ff-server
           tags: |
             type=ref,event=branch
             type=ref,event=pr
@@ -102,9 +114,9 @@ jobs:
         uses: docker/build-push-action@v7
         with:
           context: .
-          file: packages/client/Dockerfile
+          file: packages/ff-server/Dockerfile
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha,scope=foreman-web
-          cache-to: type=gha,mode=max,scope=foreman-web
+          cache-from: type=gha,scope=foreman-ff-server
+          cache-to: type=gha,mode=max,scope=foreman-ff-server
