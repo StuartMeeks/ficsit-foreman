@@ -115,16 +115,37 @@ pioneer plays without a restart.
 
 ---
 
-## v3 — Production
+## v3 — Production *(theoretical capacity — shipped)*
+
+Scope is the **theoretical** half: what the configured machines *can* produce. The
+**actual** half — what they are really producing, and why a line is stalled — needs a
+reconstructed factory graph (belts/splitters/pipes/power circuits) and is tracked
+separately (see the actual-production graph issue).
 
 ### Data extracted
-- **Active production lines** — building, recipe, clock speed (overclock), location.
-- **Per-line production rates** — actual (given clock + uptime) vs theoretical.
+- **Production machines** — recipe-runners (Constructor → Manufacturer, Refinery,
+  Blender, Particle Accelerator, …) read from `mCurrentRecipe`, `mCurrentPotential`
+  (clock; absent ⇒ 100%), `mCurrentProductionBoost` (somersloop; absent ⇒ none), and
+  location.
+- **Resource extractors** — miners, oil + water extractors, fracking. Output resource
+  and node purity are resolved by matching the extractor's location to the world
+  resource-node dataset (the extractor snaps onto its node); water extractors draw
+  from a volume, so they are special-cased to Water.
+- **Rates** — `base` (recipe output at 100%) and `effective`
+  (base × clock × somersloop boost, × node purity for extractors), aggregated per
+  output item. Recipe rates and building power/extraction figures come from
+  `@foreman/game-data-core` (in-process — no MCP round-trip).
 
-### MCP tools (planned)
-- `get_production(item?)` — active lines, optionally filtered to those producing a
-  given item, with actual-vs-theoretical throughput.
-- `find_bottlenecks()` — lines starved of input or backed up on output.
+> **This is configured capacity, not measured output.** A static save has no runtime
+> telemetry; it does not record live throughput, nor (here) whether a line is actually
+> fed (belts/splitters/pipes) or powered. Estimated power is
+> `powerConsumption × clock^1.321928 × boost²`.
+
+### MCP tools
+- `get_production(item?)` — theoretical output aggregated by item: total effective
+  per-minute, machine count and a per-recipe/extractor breakdown, plus an estimated
+  total power draw. With `item`, narrows to that item and additionally lists the
+  individual machines (with locations).
 
 ---
 

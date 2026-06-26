@@ -86,6 +86,7 @@ save name. They return computed, distilled answers — not raw save dumps.
 | `get_milestones()` | Unlocked milestones grouped by tier, tutorial schematics, MAM research unlocks, and the current Project Assembly (Space Elevator) phase. |
 | `get_storage(location?)` | Storage container contents and the dimensional depot; pass a `{x,y,z}` location to sort containers nearest-first. |
 | `get_collectibles()` | Collected-collectible summary: reliable alien-artifact and power-slug totals, an approximate per-type split, and world totals for reference. See the note below. |
+| `get_production(item?)` | Theoretical production capacity, aggregated by output item: total effective per-minute (recipe × clock × somersloop boost, × node purity for extractors) across all machines + extractors, machine counts, a per-recipe breakdown, and an estimated total power draw. Pass `item` to narrow to one item and list the individual machines with locations. |
 
 > **Collectibles are approximate by design.** The save records collected
 > collectibles as a per-level destroyed-actor registry of bare references — no
@@ -95,7 +96,14 @@ save name. They return computed, distilled answers — not raw save dumps.
 > dataset (game-data v3). Every `get_collectibles` response carries a `note`
 > explaining this.
 
-Later versions add power (`v2`) and production-line (`v3`) tools — see
+> **Production is theoretical capacity, not measured output.** A static save has no
+> live throughput; `get_production` reports `effective` = base × clock × somersloop
+> boost (× node purity for extractors) — what the machines are configured to make at
+> full tilt. It does not account for whether lines are actually fed (belts/splitters/
+> pipes) or powered. Power figures are estimates.
+
+Power (`v2`) and the *actual*-production factory graph (belts/splitters/pipes/power
+— "what is really being made, and why is it stalled?") are tracked separately — see
 [`SPEC.md`](./SPEC.md) and the [issue tracker](https://github.com/StuartMeeks/ficsit-foreman/issues).
 
 ## Inspecting a real save
