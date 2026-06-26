@@ -2,8 +2,8 @@ import express from 'express';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 
-import type { GraphDB } from './graph/index.js';
-import type { WorldQueries } from './world/queries.js';
+import type { GraphDB } from '@foreman/sf-game-data-graph';
+import type { WorldQueries } from '@foreman/sf-game-data';
 import { registerTools } from './tools/index.js';
 import { lanAddresses } from './config.js';
 import { logger } from './logger.js';

@@ -70,3 +70,15 @@ export {
   channelWorldLocationsPath,
 } from './world/index.js';
 export { cmToMetres, metresToCm, compassBearing } from './world/units.js';
+
+// Spatial queries over the bundled world dataset (nearest collectibles / resource
+// nodes / loot, per-kind progress). Pure data queries — no graph engine.
+export { WorldQueries } from './world/queries.js';
+export type {
+  Coord,
+  ResourceRef,
+  CollectibleHit,
+  ResourceNodeHit,
+  LootPickupHit,
+  PartSummary,
+} from './world/queries.js';

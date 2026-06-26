@@ -25,15 +25,18 @@ COPY package.json package-lock.json tsconfig.base.json ./
 RUN npm install -g "npm@$(node -p 'require("./package.json").packageManager.split("@")[1]')"
 COPY packages/sf-core/package.json ./packages/sf-core/package.json
 COPY packages/sf-game-data/package.json ./packages/sf-game-data/package.json
+COPY packages/sf-game-data-graph/package.json ./packages/sf-game-data-graph/package.json
 COPY packages/mcp-game-data/package.json ./packages/mcp-game-data/package.json
 RUN npm ci
 
-# Build the shared kernel + core first, then verify the workspace symlink resolves.
+# Build the shared kernel + data + graph libs first, then verify the symlink resolves.
 COPY packages/sf-core ./packages/sf-core
 RUN npm run build -w @foreman/sf-core
 COPY packages/sf-game-data ./packages/sf-game-data
 RUN npm run build -w @foreman/sf-game-data
-RUN node -e "require.resolve('@foreman/sf-game-data')"
+COPY packages/sf-game-data-graph ./packages/sf-game-data-graph
+RUN npm run build -w @foreman/sf-game-data-graph
+RUN node -e "require.resolve('@foreman/sf-game-data-graph')"
 
 # Build the server, then drop dev dependencies so node_modules carries only
 # runtime deps (keeping the kuzu binary and the core workspace link).
@@ -51,13 +54,15 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 COPY packages/sf-core/package.json ./packages/sf-core/package.json
 COPY packages/sf-game-data/package.json ./packages/sf-game-data/package.json
+COPY packages/sf-game-data-graph/package.json ./packages/sf-game-data-graph/package.json
 COPY packages/mcp-game-data/package.json ./packages/mcp-game-data/package.json
 COPY --from=builder /app/node_modules ./node_modules
-# Core's compiled output + bundled game data (the workspace symlink in
-# node_modules resolves to these paths); sf-core too (sf-game-data depends on it).
+# Compiled output of the lib chain (the workspace symlinks resolve to these paths):
+# sf-core ← sf-game-data (+ bundled data) ← sf-game-data-graph (carries kuzu).
 COPY --from=builder /app/packages/sf-core/dist ./packages/sf-core/dist
 COPY --from=builder /app/packages/sf-game-data/dist ./packages/sf-game-data/dist
 COPY --from=builder /app/packages/sf-game-data/data ./packages/sf-game-data/data
+COPY --from=builder /app/packages/sf-game-data-graph/dist ./packages/sf-game-data-graph/dist
 COPY --from=builder /app/packages/mcp-game-data/dist ./packages/mcp-game-data/dist
 
 USER node

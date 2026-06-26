@@ -18,6 +18,7 @@ on:
       - 'packages/mcp-game-data/**'
       - 'packages/sf-core/**'
       - 'packages/sf-game-data/**'
+      - 'packages/sf-game-data-graph/**'
       - '.dockerignore'
       - 'tsconfig.base.json'
       - '.github/workflows/docker-publish-game-data.yml'
@@ -66,7 +67,7 @@ jobs:
           # packages/**); the root package.json/lock are deliberately NOT listed,
           # so a change to one package no longer rebuilds every image.
           changed=$(git diff --name-only "$BEFORE" "$AFTER" \
-            | { grep -E '^(packages/mcp-game-data/|packages/sf-core/|packages/sf-game-data/|\.dockerignore|tsconfig\.base\.json|\.github/workflows/docker-publish-game-data\.yml)' || true; } \
+            | { grep -E '^(packages/mcp-game-data/|packages/sf-core/|packages/sf-game-data/|packages/sf-game-data-graph/|\.dockerignore|tsconfig\.base\.json|\.github/workflows/docker-publish-game-data\.yml)' || true; } \
             | { grep -vE '\.md$' || true; })
           if [ -n "$changed" ]; then
             echo "build=true" >> "$GITHUB_OUTPUT"

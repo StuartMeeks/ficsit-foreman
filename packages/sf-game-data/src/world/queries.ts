@@ -1,13 +1,14 @@
-import {
-  humaniseClassName,
-  type Collectible,
-  type CollectibleKind,
-  type GameData,
-  type Purity,
-  type ResourceNode,
-  type ResourceNodeKind,
-  type WorldLocations,
-} from '@foreman/sf-game-data';
+import { humaniseClassName } from '@foreman/sf-core';
+
+import type { GameData } from '../parser/types.js';
+import type {
+  Collectible,
+  CollectibleKind,
+  Purity,
+  ResourceNode,
+  ResourceNodeKind,
+  WorldLocations,
+} from './types.js';
 
 /** A point in the Satisfactory world, in Unreal units (centimetres). */
 export interface Coord {

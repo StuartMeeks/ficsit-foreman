@@ -11,10 +11,10 @@ import {
   loadWorldLocations,
   parseDocsFile,
   resolveDocsPath,
+  WorldQueries,
 } from '@foreman/sf-game-data';
 import type { GameData } from '@foreman/sf-game-data';
-import { initGraph } from './graph/index.js';
-import { WorldQueries } from './world/queries.js';
+import { initGraph } from '@foreman/sf-game-data-graph';
 import { registerTools } from './tools/index.js';
 import { resolveServerConfig } from './config.js';
 import { startHttpServer } from './http.js';

@@ -8,8 +8,8 @@
  *   npm run inspect total_raw_inputs '{"item":"Reinforced Iron Plate","targetPerMinute":5}'
  */
 import { emptyGameData, loadWorldLocations, parseDocsFile } from '@foreman/sf-game-data';
-import { initGraph } from '../graph/index.js';
-import { WorldQueries } from '../world/queries.js';
+import { initGraph } from '@foreman/sf-game-data-graph';
+import { WorldQueries } from '@foreman/sf-game-data';
 import { resolveDocsPath } from '@foreman/sf-game-data';
 
 type Coord = { x: number; y: number; z: number };
