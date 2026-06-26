@@ -2,6 +2,13 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
+/**
+ * Server transport + save-source configuration for the unified `sf-mcp` server
+ * (game-data graph tools + save-game tools on one port). Docs-path / bundled
+ * game-data resolution lives in `@foreman/sf-game-data` (see `resolveDocsPath`);
+ * this file owns the network-transport half and the save-file resolution.
+ */
+
 /** Which transport the server should expose. */
 export type TransportKind = 'stdio' | 'http';
 
@@ -20,7 +27,7 @@ export interface ServerConfig {
 }
 
 const DEFAULT_HTTP_HOST = '0.0.0.0';
-const DEFAULT_HTTP_PORT = 8726;
+const DEFAULT_HTTP_PORT = 8723;
 
 /**
  * Resolves transport configuration from the environment. Defaults to stdio

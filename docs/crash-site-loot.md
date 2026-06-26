@@ -97,7 +97,7 @@ per `packages/sf-game-data/extract/README.md`).
 
 ## MCP tools
 
-### `mcp-game-data` (static world data)
+### Game-data tools (static world data; now served by `sf-mcp`)
 
 - **`nearest_parts(coord, itemClass?, n?)`** — mirrors `nearest_collectibles`/`nearest_resource_nodes`
   in `src/world/queries.ts` + `src/tools/index.ts`. Returns the `n` nearest loose parts (optionally
@@ -105,7 +105,7 @@ per `packages/sf-game-data/extract/README.md`).
   bearing. Add `listParts(itemClass?)` for totals + per-item breakdown.
 - Surface `unlock` on the existing collectible queries so a hard-drive result can show its cost.
 
-### `mcp-save-game` (save-aware: subtract what's grabbed)
+### Save-game tools (save-aware: subtract what's grabbed; now served by `sf-mcp`)
 
 - **`get_nearby_parts(location, item?, radius?, limit?, savePath?)`** — **un-grabbed** loose parts
   near the pioneer (item, amount, distance (m), bearing). **How collected parts are excluded
@@ -131,8 +131,8 @@ A thin `packages/server` passthrough is added only if the client cannot reach th
 - **Extractor:** regenerated `sf-game-data.json` passes `check-game-data.mjs`; all 703 loose
   parts resolve an item; the save cross-check (≈66 explored pickups) matches item + amount exactly;
   pod unlock breakdown looks sane (≈18 free, the rest item/power/both).
-- **`mcp-game-data`:** `nearest_parts` returns item + amount + distance + bearing; hard-drive
+- **Game-data tools:** `nearest_parts` returns item + amount + distance + bearing; hard-drive
   queries include `unlock`.
-- **`mcp-save-game`:** `get_nearby_parts` against a real save excludes already-grabbed parts via the
+- **Save-game tools:** `get_nearby_parts` against a real save excludes already-grabbed parts via the
   `collectables` record (verified: heavily-played save → 66 of 703 remaining; lightly-played →
   698); nearby hard drives show their unlock cost with the item name resolved.

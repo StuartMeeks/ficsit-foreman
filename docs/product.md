@@ -70,7 +70,7 @@ Alongside personality, onboarding captures three questions about the pioneer the
 Like the personality string, the generated pioneer profile is editable freeform text. The questions seed it; the pioneer owns it. The interaction between the two blocks is intentional: a gruff foreman with a first-time player should still be gruff, but shouldn't assume knowledge; a warm mentor with a veteran can engage peer-to-peer. Personality sets the voice; pioneer profile sets the register.
 
 ### 5. Save Game Awareness
-The save-game MCP server (`packages/mcp-save-game`, v1 shipped) parses a Satisfactory `.sav` to expose the pioneer's live state — location, inventory, unlocked recipes, milestones, and which collectibles remain. When the backend is pointed at it (`SAVE_MCP_URL`), the foreman reads that state so orders and opportunities reflect reality rather than assumption. Richer save-driven UX (in-app upload, verification) is tracked in the [issue tracker](https://github.com/StuartMeeks/ficsit-foreman/issues).
+The unified `sf-mcp` server's save-game tools (shipped) parse a Satisfactory `.sav` to expose the pioneer's live state — location, inventory, unlocked recipes, milestones, and which collectibles remain. The foreman reads that state so orders and opportunities reflect reality rather than assumption. Richer save-driven UX (in-app upload, verification) is tracked in the [issue tracker](https://github.com/StuartMeeks/ficsit-foreman/issues).
 
 ---
 

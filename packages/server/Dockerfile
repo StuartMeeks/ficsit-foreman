@@ -8,8 +8,8 @@
 #
 #   docker build -f packages/server/Dockerfile -t foreman-server .
 #
-# Defaults to HTTP on :8724, talking to the MCP server at http://mcp-game-data:8723/mcp
-# (the compose service name) and persisting to a SQLite database under /data.
+# Defaults to HTTP on :8724, talking to the unified sf-mcp server at
+# http://sf-mcp:8723/mcp (the compose service name) and persisting to SQLite under /data.
 # Provide ANTHROPIC_API_KEY for the hosted tier, or let clients pass their own.
 #
 # Base is glibc (bookworm-slim): Prisma 7 has no Rust query engine — it connects
@@ -55,7 +55,7 @@ FROM node:22-bookworm-slim AS runtime
 ENV NODE_ENV=production \
     HOST=0.0.0.0 \
     PORT=8724 \
-    MCP_URL=http://mcp-game-data:8723/mcp \
+    MCP_URL=http://sf-mcp:8723/mcp \
     DATABASE_URL=file:/data/foreman.db \
     SYSTEM_PROMPT_PATH=/app/SYSTEM_PROMPT.md
 WORKDIR /app

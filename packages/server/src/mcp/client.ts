@@ -149,13 +149,18 @@ export class McpHttpClient implements McpGateway {
   public async callTool(
     name: string,
     args: Record<string, unknown>,
-    _context?: ToolCallContext,
+    context?: ToolCallContext,
   ): Promise<ToolInvocationResult> {
-    // A single MCP server ignores the host context — only the aggregate gateway
-    // uses it (to inject savePath into save-routed calls).
+    // The unified sf-mcp server hosts both game-data and save-game tools. Inject
+    // the host's active-playthrough savePath when present so save tools read the
+    // right save (the model never supplies it); game-data tools ignore the extra
+    // arg (their zod schemas strip unknown keys). describe_save passes its own
+    // savePath in args directly and supplies no context, so it is unaffected.
+    const effectiveArgs =
+      context?.savePath !== undefined ? { ...args, savePath: context.savePath } : args;
     try {
       const client = await this.ensureClient();
-      const result = await client.callTool({ name, arguments: args });
+      const result = await client.callTool({ name, arguments: effectiveArgs });
       const content = Array.isArray(result.content) ? (result.content as RawToolContent[]) : [];
       const text = content
         .filter((block) => block.type === 'text' && typeof block.text === 'string')

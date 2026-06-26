@@ -39,7 +39,7 @@ When you open an issue, label it and slot it onto the roadmap:
 - **One type label** — `enhancement` (a feature or capability), `bug`,
   `documentation`, or `question` (an open decision to settle).
 - **At least one `area:` label** for the package(s) it touches — `area:client`,
-  `area:server`, `area:mcp-game-data`, `area:mcp-save-game`.
+  `area:server`, `area:sf-mcp`.
 - **A milestone**, so it lands on the roadmap (e.g. *Foundation — accounts &
   persistence*, *Save subsystem*, *App features*, *Game-data MCP*). If none fits,
   leave it unset and explain why in the body.

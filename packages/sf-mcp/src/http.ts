@@ -4,17 +4,20 @@ import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/
 
 import type { GraphDB } from '@foreman/sf-game-data-graph';
 import type { WorldQueries } from '@foreman/sf-game-data';
-import { registerTools } from './tools/index.js';
 import { lanAddresses } from './config.js';
 import { logger } from './logger.js';
+import type { SaveStoreRegistry } from './store/registry.js';
+import { registerGameDataTools } from './tools/gameData.js';
+import { registerSaveTools } from './tools/save.js';
 
 const MCP_ENDPOINT = '/mcp';
 
 /**
- * Starts the MCP server over Streamable HTTP. Runs in **stateless** mode: each
+ * Starts the unified MCP server over Streamable HTTP in **stateless** mode: each
  * POST gets a fresh McpServer + transport bound to the shared (already-loaded)
- * graph, so there is no per-session bookkeeping. GET/DELETE are not supported in
- * stateless mode.
+ * game-data graph, world queries and save store, so there is no per-session
+ * bookkeeping. Both tool sets — the game-data graph tools and the save-game
+ * tools — are registered on the one server. GET/DELETE are not supported.
  *
  * Security note: no authentication is applied. Do not expose this beyond a
  * trusted localhost/LAN without putting an auth layer in front of it.
@@ -22,6 +25,7 @@ const MCP_ENDPOINT = '/mcp';
 export async function startHttpServer(
   graph: GraphDB,
   world: WorldQueries,
+  registry: SaveStoreRegistry,
   host: string,
   port: number,
   serverName: string,
@@ -32,7 +36,8 @@ export async function startHttpServer(
 
   app.post(MCP_ENDPOINT, async (req, res) => {
     const server = new McpServer({ name: serverName, version: serverVersion });
-    registerTools(server, graph, world);
+    registerGameDataTools(server, graph, world);
+    registerSaveTools(server, registry);
     const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined });
     res.on('close', () => {
       void transport.close();
@@ -61,8 +66,16 @@ export async function startHttpServer(
   app.get(MCP_ENDPOINT, methodNotAllowed);
   app.delete(MCP_ENDPOINT, methodNotAllowed);
 
+  // The backend reads game-data version + build from here (to stamp work orders),
+  // so /health reports the graph identity; the loaded save name is included too.
   app.get('/health', (_req, res) => {
-    res.json({ status: 'ok', version: graph.version, build: graph.build });
+    const store = registry.resolve();
+    res.json({
+      status: 'ok',
+      version: graph.version,
+      build: graph.build,
+      saveName: store.saveName,
+    });
   });
 
   await new Promise<void>((resolve) => {

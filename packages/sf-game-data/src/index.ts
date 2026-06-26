@@ -3,9 +3,10 @@
  *
  * Holds the hand-written `en-US.json` parser, the clean `GameData` types, the
  * docs-path/channel resolution, and (bundled under `data/`) the game data
- * itself. Both MCP servers consume this package so item/recipe class names and
- * display names resolve identically across them. The Kùzu graph layer lives in
- * `@foreman/mcp-game-data`, not here — its only runtime dependency is the shared kernel `@foreman/sf-core`.
+ * itself. The unified `@foreman/sf-mcp` server consumes this package so
+ * item/recipe class names and display names resolve identically across its tool
+ * sets. The Kùzu graph layer lives in `@foreman/sf-game-data-graph`, not here —
+ * this package's only runtime dependency is the shared kernel `@foreman/sf-core`.
  */
 
 // Parser types.

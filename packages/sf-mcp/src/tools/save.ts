@@ -50,7 +50,7 @@ const savePathSchema = z
  * optional `savePath` (host-injected) so a tool call reads the right
  * playthrough's save; the {@link SaveStoreRegistry} resolves (and caches) it.
  */
-export function registerTools(server: McpServer, registry: SaveStoreRegistry): void {
+export function registerSaveTools(server: McpServer, registry: SaveStoreRegistry): void {
   // The static world-location dataset (every fixed collectible placement), loaded
   // once at startup. Backs get_nearby — complete and accurate, unlike the save,
   // which only contains collectibles in already-streamed World-Partition cells.

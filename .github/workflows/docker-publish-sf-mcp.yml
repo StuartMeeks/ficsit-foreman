@@ -1,11 +1,15 @@
-name: Docker image (mcp-game-data)
+name: Docker image (sf-mcp)
 
-# Builds the game-data MCP server image and publishes it to GHCR on pushes to main and on
-# version tags. To avoid rebuilding :latest on every main push, a `changes` job
-# gates the build: it always runs for tags (releases), manual runs and PRs, but
-# for a main-branch push it builds only when image-relevant files changed.
+# Builds the unified MCP server image (game-data graph tools + save-game tools)
+# and publishes it to GHCR on pushes to main and on version tags. To avoid
+# rebuilding :latest on every main push, a `changes` job gates the build: it
+# always runs for tags (releases), manual runs and PRs, but for a main-branch
+# push it builds only when image-relevant files changed.
 # (A `paths:` filter on the push trigger can't be used here — it would also
 # filter tag pushes, which must always publish.)
+#
+# The whole lib chain it bundles is path-watched: sf-core, sf-game-data,
+# sf-game-data-graph (kuzu) and sf-save-data (the .sav parser).
 
 on:
   push:
@@ -15,13 +19,14 @@ on:
   # job isn't a required check, so skipping it elsewhere blocks nothing.
   pull_request:
     paths:
-      - 'packages/mcp-game-data/**'
+      - 'packages/sf-mcp/**'
       - 'packages/sf-core/**'
       - 'packages/sf-game-data/**'
       - 'packages/sf-game-data-graph/**'
+      - 'packages/sf-save-data/**'
       - '.dockerignore'
       - 'tsconfig.base.json'
-      - '.github/workflows/docker-publish-game-data.yml'
+      - '.github/workflows/docker-publish-sf-mcp.yml'
       # Doc-only changes (READMEs, PARSER.md, …) don't affect the image.
       - '!**/*.md'
   workflow_dispatch:
@@ -67,7 +72,7 @@ jobs:
           # packages/**); the root package.json/lock are deliberately NOT listed,
           # so a change to one package no longer rebuilds every image.
           changed=$(git diff --name-only "$BEFORE" "$AFTER" \
-            | { grep -E '^(packages/mcp-game-data/|packages/sf-core/|packages/sf-game-data/|packages/sf-game-data-graph/|\.dockerignore|tsconfig\.base\.json|\.github/workflows/docker-publish-game-data\.yml)' || true; } \
+            | { grep -E '^(packages/sf-mcp/|packages/sf-core/|packages/sf-game-data/|packages/sf-game-data-graph/|packages/sf-save-data/|\.dockerignore|tsconfig\.base\.json|\.github/workflows/docker-publish-sf-mcp\.yml)' || true; } \
             | { grep -vE '\.md$' || true; })
           if [ -n "$changed" ]; then
             echo "build=true" >> "$GITHUB_OUTPUT"
@@ -99,7 +104,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v6
         with:
-          images: ghcr.io/stuartmeeks/foreman-mcp-game-data
+          images: ghcr.io/stuartmeeks/foreman-sf-mcp
           tags: |
             type=ref,event=branch
             type=ref,event=pr
@@ -111,7 +116,7 @@ jobs:
         uses: docker/build-push-action@v7
         with:
           context: .
-          file: packages/mcp-game-data/Dockerfile
+          file: packages/sf-mcp/Dockerfile
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}

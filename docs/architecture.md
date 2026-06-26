@@ -27,24 +27,25 @@ services under one `foreman` Docker Compose project.
 │              Backend (Node/Express) — packages/server      │
 │  · LLM proxy (Anthropic or OpenAI-compatible), SSE stream  │
 │  · playthrough + work-order persistence (Prisma/SQLite→PG) │
-│  · MCP gateway: merges the tool surfaces of the servers ↓  │
-└───────┬───────────────────────────┬───────────────┬──────┘
-        │ MCP (Streamable HTTP)      │               │ LLM API
-┌───────▼─────────┐   ┌──────────────▼────────┐   ┌──▼─────────────┐
-│ mcp-game-data   │   │ mcp-save-game         │   │ Claude / OpenAI │
-│ parser + Kùzu   │   │ (optional, SAVE_MCP_  │   │ -compatible     │
-│ graph + world   │   │  URL): live save state│   │ foreman persona │
-│ locations       │   │ — player, unlocks, …  │   │                 │
-└─────────────────┘   └───────────────────────┘   └─────────────────┘
-        └── both depend on packages/sf-game-data (parser + bundled data) ──┘
+│  · MCP gateway: one client to the unified sf-mcp server ↓  │
+└───────┬───────────────────────────────────────────┬──────┘
+        │ MCP (Streamable HTTP)                       │ LLM API
+┌───────▼─────────────────────────────────────┐   ┌──▼─────────────┐
+│ sf-mcp                                       │   │ Claude / OpenAI │
+│  · game-data tools: parser + Kùzu graph +    │   │ -compatible     │
+│    world locations — "how is it made?"       │   │ foreman persona │
+│  · save-game tools: live save state          │   │                 │
+│    — player, unlocks, collectibles, …        │   │                 │
+└──────────────────────────────────────────────┘   └─────────────────┘
+        └── built on sf-game-data / sf-game-data-graph / sf-save-data ──┘
 ```
 
-The **game-data MCP** answers *"how is anything in the game made?"* from static
-game data; the **save-game MCP** (optional) answers *"what has this pioneer
-actually built/unlocked/collected?"* from their live save. The backend's **MCP
-gateway** merges both into one tool surface for the foreman (see
-[`packages/server/README.md`](../packages/server/README.md)); with no
-`SAVE_MCP_URL` set it runs on game-data alone.
+The unified **sf-mcp** server hosts two tool sets on one endpoint: **game-data
+tools** answer *"how is anything in the game made?"* from static game data, and
+**save-game tools** answer *"what has this pioneer actually built/unlocked/
+collected?"* from their live save. The backend reaches it with a single MCP
+client, injecting the active playthrough's save path into each tool call (see
+[`packages/server/README.md`](../packages/server/README.md)).
 
 ## Key decisions
 
@@ -58,7 +59,7 @@ gateway** merges both into one tool surface for the foreman (see
 | ORM | Prisma | Readable schema, good migrations |
 | Auth | Better Auth (self-hosted) | Email+password now, passkeys/TOTP next; HttpOnly-cookie sessions; Prisma adapter |
 | Deployment | Docker Compose (local) + Railway/Render (hosted) | Laptop → production with the same images |
-| Repo | Monorepo (`sf-game-data`, `mcp-game-data`, `mcp-save-game`, `server`, `client`) | Easy to navigate |
+| Repo | Monorepo (`sf-core`, `sf-game-data`, `sf-game-data-graph`, `sf-save-data`, `sf-mcp`, `server`, `client`) | Easy to navigate |
 
 ## Accounts & identity
 
@@ -114,11 +115,10 @@ computed at ingest (`amount * 60 / durationSeconds`) and stored on the relations
 
 ## Tool surface
 
-The full, authoritative MCP tool reference lives with each package:
-[`packages/mcp-game-data/README.md`](../packages/mcp-game-data/README.md) (recipes,
-ingredient trees, raw inputs, alternates, schematics, buildings, world-location
-queries, and a guarded `cypher_query`) and
-[`packages/mcp-save-game/README.md`](../packages/mcp-save-game/README.md)
+The full, authoritative MCP tool reference lives with the server package,
+[`packages/sf-mcp/README.md`](../packages/sf-mcp/README.md): the game-data tools
+(recipes, ingredient trees, raw inputs, alternates, schematics, buildings,
+world-location queries, and a guarded `cypher_query`) and the save-game tools
 (player state, unlocks, milestones, storage, remaining collectibles). Name
 resolution (displayName or className) is transparent — the foreman never needs
 internal class names.

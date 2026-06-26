@@ -16,13 +16,14 @@
     "build": "npm run build -w @foreman/sf-core && npm run build -w @foreman/sf-game-data && npm run build -w @foreman/sf-game-data-graph && npm run build -w @foreman/sf-save-data && npm run build --workspaces --if-present",
     "test": "npm run test --workspaces --if-present",
     "lint": "npm run lint --workspaces --if-present",
-    "dev": "npm run dev -w @foreman/mcp-game-data",
-    "dev:mcp": "npm run dev -w @foreman/mcp-game-data",
+    "dev": "npm run dev -w @foreman/sf-mcp",
+    "dev:mcp": "npm run dev -w @foreman/sf-mcp",
     "dev:server": "npm run dev -w @foreman/server",
     "dev:web": "npm run dev -w @foreman/client",
-    "start:mcp": "npm run start -w @foreman/mcp-game-data",
+    "start:mcp": "npm run start -w @foreman/sf-mcp",
     "start:server": "npm run start -w @foreman/server",
-    "inspect": "npm run inspect -w @foreman/mcp-game-data --"
+    "inspect:game-data": "npm run inspect:game-data -w @foreman/sf-mcp --",
+    "inspect:save": "npm run inspect:save -w @foreman/sf-mcp --"
   },
   "overrides": {
     "@hono/node-server": "^1.19.13",

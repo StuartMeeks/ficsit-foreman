@@ -3,7 +3,7 @@
 This document describes the design and implementation requirements for:
 
 1. The `en-US.json` parser in `packages/sf-game-data/src/parser/`
-2. The Kùzu graph load pipeline in `packages/mcp-game-data/src/graph/`
+2. The Kùzu graph load pipeline in `packages/sf-game-data-graph/src/`
 
 ---
 
@@ -170,7 +170,7 @@ packages/sf-game-data/src/parser/
 The graph layer sits between the parser and the MCP tools. It is responsible for loading `GameData` into Kùzu and providing a clean query interface.
 
 ```
-packages/mcp-game-data/src/graph/
+packages/sf-game-data-graph/src/
   index.ts              ← public API: initGraph(gameData: GameData): GraphDB
   schema.ts             ← Kùzu DDL: CREATE NODE TABLE, CREATE REL TABLE
   loader.ts             ← idempotent load from GameData (drop + reload on rebuild)
