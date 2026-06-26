@@ -5,7 +5,7 @@
  * docs-path/channel resolution, and (bundled under `data/`) the game data
  * itself. Both MCP servers consume this package so item/recipe class names and
  * display names resolve identically across them. The Kùzu graph layer lives in
- * `@foreman/mcp-game-data`, not here — this package has no runtime dependencies.
+ * `@foreman/mcp-game-data`, not here — its only runtime dependency is the shared kernel `@foreman/sf-core`.
  */
 
 // Parser types.
@@ -33,8 +33,8 @@ export { parseGameData, parseDocsFile, emptyGameData } from './parser/index.js';
 // Reader (UTF-16 BOM decode + docs-file read).
 export { readDocsFile } from './parser/reader.js';
 
-// Class-name resolution helpers.
-export { humaniseClassName, extractClassNames } from './parser/normalise/classRef.js';
+// Class-name resolution helpers (re-exported from the shared kernel).
+export { humaniseClassName, extractClassNames } from '@foreman/sf-core';
 
 // Fluid amount/unit helpers.
 export { isFluid, toDisplayAmount, perMinute } from './parser/normalise/fluids.js';

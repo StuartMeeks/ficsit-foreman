@@ -16,6 +16,7 @@ on:
   pull_request:
     paths:
       - 'packages/mcp-save-game/**'
+      - 'packages/sf-core/**'
       - 'packages/game-data-core/**'
       - '.dockerignore'
       - 'tsconfig.base.json'
@@ -64,7 +65,7 @@ jobs:
           # change is captured via packages/mcp-save-game/package.json; the root
           # package.json/lock are deliberately not listed (no rebuild-everything).
           changed=$(git diff --name-only "$BEFORE" "$AFTER" \
-            | { grep -E '^(packages/mcp-save-game/|packages/game-data-core/|\.dockerignore|tsconfig\.base\.json|\.github/workflows/docker-publish-save-game\.yml)' || true; } \
+            | { grep -E '^(packages/mcp-save-game/|packages/sf-core/|packages/game-data-core/|\.dockerignore|tsconfig\.base\.json|\.github/workflows/docker-publish-save-game\.yml)' || true; } \
             | { grep -vE '\.md$' || true; })
           if [ -n "$changed" ]; then
             echo "build=true" >> "$GITHUB_OUTPUT"

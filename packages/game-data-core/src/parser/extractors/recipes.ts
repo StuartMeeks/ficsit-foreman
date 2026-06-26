@@ -7,7 +7,7 @@ import type {
   VariablePower,
 } from '../types.js';
 import { getNumber, getString } from '../util.js';
-import { extractClassNames, humaniseClassName } from '../normalise/classRef.js';
+import { extractClassNames, humaniseClassName } from '@foreman/sf-core';
 import { parseItemAmountList, type RawItemAmount } from '../normalise/ingredients.js';
 import { perMinute, toDisplayAmount } from '../normalise/fluids.js';
 

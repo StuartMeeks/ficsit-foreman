@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { parseItemAmountList } from '../src/parser/normalise/ingredients.js';
-import { extractClassNames, humaniseClassName } from '../src/parser/normalise/classRef.js';
+import { extractClassNames, humaniseClassName } from '@foreman/sf-core';
 import { perMinute, toDisplayAmount } from '../src/parser/normalise/fluids.js';
 
 const single =
