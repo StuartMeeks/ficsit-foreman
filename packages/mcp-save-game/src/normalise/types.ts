@@ -91,6 +91,13 @@ export interface SaveState {
   collectedPickupGuids: string[];
   /** GUIDs of looted hard-drive drop pods (`FGScannableSubsystem.mLootedDropPods`). */
   lootedDropPodGuids: string[];
+  /**
+   * Instance names of collected loose crash-site parts (`FGItemPickup_Spawnable`), taken
+   * from each sublevel's `collectables` (collected/removed-actor) record. These are NOT in
+   * `mDestroyedPickups` (that tracks collectibles only); they are matched against the
+   * world-locations `lootPickups[].id` to drop already-grabbed parts. Map-wide and complete.
+   */
+  collectedLootIds: string[];
   /** Non-fatal issues collected during normalisation. */
   warnings: string[];
 }
@@ -108,6 +115,7 @@ export function emptySaveState(version: string, saveName: string, parsedAt: stri
     mamResearch: [],
     collectedPickupGuids: [],
     lootedDropPodGuids: [],
+    collectedLootIds: [],
     warnings: [],
   };
 }

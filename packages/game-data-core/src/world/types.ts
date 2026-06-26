@@ -82,9 +82,13 @@ export interface Collectible {
  * 1.0/1.1 may carry different in-world items for a few pickups (a since-fixed game bug).
  */
 export interface LootPickup {
-  /** Stable in-level instance name. */
+  /**
+   * Stable in-level instance name. This is the key for collected status: a save records
+   * collected loose parts in each sublevel's `collectables` (collected-actor) list by
+   * instance name — NOT in `mDestroyedPickups` (which tracks collectibles only).
+   */
   id: string;
-  /** `mItemPickupGuid` (32 uppercase hex) — matched against the save's `mDestroyedPickups`. */
+  /** `mItemPickupGuid` (32 uppercase hex) — the actor's stable GUID (identity; see `id` for collected status). */
   guid: string;
   /** Item descriptor class, e.g. `Desc_Computer_C`. */
   itemClass: string;

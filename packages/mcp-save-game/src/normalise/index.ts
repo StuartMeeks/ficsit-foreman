@@ -42,6 +42,25 @@ export function normaliseSave(
 
   const progression = extractProgression(objects, warnings);
   const scannable = extractScannable(objects);
+
+  // Collected loose crash-site parts are recorded per-sublevel in `collectables`
+  // (the collected/removed-actor list), by path name — NOT in mDestroyedPickups. We
+  // keep the instance-name tail of each FGItemPickup_Spawnable ref so the save MCP can
+  // drop already-grabbed parts from the world dataset (matched on lootPickups[].id).
+  const collectedLootIds: string[] = [];
+  for (const level of Object.values(raw.levels ?? {})) {
+    for (const ref of level?.collectables ?? []) {
+      const path = ref.pathName ?? '';
+      if (!path.includes('ItemPickup_Spawnable')) {
+        continue;
+      }
+      const name = path.split('.').pop();
+      if (name !== undefined && name !== '') {
+        collectedLootIds.push(name);
+      }
+    }
+  }
+
   const state: SaveState = {
     version: detectVersion(raw),
     saveName: detectSaveName(raw),
@@ -59,6 +78,7 @@ export function normaliseSave(
     assemblyPhase: progression.assemblyPhase,
     collectedPickupGuids: scannable.collectedPickupGuids,
     lootedDropPodGuids: scannable.lootedDropPodGuids,
+    collectedLootIds,
     warnings: warnings.all(),
   };
 

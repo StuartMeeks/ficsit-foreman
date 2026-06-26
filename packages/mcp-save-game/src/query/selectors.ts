@@ -223,6 +223,15 @@ export function collectedGuidSet(state: SaveState): Set<string> {
 }
 
 /**
+ * Instance names of loose crash-site parts the save records as collected (from each
+ * sublevel's `collectables` list). Matched against `lootPickups[].id` to drop
+ * already-grabbed parts — loose parts are tracked here, not in `mDestroyedPickups`.
+ */
+export function collectedLootIdSet(state: SaveState): Set<string> {
+  return new Set(state.collectedLootIds);
+}
+
+/**
  * The classes of every schematic the pioneer has unlocked. Customizer pickups
  * (helmet/tapes) carry no pickup GUID — picking one up unlocks a cosmetic
  * schematic, so this is how their collected status is determined.
@@ -404,33 +413,31 @@ export interface NearbyPartsResult {
 }
 
 const PARTS_NOTE =
-  'Loose crash-site parts near you, from the complete static world dataset (the corrected 1.2 ' +
-  'loot — every spawn, map-wide). IMPORTANT: unlike collectibles, the game does not record ' +
-  'individual loose-part pickups by GUID, so these cannot be filtered to "not yet grabbed" — ' +
-  'one you have already taken may still be listed; treat this as where parts spawn. ' +
-  'Locations + distances are in metres; bearing is the compass direction from you. (A save that ' +
-  'began before 1.2 may also show a few different in-world items, due to a since-fixed game bug.)';
+  'Un-grabbed loose crash-site parts: positions are from the complete static world dataset ' +
+  '(the corrected 1.2 loot — every spawn, map-wide), with the ones the save records as already ' +
+  'picked up removed, so these are genuinely still out there to grab. Locations + distances are ' +
+  'in metres; bearing is the compass direction from you. (A save that began before 1.2 may show ' +
+  'a few different in-world items than listed here, due to a since-fixed game bug.)';
 
 /**
- * Loose crash-site parts near a world location, nearest-first, in metres. `origin`/`radius`
- * are in metres. Positions come from the static world-location dataset (all spawns, map-wide).
- * `excludeGuids` removes any whose GUID the save records as collected — but note loose-part
- * pickups are NOT currently GUID-tracked in `mDestroyedPickups` (only collectibles are), so in
- * practice this excludes nothing for parts; it is kept for parity and forward-compatibility.
- * `itemName` upgrades the item descriptor class to a display name (humanised fallback).
+ * Un-grabbed loose crash-site parts near a world location, nearest-first, in metres.
+ * `origin`/`radius` are in metres. Positions come from the complete static world dataset;
+ * parts the save records as collected (by instance id, via `excludeIds` — the per-sublevel
+ * `collectables` record, NOT `mDestroyedPickups`) are removed, so the result is exactly what
+ * is still grabbable. `itemName` upgrades the item descriptor class to a display name.
  */
 export function nearbyParts(
   loot: LootPickup[],
   origin: Vec3,
   options: NearbyPartsOptions = {},
-  excludeGuids?: Set<string>,
+  excludeIds?: Set<string>,
   itemName?: (className: string) => string,
 ): NearbyPartsResult {
   const limit = options.limit ?? DEFAULT_NEARBY_LIMIT;
   const needle = options.item?.trim().toLowerCase();
   const label = (cls: string): string => itemName?.(cls) ?? humaniseClassName(cls);
   let items: NearbyPart[] = loot
-    .filter((p) => excludeGuids?.has(p.guid) !== true)
+    .filter((p) => excludeIds?.has(p.id) !== true)
     .filter(
       (p) =>
         needle === undefined ||

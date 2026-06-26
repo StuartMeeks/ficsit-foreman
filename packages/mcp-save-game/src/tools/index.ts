@@ -10,6 +10,7 @@ import { loadDisplayNames } from '../gameData.js';
 import { logger } from '../logger.js';
 import {
   collectedGuidSet,
+  collectedLootIdSet,
   unlockedSchematicSet,
   collectibleProgressView,
   milestones,
@@ -181,7 +182,7 @@ export function registerTools(server: McpServer, registry: SaveStoreRegistry): v
     {
       title: 'Get nearby loose crash-site parts',
       description:
-        'Loose crash-site parts near a world location, nearest-first, each with the item, amount, coordinates (metres), distance (metres) and a compass bearing from the origin. These are the free high-tier parts strewn around crash sites (Computers, Heavy Modular Frames, Motors, …) — answer "where can I grab a part I can\'t craft yet?". Positions come from the complete static world dataset (every spawn, map-wide). NOTE: the game does not record loose-part pickups the way it records collectibles, so this lists where parts spawn and cannot filter out ones already grabbed. Filter by item (name or class, e.g. "Computer"); cap by radius (metres) and limit (default 20). Pass the player location from get_player_state (metres).',
+        'Un-grabbed loose crash-site parts near a world location, nearest-first, each with the item, amount, coordinates (metres), distance (metres) and a compass bearing from the origin. These are the free high-tier parts strewn around crash sites (Computers, Heavy Modular Frames, Motors, …) — answer "where can I grab a part I can\'t craft yet?". Positions come from the complete static world dataset, with the ones the save records as already picked up removed (map-wide, not just explored areas). Filter by item (name or class, e.g. "Computer"); cap by radius (metres) and limit (default 20). Pass the player location from get_player_state (metres).',
       inputSchema: {
         location: vec3Schema,
         item: z.string().optional(),
@@ -198,7 +199,7 @@ export function registerTools(server: McpServer, registry: SaveStoreRegistry): v
           world.lootPickups,
           location,
           { item, radius, limit },
-          collectedGuidSet(state),
+          collectedLootIdSet(state),
           itemName,
         ),
       });
