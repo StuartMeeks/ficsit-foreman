@@ -1,6 +1,10 @@
 # The CUE4Parse clone is not vendored — clone it here per README.md.
 /CUE4Parse/
 
+# Throwaway investigation copy of fg-extract (kept locally, never committed).
+/fg-probe/
+probe-*.txt
+
 # .NET build output.
 **/bin/
 **/obj/
