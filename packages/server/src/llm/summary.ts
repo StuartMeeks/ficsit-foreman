@@ -31,24 +31,34 @@ export class SummaryService {
     private readonly providerFactory: LlmProviderFactory = createProvider,
   ) {}
 
-  /** True once the message count has rolled past the window at least once. */
-  public shouldSummarise(messageCount: number): boolean {
-    return messageCount > this.config.historyWindow * 2;
+  /**
+   * True once the message count has rolled past the window at least once. The
+   * window defaults to the server config but a BYOK request may pass its own.
+   */
+  public shouldSummarise(messageCount: number, window = this.config.historyWindow): boolean {
+    return messageCount > window * 2;
   }
 
   /**
    * Fire-and-forget entry point: if the playthrough has grown past the
    * threshold, regenerate and store its summary using the request's
-   * provider/config. Never throws — failures are logged so a background
-   * summarisation can never crash the request that scheduled it.
+   * provider/config. The `historyWindow` (the request's effective window —
+   * server default unless a BYOK caller overrode it) governs both the threshold
+   * and which messages count as "older than the window". Never throws — failures
+   * are logged so a background summarisation can never crash the request that
+   * scheduled it.
    */
-  public async summariseIfNeeded(playthroughId: string, llm: LlmRuntimeConfig): Promise<void> {
+  public async summariseIfNeeded(
+    playthroughId: string,
+    llm: LlmRuntimeConfig,
+    historyWindow = this.config.historyWindow,
+  ): Promise<void> {
     if (this.inFlight.has(playthroughId)) {
       return;
     }
     try {
       const count = await this.playthroughs.countMessages(playthroughId);
-      if (!this.shouldSummarise(count)) {
+      if (!this.shouldSummarise(count, historyWindow)) {
         return;
       }
       this.inFlight.add(playthroughId);
@@ -56,10 +66,7 @@ export class SummaryService {
       if (playthrough === undefined) {
         return;
       }
-      const older = await this.playthroughs.messagesBeforeWindow(
-        playthroughId,
-        this.config.historyWindow,
-      );
+      const older = await this.playthroughs.messagesBeforeWindow(playthroughId, historyWindow);
       if (older.length === 0) {
         return;
       }

@@ -31,6 +31,23 @@ const SECTIONS: { key: Section; label: string }[] = [
   { key: 'billing', label: 'Billing' },
 ];
 
+/** Server default conversation history window (kept in sync with the backend). */
+const DEFAULT_HISTORY_WINDOW = 20;
+const MIN_HISTORY_WINDOW = 2;
+const MAX_HISTORY_WINDOW = 100;
+
+/**
+ * Parse the history-window field to the stored number: 0 means "use the server
+ * default" (blank/invalid input), otherwise clamp to the server's accepted range.
+ */
+function parseHistoryWindow(raw: string): number {
+  const n = Number.parseInt(raw.trim(), 10);
+  if (!Number.isInteger(n) || n <= 0) {
+    return 0;
+  }
+  return Math.min(MAX_HISTORY_WINDOW, Math.max(MIN_HISTORY_WINDOW, n));
+}
+
 /**
  * Sectioned settings reached from the account menu. "This Playthrough" holds the
  * foreman attached to the active playthrough (with the reusable library, since a
@@ -60,6 +77,11 @@ export function SettingsDialog({
   const [model, setModel] = useState(llm.model);
   const [baseUrl, setBaseUrl] = useState(llm.baseUrl);
   const [apiKey, setApiKey] = useState(llm.apiKey);
+  // Empty string = use the server default (stored as 0). Kept as text so the field
+  // can be cleared back to "default" rather than forced to a number.
+  const [historyWindow, setHistoryWindow] = useState(
+    llm.historyWindow > 0 ? String(llm.historyWindow) : '',
+  );
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -82,7 +104,10 @@ export function SettingsDialog({
     setSaving(true);
     setError(null);
     try {
-      await onSave({ pioneerProfile, llm: { apiKey, provider, model, baseUrl } });
+      await onSave({
+        pioneerProfile,
+        llm: { apiKey, provider, model, baseUrl, historyWindow: parseHistoryWindow(historyWindow) },
+      });
       onClose();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not save settings.');
@@ -207,6 +232,26 @@ export function SettingsDialog({
                 the server. A key also unlocks the provider/model override above.
               </span>
             </div>
+            {apiKey.length > 0 ? (
+              <div className="field">
+                <label htmlFor="historywindow">Conversation history window</label>
+                <input
+                  id="historywindow"
+                  type="number"
+                  min={MIN_HISTORY_WINDOW}
+                  max={MAX_HISTORY_WINDOW}
+                  value={historyWindow}
+                  onChange={(e) => setHistoryWindow(e.target.value)}
+                  placeholder={`${DEFAULT_HISTORY_WINDOW} (server default)`}
+                  autoComplete="off"
+                />
+                <span className="hint">
+                  How many recent messages the foreman keeps in context each turn. Higher remembers
+                  more but costs more tokens; lower is cheaper. Leave blank for the default (
+                  {DEFAULT_HISTORY_WINDOW}). Available because you supply your own API key.
+                </span>
+              </div>
+            ) : null}
           </div>
         ) : null}
 

@@ -24,6 +24,8 @@ let saveDir: string;
 let db: TestDb;
 let server: Server;
 let baseUrl: string;
+// Hoisted so a test can spy on it to assert the effective history window.
+let playthroughs: PlaythroughService;
 // Cookie for the default signed-in user; threaded through every request.
 let cookie: string;
 
@@ -67,7 +69,7 @@ function authHeaders(c: string = cookie): Record<string, string> {
 beforeAll(async () => {
   db = await createTestDb();
   saveDir = fs.mkdtempSync(path.join(os.tmpdir(), 'foreman-saves-test-'));
-  const playthroughs = new PlaythroughService(db.prisma);
+  playthroughs = new PlaythroughService(db.prisma);
   const stubFactory: LlmProviderFactory = () => ({
     runTurn: async () => ({ text: '', toolCalls: [], stopReason: 'stop' }),
     complete: async () => '',
@@ -409,5 +411,68 @@ describe('HTTP routes', () => {
       headers: authHeaders(otherCookie),
     });
     expect(res.status).toBe(403);
+  });
+});
+
+describe('chat history window (BYOK)', () => {
+  const KEY_HEADER = 'x-anthropic-api-key';
+
+  /** POSTs a chat turn and returns the window passed to recentMessages. */
+  async function chatWindow(
+    playthroughId: string,
+    body: Record<string, unknown>,
+    withKey: boolean,
+  ): Promise<number | undefined> {
+    let captured: number | undefined;
+    const original = playthroughs.recentMessages.bind(playthroughs);
+    playthroughs.recentMessages = async (_id: string, window: number) => {
+      captured = window;
+      return [];
+    };
+    try {
+      const headers = authHeaders();
+      if (withKey) {
+        headers[KEY_HEADER] = 'sk-test-byok';
+      }
+      const res = await fetch(`${baseUrl}/api/playthroughs/${playthroughId}/chat`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ message: 'hi', ...body }),
+      });
+      await res.text(); // drain the SSE stream so the turn (and recentMessages) completes
+      return captured;
+    } finally {
+      playthroughs.recentMessages = original;
+    }
+  }
+
+  it("honours a BYOK request's history window, and defaults it otherwise", async () => {
+    const playthrough = await createPlaythrough();
+    // BYOK + explicit window → used verbatim.
+    expect(await chatWindow(playthrough.id, { historyWindow: 50 }, true)).toBe(50);
+    // BYOK + no window → server default (20).
+    expect(await chatWindow(playthrough.id, {}, true)).toBe(20);
+  });
+
+  it('rejects a history window beyond the accepted range', async () => {
+    const playthrough = await createPlaythrough();
+    const res = await fetch(`${baseUrl}/api/playthroughs/${playthrough.id}/chat`, {
+      method: 'POST',
+      headers: { ...authHeaders(), [KEY_HEADER]: 'sk-test-byok' },
+      body: JSON.stringify({ message: 'hi', historyWindow: 9999 }),
+    });
+    expect(res.status).toBe(400);
+  });
+
+  it('ignores the history window without a client key (subscription uses the default)', async () => {
+    // No hosted key is configured here, so a keyless chat is rejected before any
+    // window is read — the body value can only take effect inside the BYOK branch.
+    const playthrough = await createPlaythrough();
+    const res = await fetch(`${baseUrl}/api/playthroughs/${playthrough.id}/chat`, {
+      method: 'POST',
+      headers: authHeaders(),
+      body: JSON.stringify({ message: 'hi', historyWindow: 50 }),
+    });
+    expect(res.status).toBe(400);
   });
 });
