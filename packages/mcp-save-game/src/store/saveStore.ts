@@ -2,9 +2,9 @@ import path from 'node:path';
 
 import { loadDisplayNames } from '../gameData.js';
 import { logger } from '../logger.js';
-import { emptySaveState, normaliseSave, type SaveState } from '../normalise/index.js';
-import { parseSaveFile } from '../parser/index.js';
-import { statMtimeMs } from '../parser/reader.js';
+import { emptySaveState, normaliseSave, type SaveState } from '@foreman/sf-save-data';
+import { parseSaveFile } from '@foreman/sf-save-data';
+import { statMtimeMs } from '@foreman/sf-save-data';
 
 /** Injectable seams so the store can be unit-tested without real file I/O. */
 export interface SaveStoreDeps {

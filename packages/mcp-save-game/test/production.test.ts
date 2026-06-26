@@ -2,9 +2,9 @@ import type { Building, Recipe, WorldLocations } from '@foreman/sf-game-data';
 import { describe, expect, it } from 'vitest';
 
 import type { GameDataIndex } from '../src/gameData.js';
-import { normaliseSave } from '../src/normalise/index.js';
+import { normaliseSave } from '@foreman/sf-save-data';
 import { productionView } from '../src/query/selectors.js';
-import { floatProp, makeSave, obj, objectProp, vec3 } from './fixtures/save.js';
+import { floatProp, makeSave, obj, objectProp, vec3 } from '../../sf-save-data/test/fixtures/save.js';
 
 const LVL = 'Persistent_Level:PersistentLevel';
 

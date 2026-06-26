@@ -14,7 +14,7 @@ import {
   type WorldLocations,
 } from '@foreman/sf-game-data';
 
-import { WATER_EXTRACTOR, WATER_ITEM_CLASS } from '../constants.js';
+import { WATER_EXTRACTOR, WATER_ITEM_CLASS } from '@foreman/sf-save-data';
 import type { GameDataIndex } from '../gameData.js';
 import type {
   AssemblyPhase,
@@ -26,7 +26,7 @@ import type {
   StorageContainer,
   UnlockedRecipe,
   Vec3,
-} from '../normalise/types.js';
+} from '@foreman/sf-save-data';
 
 /** Convert a centimetre position to the metres the pioneer sees in-game (2dp). */
 function vecToMetres(v: Vec3): Vec3 {

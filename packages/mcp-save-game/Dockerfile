@@ -22,15 +22,18 @@ COPY package.json package-lock.json tsconfig.base.json ./
 RUN npm install -g "npm@$(node -p 'require("./package.json").packageManager.split("@")[1]')"
 COPY packages/sf-core/package.json ./packages/sf-core/package.json
 COPY packages/sf-game-data/package.json ./packages/sf-game-data/package.json
+COPY packages/sf-save-data/package.json ./packages/sf-save-data/package.json
 COPY packages/mcp-save-game/package.json ./packages/mcp-save-game/package.json
 RUN npm ci
 
-# Build the shared kernel + core first, then verify the workspace symlink resolves.
+# Build the shared kernel + the data/save libs first, then verify the symlink resolves.
 COPY packages/sf-core ./packages/sf-core
 RUN npm run build -w @foreman/sf-core
 COPY packages/sf-game-data ./packages/sf-game-data
 RUN npm run build -w @foreman/sf-game-data
-RUN node -e "require.resolve('@foreman/sf-game-data')"
+COPY packages/sf-save-data ./packages/sf-save-data
+RUN npm run build -w @foreman/sf-save-data
+RUN node -e "require.resolve('@foreman/sf-save-data')"
 
 # Build the server, then drop dev dependencies so node_modules carries only
 # runtime deps (keeping the core workspace link).
@@ -48,14 +51,15 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 COPY packages/sf-core/package.json ./packages/sf-core/package.json
 COPY packages/sf-game-data/package.json ./packages/sf-game-data/package.json
+COPY packages/sf-save-data/package.json ./packages/sf-save-data/package.json
 COPY packages/mcp-save-game/package.json ./packages/mcp-save-game/package.json
 COPY --from=builder /app/node_modules ./node_modules
-# Core's compiled output + bundled game data (the workspace symlink resolves to
-# these paths; the bundled en-US.json supplies real item display names); sf-core
-# too (sf-game-data depends on it).
+# Compiled lib output the workspace symlinks resolve to: sf-core, sf-game-data
+# (+ bundled en-US.json for real display names), and sf-save-data (the .sav parser).
 COPY --from=builder /app/packages/sf-core/dist ./packages/sf-core/dist
 COPY --from=builder /app/packages/sf-game-data/dist ./packages/sf-game-data/dist
 COPY --from=builder /app/packages/sf-game-data/data ./packages/sf-game-data/data
+COPY --from=builder /app/packages/sf-save-data/dist ./packages/sf-save-data/dist
 COPY --from=builder /app/packages/mcp-save-game/dist ./packages/mcp-save-game/dist
 
 # Shared saves volume (SAVE_DATA_DIR=/data/saves, read here, written by the
