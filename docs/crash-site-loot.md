@@ -34,7 +34,7 @@ real save. Full detail in the `#107` issue thread; the load-bearing facts:
   - A pod may have an item cost, a power cost, **both** (common — e.g. IronScrew ×10 + 30 MW), or
     neither (18 of 118 have no `mUnlockCost` and are free).
 
-## Dataset changes (`packages/game-data-core`)
+## Dataset changes (`packages/sf-game-data`)
 
 Extend `src/world/types.ts` and the bundled `data/<channel>/world-locations.json`.
 
@@ -68,10 +68,10 @@ export interface UnlockCost {
 
 This is additive and backward-compatible; the existing `hardDrive` count (118) is unchanged.
 
-## Extractor changes (`tools/world-locations/fg-extract/Program.cs`)
+## Extractor changes (`packages/sf-game-data/extract/fg-extract/Program.cs`)
 
 The mesh→item map and the two passes fold into the existing C# extractor (run on the Windows host
-per `tools/world-locations/README.md`).
+per `packages/sf-game-data/extract/README.md`).
 
 1. **Build `mConveyorMesh → Desc_*_C` map.** Scan item + equipment descriptor assets; read
    `mConveyorMesh` (with a small fallback set for the items whose pickup uses a non-conveyor mesh —

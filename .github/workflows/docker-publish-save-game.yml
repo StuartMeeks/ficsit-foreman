@@ -5,8 +5,8 @@ name: Docker image (mcp-save-game)
 # so :latest is not rebuilt on every main push — it always runs for tags, manual
 # runs and PRs, but for a main-branch push only when image-relevant files changed.
 #
-# The game-data-core path is included because the save-game image depends on the
-# @foreman/game-data-core workspace package (for display-name resolution) from the
+# The sf-game-data path is included because the save-game image depends on the
+# @foreman/sf-game-data workspace package (for display-name resolution) from the
 # world-locations work onward; a core change must rebuild this image too.
 
 on:
@@ -17,7 +17,7 @@ on:
     paths:
       - 'packages/mcp-save-game/**'
       - 'packages/sf-core/**'
-      - 'packages/game-data-core/**'
+      - 'packages/sf-game-data/**'
       - '.dockerignore'
       - 'tsconfig.base.json'
       - '.github/workflows/docker-publish-save-game.yml'
@@ -65,7 +65,7 @@ jobs:
           # change is captured via packages/mcp-save-game/package.json; the root
           # package.json/lock are deliberately not listed (no rebuild-everything).
           changed=$(git diff --name-only "$BEFORE" "$AFTER" \
-            | { grep -E '^(packages/mcp-save-game/|packages/sf-core/|packages/game-data-core/|\.dockerignore|tsconfig\.base\.json|\.github/workflows/docker-publish-save-game\.yml)' || true; } \
+            | { grep -E '^(packages/mcp-save-game/|packages/sf-core/|packages/sf-game-data/|\.dockerignore|tsconfig\.base\.json|\.github/workflows/docker-publish-save-game\.yml)' || true; } \
             | { grep -vE '\.md$' || true; })
           if [ -n "$changed" ]; then
             echo "build=true" >> "$GITHUB_OUTPUT"

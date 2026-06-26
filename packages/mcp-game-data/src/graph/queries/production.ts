@@ -1,4 +1,4 @@
-import type { IngredientUnit } from '@foreman/game-data-core';
+import type { IngredientUnit } from '@foreman/sf-game-data';
 import {
   type QueryContext,
   displayForItem,

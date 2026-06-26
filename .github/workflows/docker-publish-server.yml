@@ -15,9 +15,9 @@ on:
   pull_request:
     paths:
       - 'packages/server/**'
-      # The server image bundles @foreman/game-data-core.
+      # The server image bundles @foreman/sf-game-data.
       - 'packages/sf-core/**'
-      - 'packages/game-data-core/**'
+      - 'packages/sf-game-data/**'
       - 'tsconfig.base.json'
       - '.github/workflows/docker-publish-server.yml'
       # Doc-only changes (incl. package READMEs) don't affect the image…
@@ -67,7 +67,7 @@ jobs:
           # change is captured via packages/server/package.json; the root
           # package.json/lock are deliberately not listed (no rebuild-everything).
           changed=$(git diff --name-only "$BEFORE" "$AFTER" \
-            | { grep -E '^(packages/server/|packages/sf-core/|packages/game-data-core/|tsconfig\.base\.json|\.github/workflows/docker-publish-server\.yml)' || true; } \
+            | { grep -E '^(packages/server/|packages/sf-core/|packages/sf-game-data/|tsconfig\.base\.json|\.github/workflows/docker-publish-server\.yml)' || true; } \
             | { grep -vE '\.md$' || true; })
           if git diff --name-only "$BEFORE" "$AFTER" | grep -qE '^packages/server/SYSTEM_PROMPT\.md$'; then
             changed="${changed} packages/server/SYSTEM_PROMPT.md"

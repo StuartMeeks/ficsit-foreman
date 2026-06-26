@@ -1,9 +1,4 @@
-import {
-  parseDocsFile,
-  resolveDocsPath,
-  type Building,
-  type Recipe,
-} from '@foreman/game-data-core';
+import { parseDocsFile, resolveDocsPath, type Building, type Recipe } from '@foreman/sf-game-data';
 
 import { logger } from './logger.js';
 
@@ -25,7 +20,7 @@ function emptyIndex(): GameDataIndex {
 }
 
 /**
- * Loads the game-data index from `@foreman/game-data-core`'s parser + bundled
+ * Loads the game-data index from `@foreman/sf-game-data`'s parser + bundled
  * `en-US.json` (or a player-supplied install via SATISFACTORY_DOCS_PATH / GAME_DIR).
  * Best-effort: returns an empty index (humanised fallback, no rates) if no game
  * data is available, and never throws.

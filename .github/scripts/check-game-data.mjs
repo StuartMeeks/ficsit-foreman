@@ -2,7 +2,7 @@
 // Validates bundled game-data pull requests.
 //
 // A bundled channel is a THREE-FILE BUNDLE under
-// packages/game-data-core/data/<channel>/:
+// packages/sf-game-data/data/<channel>/:
 //
 //   en-US.json           the raw Satisfactory docs (game data)
 //   meta.json            { gameVersion, build, channel }
@@ -29,7 +29,7 @@ import { execSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 
-const DATA_DIR = 'packages/game-data-core/data';
+const DATA_DIR = 'packages/sf-game-data/data';
 const CHANNELS = ['stable', 'experimental'];
 const BUNDLE_FILES = ['en-US.json', 'meta.json', 'world-locations.json'];
 

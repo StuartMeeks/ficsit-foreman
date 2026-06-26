@@ -1,8 +1,8 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 
-import { parseGameData } from '@foreman/game-data-core';
+import { parseGameData } from '@foreman/sf-game-data';
 import { GraphDB, initGraph } from '../src/graph/index.js';
-import { FIXTURE_VERSION, rawDocs } from '../../game-data-core/test/fixtures/docs.js';
+import { FIXTURE_VERSION, rawDocs } from '../../sf-game-data/test/fixtures/docs.js';
 
 let graph: GraphDB;
 

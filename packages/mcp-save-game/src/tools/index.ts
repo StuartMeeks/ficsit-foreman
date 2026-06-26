@@ -1,8 +1,4 @@
-import {
-  humaniseClassName,
-  loadWorldLocations,
-  type WorldLocations,
-} from '@foreman/game-data-core';
+import { humaniseClassName, loadWorldLocations, type WorldLocations } from '@foreman/sf-game-data';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 

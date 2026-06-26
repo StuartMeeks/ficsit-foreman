@@ -1,7 +1,7 @@
 import kuzu from 'kuzu';
 import type { Connection } from 'kuzu';
 
-import type { GameData, Item, Schematic } from '@foreman/game-data-core';
+import type { GameData, Item, Schematic } from '@foreman/sf-game-data';
 import type { QueryContext } from './context.js';
 import { loadGameData } from './loader.js';
 import { Resolver } from './resolve.js';

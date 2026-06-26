@@ -1,4 +1,4 @@
-import { cmToMetres, compassBearing, metresToCm } from '@foreman/game-data-core';
+import { cmToMetres, compassBearing, metresToCm } from '@foreman/sf-game-data';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 

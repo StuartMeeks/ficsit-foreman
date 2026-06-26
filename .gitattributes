@@ -6,4 +6,4 @@
 
 # en-US.json is UTF-16 LE with a BOM. Line-ending/text normalisation would corrupt
 # it, so mark it binary explicitly rather than relying on auto-detection.
-packages/game-data-core/data/*/en-US.json binary
+packages/sf-game-data/data/*/en-US.json binary

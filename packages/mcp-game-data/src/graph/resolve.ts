@@ -1,4 +1,4 @@
-import type { GameData } from '@foreman/game-data-core';
+import type { GameData } from '@foreman/sf-game-data';
 
 /**
  * Resolves a user-supplied name (display name, case-insensitive, or exact class

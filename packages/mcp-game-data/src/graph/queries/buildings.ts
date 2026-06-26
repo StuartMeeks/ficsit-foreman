@@ -1,4 +1,4 @@
-import type { Building, GeneratorFuel } from '@foreman/game-data-core';
+import type { Building, GeneratorFuel } from '@foreman/sf-game-data';
 import type { QueryContext } from '../context.js';
 import { displayForItem } from '../context.js';
 

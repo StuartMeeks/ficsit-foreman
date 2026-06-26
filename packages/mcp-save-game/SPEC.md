@@ -24,7 +24,7 @@ save file (.sav)  ──▶  parser  ──▶  normalised JSON  ──▶  MCP 
 1. **Parser** — decode the custom binary save format (see *Save File Format* below)
    into raw, structured objects.
 2. **Normalise** — resolve Unreal class names to clean item/recipe identifiers
-   (reusing the conventions established in `../game-data-core/PARSER.md`), convert coordinates and
+   (reusing the conventions established in `../sf-game-data/PARSER.md`), convert coordinates and
    quantities into typed records, and discard save noise. The output is a clean,
    serialisable `SaveState` model.
 3. **MCP tools** — expose computed, distilled answers over the normalised model.
@@ -134,7 +134,7 @@ separately (see the actual-production graph issue).
 - **Rates** — `base` (recipe output at 100%) and `effective`
   (base × clock × somersloop boost, × node purity for extractors), aggregated per
   output item. Recipe rates and building power/extraction figures come from
-  `@foreman/game-data-core` (in-process — no MCP round-trip).
+  `@foreman/sf-game-data` (in-process — no MCP round-trip).
 
 > **This is configured capacity, not measured output.** A static save has no runtime
 > telemetry; it does not record live throughput, nor (here) whether a line is actually

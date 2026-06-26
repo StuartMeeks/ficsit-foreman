@@ -1,7 +1,7 @@
 name: Validate game data
 
 # Guards bundled game-data pull requests: a data PR must touch only one
-# packages/game-data-core/data/<channel>/ directory, ship a well-formed meta.json, and bump
+# packages/sf-game-data/data/<channel>/ directory, ship a well-formed meta.json, and bump
 # that channel's build above the current one.
 #
 # This can be a *required* status check: the `detect` job always runs and, when a
@@ -42,8 +42,8 @@ jobs:
           # made this step find nothing and skip validation.
           files=$(git diff --name-status -M "$BASE_SHA" "$HEAD_SHA" \
             | awk -F'\t' '$1 ~ /^[AM]$/ { print $2 }' \
-            | { grep '^packages/game-data-core/data/' || true; } \
-            | { grep -v '^packages/game-data-core/data/README.md$' || true; })
+            | { grep '^packages/sf-game-data/data/' || true; } \
+            | { grep -v '^packages/sf-game-data/data/README.md$' || true; })
           if [ -n "$files" ]; then
             echo "changed=true" >> "$GITHUB_OUTPUT"
           else

@@ -1,4 +1,4 @@
-import type { Collectible, WorldLocations } from '@foreman/game-data-core';
+import type { Collectible, WorldLocations } from '@foreman/sf-game-data';
 import { describe, expect, it } from 'vitest';
 
 import { emptySaveState, normaliseSave } from '../src/normalise/index.js';

@@ -12,7 +12,7 @@ import {
   type ResourceNode,
   type UnlockCost,
   type WorldLocations,
-} from '@foreman/game-data-core';
+} from '@foreman/sf-game-data';
 
 import { WATER_EXTRACTOR, WATER_ITEM_CLASS } from '../constants.js';
 import type { GameDataIndex } from '../gameData.js';

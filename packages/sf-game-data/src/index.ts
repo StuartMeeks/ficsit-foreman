@@ -1,5 +1,5 @@
 /**
- * @foreman/game-data-core — the shared Satisfactory game-data foundation.
+ * @foreman/sf-game-data — the shared Satisfactory game-data foundation.
  *
  * Holds the hand-written `en-US.json` parser, the clean `GameData` types, the
  * docs-path/channel resolution, and (bundled under `data/`) the game data

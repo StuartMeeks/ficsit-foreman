@@ -11,8 +11,8 @@ import {
   loadWorldLocations,
   parseDocsFile,
   resolveDocsPath,
-} from '@foreman/game-data-core';
-import type { GameData } from '@foreman/game-data-core';
+} from '@foreman/sf-game-data';
+import type { GameData } from '@foreman/sf-game-data';
 import { initGraph } from './graph/index.js';
 import { WorldQueries } from './world/queries.js';
 import { registerTools } from './tools/index.js';

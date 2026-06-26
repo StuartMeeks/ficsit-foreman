@@ -59,7 +59,7 @@ type SaveWarning = {
 Self-contained; no schema-multiplicity change, no file migration. The hard
 prerequisite for PR3.
 
-- **Expose the game-data build.** `game-data-core` carries `build?: number` from
+- **Expose the game-data build.** `sf-game-data` carries `build?: number` from
   `meta.json` onto `GameData` (sibling to the existing `version`/`gameVersion`).
   `mcp-game-data` includes `build` in `/health` + the graph context. The server's
   `McpGateway` exposes `gameBuild: number | undefined` beside `gameVersion`.
