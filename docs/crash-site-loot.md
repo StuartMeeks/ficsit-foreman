@@ -36,7 +36,7 @@ real save. Full detail in the `#107` issue thread; the load-bearing facts:
 
 ## Dataset changes (`packages/sf-game-data`)
 
-Extend `src/world/types.ts` and the bundled `data/<channel>/world-locations.json`.
+Extend `src/world/types.ts` and the bundled `data/<channel>/sf-game-data.json`.
 
 ### New: loose crash-site parts
 
@@ -128,7 +128,7 @@ A thin `packages/server` passthrough is added only if the client cannot reach th
 
 ## Verification
 
-- **Extractor:** regenerated `world-locations.json` passes `check-game-data.mjs`; all 703 loose
+- **Extractor:** regenerated `sf-game-data.json` passes `check-game-data.mjs`; all 703 loose
   parts resolve an item; the save cross-check (≈66 explored pickups) matches item + amount exactly;
   pod unlock breakdown looks sane (≈18 free, the rest item/power/both).
 - **`mcp-game-data`:** `nearest_parts` returns item + amount + distance + bearing; hard-drive

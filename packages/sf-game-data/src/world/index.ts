@@ -16,7 +16,7 @@ export type {
   Purity,
 } from './types.js';
 
-const WORLD_FILENAME = 'world-locations.json';
+const DATASET_FILENAME = 'sf-game-data.json';
 const DEFAULT_CHANNEL: GameChannel = 'stable';
 
 /** An empty dataset, used when none is resolvable so callers never crash. */
@@ -34,12 +34,12 @@ export function emptyWorldLocations(version = 'unknown'): WorldLocations {
 
 /** Path to a channel's bundled world-locations file (whether or not it exists). */
 export function channelWorldLocationsPath(dataDir: string, channel: GameChannel): string {
-  return path.join(dataDir, channel, WORLD_FILENAME);
+  return path.join(dataDir, channel, DATASET_FILENAME);
 }
 
 /**
  * Resolves and loads the world-location dataset, in priority order:
- *   1. WORLD_LOCATIONS_PATH — full path to a `world-locations.json`.
+ *   1. SF_GAME_DATA_PATH — full path to a `sf-game-data.json`.
  *   2. Bundled channel data under `<sf-game-data>/data/<channel>/`, selected by
  *      SATISFACTORY_GAME_CHANNEL (default `stable`, falling back to the other
  *      channel if the requested one has no dataset).
@@ -54,13 +54,13 @@ export function loadWorldLocations(
 ): WorldLocationsResolution {
   const warnings: string[] = [];
 
-  const direct = env['WORLD_LOCATIONS_PATH']?.trim();
+  const direct = env['SF_GAME_DATA_PATH']?.trim();
   if (direct !== undefined && direct !== '') {
     const resolved = expandHome(direct);
     if (fs.existsSync(resolved)) {
       return read(resolved);
     }
-    warnings.push(`WORLD_LOCATIONS_PATH is set to '${resolved}' but no file exists there.`);
+    warnings.push(`SF_GAME_DATA_PATH is set to '${resolved}' but no file exists there.`);
   }
 
   const rawChannel = env['SATISFACTORY_GAME_CHANNEL']?.trim().toLowerCase();
@@ -78,7 +78,7 @@ export function loadWorldLocations(
   }
 
   warnings.push(
-    `No world-location dataset available: set WORLD_LOCATIONS_PATH or add one under packages/sf-game-data/data/{${GAME_CHANNELS.join(',')}}/${WORLD_FILENAME}. World-location tools will return empty results.`,
+    `No world-location dataset available: set SF_GAME_DATA_PATH or add one under packages/sf-game-data/data/{${GAME_CHANNELS.join(',')}}/${DATASET_FILENAME}. World-location tools will return empty results.`,
   );
   return { world: emptyWorldLocations(), warning: warnings.join(' ') };
 }

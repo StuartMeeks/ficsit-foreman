@@ -23,7 +23,7 @@ var paks =
 var usmap =
     Environment.GetEnvironmentVariable("SF_USMAP")
     ?? @"D:\Games\Steam\steamapps\common\Satisfactory\CommunityResources\FactoryGame.usmap";
-var outPath = Environment.GetEnvironmentVariable("OUT") ?? @"world-locations.json";
+var outPath = Environment.GetEnvironmentVariable("OUT") ?? @"sf-game-data.json";
 
 // The version this dataset describes. Overridable so a re-extraction for a new
 // game build stamps the correct version without editing this file; the defaults

@@ -15,7 +15,7 @@ data/
   stable/
     en-US.json            # from a stable install's CommunityResources/Docs/ (UTF-16 LE)
     meta.json             # { "gameVersion": "1.2.3.0", "build": 493833, "channel": "stable" }
-    world-locations.json  # static collectible + resource-node coordinates (see below)
+    sf-game-data.json  # static collectible + resource-node coordinates (see below)
   experimental/
     en-US.json
     meta.json             # { ..., "channel": "experimental" }
@@ -28,13 +28,13 @@ server reports the real version instead of `unknown`.
 
 ## World locations
 
-`world-locations.json` is a static, first-party dataset of every fixed placement
+`sf-game-data.json` is a static, first-party dataset of every fixed placement
 in the Satisfactory world — collectibles (Mercer Spheres, Somersloops, power
 slugs, hard-drive drop pods) and resource extraction points (ore/fluid nodes,
 fracking satellites and cores, geothermal geysers) — with coordinates (Unreal
 units), resource type and purity. Loaded by `loadWorldLocations()` and exposed
 through the `mcp-game-data` world tools. Override its path with
-`WORLD_LOCATIONS_PATH`.
+`SF_GAME_DATA_PATH`.
 
 It was extracted from the packaged level files with
 [CUE4Parse](https://github.com/FabianFG/CUE4Parse) and the `FactoryGame.usmap`

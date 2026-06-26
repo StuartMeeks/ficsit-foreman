@@ -1,7 +1,7 @@
 # World-location extractor (`fg-extract`)
 
 The one-off tool that generates
-[`packages/sf-game-data/data/<channel>/world-locations.json`](../data/stable/world-locations.json)
+[`packages/sf-game-data/data/<channel>/sf-game-data.json`](../data/stable/sf-game-data.json)
 — the static dataset of every fixed collectible and resource node in the
 Satisfactory world (coordinates, resource type, purity).
 
@@ -80,7 +80,7 @@ see "Upstreaming" below.
    # Optional overrides (defaults point at a default Steam install):
    #   $env:SF_PAKS  = "D:\...\Satisfactory\FactoryGame\Content\Paks"
    #   $env:SF_USMAP = "D:\...\Satisfactory\CommunityResources\FactoryGame.usmap"
-   #   $env:OUT      = "world-locations.json"
+   #   $env:OUT      = "sf-game-data.json"
    cd packages/sf-game-data/extract/fg-extract
    dotnet run -c Release
    ```
@@ -91,7 +91,7 @@ see "Upstreaming" below.
    `collectibles`/`resourceNodes` by `kind` then `id`) so a regenerated dataset
    diffs only on genuine world changes.
 
-   It prints per-kind counts and writes `world-locations.json`. **Sanity check**: the
+   It prints per-kind counts and writes `sf-game-data.json`. **Sanity check**: the
    collectible counts must read mercerSphere 298, somersloop 106, powerSlugBlue 596,
    powerSlugYellow 389, powerSlugPurple 257, hardDrive 118 — if any differs, the
    extraction is incomplete or the game changed.
@@ -100,7 +100,7 @@ see "Upstreaming" below.
    value of `gameVersion` must match that channel's `meta.json`):
 
    ```
-   cp world-locations.json ../../data/stable/world-locations.json
+   cp sf-game-data.json ../../data/stable/sf-game-data.json
    ```
 
    `.github/scripts/check-game-data.mjs` re-validates counts and version on the PR.

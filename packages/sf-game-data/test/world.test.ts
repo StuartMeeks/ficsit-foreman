@@ -21,25 +21,25 @@ const SAMPLE: WorldLocations = {
 
 function tempFile(contents: string): string {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'foreman-world-'));
-  const file = path.join(dir, 'world-locations.json');
+  const file = path.join(dir, 'sf-game-data.json');
   fs.writeFileSync(file, contents);
   return file;
 }
 
-/** Builds a temp data dir with world-locations.json under each named channel. */
+/** Builds a temp data dir with sf-game-data.json under each named channel. */
 function tempDataDir(channels: string[]): string {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'foreman-worlddata-'));
   for (const channel of channels) {
     fs.mkdirSync(path.join(dir, channel), { recursive: true });
-    fs.writeFileSync(path.join(dir, channel, 'world-locations.json'), JSON.stringify(SAMPLE));
+    fs.writeFileSync(path.join(dir, channel, 'sf-game-data.json'), JSON.stringify(SAMPLE));
   }
   return dir;
 }
 
 describe('loadWorldLocations', () => {
-  it('prefers WORLD_LOCATIONS_PATH when the file exists', () => {
+  it('prefers SF_GAME_DATA_PATH when the file exists', () => {
     const file = tempFile(JSON.stringify(SAMPLE));
-    const result = loadWorldLocations({ WORLD_LOCATIONS_PATH: file }, NO_DATA_DIR);
+    const result = loadWorldLocations({ SF_GAME_DATA_PATH: file }, NO_DATA_DIR);
     expect(result.path).toBe(file);
     expect(result.world.collectibles).toHaveLength(1);
     expect(result.warning).toBeUndefined();
@@ -68,14 +68,14 @@ describe('loadWorldLocations', () => {
 
   it('degrades to empty on a malformed file', () => {
     const file = tempFile('{ not valid json');
-    const result = loadWorldLocations({ WORLD_LOCATIONS_PATH: file }, NO_DATA_DIR);
+    const result = loadWorldLocations({ SF_GAME_DATA_PATH: file }, NO_DATA_DIR);
     expect(result.world.collectibles).toHaveLength(0);
     expect(result.warning).toMatch(/Failed to read/);
   });
 
   it('degrades to empty when the shape is wrong', () => {
     const file = tempFile(JSON.stringify({ gameVersion: 'x' }));
-    const result = loadWorldLocations({ WORLD_LOCATIONS_PATH: file }, NO_DATA_DIR);
+    const result = loadWorldLocations({ SF_GAME_DATA_PATH: file }, NO_DATA_DIR);
     expect(result.world.collectibles).toHaveLength(0);
     expect(result.warning).toMatch(/malformed/);
   });

@@ -6,7 +6,7 @@
 //
 //   en-US.json           the raw Satisfactory docs (game data)
 //   meta.json            { gameVersion, build, channel }
-//   world-locations.json the extracted collectible/resource-node dataset
+//   sf-game-data.json the extracted collectible/resource-node dataset
 //
 // The three describe one game build and move together. A data PR must:
 //   - touch only files under a SINGLE channel directory (one channel per PR);
@@ -14,10 +14,10 @@
 //   - ship a well-formed meta.json ({ gameVersion: string, build: positive int,
 //     channel: <dir name> }) and bump build strictly above that channel's
 //     current build on the base branch;
-//   - ship a well-formed world-locations.json whose collectibles[]/resourceNodes[]
+//   - ship a well-formed sf-game-data.json whose collectibles[]/resourceNodes[]
 //     counts equal the actual array lengths and whose collectible counts equal the
 //     known fixed world totals;
-//   - keep meta.json and world-locations.json in lockstep: identical gameVersion
+//   - keep meta.json and sf-game-data.json in lockstep: identical gameVersion
 //     AND build. (This is what stops a version being "bumped" without a genuine
 //     re-extraction — both files only ever move together, and the world totals are
 //     re-checked against the fixed oracle.)
@@ -31,7 +31,7 @@ import path from 'node:path';
 
 const DATA_DIR = 'packages/sf-game-data/data';
 const CHANNELS = ['stable', 'experimental'];
-const BUNDLE_FILES = ['en-US.json', 'meta.json', 'world-locations.json'];
+const BUNDLE_FILES = ['en-US.json', 'meta.json', 'sf-game-data.json'];
 
 /** Fixed public world totals — the completeness oracle for a regenerated dataset. */
 const KNOWN_COLLECTIBLE_TOTALS = {
@@ -126,16 +126,16 @@ function validateBundle(channel, channelDir) {
   const meta = validateMeta(channel, channelDir);
   const world = validateWorldFile(channelDir);
 
-  // meta.json and world-locations.json must describe the same build.
+  // meta.json and sf-game-data.json must describe the same build.
   if (meta && world) {
     if (world.gameVersion !== meta.gameVersion) {
       fail(
-        `world-locations.json gameVersion ('${world.gameVersion}') must match meta.json ('${meta.gameVersion}').`,
+        `sf-game-data.json gameVersion ('${world.gameVersion}') must match meta.json ('${meta.gameVersion}').`,
       );
     }
     if (world.build !== meta.build) {
       fail(
-        `world-locations.json build (${world.build}) must match meta.json (${meta.build}).`,
+        `sf-game-data.json build (${world.build}) must match meta.json (${meta.build}).`,
       );
     }
   }
@@ -168,7 +168,7 @@ function validateMeta(channel, channelDir) {
     baseBuild = null; // channel did not exist on the base branch — first one is fine.
   }
   // A channel only moves forward, never back. A meta.json change is a new
-  // build/version and must advance the build; a world-locations.json-only
+  // build/version and must advance the build; a sf-game-data.json-only
   // re-extraction at the same build is allowed (build stays equal).
   const metaChanged = changed.includes(metaPath);
   if (Number.isInteger(baseBuild) && Number.isInteger(meta.build)) {
@@ -185,7 +185,7 @@ function validateMeta(channel, channelDir) {
 }
 
 function validateWorldFile(channelDir) {
-  const file = path.join(channelDir, 'world-locations.json');
+  const file = path.join(channelDir, 'sf-game-data.json');
   if (!fs.existsSync(file)) {
     return undefined;
   }
