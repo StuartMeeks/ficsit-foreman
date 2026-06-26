@@ -33,6 +33,11 @@ export function objectProp(pathName: string): unknown {
   return { type: 'ObjectProperty', value: ref(pathName) };
 }
 
+/** A FloatProperty wrapper (e.g. mCurrentPotential, mCurrentProductionBoost). */
+export function floatProp(value: number): unknown {
+  return { type: 'FloatProperty', value };
+}
+
 /** An ArrayProperty of ObjectProperty references. */
 export function refArrayProp(pathNames: string[]): unknown {
   return { type: 'ArrayProperty', values: pathNames.map(ref) };

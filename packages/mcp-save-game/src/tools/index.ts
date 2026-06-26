@@ -6,7 +6,7 @@ import {
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 
-import { loadDisplayNames } from '../gameData.js';
+import { loadGameDataIndex } from '../gameData.js';
 import { logger } from '../logger.js';
 import {
   collectedGuidSet,
@@ -17,6 +17,7 @@ import {
   nearbyFromWorld,
   nearbyParts,
   playerSummary,
+  productionView,
   storageView,
   unlockedRecipes,
 } from '../query/selectors.js';
@@ -63,11 +64,12 @@ export function registerTools(server: McpServer, registry: SaveStoreRegistry): v
   }
   const world: WorldLocations = worldResolution.world;
 
-  // Item display names (className → name), so drop-pod unlock costs and loose-part
-  // listings read as real in-game names rather than raw Desc_* classes.
-  const displayNames = loadDisplayNames();
+  // The parsed game-data index (display names + recipes + buildings + stack sizes),
+  // loaded once. Display names upgrade drop-pod unlock costs and loose-part listings
+  // from raw Desc_* classes; recipes/buildings back the production-rate + power join.
+  const gameData = loadGameDataIndex();
   const itemName = (className: string): string =>
-    displayNames.get(className) ?? humaniseClassName(className);
+    gameData.displayNames.get(className) ?? humaniseClassName(className);
 
   const ok = (store: SaveStore, payload: object): ToolResult => ({
     content: [
@@ -203,6 +205,20 @@ export function registerTools(server: McpServer, registry: SaveStoreRegistry): v
           itemName,
         ),
       });
+    },
+  );
+
+  server.registerTool(
+    'get_production',
+    {
+      title: 'Get production capacity',
+      description:
+        'What the factory can produce, aggregated by output item: across all recipe machines (Constructor → Manufacturer, Refinery, Blender, Particle Accelerator, …) and resource extractors (miners, pumps, fracking), the total effective per-minute output of each item, how many machines make it, and a breakdown by recipe/extractor. Effective = recipe rate × clock × somersloop boost (× node purity for extractors) — i.e. CONFIGURED capacity at full tilt, NOT measured output: it does not account for whether lines are actually fed (belts/splitters/pipes) or powered. Also returns an estimated total power draw. Pass `item` (name or class, e.g. "Iron Plate") to narrow to one item and additionally list the individual machines with their locations (metres).',
+      inputSchema: { item: z.string().optional(), savePath: savePathSchema },
+    },
+    async ({ item, savePath }): Promise<ToolResult> => {
+      const store = registry.resolve(savePath);
+      return ok(store, { production: productionView(store.getState(), gameData, world, { item }) });
     },
   );
 

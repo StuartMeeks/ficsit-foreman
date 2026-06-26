@@ -56,6 +56,40 @@ export interface AssemblyPhase {
   target?: string;
 }
 
+/**
+ * A recipe-running factory machine, as read from the save (no game-data join yet).
+ * This is the machine's *configuration* — recipe, clock and somersloop boost — from
+ * which the query layer derives theoretical throughput and estimated power. What the
+ * machine is actually fed/producing (belts, pipes, power) is out of scope here — see
+ * the actual-production graph issue.
+ */
+export interface ProducerLine {
+  /** Building class, e.g. `Build_ConstructorMk1_C`. */
+  buildingClass: string;
+  displayName: string;
+  /** Recipe class the machine is set to, e.g. `Recipe_IronPlate_C`. Undefined = unconfigured. */
+  recipeClass?: string;
+  /** Clock speed as a fraction (1 = 100%); defaults to 1 when the save omits it. */
+  clockSpeed: number;
+  /** Somersloop output multiplier (1 = none); defaults to 1 when omitted. */
+  productionBoost: number;
+  location?: Vec3;
+}
+
+/** A resource extractor (miner / pump / fracking). Output is the node's resource. */
+export interface ExtractorLine {
+  buildingClass: string;
+  displayName: string;
+  clockSpeed: number;
+  productionBoost: number;
+  location?: Vec3;
+}
+
+export interface ProductionState {
+  producers: ProducerLine[];
+  extractors: ExtractorLine[];
+}
+
 export interface SaveState {
   /** Detected game version (build number, with save version), or 'unknown'. */
   version: string;
@@ -79,6 +113,8 @@ export interface SaveState {
     dimensionalDepot: Inventory;
   };
   recipes: UnlockedRecipe[];
+  /** Active factory machines (recipe-runners) and resource extractors. */
+  production: ProductionState;
   milestones: Milestone[];
   /** Unlocked MAM research-tree names. */
   mamResearch: string[];
@@ -111,6 +147,7 @@ export function emptySaveState(version: string, saveName: string, parsedAt: stri
     player: { inventory: [] },
     storage: { containers: [], dimensionalDepot: [] },
     recipes: [],
+    production: { producers: [], extractors: [] },
     milestones: [],
     mamResearch: [],
     collectedPickupGuids: [],

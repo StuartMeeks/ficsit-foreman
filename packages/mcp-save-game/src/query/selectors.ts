@@ -2,17 +2,26 @@ import {
   cmToMetres,
   compassBearing,
   humaniseClassName,
+  type Building,
   type Collectible,
   type CollectibleKind as WorldCollectibleKind,
+  type IngredientUnit,
   type LootPickup,
+  type Purity,
+  type Recipe,
+  type ResourceNode,
   type UnlockCost,
   type WorldLocations,
 } from '@foreman/game-data-core';
 
+import { WATER_EXTRACTOR, WATER_ITEM_CLASS } from '../constants.js';
+import type { GameDataIndex } from '../gameData.js';
 import type {
   AssemblyPhase,
+  ExtractorLine,
   Inventory,
   Milestone,
+  ProducerLine,
   SaveState,
   StorageContainer,
   UnlockedRecipe,
@@ -468,4 +477,371 @@ export function nearbyParts(
     items: items.slice(0, limit),
     note: PARTS_NOTE,
   };
+}
+
+// ── Production (theoretical capability) ──────────────────────────────────────
+
+/**
+ * What the factory *can* produce, given how every machine is configured. This is
+ * theoretical capacity — recipe × clock × somersloop boost (× node purity for
+ * extractors) — NOT measured output: it does not know whether a line is actually
+ * fed (belts/splitters/pipes) or powered. That is tracked separately by the
+ * actual-production graph. All figures are derived in-process from the game data.
+ */
+
+/** Output-rate multiplier per node purity (impure 0.5 / normal 1 / pure 2). */
+const PURITY_MULTIPLIER: Record<Purity, number> = { impure: 0.5, normal: 1, pure: 2 };
+
+/**
+ * Satisfactory's overclock power exponent: power scales as `clock^1.321928`.
+ * Somersloop production amplification scales power by `boost²` on top.
+ */
+const OVERCLOCK_POWER_EXPONENT = 1.321928;
+
+/**
+ * A miner / oil pump / fracking extractor snaps onto its node, so it sits within a
+ * few hundred cm of the node centre. Keep the match tight (≈20 m) so an extractor is
+ * never mis-resolved to a different, unrelated node nearby.
+ */
+const NODE_MATCH_CM = 2000;
+
+/** Cap on individually-listed machines (when filtered by item), to bound tokens. */
+const MAX_MACHINE_DETAIL = 100;
+
+const PRODUCTION_NOTE =
+  'Theoretical capacity, aggregated by output item: effective = recipe rate × clock × ' +
+  'somersloop boost (× node purity for extractors), summed across machines. This is what the ' +
+  'machines are CONFIGURED to make at full tilt — NOT measured output. It does not account for ' +
+  'whether lines are actually fed (belts/splitters/pipes) or powered; that is tracked ' +
+  'separately. Power figures are estimates. Pass `item` to also list the individual machines ' +
+  '(with locations, in metres).';
+
+export interface RateFlow {
+  itemClass: string;
+  name: string;
+  /** Recipe rate at 100% clock, no boost. */
+  basePerMinute: number;
+  /** base × clock × boost (× purity for extractors). */
+  effectivePerMinute: number;
+  unit: IngredientUnit;
+}
+
+/** One machine's configuration + theoretical output (used for the detail listing). */
+interface MachineLine {
+  kind: 'manufacturer' | 'extractor';
+  buildingClass: string;
+  building: string;
+  recipeClass?: string;
+  recipe?: string;
+  resourceClass?: string;
+  resource?: string;
+  purity?: Purity | 'unknown';
+  clock: number;
+  boost: number;
+  location?: Vec3;
+  outputs: RateFlow[];
+  powerMW?: number;
+}
+
+/** A machine in the detail listing (compact; coordinates in metres). */
+export interface MachineDetail {
+  building: string;
+  recipe?: string;
+  resource?: string;
+  purity?: Purity | 'unknown';
+  clockPercent: number;
+  productionBoost: number;
+  location?: Vec3;
+  outputs: RateFlow[];
+  estimatedPowerMW?: number;
+}
+
+/** Per-recipe (or per-extractor) contribution to one output item. */
+export interface ProductionSource {
+  label: string;
+  machineCount: number;
+  effectivePerMinute: number;
+}
+
+/** Aggregated theoretical output of one item across the whole factory. */
+export interface ProductionItem {
+  item: string;
+  itemClass: string;
+  unit: IngredientUnit;
+  /** Summed effective output per minute across every machine making this item. */
+  effectivePerMinute: number;
+  /** How many machines contribute to this item. */
+  machineCount: number;
+  /** Breakdown by recipe / extractor, largest first. */
+  sources: ProductionSource[];
+}
+
+export interface ProductionView {
+  producerCount: number;
+  extractorCount: number;
+  /** Estimated total power draw of all production lines, MW (an estimate). */
+  estimatedPowerMW: number;
+  /** Theoretical output per item, largest effective rate first. */
+  items: ProductionItem[];
+  /** Individual machines — present only when filtered by `item`, capped. */
+  machines?: MachineDetail[];
+  /** True when the machine listing was capped at {@link MAX_MACHINE_DETAIL}. */
+  machinesTruncated?: boolean;
+  note: string;
+}
+
+function round(n: number, dp = 3): number {
+  const f = 10 ** dp;
+  return Math.round(n * f) / f;
+}
+
+/** Estimated MW draw at the line's clock + boost (undefined for generators/unknown). */
+function estimatePower(
+  building: Building | undefined,
+  recipe: Recipe | undefined,
+  clock: number,
+  boost: number,
+): number | undefined {
+  if (building === undefined) {
+    return undefined;
+  }
+  let base = building.powerConsumption;
+  if (!(base > 0)) {
+    if (recipe?.variablePower !== undefined) {
+      base = (recipe.variablePower.min + recipe.variablePower.max) / 2;
+    } else if (building.maxPowerConsumption !== undefined) {
+      base = building.maxPowerConsumption;
+    } else {
+      return undefined;
+    }
+  }
+  const factor = clock ** OVERCLOCK_POWER_EXPONENT * (boost > 1 ? boost * boost : 1);
+  return round(base * factor, 1);
+}
+
+/** Build one manufacturer's theoretical line from its config + the recipe/building data. */
+function manufacturerLine(line: ProducerLine, game: GameDataIndex): MachineLine {
+  const recipe = line.recipeClass === undefined ? undefined : game.recipes[line.recipeClass];
+  const building = game.buildings[line.buildingClass];
+  const scale = line.clockSpeed * line.productionBoost;
+  const outputs: RateFlow[] =
+    recipe?.products.map((p) => ({
+      itemClass: p.itemClassName,
+      name: game.displayNames.get(p.itemClassName) ?? p.displayName,
+      basePerMinute: round(p.perMinute),
+      effectivePerMinute: round(p.perMinute * scale),
+      unit: p.unit,
+    })) ?? [];
+  return {
+    kind: 'manufacturer',
+    buildingClass: line.buildingClass,
+    building: game.displayNames.get(line.buildingClass) ?? line.displayName,
+    recipeClass: line.recipeClass,
+    recipe:
+      line.recipeClass === undefined
+        ? undefined
+        : (recipe?.displayName ?? humaniseClassName(line.recipeClass)),
+    clock: line.clockSpeed,
+    boost: line.productionBoost,
+    location: line.location === undefined ? undefined : vecToMetres(line.location),
+    outputs,
+    powerMW: estimatePower(building, recipe, line.clockSpeed, line.productionBoost),
+  };
+}
+
+/**
+ * Resolve what an extractor produces and its purity multiplier. Water extractors
+ * draw Water from a volume (no node, no purity); everything else snaps onto a
+ * resource node, so we read the resource + purity from the node it sits on.
+ */
+function resolveExtraction(
+  line: ExtractorLine,
+  world: WorldLocations,
+): { resourceClass?: string; purity?: Purity | 'unknown'; purityMul: number } {
+  if (WATER_EXTRACTOR.test(line.buildingClass)) {
+    return { resourceClass: WATER_ITEM_CLASS, purityMul: 1 };
+  }
+  const node =
+    line.location === undefined ? undefined : nearestNode(world.resourceNodes, line.location);
+  if (node?.resourceClass == null) {
+    return { resourceClass: undefined, purity: 'unknown', purityMul: 1 };
+  }
+  return {
+    resourceClass: node.resourceClass,
+    purity: node.purity ?? 'unknown',
+    purityMul: node.purity == null ? 1 : PURITY_MULTIPLIER[node.purity],
+  };
+}
+
+/** Build one extractor's theoretical line, resolving resource + purity from its node. */
+function extractorLine(
+  line: ExtractorLine,
+  game: GameDataIndex,
+  world: WorldLocations,
+): MachineLine {
+  const building = game.buildings[line.buildingClass];
+  const { resourceClass, purity, purityMul } = resolveExtraction(line, world);
+  const outputs: RateFlow[] = [];
+  if (building?.extractionRatePerMin !== undefined && resourceClass !== undefined) {
+    const base = building.extractionRatePerMin * purityMul;
+    outputs.push({
+      itemClass: resourceClass,
+      name: game.displayNames.get(resourceClass) ?? humaniseClassName(resourceClass),
+      basePerMinute: round(base),
+      effectivePerMinute: round(base * line.clockSpeed * line.productionBoost),
+      unit: extractorUnit(resourceClass),
+    });
+  }
+  return {
+    kind: 'extractor',
+    buildingClass: line.buildingClass,
+    building: game.displayNames.get(line.buildingClass) ?? line.displayName,
+    resourceClass,
+    resource:
+      resourceClass === undefined
+        ? undefined
+        : (game.displayNames.get(resourceClass) ?? humaniseClassName(resourceClass)),
+    purity,
+    clock: line.clockSpeed,
+    boost: line.productionBoost,
+    location: line.location === undefined ? undefined : vecToMetres(line.location),
+    outputs,
+    powerMW: estimatePower(building, undefined, line.clockSpeed, line.productionBoost),
+  };
+}
+
+function extractorUnit(resourceClass: string): IngredientUnit {
+  // Fluids (water/oil/etc.) are reported in m³. We don't have the item form to hand
+  // here, so infer from the well-known fluid resource classes.
+  return /Water|LiquidOil|NitrogenGas|NitricAcid|HeavyOilResidue/i.test(resourceClass)
+    ? 'm³'
+    : 'items';
+}
+
+/** The nearest resource node to a centimetre position, within {@link NODE_MATCH_CM}. */
+function nearestNode(nodes: ResourceNode[], locCm: Vec3): ResourceNode | undefined {
+  let best: ResourceNode | undefined;
+  let bestDistance = Infinity;
+  for (const node of nodes) {
+    const d = Math.hypot(node.x - locCm.x, node.y - locCm.y, node.z - locCm.z);
+    if (d < bestDistance) {
+      bestDistance = d;
+      best = node;
+    }
+  }
+  return bestDistance <= NODE_MATCH_CM ? best : undefined;
+}
+
+/** A machine's source label for the per-item breakdown (recipe, or extractor + purity). */
+function sourceLabel(line: MachineLine): string {
+  if (line.kind === 'manufacturer') {
+    return line.recipe ?? '(unconfigured)';
+  }
+  return line.purity !== undefined && line.purity !== 'unknown'
+    ? `${line.building} (${line.purity})`
+    : line.building;
+}
+
+function toDetail(line: MachineLine): MachineDetail {
+  return {
+    building: line.building,
+    recipe: line.recipe,
+    resource: line.resource,
+    purity: line.purity,
+    clockPercent: round(line.clock * 100, 1),
+    productionBoost: line.boost,
+    location: line.location,
+    outputs: line.outputs,
+    estimatedPowerMW: line.powerMW,
+  };
+}
+
+/**
+ * Theoretical production capacity, aggregated by output item. Manufacturers are
+ * joined to their recipe and extractors to the resource node they sit on; each
+ * machine's effective output (rate × clock × boost × purity) is summed per item.
+ * When `item` is given, the result is narrowed to lines producing that item (name
+ * or class) and the individual machines are listed too (capped). See
+ * {@link PRODUCTION_NOTE} for what this does and does not represent.
+ */
+export function productionView(
+  state: SaveState,
+  game: GameDataIndex,
+  world: WorldLocations,
+  options: { item?: string } = {},
+): ProductionView {
+  const lines: MachineLine[] = [
+    ...state.production.producers.map((p) => manufacturerLine(p, game)),
+    ...state.production.extractors.map((e) => extractorLine(e, game, world)),
+  ];
+
+  const needle = options.item?.trim().toLowerCase();
+  const filtered =
+    needle === undefined || needle === ''
+      ? lines
+      : lines.filter((l) =>
+          l.outputs.some(
+            (o) =>
+              o.name.toLowerCase().includes(needle) || o.itemClass.toLowerCase().includes(needle),
+          ),
+        );
+
+  // Aggregate effective output per item, with a per-source (recipe/extractor) breakdown.
+  const items = new Map<string, ProductionItem>();
+  const sources = new Map<string, Map<string, ProductionSource>>();
+  for (const line of filtered) {
+    for (const out of line.outputs) {
+      const item = items.get(out.itemClass) ?? {
+        item: out.name,
+        itemClass: out.itemClass,
+        unit: out.unit,
+        effectivePerMinute: 0,
+        machineCount: 0,
+        sources: [],
+      };
+      item.effectivePerMinute = round(item.effectivePerMinute + out.effectivePerMinute);
+      item.machineCount += 1;
+      items.set(out.itemClass, item);
+
+      const bySource = sources.get(out.itemClass) ?? new Map<string, ProductionSource>();
+      const label = sourceLabel(line);
+      const src = bySource.get(label) ?? { label, machineCount: 0, effectivePerMinute: 0 };
+      src.machineCount += 1;
+      src.effectivePerMinute = round(src.effectivePerMinute + out.effectivePerMinute);
+      bySource.set(label, src);
+      sources.set(out.itemClass, bySource);
+    }
+  }
+  const itemList = [...items.values()]
+    .map((item) => ({
+      ...item,
+      sources: [...(sources.get(item.itemClass)?.values() ?? [])].sort(
+        (a, b) => b.effectivePerMinute - a.effectivePerMinute,
+      ),
+    }))
+    .sort((a, b) => b.effectivePerMinute - a.effectivePerMinute);
+
+  const estimatedPowerMW = round(
+    filtered.reduce((sum, l) => sum + (l.powerMW ?? 0), 0),
+    1,
+  );
+
+  const view: ProductionView = {
+    producerCount: state.production.producers.length,
+    extractorCount: state.production.extractors.length,
+    estimatedPowerMW,
+    items: itemList,
+    note: PRODUCTION_NOTE,
+  };
+
+  // Only enumerate individual machines when the caller has narrowed by item — an
+  // unfiltered factory can be hundreds of machines (the aggregate is the answer).
+  if (needle !== undefined && needle !== '') {
+    view.machines = filtered.slice(0, MAX_MACHINE_DETAIL).map(toDetail);
+    if (filtered.length > MAX_MACHINE_DETAIL) {
+      view.machinesTruncated = true;
+    }
+  }
+
+  return view;
 }

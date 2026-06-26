@@ -57,6 +57,39 @@ export const MAM_SCHEMATIC = /\/Research\/|Schematic_(?:MAM|Research)/i;
 export const SCHEMATIC_TIER = /Schematic_(\d+)-/;
 
 /**
+ * Recipe-running factory machines (Constructor → Manufacturer, Smelter/Foundry,
+ * Refinery, Blender, Packager/Unpackager, Particle Accelerator, Converter,
+ * Quantum Encoder). All inherit `FGBuildableManufacturer` and carry an
+ * `mCurrentRecipe` + `mInputInventory`/`mOutputInventory`. The regex matches the
+ * `Build_<Machine>` class-name prefix; Mk variants and the `_C` suffix fall out.
+ */
+export const MANUFACTURER_BUILDING =
+  /Build_(?:Constructor|Assembler|Manufacturer|Smelter|Foundry|OilRefinery|Refinery|Blender|Packager|ParticleAccelerator|Converter|QuantumEncoder|HadronCollider|Encoder)/;
+
+/**
+ * Resource extractors (miners, oil + water extractors, fracking). These have no
+ * `mCurrentRecipe`; output is the node's resource, rate-scaled by node purity.
+ * Water extractors draw from water volumes (no node) and are special-cased to
+ * Water in the query layer. Geothermal generators are power, not extraction (#68).
+ */
+export const EXTRACTOR_BUILDING = /Build_(?:MinerMk\d|OilPump|WaterPump|FrackingExtractor)/;
+
+/** Water extractor — extracts Water from a volume, not a resource node. */
+export const WATER_EXTRACTOR = /Build_WaterPump/;
+/** The Water item descriptor a water extractor yields. */
+export const WATER_ITEM_CLASS = 'Desc_Water_C';
+
+/** The recipe a producing buildable is set to (ObjectProperty → recipe class). */
+export const CURRENT_RECIPE_PROP = 'mCurrentRecipe';
+/**
+ * Clock speed (overclock) as a fraction: 1.0 = 100%, 2.5 = max. Saved only when
+ * not at default, so an absent property means 100% (→ default to 1.0).
+ */
+export const CLOCK_SPEED_PROP = 'mCurrentPotential';
+/** Somersloop production amplification (output multiplier; absent → 1.0). */
+export const PRODUCTION_BOOST_PROP = 'mCurrentProductionBoost';
+
+/**
  * The subsystem that records exactly which collectibles a pioneer has collected,
  * by GUID: `mDestroyedPickups` (spheres/sloops/slugs) and `mLootedDropPods`
  * (hard-drive pods). Matched against each collectible's GUID in the world-

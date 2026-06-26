@@ -1,5 +1,6 @@
 import type { RawObject, RawSave } from '../parser/types.js';
 import { extractPlayer } from './player.js';
+import { extractProduction } from './production.js';
 import { extractRecipes } from './recipes.js';
 import { extractScannable } from './scannable.js';
 import { extractProgression } from './schematics.js';
@@ -73,6 +74,7 @@ export function normaliseSave(
     player: extractPlayer(objects, byInstance, warnings),
     storage: extractStorage(objects, byInstance, warnings),
     recipes: extractRecipes(objects, warnings),
+    production: extractProduction(objects, warnings),
     milestones: progression.milestones,
     mamResearch: progression.mamResearch,
     assemblyPhase: progression.assemblyPhase,
@@ -109,6 +111,12 @@ function applyDisplayNames(state: SaveState, names: Map<string, string>): void {
   }
   for (const recipe of state.recipes) {
     recipe.displayName = names.get(recipe.recipeClass) ?? recipe.displayName;
+  }
+  for (const producer of state.production.producers) {
+    producer.displayName = names.get(producer.buildingClass) ?? producer.displayName;
+  }
+  for (const extractor of state.production.extractors) {
+    extractor.displayName = names.get(extractor.buildingClass) ?? extractor.displayName;
   }
 }
 
