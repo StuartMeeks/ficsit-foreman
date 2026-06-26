@@ -30,14 +30,18 @@ COPY package.json package-lock.json tsconfig.base.json ./
 # lockfile resolves identically here, in CI, and for local dev; also silences
 # the npm update notice (the base image bundles npm 10).
 RUN npm install -g "npm@$(node -p 'require("./package.json").packageManager.split("@")[1]')"
-# Both package.json manifests must be present so npm ci wires the workspace
-# symlink: the server depends on @foreman/game-data-core (shared types).
+# All package.json manifests must be present so npm ci wires the workspace
+# symlinks: the server depends on @foreman/game-data-core (shared types), which
+# depends on @foreman/sf-core (the shared kernel).
+COPY packages/sf-core/package.json ./packages/sf-core/package.json
 COPY packages/game-data-core/package.json ./packages/game-data-core/package.json
 COPY packages/server/package.json ./packages/server/package.json
 RUN npm ci
 
-# Build the shared core first so the @foreman/game-data-core import resolves,
-# then verify the workspace symlink.
+# Build the shared kernel + core first so the @foreman/game-data-core import
+# resolves, then verify the workspace symlink.
+COPY packages/sf-core ./packages/sf-core
+RUN npm run build -w @foreman/sf-core
 COPY packages/game-data-core ./packages/game-data-core
 RUN npm run build -w @foreman/game-data-core
 RUN node -e "require.resolve('@foreman/game-data-core')"
@@ -69,9 +73,12 @@ COPY package.json package-lock.json ./
 RUN npm install -g "npm@$(node -p 'require("./package.json").packageManager.split("@")[1]')"
 COPY packages/server/package.json ./packages/server/package.json
 # Core's manifest + compiled output so the @foreman/game-data-core workspace
-# symlink in node_modules resolves (the server uses it for shared types only).
+# symlink in node_modules resolves (the server uses it for shared types only),
+# plus sf-core since game-data-core depends on it.
+COPY packages/sf-core/package.json ./packages/sf-core/package.json
 COPY packages/game-data-core/package.json ./packages/game-data-core/package.json
 COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/packages/sf-core/dist ./packages/sf-core/dist
 COPY --from=builder /app/packages/game-data-core/dist ./packages/game-data-core/dist
 COPY --from=builder /app/packages/server/dist ./packages/server/dist
 COPY --from=builder /app/packages/server/prisma ./packages/server/prisma

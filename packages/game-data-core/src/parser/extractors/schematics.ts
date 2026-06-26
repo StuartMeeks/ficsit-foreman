@@ -1,6 +1,6 @@
 import type { Ingredient, ItemForm, RawClass, Schematic, SchematicType } from '../types.js';
 import { getNumber, getString, isRecord } from '../util.js';
-import { extractClassNames, humaniseClassName } from '../normalise/classRef.js';
+import { extractClassNames, humaniseClassName } from '@foreman/sf-core';
 import { parseItemAmountList } from '../normalise/ingredients.js';
 import { toDisplayAmount } from '../normalise/fluids.js';
 

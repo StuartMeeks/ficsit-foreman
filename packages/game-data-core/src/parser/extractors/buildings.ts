@@ -7,7 +7,7 @@ import type {
   RawClass,
 } from '../types.js';
 import { getNumber, getString, isRecord } from '../util.js';
-import { humaniseClassName } from '../normalise/classRef.js';
+import { humaniseClassName } from '@foreman/sf-core';
 
 /** Lookup of every item/resource by class name, for fuel-rate derivation. */
 export type ItemLookup = Map<string, Item>;

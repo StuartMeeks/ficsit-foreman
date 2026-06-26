@@ -20,11 +20,14 @@ COPY package.json package-lock.json tsconfig.base.json ./
 # Pin the npm version from package.json's packageManager field (consistent
 # lockfile resolution; also silences the npm update notice).
 RUN npm install -g "npm@$(node -p 'require("./package.json").packageManager.split("@")[1]')"
+COPY packages/sf-core/package.json ./packages/sf-core/package.json
 COPY packages/game-data-core/package.json ./packages/game-data-core/package.json
 COPY packages/mcp-save-game/package.json ./packages/mcp-save-game/package.json
 RUN npm ci
 
-# Build the shared core first, then verify the workspace symlink resolves.
+# Build the shared kernel + core first, then verify the workspace symlink resolves.
+COPY packages/sf-core ./packages/sf-core
+RUN npm run build -w @foreman/sf-core
 COPY packages/game-data-core ./packages/game-data-core
 RUN npm run build -w @foreman/game-data-core
 RUN node -e "require.resolve('@foreman/game-data-core')"
@@ -43,11 +46,14 @@ ENV NODE_ENV=production \
 WORKDIR /app
 
 COPY package.json package-lock.json ./
+COPY packages/sf-core/package.json ./packages/sf-core/package.json
 COPY packages/game-data-core/package.json ./packages/game-data-core/package.json
 COPY packages/mcp-save-game/package.json ./packages/mcp-save-game/package.json
 COPY --from=builder /app/node_modules ./node_modules
 # Core's compiled output + bundled game data (the workspace symlink resolves to
-# these paths; the bundled en-US.json supplies real item display names).
+# these paths; the bundled en-US.json supplies real item display names); sf-core
+# too (game-data-core depends on it).
+COPY --from=builder /app/packages/sf-core/dist ./packages/sf-core/dist
 COPY --from=builder /app/packages/game-data-core/dist ./packages/game-data-core/dist
 COPY --from=builder /app/packages/game-data-core/data ./packages/game-data-core/data
 COPY --from=builder /app/packages/mcp-save-game/dist ./packages/mcp-save-game/dist

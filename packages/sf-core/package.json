@@ -1,7 +1,7 @@
 {
-  "name": "@foreman/game-data-core",
+  "name": "@foreman/sf-core",
   "version": "0.1.0",
-  "description": "FICSIT Foreman shared game-data core: the hand-written Satisfactory en-US.json parser, shared types, docs-path resolution, and bundled game data. Consumed by both MCP servers.",
+  "description": "Shared structural/identity kernel for the Satisfactory data packages: class-name resolution and other game-agnostic helpers. No runtime dependencies; depended on by sf-game-data and sf-save-data.",
   "license": "Apache-2.0",
   "type": "module",
   "main": "./dist/index.js",
@@ -10,12 +10,8 @@
     ".": "./dist/index.js"
   },
   "files": [
-    "dist",
-    "data"
+    "dist"
   ],
-  "dependencies": {
-    "@foreman/sf-core": "0.1.0"
-  },
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "test": "vitest run",
