@@ -15,12 +15,16 @@ import {
 } from '@foreman/sf-game-data';
 import type { GameData } from '@foreman/sf-game-data';
 import { initGraph } from '@foreman/sf-game-data-graph';
-import { registerTools } from './tools/index.js';
-import { resolveServerConfig } from './config.js';
+
+import { resolveSavePath, resolveServerConfig, type ServerConfig } from './config.js';
 import { startHttpServer } from './http.js';
 import { logger } from './logger.js';
+import { SaveStoreRegistry } from './store/registry.js';
+import { SaveStore } from './store/saveStore.js';
+import { registerGameDataTools } from './tools/gameData.js';
+import { registerSaveTools } from './tools/save.js';
 
-const SERVER_NAME = 'foreman-mcp';
+const SERVER_NAME = 'foreman-sf-mcp';
 const SERVER_VERSION = '0.1.0';
 
 /** Loads `.env` from the package dir and the workspace root (cwd-independent). */
@@ -52,7 +56,7 @@ function loadGameData(): { gameData: GameData; docsPath: string | undefined } {
   }
 }
 
-/** Echoes what was loaded and from where, so startup is self-explanatory. */
+/** Echoes what game data was loaded and from where, so startup is self-explanatory. */
 function logStartupSummary(gameData: GameData, docsPath: string | undefined): void {
   logger.info(`Game data source: ${docsPath ?? '(none — running with an empty dataset)'}`);
   logger.info(
@@ -67,8 +71,25 @@ function count(record: Record<string, unknown>): number {
   return Object.keys(record).length;
 }
 
+/** Builds the per-save store registry from the save config (legacy default + LRU). */
+function buildRegistry(config: ServerConfig): SaveStoreRegistry {
+  const { path: savePath, warning } = resolveSavePath();
+  if (warning !== undefined) {
+    logger.warn(warning);
+  }
+  const defaultStore = new SaveStore(savePath);
+  logger.info(`Default save source: ${savePath ?? '(none — running with an empty state)'}`);
+  if (config.saveDataDir !== undefined) {
+    logger.info(`Per-playthrough saves served from: ${config.saveDataDir}`);
+  }
+  return new SaveStoreRegistry(defaultStore, config.saveDataDir);
+}
+
 async function main(): Promise<void> {
   loadEnv();
+
+  // Game-data half: parse the docs file into the Kùzu production graph and load
+  // the static world-location dataset for the spatial tools.
   const { gameData, docsPath } = loadGameData();
   const graph = await initGraph(gameData);
   logStartupSummary(gameData, docsPath);
@@ -82,11 +103,16 @@ async function main(): Promise<void> {
   );
   const worldQueries = new WorldQueries(world, gameData);
 
+  // Save-game half: resolve the default save + the per-playthrough save store
+  // registry (the host injects each call's savePath; the registry LRU-caches them).
   const config = resolveServerConfig();
+  const registry = buildRegistry(config);
+
   if (config.transport === 'http') {
     await startHttpServer(
       graph,
       worldQueries,
+      registry,
       config.host,
       config.port,
       SERVER_NAME,
@@ -96,7 +122,8 @@ async function main(): Promise<void> {
   }
 
   const server = new McpServer({ name: SERVER_NAME, version: SERVER_VERSION });
-  registerTools(server, graph, worldQueries);
+  registerGameDataTools(server, graph, worldQueries);
+  registerSaveTools(server, registry);
   const transport = new StdioServerTransport();
   await server.connect(transport);
   logger.info('Transport: stdio (no network port — the client talks over stdin/stdout).');

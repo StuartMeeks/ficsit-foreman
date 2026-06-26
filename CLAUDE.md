@@ -11,13 +11,15 @@ the conventions' home. Read the relevant doc before working in an area.
 
 ```
 packages/
-  sf-game-data/   parser + shared types + bundled game data (lib; PARSER.md here)
-  mcp-game-data/    game-data MCP server (Kùzu graph + tools + world locations)
-  mcp-save-game/    save-game MCP server (live pioneer state from a .sav)
-  server/           Express backend: LLM proxy (SSE), sessions, work orders, MCP gateway
-                    (the foreman system prompt lives here: SYSTEM_PROMPT.md)
-  client/           React + Vite web UI (chat + work-order cockpit)
-docs/               product.md · architecture.md · work-orders.md · playthroughs.md
+  sf-core/            structural/identity kernel — class-name helpers (zero-dep lib)
+  sf-game-data/       parser + shared types + bundled game data (lib; PARSER.md here)
+  sf-game-data-graph/ Kùzu production graph as a library (carries the kuzu addon)
+  sf-save-data/       .sav → SaveState parser + normalise (lib)
+  sf-mcp/             unified MCP server: game-data graph tools + live save-game tools
+  server/             Express backend: LLM proxy (SSE), sessions, work orders, MCP gateway
+                      (the foreman system prompt lives here: SYSTEM_PROMPT.md)
+  client/             React + Vite web UI (chat + work-order cockpit)
+docs/                 product.md · architecture.md · work-orders.md · playthroughs.md
 ```
 
 ## Where to find what

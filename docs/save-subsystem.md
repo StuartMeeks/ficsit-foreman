@@ -61,7 +61,7 @@ prerequisite for PR3.
 
 - **Expose the game-data build.** `sf-game-data` carries `build?: number` from
   `meta.json` onto `GameData` (sibling to the existing `version`/`gameVersion`).
-  `mcp-game-data` includes `build` in `/health` + the graph context. The server's
+  `sf-mcp` includes `build` in `/health` + the graph context. The server's
   `McpGateway` exposes `gameBuild: number | undefined` beside `gameVersion`.
 - **Richer `describe_save`.** Add discrete `sessionName`, `mapName`,
   `buildVersion`, `saveVersion` to `SaveState` (they're already in the parsed

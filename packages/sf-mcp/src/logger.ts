@@ -3,9 +3,11 @@
  *
  * CRITICAL: the MCP stdio transport owns **stdout** for protocol framing. Any
  * write to stdout (a stray `console.log`) corrupts the JSON-RPC stream and
- * breaks the connection. All diagnostics therefore go to stderr.
+ * breaks the connection. All diagnostics therefore go to stderr. The adopted
+ * save parser also logs its own ("trailing data") warnings to stderr, which is
+ * safe for the same reason.
  */
-const PREFIX = '[foreman-mcp]';
+const PREFIX = '[foreman-sf-mcp]';
 
 export const logger = {
   info(...args: unknown[]): void {

@@ -1,13 +1,14 @@
-# FICSIT Foreman — Save-Game MCP Server Technical Spec
+# FICSIT Foreman — Save-Game Tools Technical Spec
 
-This document is the technical design for `packages/mcp-save-game`: a standalone
-MCP server that reads a Satisfactory **save file** and exposes the pioneer's live
-progress as computed MCP tools.
+This document is the technical design for the **save-game tools** now served by
+`packages/sf-mcp`: reading a Satisfactory **save file** and exposing the pioneer's
+live progress as computed MCP tools. (It originally described the standalone
+`mcp-save-game` server, since consolidated into the unified `sf-mcp` server.)
 
-It is the save-state counterpart to `packages/mcp-game-data` (which serves the
-static, version-tagged game data). This server answers *"what has this pioneer
-actually built, unlocked, and collected?"*. The two run independently and are
-consumed together by the foreman.
+It is the save-state counterpart to the **game-data tools** (which serve the
+static, version-tagged game data). The save-game tools answer *"what has this
+pioneer actually built, unlocked, and collected?"*. Both tool sets are served on
+one endpoint and consumed together by the foreman.
 
 > **Status:** v1 implemented. Parser → normalise → store → tools are in place and
 > validated against real saves; see the README for usage and `npm run inspect`.
@@ -32,12 +33,12 @@ save file (.sav)  ──▶  parser  ──▶  normalised JSON  ──▶  MCP 
    foreman needs, not returning raw save dumps.
 
 **Cross-referencing game data.** Item/recipe class names in a save match the class
-names parsed by `mcp-game-data`. The save-game server reports those identifiers (and
-resolves display names where it can); richer lookups — recipe ingredients, build
-costs — remain the game-data server's job. This server does **not** duplicate the
+names parsed by the game-data tools. The save-game tools report those identifiers (and
+resolve display names where they can); richer lookups — recipe ingredients, build
+costs — remain the game-data tools' job. The save-game tools do **not** duplicate the
 game-data graph.
 
-**Design principles (shared with `mcp-game-data`):**
+**Design principles (shared with the game-data tools):**
 - Tools return computed answers, not raw rows.
 - Never throw on a bad entry — collect warnings, surface a partial parse.
 - All responses are tagged with the save's detected game version (and save name).
@@ -49,7 +50,7 @@ game-data graph.
 |---|---|
 | `SAVE_FILE_PATH` | Full path to the `.sav` to read. A leading `~` is expanded. If unset, the server starts with no save loaded and warns (never crashes). |
 | `MCP_TRANSPORT` | `stdio` (default) or `http`. |
-| `MCP_HTTP_HOST` / `MCP_HTTP_PORT` | Bind host/port for http mode (default `0.0.0.0:8726`). |
+| `MCP_HTTP_HOST` / `MCP_HTTP_PORT` | Bind host/port for http mode (default `0.0.0.0:8723`). |
 
 The server re-parses on file **mtime change**, so the foreman sees progress as the
 pioneer plays without a restart.
@@ -93,7 +94,7 @@ pioneer plays without a restart.
 > Mercer/Somersloop split, slug colour, and drop-pod/hard-drive counts are
 > **approximate**. Exact per-type counts and locations — and the *un*harvested
 > complement — require the full world collectible-location set, which is **world
-> data** owned by `mcp-game-data` v3 (*World Locations*), not save data. v1 therefore
+> data** owned by the game-data tools (*World Locations*), not save data. v1 therefore
 > reports the reliable totals + an approximate split + known world totals as
 > reference, and states the limitation in the response. (Drop-pod actor bodies do not
 > fully decode on current builds, so hard-drive loot-state is likewise deferred.)

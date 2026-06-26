@@ -1,11 +1,11 @@
 {
-  "name": "@foreman/mcp-save-game",
+  "name": "@foreman/sf-mcp",
   "version": "0.1.0",
-  "description": "FICSIT Foreman save-game MCP server: parses a Satisfactory save file into normalised JSON and exposes live pioneer progress as MCP tools.",
+  "description": "FICSIT Foreman unified MCP server: serves the Satisfactory game-data graph tools and live save-game tools from one endpoint.",
   "license": "Apache-2.0",
   "type": "module",
   "bin": {
-    "foreman-mcp-save-game": "./dist/index.js"
+    "foreman-sf-mcp": "./dist/index.js"
   },
   "main": "./dist/index.js",
   "files": [
@@ -17,13 +17,15 @@
     "start": "node dist/index.js",
     "test": "vitest run",
     "test:watch": "vitest",
-    "inspect": "tsx src/scripts/inspect.ts",
+    "inspect:game-data": "tsx src/scripts/inspectGameData.ts",
+    "inspect:save": "tsx src/scripts/inspectSave.ts",
     "lint": "eslint . --max-warnings 0 && prettier --check \"src/**/*.ts\"",
     "format": "prettier --write \"src/**/*.ts\""
   },
   "dependencies": {
-    "@foreman/sf-save-data": "0.1.0",
     "@foreman/sf-game-data": "0.1.0",
+    "@foreman/sf-game-data-graph": "0.1.0",
+    "@foreman/sf-save-data": "0.1.0",
     "@modelcontextprotocol/sdk": "^1.12.0",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",

@@ -57,7 +57,11 @@ function placeInMetres<T extends { x: number; y: number; z: number; distance: nu
  * responses are version-tagged. Tools return computed, distilled answers; the
  * recursion and aggregation happen server-side in the graph layer.
  */
-export function registerTools(server: McpServer, graph: GraphDB, world: WorldQueries): void {
+export function registerGameDataTools(
+  server: McpServer,
+  graph: GraphDB,
+  world: WorldQueries,
+): void {
   const ok = (payload: object): ToolResult => ({
     content: [{ type: 'text', text: JSON.stringify({ version: graph.version, ...payload }) }],
   });

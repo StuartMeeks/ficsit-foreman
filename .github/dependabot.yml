@@ -42,8 +42,7 @@ updates:
     directories:
       - "/packages/server"
       - "/packages/client"
-      - "/packages/mcp-game-data"
-      - "/packages/mcp-save-game"
+      - "/packages/sf-mcp"
     schedule:
       interval: "monthly"
       time: "08:00"

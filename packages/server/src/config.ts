@@ -34,15 +34,8 @@ export interface ServerConfig {
   hostedApiKey: string | undefined;
   /** Request header a free-tier client uses to pass its own LLM key. */
   clientKeyHeader: string;
-  /** URL of the Phase 1 game-data MCP server's Streamable HTTP endpoint. */
+  /** URL of the unified sf-mcp server's Streamable HTTP endpoint (game-data + save tools). */
   mcpUrl: string;
-  /**
-   * Optional URL of the save-game MCP server's Streamable HTTP endpoint. When
-   * set, its tools (player location, remaining collectibles, …) are merged into
-   * the foreman's tool surface so it can populate location-aware opportunities.
-   * Undefined disables it — the foreman runs on game-data tools alone.
-   */
-  saveMcpUrl: string | undefined;
   /** Number of most-recent stored messages sent with each chat request. */
   historyWindow: number;
   /** Resolved absolute path to the foreman system prompt markdown file. */
@@ -167,7 +160,6 @@ export function resolveServerConfig(env: NodeJS.ProcessEnv = process.env): Serve
     hostedApiKey,
     clientKeyHeader: (env['CLIENT_KEY_HEADER']?.trim() || DEFAULT_CLIENT_KEY_HEADER).toLowerCase(),
     mcpUrl: env['MCP_URL']?.trim() || DEFAULT_MCP_URL,
-    saveMcpUrl: firstNonEmpty(env['SAVE_MCP_URL']),
     historyWindow: parsePositiveInt(env['HISTORY_WINDOW'], DEFAULT_HISTORY_WINDOW),
     systemPromptPath: resolveSystemPromptPath(env),
     saveDataDir: resolveSaveDataDir(env),

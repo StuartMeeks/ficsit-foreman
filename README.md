@@ -18,13 +18,12 @@ in one Docker Compose project.
 
 | Package | Status | Purpose |
 |---|---|---|
-| [`packages/mcp-game-data`](./packages/mcp-game-data) | **Built** | Parses `en-US.json`, loads it into an embedded Kùzu graph, exposes computed MCP tools. Works standalone with Claude Desktop. |
-| [`packages/mcp-save-game`](./packages/mcp-save-game) | **Built (v1)** | Save-file parser → MCP tools exposing live pioneer state (location, inventory, unlocks, milestones, remaining collectibles). The backend merges it in when `SAVE_MCP_URL` is set. See its [SPEC.md](./packages/mcp-save-game/SPEC.md). |
+| [`packages/sf-mcp`](./packages/sf-mcp) | **Built** | The unified MCP server: game-data graph tools (parses `en-US.json` into an embedded Kùzu graph) **and** live save-game tools (save-file parser exposing pioneer location, inventory, unlocks, milestones, remaining collectibles) from one endpoint. Works standalone with Claude Desktop. |
 | [`packages/server`](./packages/server) | **Built** | Express backend: LLM chat proxy (Anthropic or OpenAI-compatible) with the foreman persona, MCP tool use, and stateful work-order persistence (see [`docs/work-orders.md`](./docs/work-orders.md)). |
 | [`packages/client`](./packages/client) | **In progress** | React UI (Phase 3): foreman chat (streaming), active work-order panel, history, and onboarding/settings. Served on port `8725`. |
 
-> FICSIT Foreman runs as a **Docker Compose project** named `foreman`: the MCP server and
-> backend are separate services in the one project (the web UI joins later), so Docker
+> FICSIT Foreman runs as a **Docker Compose project** named `foreman`: the `sf-mcp` server
+> and backend are separate services in the one project (plus the web UI), so Docker
 > Desktop keeps them grouped together under one start/stop.
 
 ---
@@ -45,9 +44,9 @@ Most Satisfactory players are on Windows, so here's the full path:
    ```yaml
    name: foreman
    services:
-     mcp-game-data:
-       image: ghcr.io/stuartmeeks/foreman-mcp-game-data:latest
-       container_name: foreman-mcp-game-data
+     sf-mcp:
+       image: ghcr.io/stuartmeeks/foreman-sf-mcp:latest
+       container_name: foreman-sf-mcp
        ports:
          - "8723:8723"
        restart: unless-stopped
@@ -55,7 +54,7 @@ Most Satisfactory players are on Windows, so here's the full path:
 
    *(The snippet above is the MCP server on its own — all you need to use FICSIT Foreman
    from Claude Desktop. The full [`compose.yaml`](./compose.yaml) in this repo runs the
-   whole stack: the MCP server, the `server` backend (`:8724`), and the `web` UI (`:8725`).
+   whole stack: the `sf-mcp` server, the `server` backend (`:8724`), and the `web` UI (`:8725`).
    To run it all and chat with the foreman in your browser, set `ANTHROPIC_API_KEY` (or
    enter a key in the UI's settings) and run `docker compose up -d --build`, then open
    **<http://localhost:8725>**.)*
@@ -66,8 +65,8 @@ Most Satisfactory players are on Windows, so here's the full path:
    ```
 
    *(GUI alternative: in Docker Desktop's **Images** tab, search
-   `ghcr.io/stuartmeeks/foreman-mcp-game-data`, click **Run**, expand **Optional settings**, set the
-   name to `foreman-mcp-game-data` and the host port to `8723`.)*
+   `ghcr.io/stuartmeeks/foreman-sf-mcp`, click **Run**, expand **Optional settings**, set the
+   name to `foreman-sf-mcp` and the host port to `8723`.)*
 4. Confirm it's running: open **<http://localhost:8723/health>** — you should see
    `{"status":"ok","version":"1.2.3.0"}`.
 
@@ -83,7 +82,7 @@ survives in the `foreman-db` volume either way. **Update** to a newer build with
 Use the same `compose.yaml` (`docker compose up -d`), or a one-off container:
 
 ```bash
-docker run -d --name foreman-mcp-game-data -p 8723:8723 ghcr.io/stuartmeeks/foreman-mcp-game-data:latest
+docker run -d --name foreman-sf-mcp -p 8723:8723 ghcr.io/stuartmeeks/foreman-sf-mcp:latest
 ```
 
 > **Note:** the server speaks the MCP **Streamable-HTTP** protocol at
@@ -126,14 +125,14 @@ npm run build
 npm test
 
 # Try a tool against the bundled stable data (no game install needed):
-npm run inspect -- total_raw_inputs '{"item":"Reinforced Iron Plate","targetPerMinute":5}'
+npm run inspect:game-data -- total_raw_inputs '{"item":"Reinforced Iron Plate","targetPerMinute":5}'
 
-# Run the server over HTTP (defaults to port 8723):
-MCP_TRANSPORT=http npm run start
+# Run the unified sf-mcp server over HTTP (defaults to port 8723):
+MCP_TRANSPORT=http npm run start:mcp
 ```
 
 To wire the server into Claude Desktop over stdio, see
-[`packages/mcp-game-data/README.md`](./packages/mcp-game-data/README.md).
+[`packages/sf-mcp/README.md`](./packages/sf-mcp/README.md).
 
 ---
 
@@ -141,7 +140,7 @@ To wire the server into Claude Desktop over stdio, see
 
 All optional — by default the server serves the bundled **stable** game data.
 
-**MCP server** (`packages/mcp-game-data`):
+**MCP server** (`packages/sf-mcp`):
 
 | Variable | Description |
 |---|---|
@@ -151,6 +150,8 @@ All optional — by default the server serves the bundled **stable** game data.
 | `MCP_TRANSPORT` | `stdio` (default, for Claude Desktop) or `http` to listen on a network port. |
 | `MCP_HTTP_HOST` | HTTP bind host when `MCP_TRANSPORT=http` (default `0.0.0.0`). |
 | `MCP_HTTP_PORT` | HTTP port when `MCP_TRANSPORT=http` (default `8723`). |
+| `SAVE_FILE_PATH` | Optional fixed save (legacy/dev): path to a `.sav` to serve the save-game tools from. |
+| `SAVE_DATA_DIR` | Directory host-injected `savePath` arguments must live under (the shared saves volume). |
 
 **Backend** (`packages/server`):
 
@@ -160,8 +161,8 @@ All optional — by default the server serves the bundled **stable** game data.
 | `LLM_API_KEY` | Hosted-tier key for the chosen provider. If unset, clients pass their own via the `x-anthropic-api-key` header. |
 | `LLM_MODEL` | Model (default `claude-sonnet-4-6` / `gpt-4.1`). |
 | `LLM_BASE_URL` | OpenAI-compatible base URL (OpenAI, OpenRouter, Gemini-compat, Azure). |
-| `MCP_URL` | Where the backend reaches the game-data MCP server (Compose: `http://mcp-game-data:8723/mcp`; bare metal default `http://127.0.0.1:8723/mcp`). |
-| `SAVE_MCP_URL` | Optional save-game MCP endpoint. When set, its tools (player location, remaining collectibles, unlocks, inventory) are merged into the foreman's tool surface for location-aware opportunities. Unset = game-data tools only. |
+| `MCP_URL` | Where the backend reaches the unified sf-mcp server, game-data + save tools (Compose: `http://sf-mcp:8723/mcp`; bare metal default `http://127.0.0.1:8723/mcp`). |
+| `SAVE_DATA_DIR` | Directory where uploaded playthrough saves are stored; shared with sf-mcp so it can read each save by the path the backend injects. |
 | `PORT` | Backend HTTP port (default `8724`). |
 | `DATABASE_URL` | Database connection (default `file:./dev.db`; Docker `file:/data/foreman.db`). For Postgres, use a `postgresql://` URL and switch the schema's datasource provider. |
 | `BETTER_AUTH_SECRET` | Signs account session cookies. If unset, the server generates one on first start and persists it in the data volume (single-node deployments work out of the box). Set it explicitly (`openssl rand -base64 32`) for multi-instance or Postgres deployments. |

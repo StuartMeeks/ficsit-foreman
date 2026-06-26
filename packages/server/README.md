@@ -2,11 +2,11 @@
 
 The FICSIT Foreman backend — the Express service that sits between the web client
 and the LLM provider. It runs the foreman persona, streams chat responses, calls
-the game-data (and optional save-game) MCP server for accurate game data, and
-persists sessions and work orders.
+the unified `sf-mcp` server (game-data + save-game tools) for accurate game data
+and live save state, and persists sessions and work orders.
 
 It runs as the `server` service in the `foreman` Docker Compose project,
-alongside `mcp-game-data` (and optionally `mcp-save-game`).
+alongside `sf-mcp`.
 
 ## What it does
 
@@ -95,15 +95,16 @@ See the root [`.env.example`](../../.env.example) for the full, commented list.
 Key variables: `LLM_PROVIDER` (`anthropic` default, or `openai`), `LLM_API_KEY`
 (optional hosted key; `ANTHROPIC_API_KEY`/`OPENAI_API_KEY` honoured too),
 `LLM_MODEL` (default `claude-sonnet-4-6`), `LLM_BASE_URL` (OpenAI-compatible
-endpoint), `MCP_URL` (default `http://127.0.0.1:8723/mcp`), `SAVE_MCP_URL`
-(optional — merges the save-game MCP's tools so the foreman can read player
-location and remaining collectibles), `DATABASE_URL` (default `file:./dev.db`;
+endpoint), `MCP_URL` (default `http://127.0.0.1:8723/mcp` — the unified sf-mcp
+server, whose save-game tools let the foreman read player location and remaining
+collectibles), `SAVE_DATA_DIR` (where uploaded playthrough saves are stored,
+shared with sf-mcp), `DATABASE_URL` (default `file:./dev.db`;
 set a `postgresql://` URL and switch the schema's datasource provider for prod),
 `BETTER_AUTH_SECRET` (signs session cookies; auto-generated + persisted if unset —
 set it explicitly for multi-instance/Postgres),
 `SAVE_DATA_DIR` (where uploaded playthrough saves are stored — `<id>.sav` per
 playthrough; defaults next to the database, e.g. `/data/saves`; must be a volume
-shared with the save-game MCP),
+shared with sf-mcp),
 `PORT` (default `8724`), `HISTORY_WINDOW` (default `20`) — the conversation
 history window (message count) sent to the model each turn, and the threshold
 (2×) at which a playthrough is summarised. This is the server/hosted default; a

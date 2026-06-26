@@ -5,8 +5,8 @@ import { describe, expect, it } from 'vitest';
 import { expandHome, resolveSavePath, resolveServerConfig } from '../src/config.js';
 
 describe('resolveServerConfig', () => {
-  it('defaults to stdio on 0.0.0.0:8726', () => {
-    expect(resolveServerConfig({})).toEqual({ transport: 'stdio', host: '0.0.0.0', port: 8726 });
+  it('defaults to stdio on 0.0.0.0:8723', () => {
+    expect(resolveServerConfig({})).toEqual({ transport: 'stdio', host: '0.0.0.0', port: 8723 });
   });
 
   it('honours http overrides', () => {

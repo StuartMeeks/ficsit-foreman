@@ -33,7 +33,7 @@ in the Satisfactory world — collectibles (Mercer Spheres, Somersloops, power
 slugs, hard-drive drop pods) and resource extraction points (ore/fluid nodes,
 fracking satellites and cores, geothermal geysers) — with coordinates (Unreal
 units), resource type and purity. Loaded by `loadWorldLocations()` and exposed
-through the `mcp-game-data` world tools. Override its path with
+through the `sf-mcp` world tools. Override its path with
 `SF_GAME_DATA_PATH`.
 
 It was extracted from the packaged level files with
