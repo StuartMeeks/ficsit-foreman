@@ -118,7 +118,7 @@ per `packages/sf-game-data/extract/README.md`).
   output (item class resolved to a display name), so the foreman can say *"that crash site needs 5
   Modular Frames"*. (Collectible exclusion still uses `mDestroyedPickups` — that part is unchanged.)
 
-A thin `packages/server` passthrough is added only if the client cannot reach these tools directly.
+A thin `packages/ff-server` passthrough is added only if the client cannot reach these tools directly.
 
 ## Out of scope / non-goals
 

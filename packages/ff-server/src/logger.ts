@@ -3,7 +3,7 @@
  * reserve stdout for a protocol, so ordinary stdout/stderr is fine. Errors are
  * always logged with context — never silently swallowed.
  */
-const PREFIX = '[foreman-server]';
+const PREFIX = '[foreman-ff-server]';
 
 export const logger = {
   info(...args: unknown[]): void {

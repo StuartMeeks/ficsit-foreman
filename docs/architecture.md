@@ -19,12 +19,12 @@ services under one `foreman` Docker Compose project.
 
 ```
 ┌──────────────────────────────────────────────────────────┐
-│                     Web App (React) — packages/client     │
+│                   Web App (React) — packages/ff-client    │
 │   Foreman chat (streaming)   ·   Work-order panel + history│
 └───────────────────────────────┬──────────────────────────┘
                                 │ REST + SSE  (/api proxied by nginx)
 ┌───────────────────────────────▼──────────────────────────┐
-│              Backend (Node/Express) — packages/server      │
+│             Backend (Node/Express) — packages/ff-server    │
 │  · LLM proxy (Anthropic or OpenAI-compatible), SSE stream  │
 │  · playthrough + work-order persistence (Prisma/SQLite→PG) │
 │  · MCP gateway: one client to the unified sf-mcp server ↓  │
@@ -45,7 +45,7 @@ tools** answer *"how is anything in the game made?"* from static game data, and
 **save-game tools** answer *"what has this pioneer actually built/unlocked/
 collected?"* from their live save. The backend reaches it with a single MCP
 client, injecting the active playthrough's save path into each tool call (see
-[`packages/server/README.md`](../packages/server/README.md)).
+[`packages/ff-server/README.md`](../packages/ff-server/README.md)).
 
 ## Key decisions
 
@@ -59,7 +59,7 @@ client, injecting the active playthrough's save path into each tool call (see
 | ORM | Prisma | Readable schema, good migrations |
 | Auth | Better Auth (self-hosted) | Email+password now, passkeys/TOTP next; HttpOnly-cookie sessions; Prisma adapter |
 | Deployment | Docker Compose (local) + Railway/Render (hosted) | Laptop → production with the same images |
-| Repo | Monorepo (`sf-core`, `sf-game-data`, `sf-game-data-graph`, `sf-save-data`, `sf-mcp`, `server`, `client`) | Easy to navigate |
+| Repo | Monorepo (`sf-core`, `sf-game-data`, `sf-game-data-graph`, `sf-save-data`, `sf-mcp`, `ff-server`, `ff-client`) | Easy to navigate |
 
 ## Accounts & identity
 
@@ -125,7 +125,7 @@ internal class names.
 
 ## Work orders
 
-Work orders are application state owned by `packages/server` (not an MCP server):
+Work orders are application state owned by `packages/ff-server` (not an MCP server):
 stateful, auditable records with a plan/execution split, revision snapshots, an
 audit trail, and parent/child relationships. The canonical design is
 [`work-orders.md`](./work-orders.md).

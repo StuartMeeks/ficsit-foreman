@@ -46,7 +46,7 @@ below). It means:
 ## Architectural boundary
 
 Do **not** create a separate MCP server for work orders. Work orders are
-application state owned by `packages/server`.
+application state owned by `packages/ff-server`.
 
 MCP servers remain responsible for external facts:
 

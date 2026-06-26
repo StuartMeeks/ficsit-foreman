@@ -101,7 +101,7 @@ export class McpHttpClient implements McpGateway {
   }
 
   private async openClient(): Promise<Client> {
-    const client = new Client({ name: 'foreman-server', version: '0.1.0' });
+    const client = new Client({ name: 'foreman-ff-server', version: '0.1.0' });
     const transport = new StreamableHTTPClientTransport(new URL(this.mcpUrl));
     try {
       await client.connect(transport);

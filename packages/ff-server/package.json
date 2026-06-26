@@ -1,5 +1,5 @@
 {
-  "name": "@foreman/server",
+  "name": "@foreman/ff-server",
   "version": "0.1.0",
   "description": "FICSIT Foreman backend: Anthropic chat proxy with foreman persona, MCP game-data tool use, and work-order persistence.",
   "license": "Apache-2.0",

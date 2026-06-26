@@ -19,8 +19,8 @@ in one Docker Compose project.
 | Package | Status | Purpose |
 |---|---|---|
 | [`packages/sf-mcp`](./packages/sf-mcp) | **Built** | The unified MCP server: game-data graph tools (parses `en-US.json` into an embedded Kùzu graph) **and** live save-game tools (save-file parser exposing pioneer location, inventory, unlocks, milestones, remaining collectibles) from one endpoint. Works standalone with Claude Desktop. |
-| [`packages/server`](./packages/server) | **Built** | Express backend: LLM chat proxy (Anthropic or OpenAI-compatible) with the foreman persona, MCP tool use, and stateful work-order persistence (see [`docs/work-orders.md`](./docs/work-orders.md)). |
-| [`packages/client`](./packages/client) | **In progress** | React UI (Phase 3): foreman chat (streaming), active work-order panel, history, and onboarding/settings. Served on port `8725`. |
+| [`packages/ff-server`](./packages/ff-server) | **Built** | Express backend: LLM chat proxy (Anthropic or OpenAI-compatible) with the foreman persona, MCP tool use, and stateful work-order persistence (see [`docs/work-orders.md`](./docs/work-orders.md)). |
+| [`packages/ff-client`](./packages/ff-client) | **In progress** | React UI (Phase 3): foreman chat (streaming), active work-order panel, history, and onboarding/settings. Served on port `8725`. |
 
 > FICSIT Foreman runs as a **Docker Compose project** named `foreman`: the `sf-mcp` server
 > and backend are separate services in the one project (plus the web UI), so Docker
@@ -153,7 +153,7 @@ All optional — by default the server serves the bundled **stable** game data.
 | `SAVE_FILE_PATH` | Optional fixed save (legacy/dev): path to a `.sav` to serve the save-game tools from. |
 | `SAVE_DATA_DIR` | Directory host-injected `savePath` arguments must live under (the shared saves volume). |
 
-**Backend** (`packages/server`):
+**Backend** (`packages/ff-server`):
 
 | Variable | Description |
 |---|---|

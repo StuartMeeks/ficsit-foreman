@@ -9,4 +9,4 @@ game-data
 .claude
 
 # Design reference assets (not needed in any image build)
-packages/client/design-reference
+packages/ff-client/design-reference

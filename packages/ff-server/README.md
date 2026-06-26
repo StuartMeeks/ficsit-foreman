@@ -1,4 +1,4 @@
-# @foreman/server
+# @foreman/ff-server
 
 The FICSIT Foreman backend — the Express service that sits between the web client
 and the LLM provider. It runs the foreman persona, streams chat responses, calls
@@ -129,7 +129,7 @@ The backend listens on `http://localhost:8724`; the MCP server on `:8723`.
 ```bash
 # from the repo root
 npm install
-npm run db:migrate -w @foreman/server     # create the local SQLite database
+npm run db:migrate -w @foreman/ff-server     # create the local SQLite database
 npm run dev:server                         # start with hot reload on :8724
 ```
 
@@ -143,8 +143,8 @@ migrates to Postgres for hosted deployment. Complex work-order fields (arrays,
 nested objects) are stored as JSON-encoded TEXT so the schema is portable across
 both providers without change.
 
-- `npm run db:migrate -w @foreman/server` — create/apply a dev migration.
-- `npm run db:deploy -w @foreman/server` — apply pending migrations (used by the
+- `npm run db:migrate -w @foreman/ff-server` — create/apply a dev migration.
+- `npm run db:deploy -w @foreman/ff-server` — apply pending migrations (used by the
   container at startup).
 
 ### Data persistence across upgrades
@@ -195,7 +195,7 @@ The chat loop, summariser, and routes need no changes.
 ## Testing
 
 ```bash
-npm run test -w @foreman/server
+npm run test -w @foreman/ff-server
 ```
 
 Tests run against an isolated temporary SQLite database and inject a fake

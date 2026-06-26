@@ -1,7 +1,7 @@
-# @foreman/client
+# @foreman/ff-client
 
 The FICSIT Foreman web client — a React + TypeScript + Vite single-page app. It
-runs as the `web` service in the `foreman` Docker Compose project, served by
+runs as the `ff-client` service in the `foreman` Docker Compose project, served by
 nginx, which reverse-proxies `/api` to the backend so the browser uses a single
 origin (no CORS).
 

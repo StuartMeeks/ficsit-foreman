@@ -13,8 +13,8 @@
 # Desktop (just stopped). Use `down` only when you want to remove them; your data
 # survives either way, in the `foreman-db` volume (see the volumes section).
 #
-# The project groups separate services (sf-mcp, server, web) under the one
-# "foreman" project so you start and stop them as a unit.
+# The project groups separate services (sf-mcp, ff-server, ff-client) under the
+# one "foreman" project so you start and stop them as a unit.
 name: foreman
 
 services:
@@ -59,14 +59,14 @@ services:
     #   # then set SAVE_FILE_PATH to the in-container path:
     #   - "C:/Users/you/AppData/Local/FactoryGame/Saved/SaveGames:/saves:ro"
 
-  server:
+  ff-server:
     # Pull the published image, or build locally if it is not present:
     #   docker compose up -d --build
-    image: ghcr.io/stuartmeeks/foreman-server:latest
+    image: ghcr.io/stuartmeeks/foreman-ff-server:latest
     build:
       context: .
-      dockerfile: packages/server/Dockerfile
-    container_name: foreman-server
+      dockerfile: packages/ff-server/Dockerfile
+    container_name: foreman-ff-server
     depends_on:
       - sf-mcp
     ports:
@@ -109,7 +109,7 @@ services:
       # volume) deletes your data.
       - foreman-db:/data
       # Uploaded playthrough saves live in their own volume, shared read/write
-      # with the save-game MCP (mounted at the same path there) so it can read a
+      # with sf-mcp (mounted at the same path there) so it can read a
       # save by the absolute path the server injects.
       - foreman-saves:/data/saves
       # Prefer a folder you control instead? Comment the lines above and use host
@@ -118,16 +118,16 @@ services:
       #   - ./data/saves:/data/saves
     restart: unless-stopped
 
-  web:
+  ff-client:
     # Pull the published image, or build locally if it is not present:
     #   docker compose up -d --build
-    image: ghcr.io/stuartmeeks/foreman-web:latest
+    image: ghcr.io/stuartmeeks/foreman-ff-client:latest
     build:
       context: .
-      dockerfile: packages/client/Dockerfile
-    container_name: foreman-web
+      dockerfile: packages/ff-client/Dockerfile
+    container_name: foreman-ff-client
     depends_on:
-      - server
+      - ff-server
     ports:
       # Open http://localhost:8725 to use the foreman.
       - "8725:80"
@@ -138,5 +138,5 @@ volumes:
   #   docker run --rm -v foreman-db:/data -v "$PWD:/backup" busybox \
   #     tar czf /backup/foreman-db.tgz /data
   foreman-db:
-  # Uploaded playthrough saves, shared between the server and the save-game MCP.
+  # Uploaded playthrough saves, shared between ff-server and sf-mcp.
   foreman-saves:
