@@ -70,7 +70,10 @@ export {
   emptyWorldLocations,
   channelWorldLocationsPath,
 } from './world/index.js';
-export { cmToMetres, metresToCm, compassBearing } from './world/units.js';
+// NOTE: world-coordinate presentation helpers (cm↔m unit conversion, compass
+// bearing) deliberately do NOT live here. They are presentation, so they live at
+// the edge (`@foreman/sf-mcp`); this neutral library returns raw, game-native
+// data — centimetre coordinates and raw distances. See docs/component-architecture.md.
 
 // Spatial queries over the bundled world dataset (nearest collectibles / resource
 // nodes / loot, per-kind progress). Pure data queries — no graph engine.

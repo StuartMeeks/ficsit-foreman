@@ -1,6 +1,4 @@
 import {
-  cmToMetres,
-  compassBearing,
   humaniseClassName,
   type Building,
   type Collectible,
@@ -13,6 +11,7 @@ import {
   type UnlockCost,
   type WorldLocations,
 } from '@foreman/sf-game-data';
+import { cmToMetres, compassBearing } from '../units.js';
 
 import { WATER_EXTRACTOR, WATER_ITEM_CLASS } from '@foreman/sf-save-data';
 import type { GameDataIndex } from '../gameData.js';
