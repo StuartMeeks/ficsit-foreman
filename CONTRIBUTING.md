@@ -50,10 +50,16 @@ close one (usually by merging its PR), reconcile the surrounding roadmap in the
 same stroke — a closed issue with a stale body, or a sibling that still claims
 work you've absorbed, misleads the next reader.
 
-- **Add a closing comment** when the delivered scope differs from the issue body
-  (scope grew, shrank, or the approach changed). Summarise what shipped, call out
-  where it diverged from the original plan, and link the PR. Prefer a comment over
-  editing the original body, so the history of the decision is preserved.
+- **Always add a closing comment** when you close an issue — summarise what
+  shipped and link the PR (e.g. `Closed by #NNN`), even when the scope matched the
+  body exactly. When the delivered scope differs (it grew, shrank, or the approach
+  changed), additionally call out where it diverged from the original plan. Prefer
+  a comment over editing the original body, so the history of the decision is
+  preserved.
+- **A PR that completely addresses an issue must link it with a closing keyword**
+  (`Closes #N` / `Fixes #N`, see Pull requests above) so merging auto-closes it
+  and records the issue↔PR link. Then add the closing comment above. Don't leave a
+  fully-resolved issue open or close it by hand without the linked PR.
 - **Re-scope related issues.** If closing one changes a sibling's scope — work
   pulled forward into this one, or an approach here that supersedes another's plan
   — edit that sibling's body/title to match, and note why. An open issue must
