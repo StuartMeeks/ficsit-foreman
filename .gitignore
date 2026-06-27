@@ -31,3 +31,7 @@ npm-debug.log*
 
 # Auto-generated Better Auth signing secret (persisted next to the DB)
 .better-auth-secret
+
+# Host-local extractor scratch (CUE4Parse clone lives under
+# packages/sf-game-data/extract/; this is for throwaway probes/experiments)
+/tools/
