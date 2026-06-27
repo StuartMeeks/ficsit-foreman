@@ -13,16 +13,45 @@ It is two projects (see [`../../../docs/sf-game-data-extractor.md`](../../../doc
 - **`sf-game-data-extractor/`** — the console tool you run. For now a thin front
   end that resolves inputs and calls the library; later it will also parse
   `en-US.json` and merge both sources into one output file.
+- **`sf-game-data-parse/`** — a **CUE4Parse-free** class library: the `en-US.json`
+  parser, ported 1:1 from the hand-written TypeScript parser (#159). Zero
+  dependencies, so it builds and runs anywhere — including the dev VM and CI.
+- **`sf-game-data-parse-golden/`** — a dev console for the golden-diff gate below.
+
+## en-US.json parser & the golden-diff gate
+
+`sf-game-data-parse` is a faithful C# port of `@foreman/sf-game-data`'s TypeScript
+parser. It is gated by a **golden-diff**: parse the same `en-US.json` with both
+parsers and assert the results are structurally identical (compared by *value*, so
+JS-vs-.NET float formatting never matters; `parsedAt` is ignored). Run it from the
+`sf-game-data` package with a real `en-US.json` (e.g. the gitignored
+`game-data/en-US.json`):
+
+```bash
+# from packages/sf-game-data
+EN_US=../../game-data/en-US.json    # any real docs file
+# 1. TypeScript (canonical) parser → golden:
+npx tsx scripts/parse-golden-dump.ts "$EN_US" /tmp/ts.json
+# 2. C# port → candidate:
+dotnet run -c Release --project extract/sf-game-data-parse-golden -- "$EN_US" /tmp/cs.json
+# 3. compare (exits non-zero on any difference):
+npx tsx scripts/parse-golden-compare.ts /tmp/ts.json /tmp/cs.json
+```
+
+Keep this green whenever either parser changes, until the TypeScript parser is
+retired (#162).
 
 It reads coordinates straight out of the **packaged game level files** with
 [CUE4Parse](https://github.com/FabianFG/CUE4Parse), using the `FactoryGame.usmap`
 mappings Coffee Stain ships in the game's `CommunityResources/`. Only factual
 coordinates are written out — no game assets are redistributed.
 
-> **This is a host-only, run-by-hand tool.** It is C#, needs a local Satisfactory
-> install, and a C++ toolchain to build CUE4Parse's native library. It is
-> deliberately **not** part of the npm workspaces, the TypeScript build, lint, or
-> CI — it only runs when the game updates and the dataset needs regenerating.
+> **The extraction is host-only, run-by-hand.** The CUE4Parse projects
+> (`sf-game-data-extraction` / `sf-game-data-extractor`) are C#, need a local
+> Satisfactory install and a C++ toolchain to build CUE4Parse's native library,
+> and are deliberately **not** part of the npm workspaces, the TypeScript build,
+> lint, or CI — they only run when the game updates. (The `sf-game-data-parse`
+> projects are CUE4Parse-free and build anywhere.)
 
 ## Why CUE4Parse isn't vendored
 
