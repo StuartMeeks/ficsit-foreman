@@ -4,7 +4,7 @@ import {
   STORAGE_BUILDING,
 } from '../constants.js';
 import type { RawObject } from '../parser/types.js';
-import { classNameFromPath, humaniseClassName } from './classRef.js';
+import { classNameFromPath } from './classRef.js';
 import { decodeInventoryComponent, decodeStoredItems } from './inventories.js';
 import type { Inventory, StorageContainer } from './types.js';
 import { propMap, translation, type Warnings } from './util.js';
@@ -32,7 +32,6 @@ export function extractStorage(
     const buildingClass = classNameFromPath(obj.typePath ?? obj.instanceName ?? '');
     containers.push({
       buildingClass,
-      displayName: humaniseClassName(buildingClass),
       location: translation(obj),
       inventory: resolveContainerInventory(obj, byInstance),
     });

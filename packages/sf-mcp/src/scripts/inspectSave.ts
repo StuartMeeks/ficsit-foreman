@@ -12,7 +12,7 @@
 import { loadWorldLocations } from '@foreman/sf-game-data';
 
 import { expandHome } from '../config.js';
-import { loadDisplayNames } from '../gameData.js';
+import { loadGameDataIndex, makeNameResolver, type NameResolver } from '../gameData.js';
 import { normaliseSave } from '@foreman/sf-save-data';
 import { classNameFromPath } from '@foreman/sf-save-data';
 import type { RawObject, RawSave } from '@foreman/sf-save-data';
@@ -29,17 +29,19 @@ import {
 } from '../query/selectors.js';
 import { SaveStore } from '../store/saveStore.js';
 
-const TOOL_RUNNERS: Record<string, (state: ReturnType<typeof loadState>) => unknown> = {
-  get_player_state: (s) => playerSummary(s),
-  get_unlocked_recipes: (s) => unlockedRecipes(s),
-  get_milestones: (s) => milestones(s),
-  get_storage: (s) => storageView(s),
+type ToolRunner = (state: ReturnType<typeof loadState>, resolve: NameResolver) => unknown;
+
+const TOOL_RUNNERS: Record<string, ToolRunner> = {
+  get_player_state: (s, r) => playerSummary(s, r),
+  get_unlocked_recipes: (s, r) => unlockedRecipes(s, r),
+  get_milestones: (s, r) => milestones(s, r),
+  get_storage: (s, r) => storageView(s, r),
   get_collectibles: (s) => collectibleProgressView(s, loadWorldLocations().world),
   // Nearby uses the player's own location as the origin (when known), querying
   // the static world dataset (same source the MCP tool uses).
-  get_nearby: (s) => {
+  get_nearby: (s, r) => {
     // Origin must be metres — exactly what get_player_state hands the foreman.
-    const origin = playerSummary(s).location;
+    const origin = playerSummary(s, r).location;
     return origin === undefined
       ? { error: 'player location unknown in this save' }
       : nearbyFromWorld(
@@ -48,6 +50,7 @@ const TOOL_RUNNERS: Record<string, (state: ReturnType<typeof loadState>) => unkn
           {},
           collectedGuidSet(s),
           unlockedSchematicSet(s),
+          r,
         );
   },
 };
@@ -76,11 +79,7 @@ function allCollectables(raw: RawSave): string[] {
 }
 
 function loadState(filePath: string): ReturnType<typeof normaliseSave>['state'] {
-  return normaliseSave(
-    parseSaveFile(filePath, 'inspect'),
-    new Date().toISOString(),
-    loadDisplayNames(),
-  ).state;
+  return normaliseSave(parseSaveFile(filePath, 'inspect'), new Date().toISOString()).state;
 }
 
 function histogram(paths: string[]): Map<string, number> {
@@ -150,7 +149,12 @@ function runTool(name: string, savePath: string): void {
     throw new Error(`Unknown tool '${name}'. Known: ${Object.keys(TOOL_RUNNERS).join(', ')}`);
   }
   const store = SaveStore.fromState(loadState(savePath));
-  out({ version: store.version, saveName: store.saveName, result: runner(store.getState()) });
+  const resolveName = makeNameResolver(loadGameDataIndex());
+  out({
+    version: store.version,
+    saveName: store.saveName,
+    result: runner(store.getState(), resolveName),
+  });
 }
 
 function runSummary(savePath: string): void {

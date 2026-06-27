@@ -6,7 +6,7 @@ import {
   PRODUCTION_BOOST_PROP,
 } from '../constants.js';
 import type { RawObject } from '../parser/types.js';
-import { classNameFromPath, humaniseClassName } from './classRef.js';
+import { classNameFromPath } from './classRef.js';
 import type { ExtractorLine, ProducerLine, ProductionState } from './types.js';
 import { numberField, propMap, refField, translation, type Warnings } from './util.js';
 
@@ -40,7 +40,6 @@ export function extractProduction(objects: RawObject[], warnings: Warnings): Pro
       }
       producers.push({
         buildingClass,
-        displayName: humaniseClassName(buildingClass),
         recipeClass,
         clockSpeed: numberField(props, CLOCK_SPEED_PROP) ?? 1,
         productionBoost: numberField(props, PRODUCTION_BOOST_PROP) ?? 1,
@@ -49,7 +48,6 @@ export function extractProduction(objects: RawObject[], warnings: Warnings): Pro
     } else if (EXTRACTOR_BUILDING.test(typePath)) {
       extractors.push({
         buildingClass,
-        displayName: humaniseClassName(buildingClass),
         clockSpeed: numberField(props, CLOCK_SPEED_PROP) ?? 1,
         productionBoost: numberField(props, PRODUCTION_BOOST_PROP) ?? 1,
         location: translation(obj),

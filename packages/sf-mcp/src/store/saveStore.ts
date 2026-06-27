@@ -1,6 +1,5 @@
 import path from 'node:path';
 
-import { loadDisplayNames } from '../gameData.js';
 import { logger } from '../logger.js';
 import { emptySaveState, normaliseSave, type SaveState } from '@foreman/sf-save-data';
 import { parseSaveFile } from '@foreman/sf-save-data';
@@ -11,8 +10,6 @@ export interface SaveStoreDeps {
   statMtime?: (filePath: string) => number;
   load?: (filePath: string) => SaveState;
   now?: () => string;
-  /** Override the className→displayName map (tests); otherwise loaded lazily. */
-  displayNames?: Map<string, string>;
 }
 
 /**
@@ -34,19 +31,12 @@ export class SaveStore {
   ) {
     this.statMtime = deps.statMtime ?? statMtimeMs;
     this.now = deps.now ?? (() => new Date().toISOString());
-    // Display names from the game data, loaded once on the first real parse
-    // (lazy so tests that inject `load` never trigger the game-data read).
-    let displayNames = deps.displayNames;
+    // The save model carries raw class names only; display-name resolution happens
+    // at the query layer (selectors), so no game-data is needed here.
     this.load =
       deps.load ??
-      ((filePath: string): SaveState => {
-        displayNames ??= loadDisplayNames();
-        return normaliseSave(
-          parseSaveFile(filePath, path.basename(filePath)),
-          this.now(),
-          displayNames,
-        ).state;
-      });
+      ((filePath: string): SaveState =>
+        normaliseSave(parseSaveFile(filePath, path.basename(filePath)), this.now()).state);
     this.current = emptySaveState(
       'unknown',
       savePath === undefined ? 'none' : path.basename(savePath),

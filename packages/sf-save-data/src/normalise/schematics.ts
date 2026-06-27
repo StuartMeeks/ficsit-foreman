@@ -12,7 +12,7 @@ import {
   UNLOCKED_RESEARCH_PROP,
 } from '../constants.js';
 import type { RawObject } from '../parser/types.js';
-import { classNameFromPath, humaniseClassName } from './classRef.js';
+import { classNameFromPath } from './classRef.js';
 import type { AssemblyPhase, Milestone, MilestoneKind } from './types.js';
 import { arrayField, asNumber, asString, dig, propMap, refField, type Warnings } from './util.js';
 
@@ -54,13 +54,12 @@ function extractMilestones(objects: RawObject[], warnings: Warnings): Milestone[
       tierMatch?.[1] === undefined ? undefined : asNumber(Number.parseInt(tierMatch[1], 10));
     milestones.push({
       schematicClass,
-      displayName: humaniseClassName(schematicClass),
       tier,
       kind: classifyMilestone(path, schematicClass, tier),
     });
   }
   milestones.sort(
-    (a, b) => (a.tier ?? 99) - (b.tier ?? 99) || a.displayName.localeCompare(b.displayName),
+    (a, b) => (a.tier ?? 99) - (b.tier ?? 99) || a.schematicClass.localeCompare(b.schematicClass),
   );
   return milestones;
 }
@@ -81,28 +80,24 @@ function classifyMilestone(
 
 /**
  * The unlocked MAM research *trees* (the save's `mUnlockedResearchTrees`), e.g.
- * "Alien Organisms", "Hard Drive", "Power Slugs" — the categories the pioneer can
- * research in, NOT the individual completed nodes. The class names humanise to a
- * verbose "BPD Research Tree X"; trim that prefix to the bare tree name.
+ * the categories the pioneer can research in, NOT the individual completed nodes —
+ * as raw class names (e.g. `BPD_ResearchTree_AlienOrganisms_C`). Humanising and
+ * trimming the "Research Tree" prefix to a readable name is the edge's job
+ * (presentation boundary).
  */
 function extractMamResearch(objects: RawObject[]): string[] {
   const manager = objects.find((o) => RESEARCH_MANAGER.test(o.typePath ?? ''));
   if (manager === undefined) {
     return [];
   }
-  const names = new Set<string>();
+  const classes = new Set<string>();
   for (const ref of arrayField(propMap(manager), UNLOCKED_RESEARCH_PROP)) {
     const path = asString(dig(ref, 'pathName'));
     if (path !== undefined && path.length > 0) {
-      names.add(cleanResearchTreeName(humaniseClassName(classNameFromPath(path))));
+      classes.add(classNameFromPath(path));
     }
   }
-  return [...names].sort((a, b) => a.localeCompare(b));
-}
-
-/** Strips the "BPD Research Tree" / "Research Tree" prefix from a humanised name. */
-function cleanResearchTreeName(name: string): string {
-  return name.replace(/^(?:BPD\s+)?Research Tree\s+/i, '').trim();
+  return [...classes].sort((a, b) => a.localeCompare(b));
 }
 
 function extractAssemblyPhase(objects: RawObject[]): AssemblyPhase | undefined {

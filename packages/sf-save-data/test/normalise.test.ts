@@ -71,7 +71,8 @@ describe('milestones + MAM + phase', () => {
   });
 
   it('reads MAM research and the assembly phase number', () => {
-    expect(state.mamResearch).toEqual(['Caterium']);
+    // Raw research-tree class names; humanising/cleaning to "Caterium" is the edge's job.
+    expect(state.mamResearch).toEqual(['Research_Caterium_C']);
     expect(state.assemblyPhase?.phase).toBe(2);
     expect(state.assemblyPhase?.current).toBe('GP_Project_Assembly_Phase_2');
   });
@@ -89,16 +90,13 @@ describe('collectibles', () => {
   });
 });
 
-describe('item display names', () => {
-  it('uses real names from the provided map, humanised fallback otherwise', () => {
-    const { state: named } = normaliseSave(
-      FIXTURE_SAVE,
-      '2026-01-01T00:00:00.000Z',
-      new Map([['Desc_IronPlate_C', 'Iron Plate']]),
-    );
-    expect(named.player.inventory[0]?.displayName).toBe('Iron Plate'); // from the map
-    const sam = named.storage.dimensionalDepot.find((i) => i.itemClass === 'Desc_SAMIngot_C');
-    expect(sam?.displayName).toBeTruthy(); // not in the map → humanised, still present
+describe('raw class names (no display-name enrichment)', () => {
+  it('emits item/building class names only — naming is resolved at the edge', () => {
+    // The neutral library no longer carries display names; only the raw classes.
+    expect(state.player.inventory[0]).toMatchObject({ itemClass: 'Desc_IronPlate_C', quantity: 50 });
+    expect(state.player.inventory[0]).not.toHaveProperty('displayName');
+    const sam = state.storage.dimensionalDepot.find((i) => i.itemClass === 'Desc_SAMIngot_C');
+    expect(sam).not.toHaveProperty('displayName');
   });
 });
 

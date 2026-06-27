@@ -14,22 +14,66 @@ import {
 import { cmToMetres, compassBearing } from '../units.js';
 
 import { WATER_EXTRACTOR, WATER_ITEM_CLASS } from '@foreman/sf-save-data';
-import type { GameDataIndex } from '../gameData.js';
+import type { GameDataIndex, NameResolver } from '../gameData.js';
 import type {
   AssemblyPhase,
   ExtractorLine,
   Inventory,
-  Milestone,
+  MilestoneKind,
   ProducerLine,
   SaveState,
-  StorageContainer,
-  UnlockedRecipe,
   Vec3,
 } from '@foreman/sf-save-data';
 
 /** Convert a centimetre position to the metres the pioneer sees in-game (2dp). */
 function vecToMetres(v: Vec3): Vec3 {
   return { x: cmToMetres(v.x), y: cmToMetres(v.y), z: cmToMetres(v.z) };
+}
+
+/**
+ * The save model carries raw class names only; these tool-facing shapes add the
+ * resolved display name at the edge (game-data authored name, or humanised
+ * fallback). The output field stays named `displayName` for response stability.
+ */
+export interface NamedStack {
+  itemClass: string;
+  displayName: string;
+  quantity: number;
+}
+
+export interface NamedRecipe {
+  recipeClass: string;
+  displayName: string;
+  isAlternate: boolean;
+}
+
+export interface NamedMilestone {
+  schematicClass: string;
+  displayName: string;
+  tier?: number;
+  kind: MilestoneKind;
+}
+
+export interface NamedContainer {
+  buildingClass: string;
+  displayName: string;
+  location?: Vec3;
+  inventory: NamedStack[];
+  distance?: number;
+}
+
+/** Resolve a save inventory's item classes to display-named stacks. */
+function nameStacks(inventory: Inventory, resolve: NameResolver): NamedStack[] {
+  return inventory.map((s) => ({
+    itemClass: s.itemClass,
+    displayName: resolve(s.itemClass),
+    quantity: s.quantity,
+  }));
+}
+
+/** Strips the "BPD Research Tree" / "Research Tree" prefix from a humanised name. */
+function cleanResearchTreeName(name: string): string {
+  return name.replace(/^(?:BPD\s+)?Research Tree\s+/i, '').trim();
 }
 
 /**
@@ -46,10 +90,10 @@ export interface PlayerSummary {
   /** The same play time formatted as "Xh Ym", for convenience. */
   playTime?: string;
   itemCount: number;
-  inventory: Inventory;
+  inventory: NamedStack[];
 }
 
-export function playerSummary(state: SaveState): PlayerSummary {
+export function playerSummary(state: SaveState, resolve: NameResolver): PlayerSummary {
   return {
     location: state.player.location === undefined ? undefined : vecToMetres(state.player.location),
     hubLocation:
@@ -57,7 +101,7 @@ export function playerSummary(state: SaveState): PlayerSummary {
     playDurationSeconds: state.playDurationSeconds,
     playTime: formatDuration(state.playDurationSeconds),
     itemCount: state.player.inventory.length,
-    inventory: state.player.inventory,
+    inventory: nameStacks(state.player.inventory, resolve),
   };
 }
 
@@ -75,15 +119,22 @@ export interface RecipeSummary {
   total: number;
   standardCount: number;
   alternateCount: number;
-  standard: UnlockedRecipe[];
-  alternates: UnlockedRecipe[];
+  standard: NamedRecipe[];
+  alternates: NamedRecipe[];
 }
 
-export function unlockedRecipes(state: SaveState): RecipeSummary {
-  const standard = state.recipes.filter((r) => !r.isAlternate);
-  const alternates = state.recipes.filter((r) => r.isAlternate);
+export function unlockedRecipes(state: SaveState, resolve: NameResolver): RecipeSummary {
+  const named: NamedRecipe[] = state.recipes
+    .map((r) => ({
+      recipeClass: r.recipeClass,
+      displayName: resolve(r.recipeClass),
+      isAlternate: r.isAlternate,
+    }))
+    .sort((a, b) => a.displayName.localeCompare(b.displayName));
+  const standard = named.filter((r) => !r.isAlternate);
+  const alternates = named.filter((r) => r.isAlternate);
   return {
-    total: state.recipes.length,
+    total: named.length,
     standardCount: standard.length,
     alternateCount: alternates.length,
     standard,
@@ -93,25 +144,31 @@ export function unlockedRecipes(state: SaveState): RecipeSummary {
 
 export interface MilestoneSummary {
   assemblyPhase?: AssemblyPhase;
-  milestonesByTier: { tier: number; milestones: Milestone[] }[];
-  tutorials: Milestone[];
-  other: Milestone[];
+  milestonesByTier: { tier: number; milestones: NamedMilestone[] }[];
+  tutorials: NamedMilestone[];
+  other: NamedMilestone[];
   mamResearch: string[];
 }
 
-export function milestones(state: SaveState): MilestoneSummary {
-  const byTier = new Map<number, Milestone[]>();
-  const tutorials: Milestone[] = [];
-  const other: Milestone[] = [];
-  for (const milestone of state.milestones) {
-    if (milestone.kind === 'tutorial') {
-      tutorials.push(milestone);
-    } else if (milestone.kind === 'milestone' && milestone.tier !== undefined) {
-      const bucket = byTier.get(milestone.tier) ?? [];
-      bucket.push(milestone);
-      byTier.set(milestone.tier, bucket);
+export function milestones(state: SaveState, resolve: NameResolver): MilestoneSummary {
+  const byTier = new Map<number, NamedMilestone[]>();
+  const tutorials: NamedMilestone[] = [];
+  const other: NamedMilestone[] = [];
+  for (const m of state.milestones) {
+    const named: NamedMilestone = {
+      schematicClass: m.schematicClass,
+      displayName: resolve(m.schematicClass),
+      tier: m.tier,
+      kind: m.kind,
+    };
+    if (m.kind === 'tutorial') {
+      tutorials.push(named);
+    } else if (m.kind === 'milestone' && m.tier !== undefined) {
+      const bucket = byTier.get(m.tier) ?? [];
+      bucket.push(named);
+      byTier.set(m.tier, bucket);
     } else {
-      other.push(milestone);
+      other.push(named);
     }
   }
   return {
@@ -121,14 +178,18 @@ export function milestones(state: SaveState): MilestoneSummary {
       .map(([tier, list]) => ({ tier, milestones: list })),
     tutorials,
     other,
-    mamResearch: state.mamResearch,
+    // Research trees aren't in game data, so resolve() humanises; trim the verbose
+    // "BPD Research Tree X" prefix to the bare tree name and re-sort alphabetically.
+    mamResearch: state.mamResearch
+      .map((cls) => cleanResearchTreeName(resolve(cls)))
+      .sort((a, b) => a.localeCompare(b)),
   };
 }
 
 export interface StorageView {
   containerCount: number;
-  containers: (StorageContainer & { distance?: number })[];
-  dimensionalDepot: Inventory;
+  containers: NamedContainer[];
+  dimensionalDepot: NamedStack[];
 }
 
 /**
@@ -136,25 +197,24 @@ export interface StorageView {
  * metres. When a `location` (in metres, e.g. from get_player_state) is given,
  * containers are annotated with distance to it and sorted nearest-first.
  */
-export function storageView(state: SaveState, location?: Vec3): StorageView {
-  const containers: (StorageContainer & { distance?: number })[] = state.storage.containers.map(
-    (container) => {
-      const locM = container.location === undefined ? undefined : vecToMetres(container.location);
-      return {
-        ...container,
-        location: locM,
-        distance:
-          location !== undefined && locM !== undefined ? distance(location, locM) : undefined,
-      };
-    },
-  );
+export function storageView(state: SaveState, resolve: NameResolver, location?: Vec3): StorageView {
+  const containers: NamedContainer[] = state.storage.containers.map((container) => {
+    const locM = container.location === undefined ? undefined : vecToMetres(container.location);
+    return {
+      buildingClass: container.buildingClass,
+      displayName: resolve(container.buildingClass),
+      location: locM,
+      inventory: nameStacks(container.inventory, resolve),
+      distance: location !== undefined && locM !== undefined ? distance(location, locM) : undefined,
+    };
+  });
   if (location !== undefined) {
     containers.sort((a, b) => (a.distance ?? Infinity) - (b.distance ?? Infinity));
   }
   return {
     containerCount: state.storage.containers.length,
     containers,
-    dimensionalDepot: state.storage.dimensionalDepot,
+    dimensionalDepot: nameStacks(state.storage.dimensionalDepot, resolve),
   };
 }
 
@@ -626,7 +686,7 @@ function manufacturerLine(line: ProducerLine, game: GameDataIndex): MachineLine 
   const outputs: RateFlow[] =
     recipe?.products.map((p) => ({
       itemClass: p.itemClassName,
-      name: game.displayNames.get(p.itemClassName) ?? p.displayName,
+      name: game.displayNames.get(p.itemClassName) ?? humaniseClassName(p.itemClassName),
       basePerMinute: round(p.perMinute),
       effectivePerMinute: round(p.perMinute * scale),
       unit: p.unit,
@@ -634,7 +694,7 @@ function manufacturerLine(line: ProducerLine, game: GameDataIndex): MachineLine 
   return {
     kind: 'manufacturer',
     buildingClass: line.buildingClass,
-    building: game.displayNames.get(line.buildingClass) ?? line.displayName,
+    building: game.displayNames.get(line.buildingClass) ?? humaniseClassName(line.buildingClass),
     recipeClass: line.recipeClass,
     recipe:
       line.recipeClass === undefined
@@ -694,7 +754,7 @@ function extractorLine(
   return {
     kind: 'extractor',
     buildingClass: line.buildingClass,
-    building: game.displayNames.get(line.buildingClass) ?? line.displayName,
+    building: game.displayNames.get(line.buildingClass) ?? humaniseClassName(line.buildingClass),
     resourceClass,
     resource:
       resourceClass === undefined

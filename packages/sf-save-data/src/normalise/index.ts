@@ -5,7 +5,7 @@ import { extractRecipes } from './recipes.js';
 import { extractScannable } from './scannable.js';
 import { extractProgression } from './schematics.js';
 import { extractStorage } from './storage.js';
-import type { Inventory, SaveState } from './types.js';
+import type { SaveState } from './types.js';
 import { Warnings } from './util.js';
 
 export { emptySaveState } from './types.js';
@@ -17,15 +17,12 @@ export type { SaveState } from './types.js';
  * delegates to the per-domain normalisers. Never throws: bad entries are skipped
  * and recorded in `warnings`, so a partial parse still yields a usable state.
  *
- * `displayNames` (className → display name, from the parsed game data) upgrades
- * inventory/storage/depot, unlocked-recipe and storage-container display names
- * from the humanised fallback to the real in-game names. Optional: an empty map
- * keeps the humanised fallback.
+ * The result carries raw class names only; resolving them to display names is the
+ * consumer's job at the edge (`sf-mcp`), keeping this library game-data-agnostic.
  */
 export function normaliseSave(
   raw: RawSave,
   parsedAt: string,
-  displayNames: Map<string, string> = new Map(),
 ): { state: SaveState; warnings: string[] } {
   const warnings = new Warnings();
 
@@ -84,40 +81,7 @@ export function normaliseSave(
     warnings: warnings.all(),
   };
 
-  applyDisplayNames(state, displayNames);
   return { state, warnings: warnings.all() };
-}
-
-/**
- * Rewrites display names from the real game data where available: inventory and
- * storage item stacks, unlocked recipes, and storage-container building names.
- * (MAM/milestone schematics are not in the game data, so they keep the humanised
- * fallback.)
- */
-function applyDisplayNames(state: SaveState, names: Map<string, string>): void {
-  if (names.size === 0) {
-    return;
-  }
-  const renameStacks = (inventory: Inventory): void => {
-    for (const stack of inventory) {
-      stack.displayName = names.get(stack.itemClass) ?? stack.displayName;
-    }
-  };
-  renameStacks(state.player.inventory);
-  renameStacks(state.storage.dimensionalDepot);
-  for (const container of state.storage.containers) {
-    renameStacks(container.inventory);
-    container.displayName = names.get(container.buildingClass) ?? container.displayName;
-  }
-  for (const recipe of state.recipes) {
-    recipe.displayName = names.get(recipe.recipeClass) ?? recipe.displayName;
-  }
-  for (const producer of state.production.producers) {
-    producer.displayName = names.get(producer.buildingClass) ?? producer.displayName;
-  }
-  for (const extractor of state.production.extractors) {
-    extractor.displayName = names.get(extractor.buildingClass) ?? extractor.displayName;
-  }
 }
 
 function detectVersion(raw: RawSave): string {

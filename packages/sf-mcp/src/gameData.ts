@@ -1,4 +1,10 @@
-import { parseDocsFile, resolveDocsPath, type Building, type Recipe } from '@foreman/sf-game-data';
+import {
+  humaniseClassName,
+  parseDocsFile,
+  resolveDocsPath,
+  type Building,
+  type Recipe,
+} from '@foreman/sf-game-data';
 
 import { logger } from './logger.js';
 
@@ -67,4 +73,16 @@ export function loadGameDataIndex(): GameDataIndex {
  */
 export function loadDisplayNames(): Map<string, string> {
   return loadGameDataIndex().displayNames;
+}
+
+/** Resolves a raw class name to a display name. */
+export type NameResolver = (className: string) => string;
+
+/**
+ * The single edge name-resolution rule: the game-data authored name, falling back
+ * to a humanised class name. The neutral data libs emit raw class names only, so
+ * every display name surfaced by the MCP tools is resolved here.
+ */
+export function makeNameResolver(game: GameDataIndex): NameResolver {
+  return (className) => game.displayNames.get(className) ?? humaniseClassName(className);
 }

@@ -1,8 +1,8 @@
-import { humaniseClassName, loadWorldLocations, type WorldLocations } from '@foreman/sf-game-data';
+import { loadWorldLocations, type WorldLocations } from '@foreman/sf-game-data';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 
-import { loadGameDataIndex } from '../gameData.js';
+import { loadGameDataIndex, makeNameResolver } from '../gameData.js';
 import { logger } from '../logger.js';
 import {
   collectedGuidSet,
@@ -64,8 +64,7 @@ export function registerSaveTools(server: McpServer, registry: SaveStoreRegistry
   // loaded once. Display names upgrade drop-pod unlock costs and loose-part listings
   // from raw Desc_* classes; recipes/buildings back the production-rate + power join.
   const gameData = loadGameDataIndex();
-  const itemName = (className: string): string =>
-    gameData.displayNames.get(className) ?? humaniseClassName(className);
+  const resolveName = makeNameResolver(gameData);
 
   const ok = (store: SaveStore, payload: object): ToolResult => ({
     content: [
@@ -86,7 +85,7 @@ export function registerSaveTools(server: McpServer, registry: SaveStoreRegistry
     },
     async ({ savePath }): Promise<ToolResult> => {
       const store = registry.resolve(savePath);
-      return ok(store, { player: playerSummary(store.getState()) });
+      return ok(store, { player: playerSummary(store.getState(), resolveName) });
     },
   );
 
@@ -99,7 +98,7 @@ export function registerSaveTools(server: McpServer, registry: SaveStoreRegistry
     },
     async ({ savePath }): Promise<ToolResult> => {
       const store = registry.resolve(savePath);
-      return ok(store, { recipes: unlockedRecipes(store.getState()) });
+      return ok(store, { recipes: unlockedRecipes(store.getState(), resolveName) });
     },
   );
 
@@ -113,7 +112,7 @@ export function registerSaveTools(server: McpServer, registry: SaveStoreRegistry
     },
     async ({ savePath }): Promise<ToolResult> => {
       const store = registry.resolve(savePath);
-      return ok(store, { progress: milestones(store.getState()) });
+      return ok(store, { progress: milestones(store.getState(), resolveName) });
     },
   );
 
@@ -127,7 +126,7 @@ export function registerSaveTools(server: McpServer, registry: SaveStoreRegistry
     },
     async ({ location, savePath }): Promise<ToolResult> => {
       const store = registry.resolve(savePath);
-      return ok(store, { storage: storageView(store.getState(), location) });
+      return ok(store, { storage: storageView(store.getState(), resolveName, location) });
     },
   );
 
@@ -169,7 +168,7 @@ export function registerSaveTools(server: McpServer, registry: SaveStoreRegistry
           { kinds, radius, limit },
           collectedGuidSet(state),
           unlockedSchematicSet(state),
-          itemName,
+          resolveName,
         ),
       });
     },
@@ -198,7 +197,7 @@ export function registerSaveTools(server: McpServer, registry: SaveStoreRegistry
           location,
           { item, radius, limit },
           collectedLootIdSet(state),
-          itemName,
+          resolveName,
         ),
       });
     },
