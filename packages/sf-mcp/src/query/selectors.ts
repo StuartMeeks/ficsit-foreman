@@ -13,6 +13,7 @@ import {
 import { cmToMetres, compassBearing, humaniseClassName } from '@foreman/sf-present';
 
 import { WATER_EXTRACTOR, WATER_ITEM_CLASS } from '@foreman/sf-save-data';
+import type { ActorNode, SaveGraph } from '@foreman/sf-save-data-graph';
 import type { GameDataIndex, NameResolver } from '../gameData.js';
 import type {
   AssemblyPhase,
@@ -906,4 +907,240 @@ export function productionView(
   }
 
   return view;
+}
+
+/* ── Power (#68) ──────────────────────────────────────────────────────────── */
+
+const POWER_NOTE =
+  "Capacity is each generator's nameplate output scaled LINEARLY by clock speed; " +
+  'consumption is an ESTIMATE (production machines scaled by clock/somersloop, other ' +
+  'powered buildings at 100% draw). Geothermal output is variable (geyser-purity ' +
+  'dependent) and excluded from the numeric capacity — circuits containing one are ' +
+  'flagged hasVariableGenerators, so real capacity is higher than shown. Fuel supply ' +
+  'is not checked: an unfuelled generator still counts toward capacity.';
+
+export type PowerStatus = 'ok' | 'tight' | 'overloaded' | 'unknown';
+
+/** One power circuit's capacity vs estimated draw (a pre-grouped grid). */
+export interface PowerCircuitView {
+  circuitId: number;
+  generatorCount: number;
+  /** Sum of fixed-output generators' nameplate MW × clock (excludes variable/geothermal). */
+  capacityMW: number;
+  /** True if the circuit has a variable-output (geothermal) generator — real capacity is higher. */
+  hasVariableGenerators: boolean;
+  consumerCount: number;
+  /** Estimated total draw, MW. */
+  consumptionMW: number;
+  /** capacityMW − consumptionMW (positive = headroom). */
+  balanceMW: number;
+  status: PowerStatus;
+}
+
+/** Generators of one building type, rolled up across the whole save. */
+export interface GeneratorTypeView {
+  building: string;
+  buildingClass: string;
+  count: number;
+  /** Combined nameplate MW × clock for this type (0 when output is variable). */
+  capacityMW: number;
+  variableOutput: boolean;
+  /** Fuel item display names currently loaded across this type (empty for geothermal/unfuelled). */
+  fuels: string[];
+}
+
+export interface PowerView {
+  /** Per-circuit capacity vs draw, lowest circuit id first. */
+  circuits: PowerCircuitView[];
+  /** Generators rolled up by building type (every generator, including off-grid ones). */
+  generators: GeneratorTypeView[];
+  generatorCount: number;
+  /** Sum of all circuits' fixed capacity, MW. */
+  totalCapacityMW: number;
+  /** Sum of all circuits' estimated consumption, MW. */
+  totalConsumptionMW: number;
+  note: string;
+}
+
+/**
+ * A generator's MW output: nameplate × clock — **linear** in clock, unlike consumer
+ * draw (generators are not subject to the overclock power exponent). Variable-output
+ * (geothermal) reports 0 MW + `variable: true`, since the save carries no geyser purity.
+ */
+function generatorCapacityMW(
+  buildingClass: string,
+  clockSpeed: number,
+  game: GameDataIndex,
+): { mw: number; variable: boolean } {
+  const building = game.buildings[buildingClass];
+  if (building?.variablePowerProduction === true) {
+    return { mw: 0, variable: true };
+  }
+  return { mw: round((building?.powerProduction ?? 0) * clockSpeed, 1), variable: false };
+}
+
+/**
+ * A node's estimated power draw: production machines scale by clock/somersloop; other
+ * powered buildings draw their flat consumption at 100%. Generators draw nothing.
+ */
+function consumerDrawMW(node: ActorNode, game: GameDataIndex): number {
+  if (node.producer !== undefined) {
+    const recipe =
+      node.producer.recipeClass === undefined ? undefined : game.recipes[node.producer.recipeClass];
+    return (
+      estimatePower(
+        game.buildings[node.producer.buildingClass],
+        recipe,
+        node.producer.clockSpeed,
+        node.producer.productionBoost,
+      ) ?? 0
+    );
+  }
+  if (node.extractor !== undefined) {
+    return (
+      estimatePower(
+        game.buildings[node.extractor.buildingClass],
+        undefined,
+        node.extractor.clockSpeed,
+        node.extractor.productionBoost,
+      ) ?? 0
+    );
+  }
+  if (node.kind === 'generator') {
+    return 0;
+  }
+  const consumption = game.buildings[node.classKey]?.powerConsumption ?? 0;
+  return consumption > 0 ? round(consumption, 1) : 0;
+}
+
+function powerStatus(
+  capacityMW: number,
+  consumptionMW: number,
+  balanceMW: number,
+  hasVariable: boolean,
+): PowerStatus {
+  if (capacityMW === 0 && !hasVariable) {
+    return consumptionMW > 0 ? 'overloaded' : 'ok';
+  }
+  if (balanceMW < 0) {
+    return hasVariable ? 'unknown' : 'overloaded';
+  }
+  if (capacityMW > 0 && balanceMW / capacityMW < 0.1) {
+    return 'tight';
+  }
+  return 'ok';
+}
+
+/**
+ * Per-power-circuit capacity vs estimated consumption, plus a generator rollup.
+ * Circuits are pre-grouped by the game (`SaveState.topology`, exposed via the graph);
+ * each member is classified through its graph node — generator capacity on one side,
+ * consumer draw on the other — and summed. See {@link POWER_NOTE} for caveats.
+ */
+export function powerView(state: SaveState, graph: SaveGraph, game: GameDataIndex): PowerView {
+  const circuits: PowerCircuitView[] = graph
+    .powerCircuits()
+    .map((circuit) => {
+      let capacityMW = 0;
+      let consumptionMW = 0;
+      let generatorCount = 0;
+      let consumerCount = 0;
+      let hasVariableGenerators = false;
+      for (const member of circuit.members) {
+        const node = graph.getActor(member);
+        if (node === undefined) {
+          continue;
+        }
+        if (node.kind === 'generator' && node.generator !== undefined) {
+          generatorCount += 1;
+          const cap = generatorCapacityMW(
+            node.generator.buildingClass,
+            node.generator.clockSpeed,
+            game,
+          );
+          if (cap.variable) {
+            hasVariableGenerators = true;
+          } else {
+            capacityMW += cap.mw;
+          }
+        } else {
+          const draw = consumerDrawMW(node, game);
+          if (draw > 0) {
+            consumptionMW += draw;
+            consumerCount += 1;
+          }
+        }
+      }
+      capacityMW = round(capacityMW, 1);
+      consumptionMW = round(consumptionMW, 1);
+      const balanceMW = round(capacityMW - consumptionMW, 1);
+      return {
+        circuitId: circuit.circuitId,
+        generatorCount,
+        capacityMW,
+        hasVariableGenerators,
+        consumerCount,
+        consumptionMW,
+        balanceMW,
+        status: powerStatus(capacityMW, consumptionMW, balanceMW, hasVariableGenerators),
+      };
+    })
+    .sort((a, b) => a.circuitId - b.circuitId);
+
+  // Roll up every generator by building type (independent of circuit membership).
+  interface GenAccum {
+    building: string;
+    buildingClass: string;
+    count: number;
+    capacityMW: number;
+    variableOutput: boolean;
+    fuels: Set<string>;
+  }
+  const byType = new Map<string, GenAccum>();
+  for (const gen of state.production.generators) {
+    const entry: GenAccum = byType.get(gen.buildingClass) ?? {
+      building: game.displayNames.get(gen.buildingClass) ?? humaniseClassName(gen.buildingClass),
+      buildingClass: gen.buildingClass,
+      count: 0,
+      capacityMW: 0,
+      variableOutput: false,
+      fuels: new Set<string>(),
+    };
+    entry.count += 1;
+    const cap = generatorCapacityMW(gen.buildingClass, gen.clockSpeed, game);
+    if (cap.variable) {
+      entry.variableOutput = true;
+    } else {
+      entry.capacityMW = round(entry.capacityMW + cap.mw, 1);
+    }
+    if (gen.fuelClass !== undefined) {
+      entry.fuels.add(game.displayNames.get(gen.fuelClass) ?? humaniseClassName(gen.fuelClass));
+    }
+    byType.set(gen.buildingClass, entry);
+  }
+  const generators: GeneratorTypeView[] = [...byType.values()]
+    .map((e) => ({
+      building: e.building,
+      buildingClass: e.buildingClass,
+      count: e.count,
+      capacityMW: e.capacityMW,
+      variableOutput: e.variableOutput,
+      fuels: [...e.fuels].sort(),
+    }))
+    .sort((a, b) => b.capacityMW - a.capacityMW);
+
+  return {
+    circuits,
+    generators,
+    generatorCount: state.production.generators.length,
+    totalCapacityMW: round(
+      circuits.reduce((sum, c) => sum + c.capacityMW, 0),
+      1,
+    ),
+    totalConsumptionMW: round(
+      circuits.reduce((sum, c) => sum + c.consumptionMW, 0),
+      1,
+    ),
+    note: POWER_NOTE,
+  };
 }
