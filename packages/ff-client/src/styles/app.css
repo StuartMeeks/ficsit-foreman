@@ -251,6 +251,139 @@ textarea {
   word-break: break-word;
 }
 
+/* Foreman replies render as Markdown — reset the parent pre-wrap and style blocks. */
+.msg .body .markdown {
+  white-space: normal;
+}
+
+.markdown > :first-child {
+  margin-top: 0;
+}
+
+.markdown > :last-child {
+  margin-bottom: 0;
+}
+
+.markdown p {
+  margin: 0.5em 0;
+}
+
+.markdown ul,
+.markdown ol {
+  margin: 0.5em 0;
+  padding-left: 1.5em;
+}
+
+.markdown li {
+  margin: 0.2em 0;
+}
+
+.markdown li > p {
+  margin: 0.2em 0;
+}
+
+.markdown h1,
+.markdown h2,
+.markdown h3,
+.markdown h4,
+.markdown h5,
+.markdown h6 {
+  margin: 0.9em 0 0.4em;
+  font-family: var(--font-condensed);
+  font-weight: var(--font-weight-semibold);
+  line-height: 1.25;
+  color: var(--text-primary);
+}
+
+.markdown h1 {
+  font-size: 1.3em;
+}
+
+.markdown h2 {
+  font-size: 1.18em;
+}
+
+.markdown h3 {
+  font-size: 1.08em;
+}
+
+.markdown h4,
+.markdown h5,
+.markdown h6 {
+  font-size: 1em;
+}
+
+.markdown strong {
+  font-weight: var(--font-weight-semibold);
+  color: var(--text-primary);
+}
+
+.markdown a {
+  color: var(--accent);
+  text-decoration: underline;
+}
+
+.markdown code {
+  font-family: var(--font-mono);
+  font-size: 0.9em;
+  background: var(--surface-inset);
+  border: 1px solid var(--border-hairline);
+  border-radius: 4px;
+  padding: 0.05em 0.35em;
+}
+
+.markdown pre {
+  margin: 0.6em 0;
+  padding: 0.7em 0.9em;
+  background: var(--surface-inset);
+  border: 1px solid var(--border-hairline);
+  border-radius: 6px;
+  overflow-x: auto;
+}
+
+.markdown pre code {
+  background: none;
+  border: 0;
+  padding: 0;
+  font-size: 0.85em;
+}
+
+.markdown blockquote {
+  margin: 0.6em 0;
+  padding: 0.1em 0.9em;
+  border-left: 2px solid var(--accent);
+  color: var(--text-secondary);
+}
+
+.markdown hr {
+  margin: 0.9em 0;
+  border: 0;
+  border-top: 1px solid var(--border-hairline);
+}
+
+/* GFM tables — scroll horizontally on narrow panes rather than overflowing the column. */
+.markdown table {
+  display: block;
+  width: max-content;
+  max-width: 100%;
+  overflow-x: auto;
+  border-collapse: collapse;
+  margin: 0.6em 0;
+  font-size: 0.95em;
+}
+
+.markdown th,
+.markdown td {
+  border: 1px solid var(--border-hairline);
+  padding: 0.3em 0.6em;
+  text-align: left;
+}
+
+.markdown th {
+  font-weight: var(--font-weight-semibold);
+  background: var(--surface-inset);
+}
+
 .msg .tools {
   margin-top: 6px;
   display: flex;

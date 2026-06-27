@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 
 import type { ChatMsg } from '../useForeman.js';
+import { MarkdownMessage } from './MarkdownMessage.js';
 
 interface ChatColumnProps {
   messages: ChatMsg[];
@@ -46,7 +47,7 @@ export function ChatColumn({ messages, sending, onSend }: ChatColumnProps): Reac
               </span>
               <div>
                 <div className="body">
-                  {m.content}
+                  {m.role === 'assistant' ? <MarkdownMessage content={m.content} /> : m.content}
                   {m.streaming && m.content.length === 0 && m.tools.length === 0 ? (
                     <span className="caret" aria-hidden="true" />
                   ) : null}
