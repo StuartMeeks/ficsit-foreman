@@ -1,21 +1,24 @@
 import {
   CLOCK_SPEED_PROP,
+  CURRENT_FUEL_PROP,
   CURRENT_RECIPE_PROP,
   EXTRACTOR_BUILDING,
+  GENERATOR_BUILDING,
   MANUFACTURER_BUILDING,
   PRODUCTION_BOOST_PROP,
 } from '../constants.js';
 import type { RawObject } from '../parser/types.js';
 import { classNameFromPath } from './classRef.js';
-import type { ExtractorLine, ProducerLine, ProductionState } from './types.js';
+import type { ExtractorLine, GeneratorLine, ProducerLine, ProductionState } from './types.js';
 import { numberField, propMap, refField, translation, type Warnings } from './util.js';
 
 /**
  * Extracts the factory floor: recipe-running machines (Constructor → Manufacturer,
- * Refinery, Blender, …) and resource extractors (miners / pumps / fracking). Each
- * record captures the machine's *configuration* — building class, recipe class,
- * clock speed and somersloop boost — with no game-data join. Theoretical rates and
- * estimated power are derived later in the query layer (which has the recipe +
+ * Refinery, Blender, …), resource extractors (miners / pumps / fracking) and power
+ * generators (biomass / coal / fuel / nuclear / geothermal). Each record captures the
+ * machine's *configuration* — building class, recipe/fuel class, clock speed and
+ * somersloop boost — with no game-data join. Theoretical rates, MW capacity and
+ * estimated power draw are derived later in the query layer (which has the recipe +
  * building game data). Never throws; an unconfigured machine (no `mCurrentRecipe`)
  * is still reported, with a warning.
  *
@@ -26,12 +29,14 @@ import { numberField, propMap, refField, translation, type Warnings } from './ut
 export function extractProduction(objects: RawObject[], warnings: Warnings): ProductionState {
   const producers: ProducerLine[] = [];
   const extractors: ExtractorLine[] = [];
+  const generators: GeneratorLine[] = [];
 
   for (const obj of objects) {
     const typePath = obj.typePath ?? '';
     const isManufacturer = MANUFACTURER_BUILDING.test(typePath);
     const isExtractor = !isManufacturer && EXTRACTOR_BUILDING.test(typePath);
-    if (!isManufacturer && !isExtractor) {
+    const isGenerator = !isManufacturer && !isExtractor && GENERATOR_BUILDING.test(typePath);
+    if (!isManufacturer && !isExtractor && !isGenerator) {
       continue;
     }
     const props = propMap(obj);
@@ -57,7 +62,7 @@ export function extractProduction(objects: RawObject[], warnings: Warnings): Pro
         productionBoost: numberField(props, PRODUCTION_BOOST_PROP) ?? 1,
         location: translation(obj),
       });
-    } else {
+    } else if (isExtractor) {
       extractors.push({
         instanceName,
         buildingClass,
@@ -65,8 +70,20 @@ export function extractProduction(objects: RawObject[], warnings: Warnings): Pro
         productionBoost: numberField(props, PRODUCTION_BOOST_PROP) ?? 1,
         location: translation(obj),
       });
+    } else {
+      // Generator: burns fuel, no recipe/somersloop. `mCurrentFuelClass` is the item
+      // loaded now (absent for geothermal / unfuelled). MW capacity is a game-data join.
+      const fuelRef = refField(props, CURRENT_FUEL_PROP);
+      const fuelClass = fuelRef === undefined ? undefined : classNameFromPath(fuelRef);
+      generators.push({
+        instanceName,
+        buildingClass,
+        clockSpeed: numberField(props, CLOCK_SPEED_PROP) ?? 1,
+        ...(fuelClass === undefined ? {} : { fuelClass }),
+        location: translation(obj),
+      });
     }
   }
 
-  return { producers, extractors };
+  return { producers, extractors, generators };
 }
