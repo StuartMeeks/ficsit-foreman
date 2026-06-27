@@ -5,43 +5,21 @@ The one-off tool that generates
 — the static dataset of every fixed collectible and resource node in the
 Satisfactory world (coordinates, resource type, purity).
 
-It is two projects (see [`../../../docs/sf-game-data-extractor.md`](../../../docs/sf-game-data-extractor.md)):
+It is three projects (see [`../../../docs/sf-game-data-extractor.md`](../../../docs/sf-game-data-extractor.md)):
 
 - **`sf-game-data-extraction/`** — a class library holding the CUE4Parse world
-  extraction (`WorldExtractor.Run`). This was the standalone `fg-extract` program;
-  the logic is unchanged, only repackaged as a library (#158).
-- **`sf-game-data-extractor/`** — the console tool you run. Extracts the world data
-  (via the library) **and** parses `en-US.json` (via `sf-game-data-parse`), writing
-  one merged `sf-game-data.json`: the world fields plus a top-level `gameData`
-  object (#160). The shape is additive, so the runtime world loader keeps working
-  until it switches to `gameData` (#161).
+  extraction (`WorldExtractor.Extract`). This was the standalone `fg-extract`
+  program, repackaged as a library (#158).
 - **`sf-game-data-parse/`** — a **CUE4Parse-free** class library: the `en-US.json`
-  parser, ported 1:1 from the hand-written TypeScript parser (#159). Zero
-  dependencies, so it builds and runs anywhere — including the dev VM and CI.
-- **`sf-game-data-parse-golden/`** — a dev console for the golden-diff gate below.
-
-## en-US.json parser & the golden-diff gate
-
-`sf-game-data-parse` is a faithful C# port of `@foreman/sf-game-data`'s TypeScript
-parser. It is gated by a **golden-diff**: parse the same `en-US.json` with both
-parsers and assert the results are structurally identical (compared by *value*, so
-JS-vs-.NET float formatting never matters; `parsedAt` is ignored). Run it from the
-`sf-game-data` package with a real `en-US.json` (e.g. the gitignored
-`game-data/en-US.json`):
-
-```bash
-# from packages/sf-game-data
-EN_US=../../game-data/en-US.json    # any real docs file
-# 1. TypeScript (canonical) parser → golden:
-npx tsx scripts/parse-golden-dump.ts "$EN_US" /tmp/ts.json
-# 2. C# port → candidate:
-dotnet run -c Release --project extract/sf-game-data-parse-golden -- "$EN_US" /tmp/cs.json
-# 3. compare (exits non-zero on any difference):
-npx tsx scripts/parse-golden-compare.ts /tmp/ts.json /tmp/cs.json
-```
-
-Keep this green whenever either parser changes, until the TypeScript parser is
-retired (#162).
+  parser. Ported 1:1 from the original hand-written TypeScript parser (validated at
+  port time by a golden-diff against it, #159) and **became the canonical parser**
+  when the TypeScript one was retired (#162). Zero dependencies, so it builds and
+  runs anywhere.
+- **`sf-game-data-extractor/`** — the console tool you run. Extracts the world data
+  (via `sf-game-data-extraction`) **and** parses `en-US.json` (via
+  `sf-game-data-parse`), writing one merged `sf-game-data.json`: the world fields
+  plus a top-level `gameData` object, with `gameVersion`/`build` stamped in (#160).
+  The runtime loads this file directly (#161).
 
 It reads coordinates straight out of the **packaged game level files** with
 [CUE4Parse](https://github.com/FabianFG/CUE4Parse), using the `FactoryGame.usmap`
@@ -120,7 +98,8 @@ see "Upstreaming" below.
 
    ```powershell
    cd packages/sf-game-data/extract/sf-game-data-extractor
-   # --version/--build must match the channel's meta.json:
+   # --version/--build are stamped into the dataset; --build must not regress the
+   # channel's current build (same build = re-extraction, allowed):
    dotnet run -c Release -- --version 1.2.3.1 --build 495413 --out sf-game-data.json
    # Optional overrides:
    #   --paks  "D:\...\Satisfactory\FactoryGame\Content\Paks"
@@ -138,14 +117,16 @@ see "Upstreaming" below.
    powerSlugYellow 389, powerSlugPurple 257, hardDrive 118 — if any differs, the
    extraction is incomplete or the game changed.
 
-4. **Install** the result into the channel you're updating, then commit it (the
-   value of `gameVersion` must match that channel's `meta.json`):
+4. **Install** the result into the channel you're updating, then commit it
+   (`gameVersion`/`build` are stamped into the file itself — there is no separate
+   `meta.json`):
 
    ```
    cp sf-game-data.json ../../data/stable/sf-game-data.json
    ```
 
-   `.github/scripts/check-game-data.mjs` re-validates counts and version on the PR.
+   `.github/scripts/check-game-data.mjs` re-validates counts, version and build on
+   the PR. A data PR touches only that one channel's `sf-game-data.json`.
 
 ## How the world is laid out (notes for future spelunking)
 

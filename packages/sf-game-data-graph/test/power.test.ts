@@ -1,24 +1,19 @@
-import { fileURLToPath } from 'node:url';
-
 import { beforeAll, describe, expect, it } from 'vitest';
 
-import { parseDocsFile } from '@foreman/sf-game-data';
+import { loadGameData } from '@foreman/sf-game-data';
 import { GraphDB, initGraph } from '../src/graph/index.js';
 import type { GeneratorFuel } from '@foreman/sf-game-data';
 
 /**
- * Power correctness is critical, so these assert against the committed bundled
- * stable data (real game numbers), not a fixture. Every figure is a known-good
- * in-game value — a future data update that breaks the maths will fail here.
+ * Power correctness is critical, so these assert against the bundled stable data
+ * (real game numbers), not a fixture. Every figure is a known-good in-game value —
+ * a future data update that breaks the maths will fail here. The data comes from
+ * the merged sf-game-data.json (gameData), loaded via loadGameData (#161/#162).
  */
-const dataPath = fileURLToPath(
-  new URL('../../sf-game-data/data/stable/en-US.json', import.meta.url),
-);
-
 let graph: GraphDB;
 
 beforeAll(async () => {
-  const { gameData } = parseDocsFile(dataPath);
+  const { gameData } = loadGameData();
   graph = await initGraph(gameData);
 });
 

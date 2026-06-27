@@ -1,13 +1,23 @@
+import fs from 'node:fs';
+import { fileURLToPath } from 'node:url';
+
 import { beforeAll, describe, expect, it } from 'vitest';
 
-import { parseGameData } from '@foreman/sf-game-data';
+import type { GameData } from '@foreman/sf-game-data';
 import { GraphDB, initGraph } from '../src/graph/index.js';
-import { FIXTURE_VERSION, rawDocs } from '../../sf-game-data/test/fixtures/docs.js';
+
+// These tests assert exact, controlled counts ("2 recipes", "3 rows"), so they run
+// against a small, fixed GameData fixture rather than the full bundled dataset.
+// The hand-written parser + its raw-docs fixture were retired in #162; this static
+// GameData was generated from that raw-docs fixture (version 'test-1.0') and frozen
+// here. (power.test.ts asserts real in-game numbers and uses the bundled dataset.)
+const gameData: GameData = JSON.parse(
+  fs.readFileSync(fileURLToPath(new URL('./fixtures/game-data.json', import.meta.url)), 'utf8'),
+);
 
 let graph: GraphDB;
 
 beforeAll(async () => {
-  const { gameData } = parseGameData(rawDocs, FIXTURE_VERSION);
   graph = await initGraph(gameData);
 });
 
@@ -160,6 +170,6 @@ describe('cypher_query guard', () => {
 
 describe('version tagging', () => {
   it('exposes the parsed game version', () => {
-    expect(graph.version).toBe(FIXTURE_VERSION);
+    expect(graph.version).toBe('test-1.0');
   });
 });

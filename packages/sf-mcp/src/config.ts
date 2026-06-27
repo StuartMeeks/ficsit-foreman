@@ -4,9 +4,10 @@ import path from 'node:path';
 
 /**
  * Server transport + save-source configuration for the unified `sf-mcp` server
- * (game-data graph tools + save-game tools on one port). Docs-path / bundled
- * game-data resolution lives in `@foreman/sf-game-data` (see `resolveDocsPath`);
- * this file owns the network-transport half and the save-file resolution.
+ * (game-data graph tools + save-game tools on one port). Bundled game-data /
+ * dataset resolution lives in `@foreman/sf-game-data` (see `loadDataset` /
+ * `resolveDatasetPath`); this file owns the network-transport half and the
+ * save-file resolution.
  */
 
 /** Which transport the server should expose. */

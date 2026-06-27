@@ -1,5 +1,9 @@
 # Game data (copied from a Satisfactory install — not redistributable)
 game-data/
+# The raw docs file is never committed (retired in #162); the extractor reads it
+# from the game install and bundles only the derived sf-game-data.json per channel.
+packages/sf-game-data/data/*/en-US.json
+packages/sf-game-data/data/*/Docs.json
 
 # Satisfactory save files (player data — never commit; used locally for inspect)
 *.sav

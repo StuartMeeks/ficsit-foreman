@@ -1,27 +1,24 @@
 #!/usr/bin/env node
 // Validates bundled game-data pull requests.
 //
-// A bundled channel is a THREE-FILE BUNDLE under
+// A bundled channel is a SINGLE merged file under
 // packages/sf-game-data/data/<channel>/:
 //
-//   en-US.json           the raw Satisfactory docs (game data)
-//   meta.json            { gameVersion, build, channel }
-//   sf-game-data.json the extracted collectible/resource-node dataset, plus the
-//                        `gameData` parsed from en-US.json (items/recipes/etc.)
+//   sf-game-data.json    the extracted collectible/resource-node dataset, plus the
+//                        `gameData` (items/recipes/etc.) the offline extractor
+//                        parses from the game's en-US.json, plus the channel's
+//                        gameVersion + build at the top level.
 //
-// The three describe one game build and move together. A data PR must:
+// (The raw en-US.json and the old meta.json sidecar are no longer committed — the
+// extractor reads en-US.json from the game install and stamps gameVersion/build
+// into the dataset; see docs/sf-game-data-extractor.md.) A data PR must:
 //   - touch only files under a SINGLE channel directory (one channel per PR);
-//   - leave the channel bundle COMPLETE — all three files present;
-//   - ship a well-formed meta.json ({ gameVersion: string, build: positive int,
-//     channel: <dir name> }) and bump build strictly above that channel's
-//     current build on the base branch;
-//   - ship a well-formed sf-game-data.json whose collectibles[]/resourceNodes[]
-//     counts equal the actual array lengths and whose collectible counts equal the
-//     known fixed world totals;
-//   - keep meta.json and sf-game-data.json in lockstep: identical gameVersion
-//     AND build. (This is what stops a version being "bumped" without a genuine
-//     re-extraction — both files only ever move together, and the world totals are
-//     re-checked against the fixed oracle.)
+//   - ship a well-formed sf-game-data.json with a non-empty gameVersion (string)
+//     and a positive-integer build that does not regress below the channel's
+//     current build (a same-build re-extraction is allowed);
+//   - keep collectibles[]/resourceNodes[] counts equal to the actual array lengths,
+//     with collectible counts equal to the known fixed world totals;
+//   - carry a non-empty `gameData` (items/resources/recipes/buildings/schematics).
 //
 // On PRs that touch no bundled game data, this is a no-op (exit 0), so it is
 // safe to require as a status check on every pull request.
@@ -32,7 +29,7 @@ import path from 'node:path';
 
 const DATA_DIR = 'packages/sf-game-data/data';
 const CHANNELS = ['stable', 'experimental'];
-const BUNDLE_FILES = ['en-US.json', 'meta.json', 'sf-game-data.json'];
+const BUNDLE_FILES = ['sf-game-data.json'];
 
 /** Fixed public world totals — the completeness oracle for a regenerated dataset. */
 const KNOWN_COLLECTIBLE_TOTALS = {
@@ -117,75 +114,16 @@ function readJson(file) {
 }
 
 function validateBundle(channel, channelDir) {
-  // The bundle must be complete: all three files present.
+  // The bundle must be complete: every expected file present.
   for (const name of BUNDLE_FILES) {
     if (!fs.existsSync(path.join(channelDir, name))) {
       fail(`${path.join(channelDir, name)} is missing — a channel bundle needs all of: ${BUNDLE_FILES.join(', ')}.`);
     }
   }
-
-  const meta = validateMeta(channel, channelDir);
-  const world = validateWorldFile(channelDir);
-
-  // meta.json and sf-game-data.json must describe the same build.
-  if (meta && world) {
-    if (world.gameVersion !== meta.gameVersion) {
-      fail(
-        `sf-game-data.json gameVersion ('${world.gameVersion}') must match meta.json ('${meta.gameVersion}').`,
-      );
-    }
-    if (world.build !== meta.build) {
-      fail(
-        `sf-game-data.json build (${world.build}) must match meta.json (${meta.build}).`,
-      );
-    }
-  }
+  validateDataset(channel, channelDir);
 }
 
-function validateMeta(channel, channelDir) {
-  const metaPath = path.join(channelDir, 'meta.json');
-  if (!fs.existsSync(metaPath)) {
-    return undefined;
-  }
-  const meta = readJson(metaPath);
-  if (!meta) {
-    return undefined;
-  }
-
-  if (typeof meta.gameVersion !== 'string' || meta.gameVersion.trim() === '') {
-    fail('meta.gameVersion must be a non-empty string.');
-  }
-  if (!Number.isInteger(meta.build) || meta.build <= 0) {
-    fail('meta.build must be a positive integer.');
-  }
-  if (meta.channel !== channel) {
-    fail(`meta.channel ('${meta.channel}') must equal the directory name ('${channel}').`);
-  }
-
-  let baseBuild = null;
-  try {
-    baseBuild = JSON.parse(git(`git show ${baseSha}:${metaPath}`)).build;
-  } catch {
-    baseBuild = null; // channel did not exist on the base branch — first one is fine.
-  }
-  // A channel only moves forward, never back. A meta.json change is a new
-  // build/version and must advance the build; a sf-game-data.json-only
-  // re-extraction at the same build is allowed (build stays equal).
-  const metaChanged = changed.includes(metaPath);
-  if (Number.isInteger(baseBuild) && Number.isInteger(meta.build)) {
-    if (meta.build < baseBuild) {
-      fail(`build (${meta.build}) must not be lower than the current ${channel} build (${baseBuild}).`);
-    } else if (metaChanged && meta.build === baseBuild) {
-      fail(
-        `meta.json changed but build (${meta.build}) did not advance past the current ${channel} build (${baseBuild}).`,
-      );
-    }
-  }
-
-  return meta;
-}
-
-function validateWorldFile(channelDir) {
+function validateDataset(channel, channelDir) {
   const file = path.join(channelDir, 'sf-game-data.json');
   if (!fs.existsSync(file)) {
     return undefined;
@@ -194,6 +132,28 @@ function validateWorldFile(channelDir) {
   if (!data) {
     return undefined;
   }
+
+  // Version + build live in sf-game-data.json itself now (meta.json was retired).
+  if (typeof data.gameVersion !== 'string' || data.gameVersion.trim() === '') {
+    fail(`${file}: gameVersion must be a non-empty string.`);
+  }
+  if (!Number.isInteger(data.build) || data.build <= 0) {
+    fail(`${file}: build must be a positive integer.`);
+  }
+  // A channel only moves forward, never back. A same-build re-extraction (build
+  // unchanged) is allowed; a new build must not regress below the current one.
+  let baseBuild = null;
+  try {
+    baseBuild = JSON.parse(git(`git show ${baseSha}:${file}`)).build;
+  } catch {
+    baseBuild = null; // channel did not exist on the base branch — first one is fine.
+  }
+  if (Number.isInteger(baseBuild) && Number.isInteger(data.build) && data.build < baseBuild) {
+    fail(
+      `${file}: build (${data.build}) must not be lower than the current ${channel} build (${baseBuild}).`,
+    );
+  }
+
   if (!Array.isArray(data.collectibles) || !Array.isArray(data.resourceNodes)) {
     fail(`${file} must have array 'collectibles' and 'resourceNodes'.`);
     return undefined;
