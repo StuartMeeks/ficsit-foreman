@@ -1,7 +1,6 @@
 import type { Connection } from 'kuzu';
 
 import type { GameData, IngredientUnit, Item } from '@foreman/sf-game-data';
-import { humaniseClassName } from '@foreman/sf-game-data';
 import type { Resolver } from './resolve.js';
 
 /** Everything a query function needs. Implemented by `GraphDB`. */
@@ -27,8 +26,13 @@ export function unitForItem(gameData: GameData, className: string): IngredientUn
   return 'items';
 }
 
+/**
+ * The item's authored display name, falling back to the raw class name (not a
+ * humanised form — humanising is the edge's job, and this label is surfaced
+ * directly in graph tool output with no edge re-resolution).
+ */
 export function displayForItem(gameData: GameData, className: string): string {
-  return itemByClass(gameData, className)?.displayName || humaniseClassName(className);
+  return itemByClass(gameData, className)?.displayName || className;
 }
 
 /** Display name of the first machine a recipe runs in, if any. */

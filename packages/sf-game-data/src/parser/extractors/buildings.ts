@@ -7,24 +7,20 @@ import type {
   RawClass,
 } from '../types.js';
 import { getNumber, getString, isRecord } from '../util.js';
-import { humaniseClassName } from '@foreman/sf-core';
 
 /** Lookup of every item/resource by class name, for fuel-rate derivation. */
 export type ItemLookup = Map<string, Item>;
-
-/** Rounds a per-minute rate to 4dp to keep float noise out of tool output. */
-function round4(value: number): number {
-  return Math.round(value * 1e4) / 1e4;
-}
 
 function unitFor(item: Item | undefined): IngredientUnit {
   return item !== undefined && (item.form === 'liquid' || item.form === 'gas') ? 'm³' : 'items';
 }
 
-function displayFor(className: string, item: Item | undefined): string {
-  return item?.displayName !== undefined && item.displayName !== ''
-    ? item.displayName
-    : humaniseClassName(className);
+/**
+ * The item's authored display name, or `''` when the item is unknown/unnamed.
+ * Humanising the bare class name is the edge's job (presentation boundary).
+ */
+function displayFor(item: Item | undefined): string {
+  return item?.displayName ?? '';
 }
 
 /**
@@ -43,8 +39,8 @@ function fuelRatePerMinute(powerProduction: number, item: Item | undefined): num
 function flow(className: string, item: Item | undefined, perMinute: number): FuelFlow {
   return {
     itemClassName: className,
-    displayName: displayFor(className, item),
-    perMinute: round4(perMinute),
+    displayName: displayFor(item),
+    perMinute,
     unit: unitFor(item),
   };
 }
@@ -110,7 +106,7 @@ function computeFuels(
  */
 export function buildingFromRaw(raw: RawClass, shortName: string, items: ItemLookup): Building {
   const className = getString(raw, 'ClassName');
-  const displayName = getString(raw, 'mDisplayName') || humaniseClassName(className);
+  const displayName = getString(raw, 'mDisplayName');
   const building: Building = {
     className,
     displayName,
@@ -131,11 +127,11 @@ export function buildingFromRaw(raw: RawClass, shortName: string, items: ItemLoo
   // only on the relevant classes; absent fields stay undefined.
   const conveyorSpeed = getNumber(raw, 'mSpeed', 0); // belts: units are 2× items/min
   if (conveyorSpeed > 0) {
-    building.conveyorSpeedPerMin = round4(conveyorSpeed / 2);
+    building.conveyorSpeedPerMin = conveyorSpeed / 2;
   }
   const flowLimit = getNumber(raw, 'mFlowLimit', 0); // pipes: m³/s
   if (flowLimit > 0) {
-    building.pipeFlowPerMin = round4(flowLimit * 60);
+    building.pipeFlowPerMin = flowLimit * 60;
   }
   const itemsPerCycle = getNumber(raw, 'mItemsPerCycle', 0); // miners / extractors
   const cycleTime = getNumber(raw, 'mExtractCycleTime', 0);
@@ -143,7 +139,7 @@ export function buildingFromRaw(raw: RawClass, shortName: string, items: ItemLoo
     const perMin = (itemsPerCycle * 60) / cycleTime;
     // Fluid extractors store items in 1000-per-m³ units (water extractor 2000 → 120 m³/min).
     const isLiquid = getString(raw, 'mAllowedResourceForms').includes('RF_LIQUID');
-    building.extractionRatePerMin = round4(isLiquid ? perMin / 1000 : perMin);
+    building.extractionRatePerMin = isLiquid ? perMin / 1000 : perMin;
   }
 
   if (shortName.includes('Generator')) {

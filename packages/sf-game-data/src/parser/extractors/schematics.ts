@@ -1,6 +1,6 @@
 import type { Ingredient, ItemForm, RawClass, Schematic, SchematicType } from '../types.js';
 import { getNumber, getString, isRecord } from '../util.js';
-import { extractClassNames, humaniseClassName } from '@foreman/sf-core';
+import { extractClassNames } from '@foreman/sf-core';
 import { parseItemAmountList } from '../normalise/ingredients.js';
 import { toDisplayAmount } from '../normalise/fluids.js';
 
@@ -34,7 +34,7 @@ function mapCost(raw: string, lookups: SchematicLookups): Ingredient[] {
     const { amount, unit } = toDisplayAmount(item.amount, form);
     return {
       itemClassName: item.className,
-      displayName: lookups.itemDisplay.get(item.className) ?? humaniseClassName(item.className),
+      displayName: lookups.itemDisplay.get(item.className) ?? '',
       amount,
       perMinute: 0,
       unit,
@@ -89,7 +89,7 @@ export function extractSchematic(raw: RawClass, lookups: SchematicLookups): Sche
 
   return {
     className,
-    displayName: getString(raw, 'mDisplayName') || humaniseClassName(className),
+    displayName: getString(raw, 'mDisplayName'),
     type: mapType(getString(raw, 'mType')),
     tier: getNumber(raw, 'mTechTier', 0),
     cost: mapCost(getString(raw, 'mCost'), lookups),
