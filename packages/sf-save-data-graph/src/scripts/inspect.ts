@@ -10,7 +10,7 @@
 import { homedir } from 'node:os';
 import path from 'node:path';
 
-import { parseSaveFile } from '@foreman/sf-save-data';
+import { normaliseSave, parseSaveFile } from '@foreman/sf-save-data';
 
 import { buildSaveGraph } from '../index.js';
 
@@ -22,8 +22,14 @@ function main(): void {
   const raw = parseSaveFile(savePath, path.basename(savePath));
   const parseMs = Number(process.hrtime.bigint() - parseStart) / 1e6;
 
+  const normaliseStart = process.hrtime.bigint();
+  const { state } = normaliseSave(raw, new Date().toISOString());
+  const normaliseMs = Number(process.hrtime.bigint() - normaliseStart) / 1e6;
+
+  // The graph is now a pure projection of state.topology, so the build itself is
+  // trivial — the connectivity work happens in normaliseSave above.
   const buildStart = process.hrtime.bigint();
-  const graph = buildSaveGraph(raw);
+  const graph = buildSaveGraph(state);
   const buildMs = Number(process.hrtime.bigint() - buildStart) / 1e6;
 
   const stats = graph.stats();
@@ -32,6 +38,7 @@ function main(): void {
       {
         savePath,
         parseMs: Math.round(parseMs),
+        normaliseMs: Math.round(normaliseMs * 10) / 10,
         buildMs: Math.round(buildMs * 10) / 10,
         stats,
         warnings: graph.warnings,
