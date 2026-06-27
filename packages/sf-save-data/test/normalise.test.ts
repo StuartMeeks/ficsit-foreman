@@ -43,6 +43,14 @@ describe('storage + depot', () => {
     expect(coal?.quantity).toBe(200);
   });
 
+  it('carries each container instance name (the join key to topology/graph)', () => {
+    const names = state.storage.containers.map((c) => c.instanceName).sort();
+    expect(names).toEqual([
+      'Persistent_Level:PersistentLevel.StoreFar',
+      'Persistent_Level:PersistentLevel.StoreNear',
+    ]);
+  });
+
   it('decodes the dimensional depot (ItemAmount shape)', () => {
     expect(state.storage.dimensionalDepot).toHaveLength(1);
     expect(state.storage.dimensionalDepot[0]).toMatchObject({
