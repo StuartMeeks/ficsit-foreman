@@ -40,16 +40,18 @@ npm run build -w @foreman/sf-mcp
 
 ## Pointing it at game data
 
-The server resolves the docs file in this priority order:
+The server loads a pre-built merged dataset (`sf-game-data.json`) in this priority
+order — it no longer parses a raw `en-US.json` at runtime:
 
 | Priority | Source | Meaning |
 |---|---|---|
-| 1 | `SATISFACTORY_DOCS_PATH` | Full path directly to `en-US.json`. Highest priority. |
-| 2 | `SATISFACTORY_GAME_DIR` | Game install root; the server appends `CommunityResources/Docs/en-US.json` (falling back to the pre-1.0 `Docs.json`). |
-| 3 | Bundled channel | Committed game data under `packages/sf-game-data/data/<channel>/`, selected by `SATISFACTORY_GAME_CHANNEL` (default `stable`). Supplied via PRs — see [CONTRIBUTING.md](../../CONTRIBUTING.md). |
+| 1 | `SF_GAME_DATA_PATH` | Full path directly to a merged `sf-game-data.json`. Highest priority. |
+| 2 | Bundled channel | Committed game data under `packages/sf-game-data/data/<channel>/`, selected by `SATISFACTORY_GAME_CHANNEL` (default `stable`). Supplied via PRs — see [CONTRIBUTING.md](../../CONTRIBUTING.md). |
 
 If none resolve, the game-data tools start with an empty dataset and log a warning
-(they never crash). A leading `~` is expanded to your home directory.
+(they never crash). A leading `~` is expanded to your home directory. To build a
+dataset for a custom game build, run the offline extractor — see
+[`../sf-game-data/extract`](../sf-game-data/extract).
 
 ## Pointing it at a save
 
@@ -137,7 +139,7 @@ config (`claude_desktop_config.json`):
       "command": "node",
       "args": ["/absolute/path/to/foreman/packages/sf-mcp/dist/index.js"],
       "env": {
-        "SATISFACTORY_DOCS_PATH": "/absolute/path/to/en-US.json",
+        "SATISFACTORY_GAME_CHANNEL": "stable",
         "SAVE_FILE_PATH": "/absolute/path/to/MySave.sav"
       }
     }

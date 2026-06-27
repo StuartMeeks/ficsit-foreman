@@ -18,7 +18,7 @@ in one Docker Compose project.
 
 | Package | Status | Purpose |
 |---|---|---|
-| [`packages/sf-mcp`](./packages/sf-mcp) | **Built** | The unified MCP server: game-data graph tools (parses `en-US.json` into an embedded Kùzu graph) **and** live save-game tools (save-file parser exposing pioneer location, inventory, unlocks, milestones, remaining collectibles) from one endpoint. Works standalone with Claude Desktop. |
+| [`packages/sf-mcp`](./packages/sf-mcp) | **Built** | The unified MCP server: game-data graph tools (loads the bundled merged dataset into an embedded Kùzu graph) **and** live save-game tools (save-file parser exposing pioneer location, inventory, unlocks, milestones, remaining collectibles) from one endpoint. Works standalone with Claude Desktop. |
 | [`packages/ff-server`](./packages/ff-server) | **Built** | Express backend: LLM chat proxy (Anthropic or OpenAI-compatible) with the foreman persona, MCP tool use, and stateful work-order persistence (see [`docs/work-orders.md`](./docs/work-orders.md)). |
 | [`packages/ff-client`](./packages/ff-client) | **In progress** | React UI (Phase 3): foreman chat (streaming), active work-order panel, history, and onboarding/settings. Served on port `8725`. |
 
@@ -95,20 +95,14 @@ docker run -d --name foreman-sf-mcp -p 8723:8723 ghcr.io/stuartmeeks/foreman-sf-
 ## Using a specific game version (optional)
 
 The image bundles the latest **stable** data. To use something else, set these in
-`compose.yaml` (`environment:` / `volumes:`) or via `docker run -e` / `-v`:
+`compose.yaml` (`environment:`) or via `docker run -e`:
 
 - **Experimental channel:** `SATISFACTORY_GAME_CHANNEL=experimental`.
-- **Your exact install:** mount it read-only and point the server at it —
-  `-v "C:/Program Files (x86)/Steam/steamapps/common/Satisfactory:/game:ro"` plus
-  `-e SATISFACTORY_GAME_DIR=/game`.
-
-Common install roots:
-
-| Platform / store | Path |
-|---|---|
-| Steam (Windows) | `C:/Program Files (x86)/Steam/steamapps/common/Satisfactory` |
-| Epic (Windows) | `C:/Program Files/Epic Games/SatisfactoryExperimental` |
-| Steam (Linux) | `~/.steam/steam/steamapps/common/Satisfactory` |
+- **A newer or custom build:** the server loads a **pre-built merged dataset**, not a
+  raw game install. Generate a `sf-game-data.json` with the offline extractor (it
+  reads `en-US.json` + the cooked assets from your install — see
+  [`packages/sf-game-data/extract`](./packages/sf-game-data/extract)) and point the
+  server at it: `-e SF_GAME_DATA_PATH=/data/sf-game-data.json` (mount the file in).
 
 ---
 
@@ -145,8 +139,7 @@ All optional — by default the server serves the bundled **stable** game data.
 | Variable | Description |
 |---|---|
 | `SATISFACTORY_GAME_CHANNEL` | Which bundled channel to use: `stable` (default) or `experimental`. |
-| `SATISFACTORY_DOCS_PATH` | Full path to your own `en-US.json`. Highest priority. |
-| `SATISFACTORY_GAME_DIR` | Your Satisfactory install root; the docs path is derived from it. |
+| `SF_GAME_DATA_PATH` | Full path to your own merged `sf-game-data.json`, overriding the bundled data. |
 | `MCP_TRANSPORT` | `stdio` (default, for Claude Desktop) or `http` to listen on a network port. |
 | `MCP_HTTP_HOST` | HTTP bind host when `MCP_TRANSPORT=http` (default `0.0.0.0`). |
 | `MCP_HTTP_PORT` | HTTP port when `MCP_TRANSPORT=http` (default `8723`). |
@@ -188,8 +181,8 @@ LLM_MODEL=anthropic/claude-sonnet-4.5   # or any model OpenRouter offers
 Tool-calling quality varies by model — the foreman leans on tools heavily, so a
 strong frontier model gives the best results.
 
-Resolution order for game data: `SATISFACTORY_DOCS_PATH` → `SATISFACTORY_GAME_DIR` →
-bundled channel (`SATISFACTORY_GAME_CHANNEL`) → empty dataset with a warning. See
+Resolution order for game data: `SF_GAME_DATA_PATH` → bundled channel
+(`SATISFACTORY_GAME_CHANNEL`) → empty dataset with a warning. See
 [`.env.example`](./.env.example) for the complete list.
 
 ---
@@ -197,7 +190,7 @@ bundled channel (`SATISFACTORY_GAME_CHANNEL`) → empty dataset with a warning. 
 ## Contributing
 
 Contributions are welcome — see [`CONTRIBUTING.md`](./CONTRIBUTING.md) for the workflow
-and conventions, including how to supply bundled `en-US.json` game-data updates. Planned
+and conventions, including how to supply bundled `sf-game-data.json` game-data updates. Planned
 work and open design questions live in the [issue tracker](https://github.com/StuartMeeks/ficsit-foreman/issues);
 the parser and graph design are documented in [`PARSER.md`](./packages/sf-game-data/PARSER.md).
 

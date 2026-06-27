@@ -5,9 +5,9 @@
 # Serves BOTH the Satisfactory game-data graph tools and the live save-game tools
 # from one HTTP endpoint on :8723, with the bundled stable game data baked in, so
 # `docker run -p 8723:8723 <image>` works out of the box. Override game data with
-# SATISFACTORY_GAME_CHANNEL, or mount an install and set SATISFACTORY_DOCS_PATH /
-# SATISFACTORY_GAME_DIR. Point at a save with SAVE_FILE_PATH (legacy/dev) or mount
-# the shared saves volume at SAVE_DATA_DIR for per-playthrough saves.
+# SATISFACTORY_GAME_CHANNEL, or point SF_GAME_DATA_PATH at a custom merged
+# sf-game-data.json. Point at a save with SAVE_FILE_PATH (legacy/dev) or mount the
+# shared saves volume at SAVE_DATA_DIR for per-playthrough saves.
 #
 # Builds the workspace lib chain sf-core → sf-game-data (+ bundled data) →
 # sf-game-data-graph (carries the native kuzu addon) → sf-save-data (the .sav

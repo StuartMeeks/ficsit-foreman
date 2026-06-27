@@ -64,6 +64,9 @@ label and a milestone.
 ## Dev environment note
 
 Development happens on a Proxmox VM over SSH. The Satisfactory game files are **not**
-accessible from the VM. The game data file (`en-US.json`) is copied manually from the
-Windows host and placed at `game-data/en-US.json` (gitignored); point
-`SATISFACTORY_DOCS_PATH` at it. Do not assume a game directory is mounted at runtime.
+accessible from the VM. A copy of `en-US.json` may be placed at `game-data/en-US.json`
+(gitignored) for the **offline extractor** to parse (`--enus`); it is **not** read at
+runtime and is never committed. The VM and the running server load the bundled merged
+`sf-game-data.json` (or `SF_GAME_DATA_PATH`). The C# extractor itself only builds/runs
+on the Windows host (CUE4Parse + a game install) — do not assume a game directory is
+mounted at runtime.
