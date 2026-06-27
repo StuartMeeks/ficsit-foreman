@@ -13,8 +13,11 @@
  */
 
 // Graph builder + query facade.
-export { buildSaveGraph, ownerOf } from './build.js';
+export { buildSaveGraph } from './build.js';
 export { SaveGraph } from './graph.js';
+// `ownerOf` now lives in the parser package (it produces `SaveState.topology`);
+// re-exported here so existing import sites keep working.
+export { ownerOf } from '@foreman/sf-save-data';
 
 // Model + query-result shapes.
 export * from './types.js';
