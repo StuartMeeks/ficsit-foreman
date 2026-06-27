@@ -13,6 +13,7 @@ import {
   nearbyFromWorld,
   nearbyParts,
   playerSummary,
+  powerView,
   productionView,
   storageView,
   unlockedRecipes,
@@ -214,6 +215,20 @@ export function registerSaveTools(server: McpServer, registry: SaveStoreRegistry
     async ({ item, savePath }): Promise<ToolResult> => {
       const store = registry.resolve(savePath);
       return ok(store, { production: productionView(store.getState(), gameData, world, { item }) });
+    },
+  );
+
+  server.registerTool(
+    'get_power',
+    {
+      title: 'Get power grid status',
+      description:
+        "The save's power grids: for each power circuit, its generation capacity vs estimated consumption (MW), the balance (headroom), and a status (ok / tight / overloaded / unknown), plus factory-wide totals and a rollup of generators by type (count, combined output, fuel loaded). Circuits are the game's pre-grouped grids. Capacity is each generator's nameplate output × clock (LINEAR in clock); consumption is an ESTIMATE (production machines scaled by clock/somersloop, other powered buildings at 100%). Geothermal output is variable and excluded from the numeric capacity (the circuit is flagged hasVariableGenerators — real capacity is higher); fuel supply is not checked. Answers \"is my power OK / which grid is overloaded?\".",
+      inputSchema: { savePath: savePathSchema },
+    },
+    async ({ savePath }): Promise<ToolResult> => {
+      const store = registry.resolve(savePath);
+      return ok(store, { power: powerView(store.getState(), store.getGraph(), gameData) });
     },
   );
 
