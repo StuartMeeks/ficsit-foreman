@@ -13,7 +13,7 @@
     "npm": ">=11"
   },
   "scripts": {
-    "build": "npm run build -w @foreman/sf-core && npm run build -w @foreman/sf-present && npm run build -w @foreman/sf-game-data && npm run build -w @foreman/sf-game-data-graph && npm run build -w @foreman/sf-save-data && npm run build --workspaces --if-present",
+    "build": "npm run build -w @foreman/sf-core && npm run build -w @foreman/sf-present && npm run build -w @foreman/sf-game-data && npm run build -w @foreman/sf-game-data-graph && npm run build -w @foreman/sf-save-data && npm run build -w @foreman/sf-save-data-graph && npm run build --workspaces --if-present",
     "test": "npm run test --workspaces --if-present",
     "lint": "npm run lint --workspaces --if-present",
     "dev": "npm run dev -w @foreman/sf-mcp",
