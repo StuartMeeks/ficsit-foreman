@@ -112,7 +112,7 @@ export interface ResourceNode {
 }
 
 export interface WorldLocations {
-  /** Game version the dataset was extracted from (matches the docs `meta.json`). */
+  /** Game version the dataset was extracted from (stamped into the dataset). */
   gameVersion: string;
   build: number;
   /** Provenance string for the dataset. */

@@ -1,15 +1,17 @@
 /**
  * @foreman/sf-game-data — the shared Satisfactory game-data foundation.
  *
- * Holds the hand-written `en-US.json` parser, the clean `GameData` types, the
- * docs-path/channel resolution, and (bundled under `data/`) the game data
- * itself. The unified `@foreman/sf-mcp` server consumes this package so
- * item/recipe class names and display names resolve identically across its tool
- * sets. The Kùzu graph layer lives in `@foreman/sf-game-data-graph`, not here —
- * this package's only runtime dependency is the shared kernel `@foreman/sf-core`.
+ * Holds the clean `GameData` types and the loaders for the merged
+ * `sf-game-data.json` (game data + world locations), plus that bundled data under
+ * `data/`. Game data is produced offline by the C# extractor
+ * (`sf-game-data-extractor`); the hand-written `en-US.json` parser was retired in
+ * #162. The unified `@foreman/sf-mcp` server consumes this package so item/recipe
+ * class names and display names resolve identically across its tool sets. The Kùzu
+ * graph layer lives in `@foreman/sf-game-data-graph`, not here — this package's
+ * only runtime dependency is the shared kernel `@foreman/sf-core`.
  */
 
-// Parser types.
+// GameData types.
 export type {
   GameData,
   Item,
@@ -24,35 +26,20 @@ export type {
   FuelFlow,
   GeneratorFuel,
   VariablePower,
-  ParseResult,
-  RawClass,
 } from './parser/types.js';
 
-// Parser entry points.
-export { parseGameData, parseDocsFile, emptyGameData } from './parser/index.js';
-
-// Reader (UTF-16 BOM decode + docs-file read).
-export { readDocsFile } from './parser/reader.js';
+// Empty-GameData fallback. The hand-written en-US.json parser was retired in #162;
+// game data is now produced offline by the C# extractor and loaded from the merged
+// sf-game-data.json via loadGameData / loadDataset.
+export { emptyGameData } from './parser/index.js';
 
 // Class-name resolution helper (re-exported from the shared kernel). Humanising a
 // class name is presentation, not identity — it lives in @foreman/sf-present.
 export { extractClassNames } from '@foreman/sf-core';
 
-// Fluid amount/unit helpers.
-export { isFluid, toDisplayAmount, perMinute } from './parser/normalise/fluids.js';
-
-// NativeClass → category mapping.
-export { categoryFor, shortNameFromNativeClass, type Category } from './parser/classMap.js';
-
-// Docs-path / channel resolution + bundled data location.
-export type { GameChannel, DocsPathResolution } from './config.js';
-export {
-  GAME_CHANNELS,
-  resolveDocsPath,
-  bundledDataDir,
-  channelDocsPath,
-  expandHome,
-} from './config.js';
+// Channel + bundled-data location.
+export type { GameChannel } from './config.js';
+export { GAME_CHANNELS, bundledDataDir, expandHome } from './config.js';
 
 // World-location dataset (collectibles + resource nodes) + loader.
 export type {

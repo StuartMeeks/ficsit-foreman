@@ -189,10 +189,9 @@ describe('bundled world-locations dataset', () => {
     expect(tally).toEqual(world.counts);
   });
 
-  it('matches the stable channel game version', () => {
-    const meta: { gameVersion: string } = JSON.parse(
-      fs.readFileSync(path.join(bundledDataDir(), 'stable', 'meta.json'), 'utf8'),
-    );
-    expect(world.gameVersion).toBe(meta.gameVersion);
+  it('surfaces a real gameVersion and build from the bundled dataset', () => {
+    // gameVersion/build now live in sf-game-data.json itself (meta.json retired).
+    expect(world.gameVersion).toMatch(/^\d+\.\d+\.\d+/);
+    expect(world.build).toBeGreaterThan(0);
   });
 });
