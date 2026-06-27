@@ -72,18 +72,27 @@ COPY packages/sf-present/package.json ./packages/sf-present/package.json
 COPY packages/sf-game-data/package.json ./packages/sf-game-data/package.json
 COPY packages/sf-game-data-graph/package.json ./packages/sf-game-data-graph/package.json
 COPY packages/sf-save-data/package.json ./packages/sf-save-data/package.json
+COPY packages/sf-save-data-graph/package.json ./packages/sf-save-data-graph/package.json
 COPY packages/sf-mcp/package.json ./packages/sf-mcp/package.json
 COPY --from=builder /app/node_modules ./node_modules
 # Compiled output of the lib chain (the workspace symlinks resolve to these paths):
 # sf-core ← sf-present (presentation helpers); sf-game-data (+ bundled data) ←
-# sf-game-data-graph (carries kuzu); sf-save-data (the .sav parser).
+# sf-game-data-graph (carries kuzu); sf-save-data (the .sav parser) ←
+# sf-save-data-graph (the save connection graph).
 COPY --from=builder /app/packages/sf-core/dist ./packages/sf-core/dist
 COPY --from=builder /app/packages/sf-present/dist ./packages/sf-present/dist
 COPY --from=builder /app/packages/sf-game-data/dist ./packages/sf-game-data/dist
 COPY --from=builder /app/packages/sf-game-data/data ./packages/sf-game-data/data
 COPY --from=builder /app/packages/sf-game-data-graph/dist ./packages/sf-game-data-graph/dist
 COPY --from=builder /app/packages/sf-save-data/dist ./packages/sf-save-data/dist
+COPY --from=builder /app/packages/sf-save-data-graph/dist ./packages/sf-save-data-graph/dist
 COPY --from=builder /app/packages/sf-mcp/dist ./packages/sf-mcp/dist
+
+# Fail the build — not the deploy — if a workspace runtime dep didn't make it into
+# this stage. The builder-stage resolve check can't catch a runtime-stage omission
+# (which is exactly how the sf-save-data-graph copy was missed). Runs here so every
+# @foreman/* package sf-mcp imports must resolve in the final image.
+RUN node -e "['@foreman/sf-game-data','@foreman/sf-game-data-graph','@foreman/sf-present','@foreman/sf-save-data','@foreman/sf-save-data-graph'].forEach((p) => require.resolve(p))"
 
 # Shared saves volume (SAVE_DATA_DIR=/data/saves, read here, written by the
 # server). This service starts first (the server depends on it), so it is the
