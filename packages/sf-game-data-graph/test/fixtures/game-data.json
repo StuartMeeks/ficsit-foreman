@@ -1,0 +1,540 @@
+{
+  "version": "test-1.0",
+  "parsedAt": "2026-06-27T12:56:40.961Z",
+  "items": {
+    "Desc_IronIngot_C": {
+      "className": "Desc_IronIngot_C",
+      "displayName": "Iron Ingot",
+      "description": "",
+      "stackSize": 100,
+      "form": "solid",
+      "sinkPoints": 2,
+      "energyValue": 0,
+      "isResource": false
+    },
+    "Desc_IronPlate_C": {
+      "className": "Desc_IronPlate_C",
+      "displayName": "Iron Plate",
+      "description": "",
+      "stackSize": 200,
+      "form": "solid",
+      "sinkPoints": 6,
+      "energyValue": 0,
+      "isResource": false
+    },
+    "Desc_IronRod_C": {
+      "className": "Desc_IronRod_C",
+      "displayName": "Iron Rod",
+      "description": "",
+      "stackSize": 200,
+      "form": "solid",
+      "sinkPoints": 4,
+      "energyValue": 0,
+      "isResource": false
+    },
+    "Desc_IronScrew_C": {
+      "className": "Desc_IronScrew_C",
+      "displayName": "Screw",
+      "description": "",
+      "stackSize": 100,
+      "form": "solid",
+      "sinkPoints": 2,
+      "energyValue": 0,
+      "isResource": false
+    },
+    "Desc_IronPlateReinforced_C": {
+      "className": "Desc_IronPlateReinforced_C",
+      "displayName": "Reinforced Iron Plate",
+      "description": "",
+      "stackSize": 100,
+      "form": "solid",
+      "sinkPoints": 120,
+      "energyValue": 0,
+      "isResource": false
+    },
+    "Desc_Plastic_C": {
+      "className": "Desc_Plastic_C",
+      "displayName": "Plastic",
+      "description": "",
+      "stackSize": 200,
+      "form": "solid",
+      "sinkPoints": 75,
+      "energyValue": 0,
+      "isResource": false
+    },
+    "Desc_HeavyOilResidue_C": {
+      "className": "Desc_HeavyOilResidue_C",
+      "displayName": "Heavy Oil Residue",
+      "description": "",
+      "stackSize": 0,
+      "form": "liquid",
+      "sinkPoints": 0,
+      "energyValue": 0,
+      "isResource": false
+    }
+  },
+  "resources": {
+    "Desc_OreIron_C": {
+      "className": "Desc_OreIron_C",
+      "displayName": "Iron Ore",
+      "description": "Ore.",
+      "stackSize": 500,
+      "form": "solid",
+      "sinkPoints": 1,
+      "energyValue": 0,
+      "isResource": true
+    },
+    "Desc_Water_C": {
+      "className": "Desc_Water_C",
+      "displayName": "Water",
+      "description": "Wet.",
+      "stackSize": 0,
+      "form": "liquid",
+      "sinkPoints": 0,
+      "energyValue": 0,
+      "isResource": true
+    },
+    "Desc_LiquidOil_C": {
+      "className": "Desc_LiquidOil_C",
+      "displayName": "Crude Oil",
+      "description": "Oily.",
+      "stackSize": 0,
+      "form": "liquid",
+      "sinkPoints": 0,
+      "energyValue": 0,
+      "isResource": true
+    }
+  },
+  "recipes": {
+    "Recipe_IngotIron_C": {
+      "className": "Recipe_IngotIron_C",
+      "displayName": "Iron Ingot",
+      "isAlternate": false,
+      "craftTime": 2,
+      "ingredients": [
+        {
+          "itemClassName": "Desc_OreIron_C",
+          "displayName": "Iron Ore",
+          "amount": 1,
+          "perMinute": 30,
+          "unit": "items"
+        }
+      ],
+      "products": [
+        {
+          "itemClassName": "Desc_IronIngot_C",
+          "displayName": "Iron Ingot",
+          "amount": 1,
+          "perMinute": 30,
+          "unit": "items"
+        }
+      ],
+      "producedIn": [
+        "Smelter"
+      ],
+      "producedInClasses": [
+        "Build_SmelterMk1_C"
+      ],
+      "inBuildGun": false,
+      "inWorkshop": false
+    },
+    "Recipe_IronPlate_C": {
+      "className": "Recipe_IronPlate_C",
+      "displayName": "Iron Plate",
+      "isAlternate": false,
+      "craftTime": 6,
+      "ingredients": [
+        {
+          "itemClassName": "Desc_IronIngot_C",
+          "displayName": "Iron Ingot",
+          "amount": 3,
+          "perMinute": 30,
+          "unit": "items"
+        }
+      ],
+      "products": [
+        {
+          "itemClassName": "Desc_IronPlate_C",
+          "displayName": "Iron Plate",
+          "amount": 2,
+          "perMinute": 20,
+          "unit": "items"
+        }
+      ],
+      "producedIn": [
+        "Constructor"
+      ],
+      "producedInClasses": [
+        "Build_ConstructorMk1_C"
+      ],
+      "inBuildGun": false,
+      "inWorkshop": false
+    },
+    "Recipe_IronRod_C": {
+      "className": "Recipe_IronRod_C",
+      "displayName": "Iron Rod",
+      "isAlternate": false,
+      "craftTime": 4,
+      "ingredients": [
+        {
+          "itemClassName": "Desc_IronIngot_C",
+          "displayName": "Iron Ingot",
+          "amount": 1,
+          "perMinute": 15,
+          "unit": "items"
+        }
+      ],
+      "products": [
+        {
+          "itemClassName": "Desc_IronRod_C",
+          "displayName": "Iron Rod",
+          "amount": 1,
+          "perMinute": 15,
+          "unit": "items"
+        }
+      ],
+      "producedIn": [
+        "Constructor"
+      ],
+      "producedInClasses": [
+        "Build_ConstructorMk1_C"
+      ],
+      "inBuildGun": false,
+      "inWorkshop": false
+    },
+    "Recipe_Screw_C": {
+      "className": "Recipe_Screw_C",
+      "displayName": "Screw",
+      "isAlternate": false,
+      "craftTime": 6,
+      "ingredients": [
+        {
+          "itemClassName": "Desc_IronRod_C",
+          "displayName": "Iron Rod",
+          "amount": 1,
+          "perMinute": 10,
+          "unit": "items"
+        }
+      ],
+      "products": [
+        {
+          "itemClassName": "Desc_IronScrew_C",
+          "displayName": "Screw",
+          "amount": 4,
+          "perMinute": 40,
+          "unit": "items"
+        }
+      ],
+      "producedIn": [
+        "Constructor"
+      ],
+      "producedInClasses": [
+        "Build_ConstructorMk1_C"
+      ],
+      "inBuildGun": false,
+      "inWorkshop": false
+    },
+    "Recipe_IronPlateReinforced_C": {
+      "className": "Recipe_IronPlateReinforced_C",
+      "displayName": "Reinforced Iron Plate",
+      "isAlternate": false,
+      "craftTime": 12,
+      "ingredients": [
+        {
+          "itemClassName": "Desc_IronPlate_C",
+          "displayName": "Iron Plate",
+          "amount": 6,
+          "perMinute": 30,
+          "unit": "items"
+        },
+        {
+          "itemClassName": "Desc_IronScrew_C",
+          "displayName": "Screw",
+          "amount": 12,
+          "perMinute": 60,
+          "unit": "items"
+        }
+      ],
+      "products": [
+        {
+          "itemClassName": "Desc_IronPlateReinforced_C",
+          "displayName": "Reinforced Iron Plate",
+          "amount": 1,
+          "perMinute": 5,
+          "unit": "items"
+        }
+      ],
+      "producedIn": [
+        "Assembler"
+      ],
+      "producedInClasses": [
+        "Build_AssemblerMk1_C"
+      ],
+      "inBuildGun": false,
+      "inWorkshop": false
+    },
+    "Recipe_Alternate_BoltedIronPlate_C": {
+      "className": "Recipe_Alternate_BoltedIronPlate_C",
+      "displayName": "Alternate: Bolted Iron Plate",
+      "isAlternate": true,
+      "craftTime": 12,
+      "ingredients": [
+        {
+          "itemClassName": "Desc_IronPlate_C",
+          "displayName": "Iron Plate",
+          "amount": 18,
+          "perMinute": 90,
+          "unit": "items"
+        },
+        {
+          "itemClassName": "Desc_IronScrew_C",
+          "displayName": "Screw",
+          "amount": 50,
+          "perMinute": 250,
+          "unit": "items"
+        }
+      ],
+      "products": [
+        {
+          "itemClassName": "Desc_IronPlateReinforced_C",
+          "displayName": "Reinforced Iron Plate",
+          "amount": 3,
+          "perMinute": 15,
+          "unit": "items"
+        }
+      ],
+      "producedIn": [
+        "Assembler"
+      ],
+      "producedInClasses": [
+        "Build_AssemblerMk1_C"
+      ],
+      "inBuildGun": false,
+      "inWorkshop": false
+    },
+    "Recipe_Plastic_C": {
+      "className": "Recipe_Plastic_C",
+      "displayName": "Plastic",
+      "isAlternate": false,
+      "craftTime": 6,
+      "ingredients": [
+        {
+          "itemClassName": "Desc_LiquidOil_C",
+          "displayName": "Crude Oil",
+          "amount": 3,
+          "perMinute": 30,
+          "unit": "m³"
+        }
+      ],
+      "products": [
+        {
+          "itemClassName": "Desc_Plastic_C",
+          "displayName": "Plastic",
+          "amount": 2,
+          "perMinute": 20,
+          "unit": "items"
+        },
+        {
+          "itemClassName": "Desc_HeavyOilResidue_C",
+          "displayName": "Heavy Oil Residue",
+          "amount": 1,
+          "perMinute": 10,
+          "unit": "m³"
+        }
+      ],
+      "producedIn": [
+        "Refinery"
+      ],
+      "producedInClasses": [
+        "Build_OilRefinery_C"
+      ],
+      "inBuildGun": false,
+      "inWorkshop": false
+    },
+    "Recipe_PlutoniumPellet_C": {
+      "className": "Recipe_PlutoniumPellet_C",
+      "displayName": "Plutonium Pellet",
+      "isAlternate": false,
+      "craftTime": 60,
+      "ingredients": [
+        {
+          "itemClassName": "Desc_IronIngot_C",
+          "displayName": "Iron Ingot",
+          "amount": 1,
+          "perMinute": 1,
+          "unit": "items"
+        }
+      ],
+      "products": [
+        {
+          "itemClassName": "Desc_IronRod_C",
+          "displayName": "Iron Rod",
+          "amount": 1,
+          "perMinute": 1,
+          "unit": "items"
+        }
+      ],
+      "producedIn": [
+        "Particle Accelerator"
+      ],
+      "producedInClasses": [
+        "Build_HadronCollider_C"
+      ],
+      "inBuildGun": false,
+      "inWorkshop": false,
+      "variablePower": {
+        "min": 250,
+        "max": 750
+      }
+    },
+    "Recipe_Broken_C": {
+      "className": "Recipe_Broken_C",
+      "displayName": "Broken Recipe",
+      "isAlternate": false,
+      "craftTime": 0,
+      "ingredients": [],
+      "products": [],
+      "producedIn": [],
+      "producedInClasses": [],
+      "inBuildGun": false,
+      "inWorkshop": false
+    }
+  },
+  "buildings": {
+    "Build_SmelterMk1_C": {
+      "className": "Build_SmelterMk1_C",
+      "displayName": "Smelter",
+      "description": "",
+      "category": "Manufacturer",
+      "powerConsumption": 4,
+      "buildCost": [
+        {
+          "itemClassName": "Desc_IronRod_C",
+          "amount": 5
+        }
+      ]
+    },
+    "Build_ConstructorMk1_C": {
+      "className": "Build_ConstructorMk1_C",
+      "displayName": "Constructor",
+      "description": "",
+      "category": "Manufacturer",
+      "powerConsumption": 4,
+      "buildCost": [
+        {
+          "itemClassName": "Desc_IronPlateReinforced_C",
+          "amount": 2
+        }
+      ]
+    },
+    "Build_AssemblerMk1_C": {
+      "className": "Build_AssemblerMk1_C",
+      "displayName": "Assembler",
+      "description": "",
+      "category": "Manufacturer",
+      "powerConsumption": 15,
+      "buildCost": [
+        {
+          "itemClassName": "Desc_IronPlate_C",
+          "amount": 8
+        }
+      ]
+    },
+    "Build_OilRefinery_C": {
+      "className": "Build_OilRefinery_C",
+      "displayName": "Refinery",
+      "description": "",
+      "category": "Manufacturer",
+      "powerConsumption": 30,
+      "buildCost": []
+    },
+    "Build_HadronCollider_C": {
+      "className": "Build_HadronCollider_C",
+      "displayName": "Particle Accelerator",
+      "description": "",
+      "category": "Manufacturer",
+      "powerConsumption": 0,
+      "buildCost": []
+    },
+    "Build_ConveyorBeltMk1_C": {
+      "className": "Build_ConveyorBeltMk1_C",
+      "displayName": "Conveyor Belt Mk.1",
+      "description": "",
+      "category": "ConveyorBelt",
+      "powerConsumption": 0,
+      "buildCost": [
+        {
+          "itemClassName": "Desc_IronPlate_C",
+          "amount": 1
+        }
+      ],
+      "conveyorSpeedPerMin": 60
+    },
+    "Build_MinerMk1_C": {
+      "className": "Build_MinerMk1_C",
+      "displayName": "Miner Mk.1",
+      "description": "",
+      "category": "ResourceExtractor",
+      "powerConsumption": 0,
+      "buildCost": [
+        {
+          "itemClassName": "Desc_IronPlate_C",
+          "amount": 10
+        }
+      ],
+      "extractionRatePerMin": 60
+    },
+    "Build_ConveyorAttachmentSplitter_C": {
+      "className": "Build_ConveyorAttachmentSplitter_C",
+      "displayName": "Conveyor Splitter",
+      "description": "",
+      "category": "ConveyorAttachment",
+      "powerConsumption": 0,
+      "buildCost": [
+        {
+          "itemClassName": "Desc_IronPlate_C",
+          "amount": 2
+        }
+      ]
+    },
+    "Build_ConveyorAttachmentMerger_C": {
+      "className": "Build_ConveyorAttachmentMerger_C",
+      "displayName": "Conveyor Merger",
+      "description": "",
+      "category": "ConveyorAttachment",
+      "powerConsumption": 0,
+      "buildCost": [
+        {
+          "itemClassName": "Desc_IronPlate_C",
+          "amount": 2
+        }
+      ]
+    }
+  },
+  "schematics": {
+    "Schematic_Tier0_Plates_C": {
+      "className": "Schematic_Tier0_Plates_C",
+      "displayName": "Plate Production",
+      "type": "milestone",
+      "tier": 0,
+      "cost": [
+        {
+          "itemClassName": "Desc_IronRod_C",
+          "displayName": "Iron Rod",
+          "amount": 10,
+          "perMinute": 0,
+          "unit": "items"
+        }
+      ],
+      "unlocksRecipes": [
+        "Recipe_IronPlate_C"
+      ],
+      "unlocksBuildings": [
+        "Build_ConstructorMk1_C"
+      ],
+      "unlocksItems": [
+        "Desc_IronPlate_C"
+      ]
+    }
+  }
+}
