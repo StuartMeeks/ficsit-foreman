@@ -97,7 +97,7 @@ presentation helpers live in **`@foreman/sf-present`** (reusable without the MCP
 | **`sf-core`** | Slim shared kernel: class-name resolution (identity), shared scalar types (`Vec3`), channel/version logic. No formatting helpers. | *split* out of `game-data-core` |
 | **`sf-present`** | Reusable presentation/formatting helpers — `humaniseClassName`, `cmToMetres`/`metresToCm`/`compassBearing`. Zero-dep leaf; usable without the MCP server. | new (#137; extracted from `sf-core`/`sf-mcp`) |
 | **`sf-game-data`** | Static reference data. `./parser`: `Docs.json` → recipes/buildings/items + world-locations + bundled data (→ `sf-core`). `./graph`: Kùzu graph **as a library** (→ `./parser`). | `game-data-core` (parser) + `mcp-game-data` (graph) |
-| **`sf-save-data`** | A player's save instance. `./parser`: adopted @etothepii parser + normalise (→ `sf-core`). `./graph`: the save-game graph **as a library** (→ `./parser`). | `mcp-save-game` (+ new graph) |
+| **`sf-save-data`** | A player's save instance. `./parser`: adopted @etothepii parser + normalise into the complete `SaveState` (incl. `topology`) (→ `sf-core`). `./graph`: the save-game graph **as a library** — a pure projection of `SaveState.topology`, holding no facts of its own (→ `./parser`). | `mcp-save-game` (+ new graph) |
 | **`sf-mcp`** | Single, **domain-neutral** MCP server loading *both* graph libs and exposing their tools — **including cross-graph (save ↔ game-data) join tools**. The one place the two domains meet. | new (extracted from the MCP packages) |
 | **`ff-server`, `ff-client`** | The Ficsit Foreman app (`ff` = Ficsit Foreman). `ff-server` runs the LLM proxy + MCP gateway (talks to `sf-mcp`) and injects the work-order tools per request. | renamed from `server` / `client` |
 
