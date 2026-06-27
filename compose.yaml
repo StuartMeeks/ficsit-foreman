@@ -50,11 +50,12 @@ services:
     # environment:
     #   # Use the experimental channel instead of stable:
     #   SATISFACTORY_GAME_CHANNEL: experimental
-    #   # Or point at your own install (also uncomment the volume below):
-    #   SATISFACTORY_GAME_DIR: /game
+    #   # Or run a newer/custom build: generate a merged sf-game-data.json with the
+    #   # offline extractor (packages/sf-game-data/extract), mount it (below), then:
+    #   SF_GAME_DATA_PATH: /data/sf-game-data.json
     # volumes:
-    #   # Windows (Steam) — adjust to your install path:
-    #   - "C:/Program Files (x86)/Steam/steamapps/common/Satisfactory:/game:ro"
+    #   # The custom dataset file (read-only) for SF_GAME_DATA_PATH above:
+    #   - "C:/path/to/sf-game-data.json:/data/sf-game-data.json:ro"
     #   # Or mount a folder holding a fixed .sav read-only (legacy SAVE_FILE_PATH),
     #   # then set SAVE_FILE_PATH to the in-container path:
     #   - "C:/Users/you/AppData/Local/FactoryGame/Saved/SaveGames:/saves:ro"
