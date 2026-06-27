@@ -27,6 +27,8 @@ export interface PlayerState {
 }
 
 export interface StorageContainer {
+  /** Stable per-save actor instance name — the join key to `topology` and the graph. */
+  instanceName: string;
   buildingClass: string;
   location?: Vec3;
   inventory: Inventory;
@@ -61,6 +63,8 @@ export interface AssemblyPhase {
  * the actual-production graph issue.
  */
 export interface ProducerLine {
+  /** Stable per-save actor instance name — the join key to `topology` and the graph. */
+  instanceName: string;
   /** Building class, e.g. `Build_ConstructorMk1_C`. */
   buildingClass: string;
   /** Recipe class the machine is set to, e.g. `Recipe_IronPlate_C`. Undefined = unconfigured. */
@@ -74,6 +78,8 @@ export interface ProducerLine {
 
 /** A resource extractor (miner / pump / fracking). Output is the node's resource. */
 export interface ExtractorLine {
+  /** Stable per-save actor instance name — the join key to `topology` and the graph. */
+  instanceName: string;
   buildingClass: string;
   clockSpeed: number;
   productionBoost: number;

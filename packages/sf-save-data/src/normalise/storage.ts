@@ -30,7 +30,14 @@ export function extractStorage(
       continue;
     }
     const buildingClass = classNameFromPath(obj.typePath ?? obj.instanceName ?? '');
+    const instanceName = obj.instanceName;
+    if (instanceName === undefined) {
+      // A container with no instance name can't be a graph node nor be joined to topology.
+      warnings.add(`Storage container ${buildingClass} has no instance name; skipping.`);
+      continue;
+    }
     containers.push({
+      instanceName,
       buildingClass,
       location: translation(obj),
       inventory: resolveContainerInventory(obj, byInstance),

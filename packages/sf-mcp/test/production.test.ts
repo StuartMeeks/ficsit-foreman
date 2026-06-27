@@ -118,6 +118,15 @@ describe('normalise: production', () => {
     expect(state.production.extractors).toHaveLength(1);
     expect(state.production.extractors[0]?.buildingClass).toBe('Build_MinerMk1_C');
   });
+
+  it('carries each machine instance name (the join key to topology/graph)', () => {
+    expect(state.production.extractors[0]?.instanceName).toBe(
+      'Persistent_Level:PersistentLevel.Miner_1',
+    );
+    for (const producer of state.production.producers) {
+      expect(producer.instanceName).toMatch(/^Persistent_Level:PersistentLevel\./);
+    }
+  });
 });
 
 describe('productionView (theoretical capacity)', () => {

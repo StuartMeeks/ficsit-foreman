@@ -29,24 +29,37 @@ export function extractProduction(objects: RawObject[], warnings: Warnings): Pro
 
   for (const obj of objects) {
     const typePath = obj.typePath ?? '';
+    const isManufacturer = MANUFACTURER_BUILDING.test(typePath);
+    const isExtractor = !isManufacturer && EXTRACTOR_BUILDING.test(typePath);
+    if (!isManufacturer && !isExtractor) {
+      continue;
+    }
     const props = propMap(obj);
     const buildingClass = classNameFromPath(typePath || (obj.instanceName ?? ''));
+    const instanceName = obj.instanceName;
+    if (instanceName === undefined) {
+      // A machine with no instance name can't be a graph node nor be joined to topology.
+      warnings.add(`Machine ${buildingClass} has no instance name; skipping.`);
+      continue;
+    }
 
-    if (MANUFACTURER_BUILDING.test(typePath)) {
+    if (isManufacturer) {
       const recipeRef = refField(props, CURRENT_RECIPE_PROP);
       const recipeClass = recipeRef === undefined ? undefined : classNameFromPath(recipeRef);
       if (recipeClass === undefined) {
         warnings.add(`Manufacturer ${buildingClass} has no configured recipe; reporting as idle.`);
       }
       producers.push({
+        instanceName,
         buildingClass,
         recipeClass,
         clockSpeed: numberField(props, CLOCK_SPEED_PROP) ?? 1,
         productionBoost: numberField(props, PRODUCTION_BOOST_PROP) ?? 1,
         location: translation(obj),
       });
-    } else if (EXTRACTOR_BUILDING.test(typePath)) {
+    } else {
       extractors.push({
+        instanceName,
         buildingClass,
         clockSpeed: numberField(props, CLOCK_SPEED_PROP) ?? 1,
         productionBoost: numberField(props, PRODUCTION_BOOST_PROP) ?? 1,
