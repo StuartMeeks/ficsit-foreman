@@ -1,8 +1,8 @@
 # The CUE4Parse clone is not vendored — clone it here per README.md.
 /CUE4Parse/
 
-# Throwaway investigation copy of fg-extract (kept locally, never committed).
-/fg-probe/
+# Throwaway probe output (kept locally, never committed). The fg-probe copy
+# itself now lives under /tools/ (ignored at the repo root).
 probe-*.txt
 
 # The extractor's default output (OUT=sf-game-data.json) lands beside the tool;
