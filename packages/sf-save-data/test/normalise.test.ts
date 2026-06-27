@@ -1,7 +1,15 @@
 import { describe, expect, it } from 'vitest';
 
 import { normaliseSave } from '../src/normalise/index.js';
-import { FIXTURE_SAVE, makeSave, obj, objectProp, refArrayProp, vec3 } from './fixtures/save.js';
+import {
+  FIXTURE_SAVE,
+  floatProp,
+  makeSave,
+  obj,
+  objectProp,
+  refArrayProp,
+  vec3,
+} from './fixtures/save.js';
 
 const { state } = normaliseSave(FIXTURE_SAVE, '2026-01-01T00:00:00.000Z');
 
@@ -191,5 +199,56 @@ describe('topology (the connectivity the graph projects)', () => {
 
   it('reads pre-grouped power-circuit membership', () => {
     expect(wired.topology.powerCircuits).toEqual([{ circuitId: 7, members: [CONSTRUCTOR] }]);
+  });
+});
+
+describe('generators (#68)', () => {
+  const LVL = 'Persistent_Level:PersistentLevel';
+  const powered = normaliseSave(
+    makeSave({
+      objects: [
+        // A fuel-burning generator: overclocked, with coal loaded.
+        obj(
+          '/Game/FactoryGame/Buildable/Factory/GeneratorCoal/Build_GeneratorCoal.Build_GeneratorCoal_C',
+          {
+            mCurrentPotential: floatProp(1.5),
+            mCurrentFuelClass: objectProp(
+              '/Game/FactoryGame/Resource/RawResources/Coal/Desc_Coal.Desc_Coal_C',
+            ),
+          },
+          { instanceName: `${LVL}.GenCoal_1`, transform: vec3(500, 0, 0) },
+        ),
+        // Geothermal: no fuel, default clock.
+        obj(
+          '/Game/FactoryGame/Buildable/Factory/GeneratorGeoThermal/Build_GeneratorGeoThermal.Build_GeneratorGeoThermal_C',
+          {},
+          { instanceName: `${LVL}.GenGeo_1` },
+        ),
+      ],
+    }),
+    '2026-01-01T00:00:00.000Z',
+  ).state;
+
+  it('extracts a fuel generator with clock and current fuel', () => {
+    const coal = powered.production.generators.find((g) => g.instanceName === `${LVL}.GenCoal_1`);
+    expect(coal).toMatchObject({
+      buildingClass: 'Build_GeneratorCoal_C',
+      clockSpeed: 1.5,
+      fuelClass: 'Desc_Coal_C',
+      location: { x: 500, y: 0, z: 0 },
+    });
+  });
+
+  it('extracts geothermal with no fuel and a default clock', () => {
+    const geo = powered.production.generators.find((g) => g.instanceName === `${LVL}.GenGeo_1`);
+    expect(geo?.buildingClass).toBe('Build_GeneratorGeoThermal_C');
+    expect(geo?.clockSpeed).toBe(1);
+    expect(geo?.fuelClass).toBeUndefined();
+  });
+
+  it('keeps generators separate from producers/extractors', () => {
+    expect(powered.production.generators).toHaveLength(2);
+    expect(powered.production.producers).toHaveLength(0);
+    expect(powered.production.extractors).toHaveLength(0);
   });
 });

@@ -86,9 +86,29 @@ export interface ExtractorLine {
   location?: Vec3;
 }
 
+/**
+ * A power generator (biomass / coal / fuel / nuclear / geothermal), as read from the
+ * save. It burns fuel rather than running a recipe (no somersloop), so this captures
+ * only its configuration; MW output is a game-data join (`powerProduction × clock`,
+ * linear in clock) made at the query layer. Geothermal has no `fuelClass` and a
+ * variable, purity-dependent output.
+ */
+export interface GeneratorLine {
+  /** Stable per-save actor instance name — the join key to `topology` and the graph. */
+  instanceName: string;
+  /** Building class, e.g. `Build_GeneratorFuel_C`. */
+  buildingClass: string;
+  /** Clock speed as a fraction (1 = 100%); defaults to 1 when the save omits it. */
+  clockSpeed: number;
+  /** Item class currently being burned, e.g. `Desc_Coal_C`. Undefined for geothermal / unfuelled. */
+  fuelClass?: string;
+  location?: Vec3;
+}
+
 export interface ProductionState {
   producers: ProducerLine[];
   extractors: ExtractorLine[];
+  generators: GeneratorLine[];
 }
 
 /**
@@ -217,7 +237,7 @@ export function emptySaveState(version: string, saveName: string, parsedAt: stri
     player: { inventory: [] },
     storage: { containers: [], dimensionalDepot: [] },
     recipes: [],
-    production: { producers: [], extractors: [] },
+    production: { producers: [], extractors: [], generators: [] },
     milestones: [],
     topology: { buildables: [], edges: [], powerCircuits: [] },
     mamResearch: [],

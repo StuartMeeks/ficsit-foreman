@@ -79,6 +79,15 @@ export const WATER_EXTRACTOR = /Build_WaterPump/;
 /** The Water item descriptor a water extractor yields. */
 export const WATER_ITEM_CLASS = 'Desc_Water_C';
 
+/**
+ * Power generators (biomass, coal, fuel, nuclear, geothermal). These burn fuel
+ * (`mCurrentFuelClass`) rather than running a recipe; geothermal carries no fuel and
+ * a variable, geyser-purity-dependent output. MW capacity is a game-data join
+ * (`powerProduction`) made at the query layer. `Build_Generator` matches every
+ * variant — Coal / Fuel / Nuclear / Biomass(/Integrated) / GeoThermal.
+ */
+export const GENERATOR_BUILDING = /Build_Generator/;
+
 /** The recipe a producing buildable is set to (ObjectProperty → recipe class). */
 export const CURRENT_RECIPE_PROP = 'mCurrentRecipe';
 /**
@@ -88,6 +97,11 @@ export const CURRENT_RECIPE_PROP = 'mCurrentRecipe';
 export const CLOCK_SPEED_PROP = 'mCurrentPotential';
 /** Somersloop production amplification (output multiplier; absent → 1.0). */
 export const PRODUCTION_BOOST_PROP = 'mCurrentProductionBoost';
+/**
+ * The fuel item a generator is currently burning (ObjectProperty → item class).
+ * Absent for geothermal (no fuel) and for a generator with nothing loaded.
+ */
+export const CURRENT_FUEL_PROP = 'mCurrentFuelClass';
 
 /* ── Connection graph (src/graph) ──────────────────────────────────────────────
  * The components/objects the graph layer reads to reconstruct factory connectivity.
