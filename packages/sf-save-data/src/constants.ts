@@ -89,6 +89,30 @@ export const CLOCK_SPEED_PROP = 'mCurrentPotential';
 /** Somersloop production amplification (output multiplier; absent → 1.0). */
 export const PRODUCTION_BOOST_PROP = 'mCurrentProductionBoost';
 
+/* ── Connection graph (src/graph) ──────────────────────────────────────────────
+ * The components/objects the graph layer reads to reconstruct factory connectivity.
+ * Confirmed against real saves: a mid save carries ~12k FGFactoryConnectionComponent.
+ */
+
+/** Belt/lift/splitter/merger connectors. Each carries `mConnectedComponent` → its peer. */
+export const FACTORY_CONNECTION_COMPONENT = /FGFactoryConnectionComponent/;
+/** Pipe connectors (fluid, plus the `Factory`/`Hyper` variants). Carry `mConnectedComponent` + `mPipeNetworkID`. */
+export const PIPE_CONNECTION_COMPONENT = /FGPipeConnection/;
+/** A pre-grouped power circuit (`mCircuitID` + `mComponents`). */
+export const POWER_CIRCUIT = /FGPowerCircuit/;
+
+/** The peer a connection component links to (ObjectProperty → component pathName). */
+export const CONNECTED_COMPONENT_PROP = 'mConnectedComponent';
+/** The pipe network a pipe connector belongs to (IntProperty). */
+export const PIPE_NETWORK_ID_PROP = 'mPipeNetworkID';
+/** A power circuit's id (IntProperty). */
+export const CIRCUIT_ID_PROP = 'mCircuitID';
+/** A power circuit's member power-connection components (ArrayProperty of ObjectProperty). */
+export const CIRCUIT_COMPONENTS_PROP = 'mComponents';
+
+/** Actor nodes in the connection graph are the buildings (their class-name keys start with `Build_`). */
+export const BUILDABLE_ACTOR = /^Build_/;
+
 /**
  * The subsystem that records exactly which collectibles a pioneer has collected,
  * by GUID: `mDestroyedPickups` (spheres/sloops/slugs) and `mLootedDropPods`

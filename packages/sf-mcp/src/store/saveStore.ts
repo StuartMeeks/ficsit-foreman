@@ -4,25 +4,36 @@ import { logger } from '../logger.js';
 import { emptySaveState, normaliseSave, type SaveState } from '@foreman/sf-save-data';
 import { parseSaveFile } from '@foreman/sf-save-data';
 import { statMtimeMs } from '@foreman/sf-save-data';
+import { buildSaveGraph, type SaveGraph } from '@foreman/sf-save-data-graph';
+
+/** Both artifacts produced from a single parse of a save file. */
+export interface LoadedSave {
+  state: SaveState;
+  graph: SaveGraph;
+}
 
 /** Injectable seams so the store can be unit-tested without real file I/O. */
 export interface SaveStoreDeps {
   statMtime?: (filePath: string) => number;
-  load?: (filePath: string) => SaveState;
+  load?: (filePath: string) => LoadedSave;
   now?: () => string;
 }
 
 /**
- * Holds the current normalised `SaveState` and re-parses lazily when the save
- * file's mtime changes, so the foreman sees progress as the pioneer plays
- * without a restart. If parsing fails it keeps the previous state. With no save
- * path configured it serves an empty state (never crashes).
+ * Holds the current normalised `SaveState` and its connection graph, parsing the
+ * save once and re-parsing lazily when the file's mtime changes — so the foreman
+ * sees progress as the pioneer plays without a restart. The graph (#122) is the
+ * substrate for relational save tools (power #68, production #126); building it is
+ * cheap (~3% of the parse) so it is produced alongside the state from the same
+ * parse. If parsing fails it keeps the previous state/graph. With no save path
+ * configured it serves an empty state and empty graph (never crashes).
  */
 export class SaveStore {
   private current: SaveState;
+  private currentGraph: SaveGraph;
   private loadedMtimeMs = Number.NaN;
   private readonly statMtime: (filePath: string) => number;
-  private readonly load: (filePath: string) => SaveState;
+  private readonly load: (filePath: string) => LoadedSave;
   private readonly now: () => string;
 
   public constructor(
@@ -31,24 +42,31 @@ export class SaveStore {
   ) {
     this.statMtime = deps.statMtime ?? statMtimeMs;
     this.now = deps.now ?? (() => new Date().toISOString());
-    // The save model carries raw class names only; display-name resolution happens
-    // at the query layer (selectors), so no game-data is needed here.
+    // Parse once, derive both the state and the graph. The save model carries raw
+    // class names only; display-name resolution happens at the query layer
+    // (selectors), so no game-data is needed here — the graph is agnostic too.
     this.load =
       deps.load ??
-      ((filePath: string): SaveState =>
-        normaliseSave(parseSaveFile(filePath, path.basename(filePath)), this.now()).state);
+      ((filePath: string): LoadedSave => {
+        const raw = parseSaveFile(filePath, path.basename(filePath));
+        return { state: normaliseSave(raw, this.now()).state, graph: buildSaveGraph(raw) };
+      });
     this.current = emptySaveState(
       'unknown',
       savePath === undefined ? 'none' : path.basename(savePath),
       this.now(),
     );
+    this.currentGraph = buildSaveGraph({});
     this.refresh();
   }
 
-  /** Builds a store directly from a state — for tests and fixtures (no I/O). */
-  public static fromState(state: SaveState): SaveStore {
+  /** Builds a store directly from a state (and optional graph) — for tests and fixtures (no I/O). */
+  public static fromState(state: SaveState, graph?: SaveGraph): SaveStore {
     const store = new SaveStore(undefined);
     store.current = state;
+    if (graph !== undefined) {
+      store.currentGraph = graph;
+    }
     return store;
   }
 
@@ -66,6 +84,12 @@ export class SaveStore {
     return this.current;
   }
 
+  /** The current connection graph, re-building first if the save file changed on disk. */
+  public getGraph(): SaveGraph {
+    this.refresh();
+    return this.currentGraph;
+  }
+
   private refresh(): void {
     if (this.savePath === undefined) {
       return;
@@ -81,7 +105,9 @@ export class SaveStore {
       return;
     }
     try {
-      this.current = this.load(this.savePath);
+      const loaded = this.load(this.savePath);
+      this.current = loaded.state;
+      this.currentGraph = loaded.graph;
       this.loadedMtimeMs = mtime;
       logger.info(
         `Loaded save '${this.current.saveName}' (${this.current.version}); ` +

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { emptySaveState } from '@foreman/sf-save-data';
+import { buildSaveGraph } from '@foreman/sf-save-data-graph';
 import { SaveStoreRegistry } from '../src/store/registry.js';
 import { SaveStore } from '../src/store/saveStore.js';
 
@@ -11,7 +12,7 @@ function makeRegistry(baseDir: string | undefined, maxEntries = 5): SaveStoreReg
   const defaultStore = new SaveStore(undefined);
   return new SaveStoreRegistry(defaultStore, baseDir, maxEntries, {
     statMtime: () => 1,
-    load: () => emptySaveState('v', 'X', NOW),
+    load: () => ({ state: emptySaveState('v', 'X', NOW), graph: buildSaveGraph({}) }),
     now: () => NOW,
   });
 }

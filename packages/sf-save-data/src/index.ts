@@ -19,6 +19,9 @@ export * from './parser/types.js';
 export * from './normalise/index.js';
 export * from './normalise/types.js';
 export * from './normalise/classRef.js';
+// Low-level tagged-property getters — the toolkit for reading a `RawSave`'s
+// properties (used by the normalise layer and by `@foreman/sf-save-data-graph`).
+export * from './normalise/util.js';
 
 // Satisfactory class-path / property matchers used across the normalise layer.
 export * from './constants.js';

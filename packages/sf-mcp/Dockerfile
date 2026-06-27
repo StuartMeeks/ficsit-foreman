@@ -11,8 +11,9 @@
 #
 # Builds the workspace lib chain sf-core → sf-game-data (+ bundled data) →
 # sf-game-data-graph (carries the native kuzu addon) → sf-save-data (the .sav
-# parser), then sf-mcp. Base is glibc (bookworm-slim), not Alpine: the native
-# `kuzu` addon ships a glibc prebuilt binary that will not load under musl.
+# parser) → sf-save-data-graph (the save connection graph), then sf-mcp. Base is
+# glibc (bookworm-slim), not Alpine: the native `kuzu` addon ships a glibc
+# prebuilt binary that will not load under musl.
 
 # ── Build stage ─────────────────────────────────────────────────────────────
 FROM node:22-bookworm-slim AS builder
@@ -30,6 +31,7 @@ COPY packages/sf-present/package.json ./packages/sf-present/package.json
 COPY packages/sf-game-data/package.json ./packages/sf-game-data/package.json
 COPY packages/sf-game-data-graph/package.json ./packages/sf-game-data-graph/package.json
 COPY packages/sf-save-data/package.json ./packages/sf-save-data/package.json
+COPY packages/sf-save-data-graph/package.json ./packages/sf-save-data-graph/package.json
 COPY packages/sf-mcp/package.json ./packages/sf-mcp/package.json
 RUN npm ci
 
@@ -45,8 +47,11 @@ COPY packages/sf-game-data-graph ./packages/sf-game-data-graph
 RUN npm run build -w @foreman/sf-game-data-graph
 COPY packages/sf-save-data ./packages/sf-save-data
 RUN npm run build -w @foreman/sf-save-data
+COPY packages/sf-save-data-graph ./packages/sf-save-data-graph
+RUN npm run build -w @foreman/sf-save-data-graph
 RUN node -e "require.resolve('@foreman/sf-game-data-graph')" \
-  && node -e "require.resolve('@foreman/sf-save-data')"
+  && node -e "require.resolve('@foreman/sf-save-data')" \
+  && node -e "require.resolve('@foreman/sf-save-data-graph')"
 
 # Build the server, then drop dev dependencies so node_modules carries only
 # runtime deps (keeping the kuzu binary and the workspace links).
