@@ -7,7 +7,10 @@
  *
  * Foundation-level methods only; consumers add domain queries in their own issues.
  */
+import type { SaveState } from '@foreman/sf-save-data';
+
 import type {
+  ActorKind,
   ActorNode,
   ConnectionEdge,
   EdgeKind,
@@ -27,6 +30,7 @@ export class SaveGraph {
     private readonly connectionEdges: ConnectionEdge[],
     private readonly circuits: PowerCircuit[],
     public readonly warnings: string[],
+    private readonly savedState: SaveState,
   ) {
     for (const edge of connectionEdges) {
       this.link(edge.from, edge.to, edge.kind);
@@ -67,6 +71,27 @@ export class SaveGraph {
       }
     }
     return out;
+  }
+
+  /** Every actor with the given domain role (e.g. `producer`, `storage`). */
+  public actorsByKind(kind: ActorKind): ActorNode[] {
+    const out: ActorNode[] = [];
+    for (const actor of this.actors.values()) {
+      if (actor.kind === kind) {
+        out.push(actor);
+      }
+    }
+    return out;
+  }
+
+  /**
+   * The backing `SaveState` this graph projects. Everything the save carries —
+   * player, recipes, milestones, MAM research, collectibles, assembly phase, header
+   * — is reachable here, so a consumer holding only the graph never needs a second
+   * handle to the state. The graph adds no facts of its own; it indexes these.
+   */
+  public state(): SaveState {
+    return this.savedState;
   }
 
   /** Actors directly connected to `instanceName`, optionally restricted to one edge kind. */

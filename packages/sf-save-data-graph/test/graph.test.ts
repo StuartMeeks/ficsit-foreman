@@ -97,3 +97,32 @@ describe('buildSaveGraph', () => {
     expect(() => buildSaveGraph({ warnings: [] } as never).stats()).not.toThrow();
   });
 });
+
+describe('domain projection (nodes carry their typed save records)', () => {
+  const graph = buildSaveGraph(SCENE_STATE);
+
+  it('tags each actor with its domain role, joined by instance name', () => {
+    expect(graph.getActor(CONSTRUCTOR)?.kind).toBe('producer');
+    expect(graph.getActor(MINER)?.kind).toBe('extractor');
+    expect(graph.getActor(STORAGE)?.kind).toBe('storage');
+    expect(graph.getActor(BELT)?.kind).toBe('building'); // no domain record
+  });
+
+  it('attaches the matching typed record to the node', () => {
+    expect(graph.getActor(STORAGE)?.storage?.instanceName).toBe(STORAGE);
+    expect(graph.getActor(MINER)?.extractor?.instanceName).toBe(MINER);
+    const producer = graph.getActor(CONSTRUCTOR)?.producer;
+    expect(producer?.instanceName).toBe(CONSTRUCTOR);
+    expect(producer?.buildingClass).toBe('Build_ConstructorMk1_C');
+  });
+
+  it('selects actors by domain role', () => {
+    expect(graph.actorsByKind('extractor').map((a) => a.instanceName)).toEqual([MINER]);
+    expect(graph.actorsByKind('storage').map((a) => a.instanceName)).toEqual([STORAGE]);
+  });
+
+  it('exposes the backing SaveState so every save fact is reachable from the graph', () => {
+    expect(graph.state()).toBe(SCENE_STATE);
+    expect(graph.state().topology.buildables).toHaveLength(graph.stats().actors);
+  });
+});
