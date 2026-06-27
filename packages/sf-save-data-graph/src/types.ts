@@ -7,7 +7,13 @@
  * keys only** (`Build_*`); joining to recipes/buildings is the consumer's job at the
  * edge (`sf-mcp`). See `docs/component-architecture.md`.
  */
-import type { ExtractorLine, ProducerLine, StorageContainer, Vec3 } from '@foreman/sf-save-data';
+import type {
+  ExtractorLine,
+  GeneratorLine,
+  ProducerLine,
+  StorageContainer,
+  Vec3,
+} from '@foreman/sf-save-data';
 
 // The relational fact types now live in `@foreman/sf-save-data` (they are part of
 // `SaveState.topology`); the graph is a pure projection of them. Re-exported here so
@@ -21,7 +27,7 @@ import type { EdgeKind } from '@foreman/sf-save-data';
  * typed `SaveState` lists. `building` is a plain `Build_*` actor with no domain
  * record (belts, splitters, poles, …). Leaves room for `player`/`pickup` later.
  */
-export type ActorKind = 'storage' | 'producer' | 'extractor' | 'building';
+export type ActorKind = 'storage' | 'producer' | 'extractor' | 'generator' | 'building';
 
 /** A building actor (machine, belt, splitter, pipe, power pole, …). */
 export interface ActorNode {
@@ -39,6 +45,8 @@ export interface ActorNode {
   producer?: ProducerLine;
   /** The extractor record, when `kind === 'extractor'`. */
   extractor?: ExtractorLine;
+  /** The generator record, when `kind === 'generator'`. */
+  generator?: GeneratorLine;
 }
 
 /** Counts for diagnostics and tests. */
