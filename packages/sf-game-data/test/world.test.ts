@@ -3,7 +3,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 
-import { loadWorldLocations, bundledDataDir } from '../src/index.js';
+import { loadWorldLocations, loadGameData, loadDataset, bundledDataDir } from '../src/index.js';
 import type { WorldLocations } from '../src/index.js';
 
 /** A data dir guaranteed not to exist, so no bundled channel is found. */
@@ -15,7 +15,17 @@ const SAMPLE: WorldLocations = {
   source: 'test',
   counts: { mercerSphere: 1, resourceNode: 1 },
   collectibles: [{ id: 'a', kind: 'mercerSphere', x: 0, y: 0, z: 0 }],
-  resourceNodes: [{ id: 'n', kind: 'resourceNode', resourceClass: 'Desc_OreIron_C', purity: 'pure', x: 1, y: 2, z: 3 }],
+  resourceNodes: [
+    {
+      id: 'n',
+      kind: 'resourceNode',
+      resourceClass: 'Desc_OreIron_C',
+      purity: 'pure',
+      x: 1,
+      y: 2,
+      z: 3,
+    },
+  ],
   lootPickups: [],
 };
 
@@ -78,6 +88,75 @@ describe('loadWorldLocations', () => {
     const result = loadWorldLocations({ SF_GAME_DATA_PATH: file }, NO_DATA_DIR);
     expect(result.world.collectibles).toHaveLength(0);
     expect(result.warning).toMatch(/malformed/);
+  });
+});
+
+/** A merged dataset: the world SAMPLE plus a parsed `gameData` section. */
+const SAMPLE_MERGED = {
+  ...SAMPLE,
+  gameData: {
+    version: '1.2.3.0',
+    build: 1,
+    parsedAt: '2020-01-01T00:00:00.000Z',
+    items: {
+      Desc_IronPlate_C: {
+        className: 'Desc_IronPlate_C',
+        displayName: 'Iron Plate',
+        description: '',
+        stackSize: 200,
+        form: 'solid',
+        sinkPoints: 6,
+        energyValue: 0,
+        isResource: false,
+      },
+    },
+    resources: {},
+    recipes: {},
+    buildings: {},
+    schematics: {},
+  },
+};
+
+describe('loadGameData', () => {
+  it('reads parsed gameData from the merged file', () => {
+    const file = tempFile(JSON.stringify(SAMPLE_MERGED));
+    const { gameData, warning } = loadGameData({ SF_GAME_DATA_PATH: file }, NO_DATA_DIR);
+    expect(Object.keys(gameData.items)).toContain('Desc_IronPlate_C');
+    expect(gameData.version).toBe('1.2.3.0');
+    expect(warning).toBeUndefined();
+  });
+
+  it('warns and returns empty game data when the file has no gameData', () => {
+    const file = tempFile(JSON.stringify(SAMPLE)); // world-only, no gameData
+    const { gameData, warning } = loadGameData({ SF_GAME_DATA_PATH: file }, NO_DATA_DIR);
+    expect(Object.keys(gameData.items)).toHaveLength(0);
+    expect(warning).toMatch(/no 'gameData'/);
+  });
+
+  it('degrades to empty game data when nothing is resolvable', () => {
+    const { gameData, warning } = loadGameData({}, NO_DATA_DIR);
+    expect(Object.keys(gameData.items)).toHaveLength(0);
+    expect(warning).toMatch(/No game data available/);
+  });
+});
+
+describe('loadDataset', () => {
+  it('returns both gameData and world from one merged file', () => {
+    const file = tempFile(JSON.stringify(SAMPLE_MERGED));
+    const { gameData, world, warning } = loadDataset({ SF_GAME_DATA_PATH: file }, NO_DATA_DIR);
+    expect(Object.keys(gameData.items)).toContain('Desc_IronPlate_C');
+    expect(world.collectibles).toHaveLength(1);
+    expect(warning).toBeUndefined();
+  });
+});
+
+describe('bundled game data', () => {
+  const { gameData } = loadGameData({}, bundledDataDir());
+
+  it('loads parsed gameData from the bundled merged dataset', () => {
+    expect(Object.keys(gameData.items).length).toBeGreaterThan(100);
+    expect(Object.keys(gameData.recipes).length).toBeGreaterThan(100);
+    expect(Object.keys(gameData.buildings).length).toBeGreaterThan(100);
   });
 });
 

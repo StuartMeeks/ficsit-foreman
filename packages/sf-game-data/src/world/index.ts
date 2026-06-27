@@ -2,6 +2,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 import { GAME_CHANNELS, bundledDataDir, expandHome, type GameChannel } from '../config.js';
+import { emptyGameData } from '../parser/index.js';
+import type { GameData } from '../parser/types.js';
 import type { WorldLocations, WorldLocationsResolution } from './types.js';
 
 export type {
@@ -32,35 +34,33 @@ export function emptyWorldLocations(version = 'unknown'): WorldLocations {
   };
 }
 
-/** Path to a channel's bundled world-locations file (whether or not it exists). */
+/** Path to a channel's bundled dataset file (whether or not it exists). */
 export function channelWorldLocationsPath(dataDir: string, channel: GameChannel): string {
   return path.join(dataDir, channel, DATASET_FILENAME);
 }
 
-/**
- * Resolves and loads the world-location dataset, in priority order:
- *   1. SF_GAME_DATA_PATH — full path to a `sf-game-data.json`.
- *   2. Bundled channel data under `<sf-game-data>/data/<channel>/`, selected by
- *      SATISFACTORY_GAME_CHANNEL (default `stable`, falling back to the other
- *      channel if the requested one has no dataset).
- *   3. None available → an empty dataset plus a warning.
- *
- * Loading never throws: a missing or malformed file degrades to an empty
- * dataset with a warning, mirroring `resolveDocsPath`.
- */
-export function loadWorldLocations(
-  env: NodeJS.ProcessEnv = process.env,
-  dataDir: string = bundledDataDir(),
-): WorldLocationsResolution {
-  const warnings: string[] = [];
+interface DatasetPathResolution {
+  path?: string;
+  /** Set on a successful bundled-channel resolve ("Using bundled …") or a bad SF_GAME_DATA_PATH. */
+  warning?: string;
+}
 
+/**
+ * Resolves the merged dataset file (`sf-game-data.json`), shared by the game-data
+ * and world loaders:
+ *   1. SF_GAME_DATA_PATH — full path to a dataset file.
+ *   2. Bundled channel under `<sf-game-data>/data/<channel>/`, selected by
+ *      SATISFACTORY_GAME_CHANNEL (default `stable`, falling back to the other).
+ * Returns no path when nothing resolves; the caller phrases the empty-data warning.
+ */
+function resolveDatasetPath(env: NodeJS.ProcessEnv, dataDir: string): DatasetPathResolution {
   const direct = env['SF_GAME_DATA_PATH']?.trim();
   if (direct !== undefined && direct !== '') {
     const resolved = expandHome(direct);
     if (fs.existsSync(resolved)) {
-      return read(resolved);
+      return { path: resolved };
     }
-    warnings.push(`SF_GAME_DATA_PATH is set to '${resolved}' but no file exists there.`);
+    return { warning: `SF_GAME_DATA_PATH is set to '${resolved}' but no file exists there.` };
   }
 
   const rawChannel = env['SATISFACTORY_GAME_CHANNEL']?.trim().toLowerCase();
@@ -69,42 +69,27 @@ export function loadWorldLocations(
   for (const channel of preference) {
     const candidate = channelWorldLocationsPath(dataDir, channel);
     if (fs.existsSync(candidate)) {
-      const result = read(candidate);
-      const prefix = warnings.length > 0 ? `${warnings.join(' ')} ` : '';
       const note = channel === requested ? '' : ` (requested '${requested}' has no dataset)`;
-      const loaded = result.warning ?? `Using bundled ${channel} world locations${note}.`;
-      return { ...result, warning: `${prefix}${loaded}` };
+      return { path: candidate, warning: `Using bundled ${channel} dataset${note}.` };
     }
   }
-
-  warnings.push(
-    `No world-location dataset available: set SF_GAME_DATA_PATH or add one under packages/sf-game-data/data/{${GAME_CHANNELS.join(',')}}/${DATASET_FILENAME}. World-location tools will return empty results.`,
-  );
-  return { world: emptyWorldLocations(), warning: warnings.join(' ') };
+  return {};
 }
 
-/** Reads and minimally validates a dataset file; degrades to empty on any fault. */
-function read(filePath: string): WorldLocationsResolution {
+/** Reads and JSON-parses a dataset file; returns a warning instead of throwing. */
+function readParsed(filePath: string): { parsed?: unknown; warning?: string } {
   try {
-    const parsed: unknown = JSON.parse(fs.readFileSync(filePath, 'utf8'));
-    if (!isWorldLocations(parsed)) {
-      return {
-        world: emptyWorldLocations(),
-        path: filePath,
-        warning: `World-location dataset at '${filePath}' is malformed; using an empty dataset.`,
-      };
-    }
-    // Tolerate datasets predating lootPickups: default the array so callers needn't guard.
-    const world: WorldLocations = { ...parsed, lootPickups: parsed.lootPickups ?? [] };
-    return { world, path: filePath };
+    return { parsed: JSON.parse(fs.readFileSync(filePath, 'utf8')) };
   } catch (error) {
     const detail = error instanceof Error ? error.message : String(error);
-    return {
-      world: emptyWorldLocations(),
-      path: filePath,
-      warning: `Failed to read world-location dataset at '${filePath}': ${detail}. Using an empty dataset.`,
-    };
+    return { warning: `Failed to read dataset at '${filePath}': ${detail}.` };
   }
+}
+
+/** Joins defined warning fragments into one string (or undefined when none). */
+function joinWarnings(...parts: (string | undefined)[]): string | undefined {
+  const present = parts.filter((p): p is string => p !== undefined && p !== '');
+  return present.length > 0 ? present.join(' ') : undefined;
 }
 
 /** Structural guard — confirms the two location arrays are present. */
@@ -114,4 +99,167 @@ function isWorldLocations(value: unknown): value is WorldLocations {
   }
   const candidate = value as Record<string, unknown>;
   return Array.isArray(candidate['collectibles']) && Array.isArray(candidate['resourceNodes']);
+}
+
+/** Structural guard — confirms a parsed `gameData` object with the core maps. */
+function isGameData(value: unknown): value is GameData {
+  if (typeof value !== 'object' || value === null) {
+    return false;
+  }
+  const c = value as Record<string, unknown>;
+  return (
+    typeof c['items'] === 'object' &&
+    c['items'] !== null &&
+    typeof c['recipes'] === 'object' &&
+    c['recipes'] !== null &&
+    typeof c['buildings'] === 'object' &&
+    c['buildings'] !== null
+  );
+}
+
+/** The combined dataset (parsed game data + world locations) from one merged file. */
+export interface DatasetResolution {
+  gameData: GameData;
+  world: WorldLocations;
+  path?: string;
+  warning?: string;
+}
+
+/**
+ * Loads the merged dataset (`sf-game-data.json`) once and returns both the parsed
+ * `gameData` and the `world` locations. Both halves are produced by the offline
+ * extractor (#160); the runtime no longer parses `en-US.json`. Never throws —
+ * a missing/malformed file degrades each half to empty with a warning.
+ */
+export function loadDataset(
+  env: NodeJS.ProcessEnv = process.env,
+  dataDir: string = bundledDataDir(),
+): DatasetResolution {
+  const { path: filePath, warning: resolveWarning } = resolveDatasetPath(env, dataDir);
+  if (filePath === undefined) {
+    return {
+      gameData: emptyGameData('unknown'),
+      world: emptyWorldLocations(),
+      warning: joinWarnings(
+        resolveWarning,
+        `No dataset available: set SF_GAME_DATA_PATH or add one under packages/sf-game-data/data/{${GAME_CHANNELS.join(',')}}/${DATASET_FILENAME}.`,
+      ),
+    };
+  }
+
+  const { parsed, warning: readWarning } = readParsed(filePath);
+  if (parsed === undefined) {
+    return {
+      gameData: emptyGameData('unknown'),
+      world: emptyWorldLocations(),
+      path: filePath,
+      warning: joinWarnings(resolveWarning, readWarning),
+    };
+  }
+
+  const rawGameData = (parsed as Record<string, unknown>)['gameData'];
+  const world = isWorldLocations(parsed)
+    ? ({ ...parsed, lootPickups: parsed.lootPickups ?? [] } as WorldLocations)
+    : undefined;
+  const gameData = isGameData(rawGameData) ? rawGameData : undefined;
+
+  return {
+    gameData: gameData ?? emptyGameData('unknown'),
+    world: world ?? emptyWorldLocations(),
+    path: filePath,
+    warning: joinWarnings(
+      resolveWarning,
+      world === undefined ? `Dataset at '${filePath}' has no world locations.` : undefined,
+      gameData === undefined ? `Dataset at '${filePath}' has no gameData.` : undefined,
+    ),
+  };
+}
+
+/**
+ * Loads only the world-location half of the merged dataset. Warns about
+ * world-specific problems (missing/malformed), not absent gameData.
+ */
+export function loadWorldLocations(
+  env: NodeJS.ProcessEnv = process.env,
+  dataDir: string = bundledDataDir(),
+): WorldLocationsResolution {
+  const { path: filePath, warning: resolveWarning } = resolveDatasetPath(env, dataDir);
+  if (filePath === undefined) {
+    return {
+      world: emptyWorldLocations(),
+      warning: joinWarnings(
+        resolveWarning,
+        `No world-location dataset available: set SF_GAME_DATA_PATH or add one under packages/sf-game-data/data/{${GAME_CHANNELS.join(',')}}/${DATASET_FILENAME}. World-location tools will return empty results.`,
+      ),
+    };
+  }
+  const { parsed, warning: readWarning } = readParsed(filePath);
+  if (parsed === undefined) {
+    return {
+      world: emptyWorldLocations(),
+      path: filePath,
+      warning: joinWarnings(resolveWarning, `${readWarning} Using an empty dataset.`),
+    };
+  }
+  if (!isWorldLocations(parsed)) {
+    return {
+      world: emptyWorldLocations(),
+      path: filePath,
+      warning: joinWarnings(
+        resolveWarning,
+        `World-location dataset at '${filePath}' is malformed; using an empty dataset.`,
+      ),
+    };
+  }
+  // Tolerate datasets predating lootPickups: default the array so callers needn't guard.
+  const world: WorldLocations = { ...parsed, lootPickups: parsed.lootPickups ?? [] };
+  return { world, path: filePath, warning: resolveWarning };
+}
+
+/** Resolution of the parsed game data half of the merged dataset. */
+export interface GameDataResolution {
+  gameData: GameData;
+  path?: string;
+  warning?: string;
+}
+
+/**
+ * Loads the parsed `gameData` from the merged dataset (`sf-game-data.json`),
+ * replacing the old runtime `en-US.json` parse. Warns about gameData-specific
+ * problems (missing/malformed), not absent world locations.
+ */
+export function loadGameData(
+  env: NodeJS.ProcessEnv = process.env,
+  dataDir: string = bundledDataDir(),
+): GameDataResolution {
+  const { path: filePath, warning: resolveWarning } = resolveDatasetPath(env, dataDir);
+  if (filePath === undefined) {
+    return {
+      gameData: emptyGameData('unknown'),
+      warning: joinWarnings(
+        resolveWarning,
+        `No game data available: set SF_GAME_DATA_PATH or add a dataset under packages/sf-game-data/data/{${GAME_CHANNELS.join(',')}}/${DATASET_FILENAME}. Starting with empty game data.`,
+      ),
+    };
+  }
+  const { parsed, warning: readWarning } = readParsed(filePath);
+  if (parsed === undefined) {
+    return {
+      gameData: emptyGameData('unknown'),
+      path: filePath,
+      warning: joinWarnings(resolveWarning, `${readWarning} Using empty game data.`),
+    };
+  }
+  const rawGameData = (parsed as Record<string, unknown>)['gameData'];
+  if (!isGameData(rawGameData)) {
+    return {
+      gameData: emptyGameData('unknown'),
+      path: filePath,
+      warning: joinWarnings(
+        resolveWarning,
+        `Dataset at '${filePath}' has no 'gameData'; using empty game data.`,
+      ),
+    };
+  }
+  return { gameData: rawGameData, path: filePath, warning: resolveWarning };
 }

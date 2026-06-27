@@ -7,10 +7,8 @@
  *   npm run inspect ingredient_tree '{"item":"Turbo Motor","targetPerMinute":1}'
  *   npm run inspect total_raw_inputs '{"item":"Reinforced Iron Plate","targetPerMinute":5}'
  */
-import { emptyGameData, loadWorldLocations, parseDocsFile } from '@foreman/sf-game-data';
+import { loadDataset, WorldQueries } from '@foreman/sf-game-data';
 import { initGraph } from '@foreman/sf-game-data-graph';
-import { WorldQueries } from '@foreman/sf-game-data';
-import { resolveDocsPath } from '@foreman/sf-game-data';
 
 type Coord = { x: number; y: number; z: number };
 
@@ -19,18 +17,11 @@ async function run(): Promise<void> {
   const argJson = process.argv[3];
   const args: Record<string, unknown> = argJson === undefined ? {} : JSON.parse(argJson);
 
-  const { path: docsPath, warning } = resolveDocsPath();
+  const { gameData, world, warning } = loadDataset();
   if (warning !== undefined) {
     console.error(warning);
   }
-  const gameData =
-    docsPath === undefined ? emptyGameData('unknown') : parseDocsFile(docsPath).gameData;
   const graph = await initGraph(gameData);
-
-  const { world, warning: worldWarning } = loadWorldLocations();
-  if (worldWarning !== undefined) {
-    console.error(worldWarning);
-  }
   const worldQueries = new WorldQueries(world, gameData);
 
   const str = (key: string): string => String(args[key] ?? '');
