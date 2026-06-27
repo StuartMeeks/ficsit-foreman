@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
+import { emptySaveState } from '@foreman/sf-save-data';
+
 import { buildSaveGraph, ownerOf } from '../src/index.js';
 import {
   BELT,
@@ -8,7 +10,7 @@ import {
   GENERATOR,
   MINER,
   PIPE,
-  SCENE,
+  SCENE_STATE,
   STORAGE,
 } from './fixtures/scene.js';
 
@@ -23,7 +25,7 @@ describe('ownerOf', () => {
 });
 
 describe('buildSaveGraph', () => {
-  const graph = buildSaveGraph(SCENE);
+  const graph = buildSaveGraph(SCENE_STATE);
 
   it('registers only building actors (not connection components or circuits)', () => {
     const stats = graph.stats();
@@ -81,12 +83,17 @@ describe('buildSaveGraph', () => {
     expect(graph.powerCircuitOf(CONSTRUCTOR)).toBeUndefined();
   });
 
-  it('warns (does not throw) on a dangling connection reference', () => {
+  it('surfaces the save warnings (e.g. a dangling connection reference)', () => {
+    // The unresolved-reference warning is produced by the normaliser and projected
+    // through unchanged — the graph generates none of its own.
     expect(graph.warnings.some((w) => /conveyor connection.*unknown owner/.test(w))).toBe(true);
   });
 
-  it('never throws on a malformed save', () => {
-    expect(() => buildSaveGraph({ levels: undefined })).not.toThrow();
-    expect(buildSaveGraph({}).stats().actors).toBe(0);
+  it('never throws on an empty or partial state', () => {
+    const empty = emptySaveState('unknown', 'none', '2026-01-01T00:00:00.000Z');
+    expect(() => buildSaveGraph(empty)).not.toThrow();
+    expect(buildSaveGraph(empty).stats().actors).toBe(0);
+    // A malformed state missing topology must not throw either.
+    expect(() => buildSaveGraph({ warnings: [] } as never).stats()).not.toThrow();
   });
 });

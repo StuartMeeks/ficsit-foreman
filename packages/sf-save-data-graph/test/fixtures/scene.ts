@@ -7,7 +7,7 @@
  *   a belt connector → a missing actor (a dangling reference → a warning, not a throw)
  * Real `.sav` files are never used in unit tests — see `npm run inspect`.
  */
-import type { RawObject, RawSave } from '@foreman/sf-save-data';
+import { normaliseSave, type RawObject, type RawSave } from '@foreman/sf-save-data';
 
 const LVL = 'Persistent_Level:PersistentLevel';
 
@@ -124,3 +124,11 @@ export const SCENE: RawSave = makeSave([
     mComponents: refArrayProp([`${GENERATOR}.PowerConnection`, `${MINER}.PowerInput`]),
   }),
 ]);
+
+/**
+ * The same scene as a normalised `SaveState` — the input the graph now projects
+ * from. `buildSaveGraph` consumes `state.topology` (produced by the real
+ * `sf-save-data` normaliser), so this exercises the full parse→normalise→project
+ * path the MCP server uses.
+ */
+export const SCENE_STATE = normaliseSave(SCENE, '2026-01-01T00:00:00.000Z').state;

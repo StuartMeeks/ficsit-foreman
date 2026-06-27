@@ -6,9 +6,10 @@ import { SaveStore, type LoadedSave } from '../src/store/saveStore.js';
 
 const NOW = '2026-01-01T00:00:00.000Z';
 
-/** A LoadedSave wrapping a named state and an empty graph — for the seam-injected tests. */
+/** A LoadedSave wrapping a named state and its (empty) projected graph — for the seam-injected tests. */
 function loaded(name: string): LoadedSave {
-  return { state: emptySaveState('v', name, NOW), graph: buildSaveGraph({}) };
+  const state = emptySaveState('v', name, NOW);
+  return { state, graph: buildSaveGraph(state) };
 }
 
 describe('SaveStore', () => {
@@ -39,26 +40,15 @@ describe('SaveStore', () => {
   });
 
   it('rebuilds the graph alongside the state, gated on mtime', () => {
+    const stateA = emptySaveState('v', 'A', NOW);
+    const stateB = emptySaveState('v', 'B', NOW);
+    stateB.topology.buildables.push({
+      instanceName: 'Persistent_Level:PersistentLevel.Build_StorageContainerMk1_C_1',
+      classKey: 'Build_StorageContainerMk1_C',
+    });
     const scenes: LoadedSave[] = [
-      { state: emptySaveState('v', 'A', NOW), graph: buildSaveGraph({}) },
-      {
-        state: emptySaveState('v', 'B', NOW),
-        graph: buildSaveGraph({
-          levels: {
-            Persistent_Level: {
-              name: 'Persistent_Level',
-              objects: [
-                {
-                  typePath: '/Game/X/Build_StorageContainerMk1.Build_StorageContainerMk1_C',
-                  instanceName: 'Persistent_Level:PersistentLevel.Build_StorageContainerMk1_C_1',
-                  type: 'SaveEntity',
-                  properties: {},
-                },
-              ],
-            },
-          },
-        }),
-      },
+      { state: stateA, graph: buildSaveGraph(stateA) },
+      { state: stateB, graph: buildSaveGraph(stateB) },
     ];
     let mtime = 1;
     let loads = 0;

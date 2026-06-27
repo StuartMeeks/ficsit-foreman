@@ -23,10 +23,11 @@ export interface SaveStoreDeps {
  * Holds the current normalised `SaveState` and its connection graph, parsing the
  * save once and re-parsing lazily when the file's mtime changes — so the foreman
  * sees progress as the pioneer plays without a restart. The graph (#122) is the
- * substrate for relational save tools (power #68, production #126); building it is
- * cheap (~3% of the parse) so it is produced alongside the state from the same
- * parse. If parsing fails it keeps the previous state/graph. With no save path
- * configured it serves an empty state and empty graph (never crashes).
+ * substrate for relational save tools (power #68, production #126); it is a pure
+ * projection of `state.topology`, so it is built directly from the normalised state
+ * (one parse, one source of truth — the two can never drift). If parsing fails it
+ * keeps the previous state/graph. With no save path configured it serves an empty
+ * state and empty graph (never crashes).
  */
 export class SaveStore {
   private current: SaveState;
@@ -42,21 +43,24 @@ export class SaveStore {
   ) {
     this.statMtime = deps.statMtime ?? statMtimeMs;
     this.now = deps.now ?? (() => new Date().toISOString());
-    // Parse once, derive both the state and the graph. The save model carries raw
-    // class names only; display-name resolution happens at the query layer
-    // (selectors), so no game-data is needed here — the graph is agnostic too.
+    // Parse once, normalise, then project the graph from that one state — so the
+    // state and graph can never disagree. The save model carries raw class names
+    // only; display-name resolution happens at the query layer (selectors), so no
+    // game-data is needed here — the graph is agnostic too.
     this.load =
       deps.load ??
       ((filePath: string): LoadedSave => {
         const raw = parseSaveFile(filePath, path.basename(filePath));
-        return { state: normaliseSave(raw, this.now()).state, graph: buildSaveGraph(raw) };
+        const { state } = normaliseSave(raw, this.now());
+        return { state, graph: buildSaveGraph(state) };
       });
-    this.current = emptySaveState(
+    const emptyState = emptySaveState(
       'unknown',
       savePath === undefined ? 'none' : path.basename(savePath),
       this.now(),
     );
-    this.currentGraph = buildSaveGraph({});
+    this.current = emptyState;
+    this.currentGraph = buildSaveGraph(emptyState);
     this.refresh();
   }
 
