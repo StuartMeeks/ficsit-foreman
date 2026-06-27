@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Pure en-US.json parser, ported from the hand-written TypeScript parser in
+    @foreman/sf-game-data (#159). Zero external dependencies and NO CUE4Parse, so
+    it builds and runs anywhere (including the dev VM) — that is what lets the
+    golden-diff gate run without a game install. The sf-game-data-extractor tool
+    references this alongside the CUE4Parse extraction library to produce one
+    merged dataset (#160).
+  -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+  </PropertyGroup>
+
+</Project>
