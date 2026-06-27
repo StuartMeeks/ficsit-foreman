@@ -18,7 +18,12 @@ export function classNameFromPath(path: string): string {
  */
 export function humaniseClassName(className: string): string {
   let s = className;
-  s = s.replace(/_UAID_.*$/i, '');
+  // Drop any `_UAID_…` instance suffix. Done with indexOf+slice rather than a
+  // `/_UAID_.*$/` regex to keep it strictly linear on untrusted save input.
+  const uaid = s.toUpperCase().indexOf('_UAID_');
+  if (uaid !== -1) {
+    s = s.slice(0, uaid);
+  }
   s = s.replace(/_C(_\d+)?$/, '');
   s = s.replace(/^(Desc|Recipe|Build|BP|Schematic|GP|Char|Research)_/, '');
   s = s.replace(/^Alternate_/, '');
