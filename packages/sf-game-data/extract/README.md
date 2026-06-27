@@ -1,9 +1,18 @@
-# World-location extractor (`fg-extract`)
+# Game-data extractor (`sf-game-data-extractor`)
 
 The one-off tool that generates
 [`packages/sf-game-data/data/<channel>/sf-game-data.json`](../data/stable/sf-game-data.json)
 — the static dataset of every fixed collectible and resource node in the
 Satisfactory world (coordinates, resource type, purity).
+
+It is two projects (see [`../../../docs/sf-game-data-extractor.md`](../../../docs/sf-game-data-extractor.md)):
+
+- **`sf-game-data-extraction/`** — a class library holding the CUE4Parse world
+  extraction (`WorldExtractor.Run`). This was the standalone `fg-extract` program;
+  the logic is unchanged, only repackaged as a library (#158).
+- **`sf-game-data-extractor/`** — the console tool you run. For now a thin front
+  end that resolves inputs and calls the library; later it will also parse
+  `en-US.json` and merge both sources into one output file.
 
 It reads coordinates straight out of the **packaged game level files** with
 [CUE4Parse](https://github.com/FabianFG/CUE4Parse), using the `FactoryGame.usmap`
@@ -58,7 +67,7 @@ see "Upstreaming" below.
    git submodule update --init --recursive
    ```
 
-   (`fg-extract.csproj` references `..\CUE4Parse\CUE4Parse\CUE4Parse.csproj`.)
+   (`sf-game-data-extraction.csproj` references `..\CUE4Parse\CUE4Parse\CUE4Parse.csproj`.)
 
 2. **Apply the patch** from the CUE4Parse repo root:
 
@@ -81,7 +90,7 @@ see "Upstreaming" below.
    #   $env:SF_PAKS  = "D:\...\Satisfactory\FactoryGame\Content\Paks"
    #   $env:SF_USMAP = "D:\...\Satisfactory\CommunityResources\FactoryGame.usmap"
    #   $env:OUT      = "sf-game-data.json"
-   cd packages/sf-game-data/extract/fg-extract
+   cd packages/sf-game-data/extract/sf-game-data-extractor
    dotnet run -c Release
    ```
 

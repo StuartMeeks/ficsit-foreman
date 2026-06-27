@@ -12,26 +12,30 @@ using CUE4Parse.UE4.Objects.Core.Misc;
 using CUE4Parse.UE4.Objects.UObject;
 using CUE4Parse.UE4.Versions;
 
-OodleHelper.DownloadOodleDll();
-OodleHelper.Initialize();
+namespace SfGameData.Extraction;
 
-// Paths are overridable by environment variable so this runs on any host; the
-// defaults document the machine the dataset was originally extracted on.
-var paks =
-    Environment.GetEnvironmentVariable("SF_PAKS")
-    ?? @"D:\Games\Steam\steamapps\common\Satisfactory\FactoryGame\Content\Paks";
-var usmap =
-    Environment.GetEnvironmentVariable("SF_USMAP")
-    ?? @"D:\Games\Steam\steamapps\common\Satisfactory\CommunityResources\FactoryGame.usmap";
-var outPath = Environment.GetEnvironmentVariable("OUT") ?? @"sf-game-data.json";
+/// <summary>Inputs for one world-data extraction run.</summary>
+public sealed record ExtractOptions(string Paks, string Usmap, string OutPath, string GameVersion, int Build);
 
-// The version this dataset describes. Overridable so a re-extraction for a new
-// game build stamps the correct version without editing this file; the defaults
-// document the build the dataset was originally extracted from.
-var gameVersion = Environment.GetEnvironmentVariable("GAME_VERSION") ?? "1.2.3.0";
-var build = int.TryParse(Environment.GetEnvironmentVariable("BUILD"), out var parsedBuild)
-    ? parsedBuild
-    : 493833;
+/// <summary>
+/// Reads a local Satisfactory install via CUE4Parse and writes the world-location
+/// dataset — collectibles, resource nodes and loose crash-site parts. This is the
+/// former standalone <c>fg-extract</c> program (#158): the extraction logic is
+/// unchanged; only the entry shape moved — the env-var reads now live in the
+/// calling tool and arrive via <see cref="ExtractOptions"/>.
+/// </summary>
+public static class WorldExtractor
+{
+    public static void Run(ExtractOptions options)
+    {
+        OodleHelper.DownloadOodleDll();
+        OodleHelper.Initialize();
+
+        var paks = options.Paks;
+        var usmap = options.Usmap;
+        var outPath = options.OutPath;
+        var gameVersion = options.GameVersion;
+        var build = options.Build;
 
 var provider = new DefaultFileProvider(paks, SearchOption.TopDirectoryOnly, new VersionContainer(EGame.GAME_UE5_6));
 provider.MappingsContainer = new FileUsmapTypeMappingsProvider(usmap);
@@ -400,3 +404,5 @@ if (lootUnresolved.Count > 0)
 }
 Console.WriteLine($"written -> {outPath}");
 Console.WriteLine("DONE");
+    }
+}

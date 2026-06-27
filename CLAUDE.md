@@ -35,6 +35,7 @@ docs/                 product.md · architecture.md · work-orders.md · playthr
 | The save subsystem (identity, re-upload history, same-game) — design & roadmap | [`docs/save-subsystem.md`](./docs/save-subsystem.md) |
 | Crash-site loot & drop-pod unlock costs (#107) — design | [`docs/crash-site-loot.md`](./docs/crash-site-loot.md) |
 | The game-data parser & class-map design | [`packages/sf-game-data/PARSER.md`](./packages/sf-game-data/PARSER.md) |
+| The single-producer game-data extractor (`sf-game-data-extractor`) — design | [`docs/sf-game-data-extractor.md`](./docs/sf-game-data-extractor.md) |
 | The foreman persona (runtime prompt) | [`packages/ff-server/SYSTEM_PROMPT.md`](./packages/ff-server/SYSTEM_PROMPT.md) |
 | A package's usage, tools, and setup | that package's `README.md` |
 | Conventions (commit/PR/branch/code standards) and game-data updates | [`CONTRIBUTING.md`](./CONTRIBUTING.md) |

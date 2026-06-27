@@ -1,7 +1,11 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
+  <!--
+    Class library: the reusable world-data extraction (CUE4Parse over a local
+    Satisfactory install). Consumed by the `sf-game-data-extractor` tool. Was the
+    standalone `fg-extract` Exe before #158 — same logic, library entry shape.
+  -->
   <PropertyGroup>
-    <OutputType>Exe</OutputType>
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
@@ -11,8 +15,8 @@
   <ItemGroup>
     <!--
       CUE4Parse is NOT vendored (it is ~36 MB). Clone it as a sibling at
-      tools/world-locations/CUE4Parse (gitignored) and apply the patch — see
-      README.md. Adjust this path if you clone it elsewhere.
+      packages/sf-game-data/extract/CUE4Parse (gitignored) and apply the patch —
+      see README.md. Adjust this path if you clone it elsewhere.
     -->
     <ProjectReference Include="..\CUE4Parse\CUE4Parse\CUE4Parse.csproj" />
   </ItemGroup>

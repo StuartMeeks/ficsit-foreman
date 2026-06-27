@@ -5,6 +5,10 @@
 /fg-probe/
 probe-*.txt
 
+# The extractor's default output (OUT=sf-game-data.json) lands beside the tool;
+# the real dataset is installed into data/<channel>/ by hand, never committed here.
+sf-game-data.json
+
 # .NET build output.
 **/bin/
 **/obj/
