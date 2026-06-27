@@ -99,7 +99,7 @@ const WORLD: WorldLocations = {
   lootPickups: [],
 };
 
-const { state } = normaliseSave(PRODUCTION_SAVE, '2026-01-01T00:00:00.000Z', GAME.displayNames);
+const { state } = normaliseSave(PRODUCTION_SAVE, '2026-01-01T00:00:00.000Z');
 
 describe('normalise: production', () => {
   it('extracts producer configuration (recipe, clock, boost, location)', () => {

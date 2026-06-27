@@ -1,4 +1,4 @@
-import type { Collectible, WorldLocations } from '@foreman/sf-game-data';
+import { humaniseClassName, type Collectible, type WorldLocations } from '@foreman/sf-game-data';
 import { describe, expect, it } from 'vitest';
 
 import { emptySaveState, normaliseSave } from '@foreman/sf-save-data';
@@ -30,6 +30,9 @@ const WORLD_COLLECTIBLES: Collectible[] = [
 const { state } = normaliseSave(FIXTURE_SAVE, '2026-01-01T00:00:00.000Z');
 const store = SaveStore.fromState(state);
 
+/** Edge name resolver with no game data: humanised fallback only. */
+const resolve = (className: string): string => humaniseClassName(className);
+
 describe('store tagging', () => {
   it('exposes version and save name for response tagging', () => {
     expect(store.version).toBe('build 999999 (save 60)');
@@ -39,21 +42,21 @@ describe('store tagging', () => {
 
 describe('selectors', () => {
   it('playerSummary reports location and item count', () => {
-    const summary = playerSummary(store.getState());
+    const summary = playerSummary(store.getState(), resolve);
     expect(summary.itemCount).toBe(1);
     // Location is reported in metres (fixture stores 100/200/300 cm).
     expect(summary.location).toEqual({ x: 1, y: 2, z: 3 });
   });
 
   it('unlockedRecipes splits standard and alternate with counts', () => {
-    const r = unlockedRecipes(store.getState());
+    const r = unlockedRecipes(store.getState(), resolve);
     expect(r.total).toBe(2);
     expect(r.standardCount).toBe(1);
     expect(r.alternateCount).toBe(1);
   });
 
   it('milestones groups by tier and surfaces phase + MAM', () => {
-    const m = milestones(store.getState());
+    const m = milestones(store.getState(), resolve);
     expect(m.milestonesByTier).toEqual([{ tier: 3, milestones: expect.any(Array) }]);
     expect(m.tutorials).toHaveLength(1);
     expect(m.assemblyPhase?.phase).toBe(2);
@@ -61,7 +64,7 @@ describe('selectors', () => {
   });
 
   it('storageView sorts containers nearest-first when given a location', () => {
-    const view = storageView(store.getState(), { x: 0, y: 0, z: 0 });
+    const view = storageView(store.getState(), resolve, { x: 0, y: 0, z: 0 });
     expect(view.containerCount).toBe(2);
     expect(view.containers[0]?.buildingClass).toBe('Build_StorageContainerMk1_C'); // the near one
     expect(view.containers[0]?.distance).toBe(0.1); // 10 cm → 0.1 m
@@ -113,8 +116,8 @@ describe('selectors', () => {
     const s = emptySaveState('v', 'n', 't');
     // The pioneer has unlocked the helmet + one tape (no pickup GUIDs involved).
     s.milestones = [
-      { schematicClass: 'Schematic_Helmet_Beta_C', displayName: 'Helmet', kind: 'other' },
-      { schematicClass: 'Schematic_Huntdown_C', displayName: 'Huntdown', kind: 'other' },
+      { schematicClass: 'Schematic_Helmet_Beta_C', kind: 'other' },
+      { schematicClass: 'Schematic_Huntdown_C', kind: 'other' },
     ];
 
     const byKind = Object.fromEntries(

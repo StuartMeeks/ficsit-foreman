@@ -1,8 +1,9 @@
 /**
  * The clean, serialisable model the MCP tools answer over. Nothing downstream of
  * `normaliseSave` sees a raw `typePath`, tagged-property wrapper, or Unreal class
- * path — only these records. Display names are humanised from class names alone
- * (no game-data lookup; this server does not duplicate the game-data graph).
+ * path — only these records. The model carries **raw class names only**; resolving
+ * them to display names (authored game-data names, or a humanised fallback) is the
+ * consumer's job at the edge (`sf-mcp`), keeping this library game-data-agnostic.
  */
 
 export interface Vec3 {
@@ -14,7 +15,6 @@ export interface Vec3 {
 export interface InventoryStack {
   /** Item class name, e.g. `Desc_IronPlate_C`. */
   itemClass: string;
-  displayName: string;
   quantity: number;
 }
 
@@ -28,14 +28,12 @@ export interface PlayerState {
 
 export interface StorageContainer {
   buildingClass: string;
-  displayName: string;
   location?: Vec3;
   inventory: Inventory;
 }
 
 export interface UnlockedRecipe {
   recipeClass: string;
-  displayName: string;
   isAlternate: boolean;
 }
 
@@ -43,7 +41,6 @@ export type MilestoneKind = 'milestone' | 'tutorial' | 'other';
 
 export interface Milestone {
   schematicClass: string;
-  displayName: string;
   /** Milestone tier (1–9) where derivable from the class name. */
   tier?: number;
   kind: MilestoneKind;
@@ -66,7 +63,6 @@ export interface AssemblyPhase {
 export interface ProducerLine {
   /** Building class, e.g. `Build_ConstructorMk1_C`. */
   buildingClass: string;
-  displayName: string;
   /** Recipe class the machine is set to, e.g. `Recipe_IronPlate_C`. Undefined = unconfigured. */
   recipeClass?: string;
   /** Clock speed as a fraction (1 = 100%); defaults to 1 when the save omits it. */
@@ -79,7 +75,6 @@ export interface ProducerLine {
 /** A resource extractor (miner / pump / fracking). Output is the node's resource. */
 export interface ExtractorLine {
   buildingClass: string;
-  displayName: string;
   clockSpeed: number;
   productionBoost: number;
   location?: Vec3;
@@ -116,7 +111,7 @@ export interface SaveState {
   /** Active factory machines (recipe-runners) and resource extractors. */
   production: ProductionState;
   milestones: Milestone[];
-  /** Unlocked MAM research-tree names. */
+  /** Unlocked MAM research-tree class names (e.g. `BPD_ResearchTree_AlienOrganisms_C`). */
   mamResearch: string[];
   assemblyPhase?: AssemblyPhase;
   /**

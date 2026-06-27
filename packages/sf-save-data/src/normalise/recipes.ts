@@ -1,6 +1,6 @@
 import { ALTERNATE_RECIPE, AVAILABLE_RECIPES_PROP, RECIPE_MANAGER } from '../constants.js';
 import type { RawObject } from '../parser/types.js';
-import { classNameFromPath, humaniseClassName } from './classRef.js';
+import { classNameFromPath } from './classRef.js';
 import type { UnlockedRecipe } from './types.js';
 import { arrayField, asString, dig, propMap, type Warnings } from './util.js';
 
@@ -28,10 +28,9 @@ export function extractRecipes(objects: RawObject[], warnings: Warnings): Unlock
     seen.add(recipeClass);
     recipes.push({
       recipeClass,
-      displayName: humaniseClassName(recipeClass),
       isAlternate: ALTERNATE_RECIPE.test(recipeClass),
     });
   }
-  recipes.sort((a, b) => a.displayName.localeCompare(b.displayName));
+  recipes.sort((a, b) => a.recipeClass.localeCompare(b.recipeClass));
   return recipes;
 }

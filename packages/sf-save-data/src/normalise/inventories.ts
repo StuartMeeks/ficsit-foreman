@@ -1,6 +1,6 @@
 import { INVENTORY_STACKS_PROP, STORED_ITEMS_PROP } from '../constants.js';
 import type { RawObject } from '../parser/types.js';
-import { classNameFromPath, humaniseClassName } from './classRef.js';
+import { classNameFromPath } from './classRef.js';
 import type { Inventory } from './types.js';
 import { arrayField, asNumber, dig, entryProps, propMap } from './util.js';
 
@@ -51,10 +51,6 @@ function addItem(
 
 function toInventory(totals: Map<string, number>): Inventory {
   return [...totals.entries()]
-    .map(([itemClass, quantity]) => ({
-      itemClass,
-      displayName: humaniseClassName(itemClass),
-      quantity,
-    }))
+    .map(([itemClass, quantity]) => ({ itemClass, quantity }))
     .sort((a, b) => b.quantity - a.quantity);
 }
