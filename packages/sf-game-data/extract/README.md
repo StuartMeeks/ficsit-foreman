@@ -10,9 +10,11 @@ It is two projects (see [`../../../docs/sf-game-data-extractor.md`](../../../doc
 - **`sf-game-data-extraction/`** — a class library holding the CUE4Parse world
   extraction (`WorldExtractor.Run`). This was the standalone `fg-extract` program;
   the logic is unchanged, only repackaged as a library (#158).
-- **`sf-game-data-extractor/`** — the console tool you run. For now a thin front
-  end that resolves inputs and calls the library; later it will also parse
-  `en-US.json` and merge both sources into one output file.
+- **`sf-game-data-extractor/`** — the console tool you run. Extracts the world data
+  (via the library) **and** parses `en-US.json` (via `sf-game-data-parse`), writing
+  one merged `sf-game-data.json`: the world fields plus a top-level `gameData`
+  object (#160). The shape is additive, so the runtime world loader keeps working
+  until it switches to `gameData` (#161).
 - **`sf-game-data-parse/`** — a **CUE4Parse-free** class library: the `en-US.json`
   parser, ported 1:1 from the hand-written TypeScript parser (#159). Zero
   dependencies, so it builds and runs anywhere — including the dev VM and CI.
@@ -109,25 +111,27 @@ see "Upstreaming" below.
 
 3. **Build & run** from a Visual Studio Developer PowerShell (so MSVC/CMake are on
    PATH for the native build). The game engine is **UE 5.6** (`EGame.GAME_UE5_6` in
-   `Program.cs`) — bump this if a future Satisfactory moves to a new engine version.
+   `WorldExtractor.cs`) — bump this if a future Satisfactory moves to a new engine.
+
+   The tool extracts world data (CUE4Parse) **and** parses `en-US.json`, writing one
+   merged `sf-game-data.json` (the world fields plus a top-level `gameData` object).
+   Inputs come from `--flags` (preferred — no shell-quoting pitfalls), then
+   environment variables, then defaults that point at a default Steam install:
 
    ```powershell
-   # Stamp the build you are extracting (must match the channel's meta.json):
-   $env:GAME_VERSION = "1.2.3.1"
-   $env:BUILD        = "495413"
-   # Optional overrides (defaults point at a default Steam install):
-   #   $env:SF_PAKS  = "D:\...\Satisfactory\FactoryGame\Content\Paks"
-   #   $env:SF_USMAP = "D:\...\Satisfactory\CommunityResources\FactoryGame.usmap"
-   #   $env:OUT      = "sf-game-data.json"
    cd packages/sf-game-data/extract/sf-game-data-extractor
-   dotnet run -c Release
+   # --version/--build must match the channel's meta.json:
+   dotnet run -c Release -- --version 1.2.3.1 --build 495413 --out sf-game-data.json
+   # Optional overrides:
+   #   --paks  "D:\...\Satisfactory\FactoryGame\Content\Paks"
+   #   --usmap "D:\...\Satisfactory\CommunityResources\FactoryGame.usmap"
+   #   --enus  "D:\...\Satisfactory\CommunityResources\Docs\en-US.json"
    ```
 
-   `GAME_VERSION`/`BUILD` are stamped into the dataset header (defaulting to the
-   build it was first extracted from) — **set them**, never hand-edit the resulting
-   file's version. Output is deterministically ordered (counts alphabetical;
-   `collectibles`/`resourceNodes` by `kind` then `id`) so a regenerated dataset
-   diffs only on genuine world changes.
+   `--version`/`--build` are stamped into the dataset header — **set them**, never
+   hand-edit the resulting file's version. World output is deterministically ordered
+   (counts alphabetical; `collectibles`/`resourceNodes` by `kind` then `id`) so a
+   regenerated dataset diffs only on genuine world changes.
 
    It prints per-kind counts and writes `sf-game-data.json`. **Sanity check**: the
    collectible counts must read mercerSphere 298, somersloop 106, powerSlugBlue 596,

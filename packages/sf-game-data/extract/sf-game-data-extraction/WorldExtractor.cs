@@ -1,5 +1,3 @@
-using System.Text.Encodings.Web;
-using System.Text.Json;
 using System.Text.RegularExpressions;
 using CUE4Parse.Compression;
 using CUE4Parse.Encryption.Aes;
@@ -15,7 +13,7 @@ using CUE4Parse.UE4.Versions;
 namespace SfGameData.Extraction;
 
 /// <summary>Inputs for one world-data extraction run.</summary>
-public sealed record ExtractOptions(string Paks, string Usmap, string OutPath, string GameVersion, int Build);
+public sealed record ExtractOptions(string Paks, string Usmap, string GameVersion, int Build);
 
 /// <summary>
 /// Reads a local Satisfactory install via CUE4Parse and writes the world-location
@@ -26,14 +24,20 @@ public sealed record ExtractOptions(string Paks, string Usmap, string OutPath, s
 /// </summary>
 public static class WorldExtractor
 {
-    public static void Run(ExtractOptions options)
+    /// <summary>
+    /// Runs the CUE4Parse world extraction and returns the dataset (gameVersion,
+    /// build, source, counts, collectibles, resourceNodes, lootPickups) as an
+    /// anonymous object ready to serialise. The caller owns output: the
+    /// sf-game-data-extractor tool merges this with the parsed gameData and writes
+    /// one file (#160).
+    /// </summary>
+    public static object Extract(ExtractOptions options)
     {
         OodleHelper.DownloadOodleDll();
         OodleHelper.Initialize();
 
         var paks = options.Paks;
         var usmap = options.Usmap;
-        var outPath = options.OutPath;
         var gameVersion = options.GameVersion;
         var build = options.Build;
 
@@ -380,20 +384,6 @@ var dataset = new
         .ToList(),
 };
 
-// UnsafeRelaxedJsonEscaping keeps printable ASCII such as '+' literal instead of
-// escaping it to a unicode sequence; this is a data file, not HTML, so relaxed
-// escaping is safe and keeps the output readable.
-var json = JsonSerializer.Serialize(dataset, new JsonSerializerOptions
-{
-    WriteIndented = true,
-    Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
-});
-// Always write LF, even though this tool runs on Windows (where the indented
-// serialiser emits CRLF). The committed dataset is LF; emitting it directly
-// keeps `git diff`/status clean before .gitattributes normalisation kicks in.
-json = json.Replace("\r\n", "\n");
-File.WriteAllText(outPath, json);
-
 Console.WriteLine("=== COUNTS ===");
 foreach (var kv in counts.OrderBy(k => k.Key)) { Console.WriteLine($"  {kv.Key}: {kv.Value}"); }
 Console.WriteLine($"collectibles={collectibles.Count} resourceNodes={nodes.Count} lootPickups={lootPickups.Count}");
@@ -402,7 +392,7 @@ if (lootUnresolved.Count > 0)
     Console.WriteLine($"WARNING: {lootUnresolved.Values.Sum()} loose pickup(s) had an unresolved mesh:");
     foreach (var (m, c) in lootUnresolved.OrderByDescending(k => k.Value)) { Console.WriteLine($"  {c,4}  {m}"); }
 }
-Console.WriteLine($"written -> {outPath}");
-Console.WriteLine("DONE");
+
+return dataset;
     }
 }
