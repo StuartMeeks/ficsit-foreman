@@ -105,12 +105,15 @@ describe('domain projection (nodes carry their typed save records)', () => {
     expect(graph.getActor(CONSTRUCTOR)?.kind).toBe('producer');
     expect(graph.getActor(MINER)?.kind).toBe('extractor');
     expect(graph.getActor(STORAGE)?.kind).toBe('storage');
+    expect(graph.getActor(GENERATOR)?.kind).toBe('generator');
+    expect(graph.getActor(COAL)?.kind).toBe('generator');
     expect(graph.getActor(BELT)?.kind).toBe('building'); // no domain record
   });
 
   it('attaches the matching typed record to the node', () => {
     expect(graph.getActor(STORAGE)?.storage?.instanceName).toBe(STORAGE);
     expect(graph.getActor(MINER)?.extractor?.instanceName).toBe(MINER);
+    expect(graph.getActor(GENERATOR)?.generator?.instanceName).toBe(GENERATOR);
     const producer = graph.getActor(CONSTRUCTOR)?.producer;
     expect(producer?.instanceName).toBe(CONSTRUCTOR);
     expect(producer?.buildingClass).toBe('Build_ConstructorMk1_C');
@@ -119,6 +122,9 @@ describe('domain projection (nodes carry their typed save records)', () => {
   it('selects actors by domain role', () => {
     expect(graph.actorsByKind('extractor').map((a) => a.instanceName)).toEqual([MINER]);
     expect(graph.actorsByKind('storage').map((a) => a.instanceName)).toEqual([STORAGE]);
+    expect(graph.actorsByKind('generator').map((a) => a.instanceName).sort()).toEqual(
+      [COAL, GENERATOR].sort(),
+    );
   });
 
   it('exposes the backing SaveState so every save fact is reachable from the graph', () => {

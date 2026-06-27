@@ -10,6 +10,7 @@
  */
 import type {
   ExtractorLine,
+  GeneratorLine,
   ProducerLine,
   SaveState,
   StorageContainer,
@@ -38,19 +39,23 @@ export function buildSaveGraph(state: SaveState): SaveGraph {
   const storageByName = indexByInstance<StorageContainer>(state.storage?.containers);
   const producerByName = indexByInstance<ProducerLine>(state.production?.producers);
   const extractorByName = indexByInstance<ExtractorLine>(state.production?.extractors);
+  const generatorByName = indexByInstance<GeneratorLine>(state.production?.generators);
 
   const actors = new Map<string, ActorNode>();
   for (const buildable of topology.buildables) {
     const storage = storageByName.get(buildable.instanceName);
     const producer = producerByName.get(buildable.instanceName);
     const extractor = extractorByName.get(buildable.instanceName);
+    const generator = generatorByName.get(buildable.instanceName);
     const kind: ActorKind = storage
       ? 'storage'
       : producer
         ? 'producer'
         : extractor
           ? 'extractor'
-          : 'building';
+          : generator
+            ? 'generator'
+            : 'building';
     actors.set(buildable.instanceName, {
       instanceName: buildable.instanceName,
       classKey: buildable.classKey,
@@ -59,6 +64,7 @@ export function buildSaveGraph(state: SaveState): SaveGraph {
       ...(storage === undefined ? {} : { storage }),
       ...(producer === undefined ? {} : { producer }),
       ...(extractor === undefined ? {} : { extractor }),
+      ...(generator === undefined ? {} : { generator }),
     });
   }
 
