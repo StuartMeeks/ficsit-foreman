@@ -91,6 +91,69 @@ export interface ProductionState {
   extractors: ExtractorLine[];
 }
 
+/**
+ * A buildable actor (machine, belt, splitter, pipe, power pole, …) as a graph node.
+ * This is the **complete** node set — every `Build_*` actor, including the
+ * intermediate belts/splitters/poles that carry no domain record — so the
+ * connection graph stays traversable end-to-end. Raw class-name keys only.
+ */
+export interface BuildableActor {
+  /** Unique per-save instance name. */
+  instanceName: string;
+  /** Raw class-name key (the type-path tail), e.g. `Build_ConstructorMk1_C`. */
+  classKey: string;
+  /** World position in centimetres, if the actor carries a transform. */
+  location?: Vec3;
+}
+
+/** The kinds of physical link recorded in the topology. Power is grouped separately (see `PowerCircuit`). */
+export type EdgeKind = 'conveyor' | 'pipe';
+
+/**
+ * One physical connection between two actors, resolved from the connection
+ * components that declare it. The link is **undirected** as stored — `from`/`to`
+ * are canonically ordered (by component path), not a flow direction. The
+ * connector-name tails (`Output0`/`Input0`/`ConveyorAny0`) are retained so
+ * consumers can infer flow direction; belt connectors are deliberately ambiguous
+ * in the save.
+ */
+export interface ConnectionEdge {
+  kind: EdgeKind;
+  /** Owner actor instance name of one endpoint (canonically the smaller component path). */
+  from: string;
+  /** Owner actor instance name of the other endpoint. */
+  to: string;
+  /** The `from` connection component's name tail (e.g. `Output0`). */
+  fromConnector: string;
+  /** The `to` connection component's name tail. */
+  toConnector: string;
+  /** Pipe network id (`mPipeNetworkID`); present on pipe edges only. */
+  networkId?: number;
+}
+
+/**
+ * A power circuit, pre-grouped by the game (`FGPowerCircuit.mCircuitID` +
+ * `mComponents`). Members are the actor instance names whose power connections
+ * belong to the circuit — no traversal needed.
+ */
+export interface PowerCircuit {
+  circuitId: number;
+  members: string[];
+}
+
+/**
+ * The factory's connectivity, exactly as the save stores it: the complete set of
+ * buildable actors (nodes), the conveyor/pipe links between them (edges), and the
+ * pre-grouped power circuits. This is the relational fact layer; the in-memory
+ * adjacency/BFS index over it lives in `@foreman/sf-save-data-graph`, which is a
+ * pure projection of this data.
+ */
+export interface TopologyState {
+  buildables: BuildableActor[];
+  edges: ConnectionEdge[];
+  powerCircuits: PowerCircuit[];
+}
+
 export interface SaveState {
   /** Detected game version (build number, with save version), or 'unknown'. */
   version: string;
@@ -117,6 +180,12 @@ export interface SaveState {
   /** Active factory machines (recipe-runners) and resource extractors. */
   production: ProductionState;
   milestones: Milestone[];
+  /**
+   * The factory's connectivity — every buildable actor, the conveyor/pipe links
+   * between them, and the pre-grouped power circuits. The relational substrate the
+   * connection graph projects (`@foreman/sf-save-data-graph`).
+   */
+  topology: TopologyState;
   /** Unlocked MAM research-tree class names (e.g. `BPD_ResearchTree_AlienOrganisms_C`). */
   mamResearch: string[];
   assemblyPhase?: AssemblyPhase;
@@ -150,6 +219,7 @@ export function emptySaveState(version: string, saveName: string, parsedAt: stri
     recipes: [],
     production: { producers: [], extractors: [] },
     milestones: [],
+    topology: { buildables: [], edges: [], powerCircuits: [] },
     mamResearch: [],
     collectedPickupGuids: [],
     lootedDropPodGuids: [],

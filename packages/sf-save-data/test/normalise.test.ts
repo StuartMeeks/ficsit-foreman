@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { normaliseSave } from '../src/normalise/index.js';
-import { FIXTURE_SAVE } from './fixtures/save.js';
+import { FIXTURE_SAVE, makeSave, obj, objectProp, refArrayProp, vec3 } from './fixtures/save.js';
 
 const { state } = normaliseSave(FIXTURE_SAVE, '2026-01-01T00:00:00.000Z');
 
@@ -101,7 +101,10 @@ describe('collectibles', () => {
 describe('raw class names (no display-name enrichment)', () => {
   it('emits item/building class names only — naming is resolved at the edge', () => {
     // The neutral library no longer carries display names; only the raw classes.
-    expect(state.player.inventory[0]).toMatchObject({ itemClass: 'Desc_IronPlate_C', quantity: 50 });
+    expect(state.player.inventory[0]).toMatchObject({
+      itemClass: 'Desc_IronPlate_C',
+      quantity: 50,
+    });
     expect(state.player.inventory[0]).not.toHaveProperty('displayName');
     const sam = state.storage.dimensionalDepot.find((i) => i.itemClass === 'Desc_SAMIngot_C');
     expect(sam).not.toHaveProperty('displayName');
@@ -117,6 +120,76 @@ describe('partial parse', () => {
     const { state: empty } = normaliseSave({}, '2026-01-01T00:00:00.000Z');
     expect(empty.recipes).toEqual([]);
     expect(empty.player.inventory).toEqual([]);
+    expect(empty.topology).toEqual({ buildables: [], edges: [], powerCircuits: [] });
     expect(empty.warnings.length).toBeGreaterThan(0);
+  });
+});
+
+describe('topology (the connectivity the graph projects)', () => {
+  const LVL = 'Persistent_Level:PersistentLevel';
+  const CONSTRUCTOR = `${LVL}.Build_ConstructorMk1_C_1`;
+  const BELT = `${LVL}.Build_ConveyorBeltMk1_C_1`;
+  const T_CONN = '/Script/FactoryGame.FGFactoryConnectionComponent';
+
+  const wired = normaliseSave(
+    makeSave({
+      objects: [
+        obj(
+          '/Game/FactoryGame/Buildable/Factory/ConstructorMk1/Build_ConstructorMk1.Build_ConstructorMk1_C',
+          {},
+          { instanceName: CONSTRUCTOR, transform: vec3(100, 0, 0) },
+        ),
+        obj(
+          '/Game/FactoryGame/Buildable/Factory/ConveyorBeltMk1/Build_ConveyorBeltMk1.Build_ConveyorBeltMk1_C',
+          {},
+          { instanceName: BELT, transform: vec3(200, 0, 0) },
+        ),
+        // Both ends declare the same physical link — the extractor must dedup to one edge.
+        obj(
+          T_CONN,
+          { mConnectedComponent: objectProp(`${BELT}.ConveyorAny0`) },
+          {
+            instanceName: `${CONSTRUCTOR}.Output0`,
+          },
+        ),
+        obj(
+          T_CONN,
+          { mConnectedComponent: objectProp(`${CONSTRUCTOR}.Output0`) },
+          {
+            instanceName: `${BELT}.ConveyorAny0`,
+          },
+        ),
+        // A pre-grouped power circuit.
+        obj(
+          '/Script/FactoryGame.FGPowerCircuit',
+          {
+            mCircuitID: { type: 'IntProperty', value: 7 },
+            mComponents: refArrayProp([`${CONSTRUCTOR}.PowerInput`]),
+          },
+          { instanceName: `${LVL}.CircuitSubsystem.FGPowerCircuit_1` },
+        ),
+      ],
+    }),
+    '2026-01-01T00:00:00.000Z',
+  ).state;
+
+  it('records every Build_ actor as a node (the complete node set)', () => {
+    const keys = wired.topology.buildables.map((b) => b.classKey).sort();
+    expect(keys).toEqual(['Build_ConstructorMk1_C', 'Build_ConveyorBeltMk1_C']);
+  });
+
+  it('resolves a conveyor link to one canonically-ordered, deduped edge', () => {
+    expect(wired.topology.edges).toHaveLength(1);
+    expect(wired.topology.edges[0]).toMatchObject({
+      kind: 'conveyor',
+      from: CONSTRUCTOR,
+      to: BELT,
+      fromConnector: 'Output0',
+      toConnector: 'ConveyorAny0',
+    });
+  });
+
+  it('reads pre-grouped power-circuit membership', () => {
+    expect(wired.topology.powerCircuits).toEqual([{ circuitId: 7, members: [CONSTRUCTOR] }]);
   });
 });

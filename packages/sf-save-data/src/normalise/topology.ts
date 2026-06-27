@@ -1,10 +1,3 @@
-/**
- * Reconstructs the save's connection graph from the parsed `RawSave` in a single
- * pass: index objects, register building actors, then resolve conveyor/pipe links
- * and pre-grouped power circuits. Never throws — unresolved references are counted
- * and summarised in `warnings`, mirroring `normaliseSave`. The result feeds the
- * `SaveGraph` facade; both stay game-data-agnostic (raw `Build_*` class keys only).
- */
 import {
   BUILDABLE_ACTOR,
   CIRCUIT_COMPONENTS_PROP,
@@ -14,42 +7,58 @@ import {
   PIPE_CONNECTION_COMPONENT,
   PIPE_NETWORK_ID_PROP,
   POWER_CIRCUIT,
-  Warnings,
+} from '../constants.js';
+import type { RawObject } from '../parser/types.js';
+import { classNameFromPath } from './classRef.js';
+import type {
+  BuildableActor,
+  ConnectionEdge,
+  EdgeKind,
+  PowerCircuit,
+  TopologyState,
+} from './types.js';
+import {
   arrayField,
   asString,
-  classNameFromPath,
   dig,
   numberField,
-  ownerOf,
   propMap,
   refField,
   translation,
-  type RawObject,
-  type RawSave,
-} from '@foreman/sf-save-data';
+  type Warnings,
+} from './util.js';
 
-import { SaveGraph } from './graph.js';
-import type { ActorNode, ConnectionEdge, EdgeKind, PowerCircuit } from './types.js';
+/** The owner actor's instance name of a component path — i.e. drop the trailing `.<connector>`. */
+export function ownerOf(componentPath: string): string {
+  const dot = componentPath.lastIndexOf('.');
+  return dot < 0 ? componentPath : componentPath.slice(0, dot);
+}
 
-/** Builds the connection graph for a parsed save. */
-export function buildSaveGraph(raw: RawSave): SaveGraph {
-  const warnings = new Warnings();
-
-  // 1. Walk every sublevel once; collect objects and index the building actors.
-  const objects: RawObject[] = [];
-  const actors = new Map<string, ActorNode>();
-  for (const level of Object.values(raw.levels ?? {})) {
-    for (const obj of level?.objects ?? []) {
-      objects.push(obj);
-      const instanceName = obj.instanceName;
-      const typePath = obj.typePath;
-      if (instanceName === undefined || typePath === undefined) {
-        continue;
-      }
-      const classKey = classNameFromPath(typePath);
-      if (BUILDABLE_ACTOR.test(classKey)) {
-        actors.set(instanceName, { instanceName, classKey, location: translation(obj) });
-      }
+/**
+ * Extracts the factory's connectivity from the parsed objects: every buildable
+ * actor (the complete node set), the conveyor/pipe links between them, and the
+ * pre-grouped power circuits. This is the relational fact layer of `SaveState`;
+ * the connection graph (`@foreman/sf-save-data-graph`) is a pure projection of it.
+ *
+ * Canonical edge ordering and symmetric-pair dedup live here (not in the graph) so
+ * the edge list is deterministic — two semantically-equal saves yield the same
+ * array. Never throws: unresolved references are counted and summarised in
+ * `warnings`, mirroring the other normalisers.
+ */
+export function extractTopology(objects: RawObject[], warnings: Warnings): TopologyState {
+  // 1. Buildable actors → the complete node set (machines, belts, splitters, poles, …).
+  const buildables: BuildableActor[] = [];
+  const actorNames = new Set<string>();
+  for (const obj of objects) {
+    const instanceName = obj.instanceName;
+    const typePath = obj.typePath;
+    if (instanceName === undefined || typePath === undefined) {
+      continue;
+    }
+    const classKey = classNameFromPath(typePath);
+    if (BUILDABLE_ACTOR.test(classKey)) {
+      actorNames.add(instanceName);
+      buildables.push({ instanceName, classKey, location: translation(obj) });
     }
   }
 
@@ -87,7 +96,7 @@ export function buildSaveGraph(raw: RawSave): SaveGraph {
 
     const fromOwner = ownerOf(thisPath);
     const toOwner = ownerOf(connectedPath);
-    if (!actors.has(toOwner)) {
+    if (!actorNames.has(toOwner)) {
       if (isConveyor) {
         unresolvedConveyor++;
       } else {
@@ -107,7 +116,7 @@ export function buildSaveGraph(raw: RawSave): SaveGraph {
   }
 
   // 3. Power circuits are pre-grouped by the game — read membership directly.
-  const circuits: PowerCircuit[] = [];
+  const powerCircuits: PowerCircuit[] = [];
   let unresolvedCircuitMembers = 0;
   for (const obj of objects) {
     if (obj.typePath === undefined || !POWER_CIRCUIT.test(obj.typePath)) {
@@ -125,12 +134,12 @@ export function buildSaveGraph(raw: RawSave): SaveGraph {
         continue;
       }
       const owner = ownerOf(memberPath);
-      if (!actors.has(owner)) {
+      if (!actorNames.has(owner)) {
         unresolvedCircuitMembers++;
       }
       members.add(owner);
     }
-    circuits.push({ circuitId, members: [...members] });
+    powerCircuits.push({ circuitId, members: [...members] });
   }
 
   if (unresolvedConveyor > 0) {
@@ -145,5 +154,5 @@ export function buildSaveGraph(raw: RawSave): SaveGraph {
     );
   }
 
-  return new SaveGraph(actors, edges, circuits, warnings.all());
+  return { buildables, edges, powerCircuits };
 }

@@ -5,11 +5,13 @@ import { extractRecipes } from './recipes.js';
 import { extractScannable } from './scannable.js';
 import { extractProgression } from './schematics.js';
 import { extractStorage } from './storage.js';
+import { extractTopology } from './topology.js';
 import type { SaveState } from './types.js';
 import { Warnings } from './util.js';
 
 export { emptySaveState } from './types.js';
 export type { SaveState } from './types.js';
+export { ownerOf } from './topology.js';
 
 /**
  * Converts a parsed save into the clean `SaveState` model. Walks every
@@ -72,6 +74,7 @@ export function normaliseSave(
     storage: extractStorage(objects, byInstance, warnings),
     recipes: extractRecipes(objects, warnings),
     production: extractProduction(objects, warnings),
+    topology: extractTopology(objects, warnings),
     milestones: progression.milestones,
     mamResearch: progression.mamResearch,
     assemblyPhase: progression.assemblyPhase,
