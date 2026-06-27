@@ -12,6 +12,7 @@ the conventions' home. Read the relevant doc before working in an area.
 ```
 packages/
   sf-core/            structural/identity kernel — class-name helpers (zero-dep lib)
+  sf-present/         reusable presentation helpers — humaniseClassName + unit/bearing (zero-dep lib)
   sf-game-data/       parser + shared types + bundled game data (lib; PARSER.md here)
   sf-game-data-graph/ Kùzu production graph as a library (carries the kuzu addon)
   sf-save-data/       .sav → SaveState parser + normalise (lib)

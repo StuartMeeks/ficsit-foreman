@@ -25,6 +25,7 @@
   "dependencies": {
     "@foreman/sf-game-data": "0.1.0",
     "@foreman/sf-game-data-graph": "0.1.0",
+    "@foreman/sf-present": "0.1.0",
     "@foreman/sf-save-data": "0.1.0",
     "@modelcontextprotocol/sdk": "^1.12.0",
     "dotenv": "^17.4.2",

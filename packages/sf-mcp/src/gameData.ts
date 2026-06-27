@@ -1,10 +1,5 @@
-import {
-  humaniseClassName,
-  parseDocsFile,
-  resolveDocsPath,
-  type Building,
-  type Recipe,
-} from '@foreman/sf-game-data';
+import { parseDocsFile, resolveDocsPath, type Building, type Recipe } from '@foreman/sf-game-data';
+import { humaniseClassName } from '@foreman/sf-present';
 
 import { logger } from './logger.js';
 

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { parseItemAmountList } from '../src/parser/normalise/ingredients.js';
-import { extractClassNames, humaniseClassName } from '@foreman/sf-core';
+import { extractClassNames } from '@foreman/sf-core';
 import { perMinute, toDisplayAmount } from '../src/parser/normalise/fluids.js';
 
 const single =
@@ -43,13 +43,6 @@ describe('extractClassNames', () => {
 
   it('returns [] for empty input', () => {
     expect(extractClassNames('')).toEqual([]);
-  });
-});
-
-describe('humaniseClassName', () => {
-  it('strips prefixes/suffixes and spaces camel case', () => {
-    expect(humaniseClassName('Desc_IronPlateReinforced_C')).toBe('Iron Plate Reinforced');
-    expect(humaniseClassName('Build_ConstructorMk1_C')).toBe('Constructor Mk1');
   });
 });
 

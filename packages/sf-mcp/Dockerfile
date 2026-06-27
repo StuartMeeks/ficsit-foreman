@@ -26,16 +26,19 @@ COPY package.json package-lock.json tsconfig.base.json ./
 # lockfile resolution; also silences the npm update notice).
 RUN npm install -g "npm@$(node -p 'require("./package.json").packageManager.split("@")[1]')"
 COPY packages/sf-core/package.json ./packages/sf-core/package.json
+COPY packages/sf-present/package.json ./packages/sf-present/package.json
 COPY packages/sf-game-data/package.json ./packages/sf-game-data/package.json
 COPY packages/sf-game-data-graph/package.json ./packages/sf-game-data-graph/package.json
 COPY packages/sf-save-data/package.json ./packages/sf-save-data/package.json
 COPY packages/sf-mcp/package.json ./packages/sf-mcp/package.json
 RUN npm ci
 
-# Build the shared kernel + the data/graph/save libs first, then verify the
-# symlinks resolve.
+# Build the shared kernel + the presentation/data/graph/save libs first, then
+# verify the symlinks resolve.
 COPY packages/sf-core ./packages/sf-core
 RUN npm run build -w @foreman/sf-core
+COPY packages/sf-present ./packages/sf-present
+RUN npm run build -w @foreman/sf-present
 COPY packages/sf-game-data ./packages/sf-game-data
 RUN npm run build -w @foreman/sf-game-data
 COPY packages/sf-game-data-graph ./packages/sf-game-data-graph
@@ -60,15 +63,17 @@ WORKDIR /app
 
 COPY package.json package-lock.json ./
 COPY packages/sf-core/package.json ./packages/sf-core/package.json
+COPY packages/sf-present/package.json ./packages/sf-present/package.json
 COPY packages/sf-game-data/package.json ./packages/sf-game-data/package.json
 COPY packages/sf-game-data-graph/package.json ./packages/sf-game-data-graph/package.json
 COPY packages/sf-save-data/package.json ./packages/sf-save-data/package.json
 COPY packages/sf-mcp/package.json ./packages/sf-mcp/package.json
 COPY --from=builder /app/node_modules ./node_modules
 # Compiled output of the lib chain (the workspace symlinks resolve to these paths):
-# sf-core ← sf-game-data (+ bundled data) ← sf-game-data-graph (carries kuzu);
-# sf-save-data (the .sav parser).
+# sf-core ← sf-present (presentation helpers); sf-game-data (+ bundled data) ←
+# sf-game-data-graph (carries kuzu); sf-save-data (the .sav parser).
 COPY --from=builder /app/packages/sf-core/dist ./packages/sf-core/dist
+COPY --from=builder /app/packages/sf-present/dist ./packages/sf-present/dist
 COPY --from=builder /app/packages/sf-game-data/dist ./packages/sf-game-data/dist
 COPY --from=builder /app/packages/sf-game-data/data ./packages/sf-game-data/data
 COPY --from=builder /app/packages/sf-game-data-graph/dist ./packages/sf-game-data-graph/dist

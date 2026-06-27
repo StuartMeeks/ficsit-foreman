@@ -34,8 +34,9 @@ export { parseGameData, parseDocsFile, emptyGameData } from './parser/index.js';
 // Reader (UTF-16 BOM decode + docs-file read).
 export { readDocsFile } from './parser/reader.js';
 
-// Class-name resolution helpers (re-exported from the shared kernel).
-export { humaniseClassName, extractClassNames } from '@foreman/sf-core';
+// Class-name resolution helper (re-exported from the shared kernel). Humanising a
+// class name is presentation, not identity — it lives in @foreman/sf-present.
+export { extractClassNames } from '@foreman/sf-core';
 
 // Fluid amount/unit helpers.
 export { isFluid, toDisplayAmount, perMinute } from './parser/normalise/fluids.js';
