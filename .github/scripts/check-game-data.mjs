@@ -6,7 +6,8 @@
 //
 //   en-US.json           the raw Satisfactory docs (game data)
 //   meta.json            { gameVersion, build, channel }
-//   sf-game-data.json the extracted collectible/resource-node dataset
+//   sf-game-data.json the extracted collectible/resource-node dataset, plus the
+//                        `gameData` parsed from en-US.json (items/recipes/etc.)
 //
 // The three describe one game build and move together. A data PR must:
 //   - touch only files under a SINGLE channel directory (one channel per PR);
@@ -223,6 +224,23 @@ function validateWorldFile(channelDir) {
   for (const [kind, expected] of Object.entries(KNOWN_COLLECTIBLE_TOTALS)) {
     if (data.counts?.[kind] !== expected) {
       fail(`${file}: ${kind} count (${data.counts?.[kind]}) != known world total (${expected}).`);
+    }
+  }
+
+  // The merged dataset (#160) also carries `gameData` parsed from en-US.json —
+  // items, resources, recipes, buildings and schematics keyed by class name.
+  // Require the object and non-empty core maps so a broken/empty parse fails CI.
+  const gameData = data.gameData;
+  if (typeof gameData !== 'object' || gameData === null || Array.isArray(gameData)) {
+    fail(`${file} must have a 'gameData' object (the merged en-US.json parse).`);
+  } else {
+    for (const key of ['items', 'resources', 'recipes', 'buildings', 'schematics']) {
+      const section = gameData[key];
+      if (typeof section !== 'object' || section === null || Array.isArray(section)) {
+        fail(`${file}: gameData.${key} must be an object keyed by class name.`);
+      } else if (Object.keys(section).length === 0) {
+        fail(`${file}: gameData.${key} is empty — the en-US.json parse looks broken.`);
+      }
     }
   }
 
