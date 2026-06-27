@@ -30,7 +30,7 @@ export interface Item {
 
 export interface Ingredient {
   itemClassName: string;
-  /** Resolved at parse time; falls back to a humanised class name if unknown. */
+  /** The item's authored display name; empty when the source has none — the edge humanises. */
   displayName: string;
   /** Per craft. Fluid amounts are already converted to m³ (raw units ÷ 1000). */
   amount: number;

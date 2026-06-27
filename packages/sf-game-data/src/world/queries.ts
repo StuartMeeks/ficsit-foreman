@@ -1,5 +1,3 @@
-import { humaniseClassName } from '@foreman/sf-core';
-
 import type { GameData } from '../parser/types.js';
 import type {
   Collectible,
@@ -103,7 +101,7 @@ export class WorldQueries {
     }
     return {
       className,
-      displayName: this.resourceNames.get(className) ?? humaniseClassName(className),
+      displayName: this.resourceNames.get(className) ?? '',
     };
   }
 
@@ -181,7 +179,7 @@ export class WorldQueries {
   private resolveItem(className: string): ResourceRef {
     return {
       className,
-      displayName: this.resourceNames.get(className) ?? humaniseClassName(className),
+      displayName: this.resourceNames.get(className) ?? '',
     };
   }
 

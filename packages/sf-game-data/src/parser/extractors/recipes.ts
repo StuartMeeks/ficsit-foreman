@@ -7,7 +7,7 @@ import type {
   VariablePower,
 } from '../types.js';
 import { getNumber, getString } from '../util.js';
-import { extractClassNames, humaniseClassName } from '@foreman/sf-core';
+import { extractClassNames } from '@foreman/sf-core';
 import { parseItemAmountList, type RawItemAmount } from '../normalise/ingredients.js';
 import { perMinute, toDisplayAmount } from '../normalise/fluids.js';
 
@@ -37,8 +37,12 @@ function resolveForm(lookups: RecipeLookups, className: string): ItemForm {
   return lookups.itemForm.get(className) ?? 'solid';
 }
 
+/**
+ * The item's authored display name, or `''` when unknown. The edge humanises the
+ * bare class name when no authored name exists (presentation boundary).
+ */
 function resolveDisplay(lookups: RecipeLookups, className: string): string {
-  return lookups.itemDisplay.get(className) ?? humaniseClassName(className);
+  return lookups.itemDisplay.get(className) ?? '';
 }
 
 function mapIngredient(

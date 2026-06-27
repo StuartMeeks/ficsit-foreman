@@ -46,7 +46,12 @@ export function loadGameDataIndex(): GameDataIndex {
       ...Object.values(gameData.recipes),
       ...Object.values(gameData.buildings),
     ]) {
-      displayNames.set(entry.className, entry.displayName);
+      // Skip entries with no authored name: the neutral parser now emits '' rather
+      // than a humanised fallback, so callers resolving `get(c) ?? humanise(c)` only
+      // see a real authored name here (and humanise the rest at the edge).
+      if (entry.displayName) {
+        displayNames.set(entry.className, entry.displayName);
+      }
     }
     logger.info(`Loaded ${displayNames.size} display names from game data (${gameData.version}).`);
     return { displayNames, recipes: gameData.recipes, buildings: gameData.buildings };
