@@ -13,7 +13,9 @@ the conventions' home. Read the relevant doc before working in an area.
 packages/
   sf-core/            structural/identity kernel — class-name helpers (zero-dep lib)
   sf-present/         reusable presentation helpers — humaniseClassName + unit/bearing (zero-dep lib)
-  sf-game-data/       parser + shared types + bundled game data (lib; PARSER.md here)
+  sf-game-data/       GameData types + merged-dataset loaders + bundled data (lib).
+                      The offline C# extractor (en-US.json + cooked assets → one
+                      sf-game-data.json per channel) lives in extract/ (PARSER.md here)
   sf-game-data-graph/ Kùzu production graph as a library (carries the kuzu addon)
   sf-save-data/       .sav → SaveState parser + normalise (lib)
   sf-mcp/             unified MCP server: game-data graph tools + live save-game tools
@@ -34,8 +36,8 @@ docs/                 product.md · architecture.md · work-orders.md · playthr
 | The session/playthrough & foreman model (design) | [`docs/playthroughs.md`](./docs/playthroughs.md) |
 | The save subsystem (identity, re-upload history, same-game) — design & roadmap | [`docs/save-subsystem.md`](./docs/save-subsystem.md) |
 | Crash-site loot & drop-pod unlock costs (#107) — design | [`docs/crash-site-loot.md`](./docs/crash-site-loot.md) |
-| The game-data parser & class-map design | [`packages/sf-game-data/PARSER.md`](./packages/sf-game-data/PARSER.md) |
-| The single-producer game-data extractor (`sf-game-data-extractor`) — design | [`docs/sf-game-data-extractor.md`](./docs/sf-game-data-extractor.md) |
+| The game-data parsing logic & class-map (implemented by the C# parser) | [`packages/sf-game-data/PARSER.md`](./packages/sf-game-data/PARSER.md) |
+| The single-producer game-data pipeline (`sf-game-data-extractor`) — design | [`docs/sf-game-data-extractor.md`](./docs/sf-game-data-extractor.md) |
 | The foreman persona (runtime prompt) | [`packages/ff-server/SYSTEM_PROMPT.md`](./packages/ff-server/SYSTEM_PROMPT.md) |
 | A package's usage, tools, and setup | that package's `README.md` |
 | Conventions (commit/PR/branch/code standards) and game-data updates | [`CONTRIBUTING.md`](./CONTRIBUTING.md) |
@@ -44,7 +46,10 @@ docs/                 product.md · architecture.md · work-orders.md · playthr
 
 Phases 1 (game-data MCP) and 2 (backend & foreman chat) are complete and merged;
 Work Orders v2 shipped. The web client (Phase 3) is in progress. The save-game MCP
-shipped v1. Live, per-component work is tracked in the
+shipped v1. The **single-producer game-data pipeline** shipped (epic #164): an
+offline C# extractor parses `en-US.json` and extracts the cooked assets into one
+merged `sf-game-data.json` per channel, which the runtime loads directly — the raw
+`en-US.json` is no longer committed. Live, per-component work is tracked in the
 [issue tracker](https://github.com/StuartMeeks/ficsit-foreman/issues).
 
 ## Conventions
