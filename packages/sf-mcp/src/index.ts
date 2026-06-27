@@ -6,13 +6,7 @@ import dotenv from 'dotenv';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 
-import {
-  emptyGameData,
-  loadWorldLocations,
-  parseDocsFile,
-  resolveDocsPath,
-  WorldQueries,
-} from '@foreman/sf-game-data';
+import { loadDataset, WorldQueries } from '@foreman/sf-game-data';
 import type { GameData } from '@foreman/sf-game-data';
 import { initGraph } from '@foreman/sf-game-data-graph';
 
@@ -36,29 +30,9 @@ function loadEnv(): void {
   dotenv.config(); // also honour a .env in the current working directory
 }
 
-function loadGameData(): { gameData: GameData; docsPath: string | undefined } {
-  const { path: docsPath, warning } = resolveDocsPath();
-  if (warning !== undefined) {
-    logger.warn(warning);
-  }
-  if (docsPath === undefined) {
-    return { gameData: emptyGameData('unknown'), docsPath: undefined };
-  }
-  try {
-    const { gameData, parseWarnings } = parseDocsFile(docsPath);
-    for (const message of parseWarnings) {
-      logger.warn(message);
-    }
-    return { gameData, docsPath };
-  } catch (error) {
-    logger.error(`Failed to read or parse docs file at '${docsPath}':`, error);
-    return { gameData: emptyGameData('unknown'), docsPath: undefined };
-  }
-}
-
 /** Echoes what game data was loaded and from where, so startup is self-explanatory. */
-function logStartupSummary(gameData: GameData, docsPath: string | undefined): void {
-  logger.info(`Game data source: ${docsPath ?? '(none — running with an empty dataset)'}`);
+function logStartupSummary(gameData: GameData, datasetPath: string | undefined): void {
+  logger.info(`Game data source: ${datasetPath ?? '(none — running with an empty dataset)'}`);
   logger.info(
     `Game version: ${gameData.version} | ` +
       `items=${count(gameData.items)} resources=${count(gameData.resources)} ` +
@@ -88,16 +62,15 @@ function buildRegistry(config: ServerConfig): SaveStoreRegistry {
 async function main(): Promise<void> {
   loadEnv();
 
-  // Game-data half: parse the docs file into the Kùzu production graph and load
-  // the static world-location dataset for the spatial tools.
-  const { gameData, docsPath } = loadGameData();
-  const graph = await initGraph(gameData);
-  logStartupSummary(gameData, docsPath);
-
-  const { world, warning: worldWarning } = loadWorldLocations();
-  if (worldWarning !== undefined) {
-    logger.warn(worldWarning);
+  // Game-data half: load the merged dataset (#161) — pre-extracted gameData +
+  // world locations from one sf-game-data.json — then build the Kùzu production
+  // graph and the spatial query layer from it.
+  const { gameData, world, path: datasetPath, warning: datasetWarning } = loadDataset();
+  if (datasetWarning !== undefined) {
+    logger.warn(datasetWarning);
   }
+  const graph = await initGraph(gameData);
+  logStartupSummary(gameData, datasetPath);
   logger.info(
     `World locations: collectibles=${world.collectibles.length} resourceNodes=${world.resourceNodes.length}`,
   );

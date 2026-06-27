@@ -71,6 +71,11 @@ export {
   emptyWorldLocations,
   channelWorldLocationsPath,
 } from './world/index.js';
+// Merged-dataset loaders (#161): the runtime loads pre-extracted `gameData` from
+// `sf-game-data.json` instead of parsing `en-US.json`. `loadDataset` reads the
+// merged file once and returns both halves; the two single-purpose loaders wrap it.
+export { loadDataset, loadGameData } from './world/index.js';
+export type { DatasetResolution, GameDataResolution } from './world/index.js';
 // NOTE: world-coordinate presentation helpers (cm↔m unit conversion, compass
 // bearing) deliberately do NOT live here. They are presentation, so they live at
 // the edge (`@foreman/sf-mcp`); this neutral library returns raw, game-native

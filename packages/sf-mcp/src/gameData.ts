@@ -1,4 +1,4 @@
-import { parseDocsFile, resolveDocsPath, type Building, type Recipe } from '@foreman/sf-game-data';
+import { loadGameData, type Building, type Recipe } from '@foreman/sf-game-data';
 import { humaniseClassName } from '@foreman/sf-present';
 
 import { logger } from './logger.js';
@@ -16,50 +16,37 @@ export interface GameDataIndex {
   buildings: Record<string, Building>;
 }
 
-function emptyIndex(): GameDataIndex {
-  return { displayNames: new Map(), recipes: {}, buildings: {} };
-}
-
 /**
- * Loads the game-data index from `@foreman/sf-game-data`'s parser + bundled
- * `en-US.json` (or a player-supplied install via SATISFACTORY_DOCS_PATH / GAME_DIR).
- * Best-effort: returns an empty index (humanised fallback, no rates) if no game
- * data is available, and never throws.
+ * Loads the game-data index from `@foreman/sf-game-data`'s merged dataset —
+ * pre-extracted `gameData` in the bundled `sf-game-data.json` (or a custom file via
+ * SF_GAME_DATA_PATH), no longer a runtime `en-US.json` parse (#161). Best-effort:
+ * `loadGameData` never throws and degrades to empty game data, so this returns an
+ * empty index (humanised fallback, no rates) when no data is available.
  *
  * Note: MAM/milestone *schematics* are not in the parsed game data, so those keep
  * the humanised fallback.
  */
 export function loadGameDataIndex(): GameDataIndex {
-  const { path: docsPath, warning } = resolveDocsPath();
+  const { gameData, warning } = loadGameData();
   if (warning !== undefined) {
     logger.warn(warning);
   }
-  if (docsPath === undefined) {
-    logger.warn('No game data found — display names will fall back to humanised class names.');
-    return emptyIndex();
-  }
-  try {
-    const { gameData } = parseDocsFile(docsPath);
-    const displayNames = new Map<string, string>();
-    for (const entry of [
-      ...Object.values(gameData.items),
-      ...Object.values(gameData.resources),
-      ...Object.values(gameData.recipes),
-      ...Object.values(gameData.buildings),
-    ]) {
-      // Skip entries with no authored name: the neutral parser now emits '' rather
-      // than a humanised fallback, so callers resolving `get(c) ?? humanise(c)` only
-      // see a real authored name here (and humanise the rest at the edge).
-      if (entry.displayName) {
-        displayNames.set(entry.className, entry.displayName);
-      }
+  const displayNames = new Map<string, string>();
+  for (const entry of [
+    ...Object.values(gameData.items),
+    ...Object.values(gameData.resources),
+    ...Object.values(gameData.recipes),
+    ...Object.values(gameData.buildings),
+  ]) {
+    // Skip entries with no authored name: the neutral data emits '' rather than a
+    // humanised fallback, so callers resolving `get(c) ?? humanise(c)` only see a
+    // real authored name here (and humanise the rest at the edge).
+    if (entry.displayName) {
+      displayNames.set(entry.className, entry.displayName);
     }
-    logger.info(`Loaded ${displayNames.size} display names from game data (${gameData.version}).`);
-    return { displayNames, recipes: gameData.recipes, buildings: gameData.buildings };
-  } catch (error) {
-    logger.error('Failed to load game data; using humanised fallback:', error);
-    return emptyIndex();
   }
+  logger.info(`Loaded ${displayNames.size} display names from game data (${gameData.version}).`);
+  return { displayNames, recipes: gameData.recipes, buildings: gameData.buildings };
 }
 
 /**
