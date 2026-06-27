@@ -149,7 +149,7 @@ export function registerSaveTools(server: McpServer, registry: SaveStoreRegistry
     {
       title: 'Get nearby collectibles',
       description:
-        'Un-collected collectibles near a world location, nearest-first, each with coordinates (metres), distance (metres), and a compass bearing (N/NE/E/…) from the origin. Positions are from the complete world dataset, with the ones the save records as already collected removed — so these are genuinely still grabbable. Filter by kinds (mercerSphere, somersloop, powerSlugBlue/Yellow/Purple, hardDrive), cap by radius (metres) and limit (default 20). Use the player location from get_player_state (also metres) as the origin to answer "what can I grab near me?".',
+        'Un-collected collectibles near a world location, nearest-first, each with coordinates (metres), distance (metres), and a compass bearing (N/NE/E/…) from the origin. Positions are from the complete world dataset, with the ones the save records as already collected removed — so these are genuinely still grabbable. Filter by kinds (mercerSphere, somersloop, powerSlugBlue/Yellow/Purple, hardDrive), cap by radius (metres) and limit (default 20). Use the player location from get_player_state (also metres) as the origin to answer "what can I grab near me?". For hard drives, `unlockCost` is what the drop pod requires to open it (items and/or power) — it is a COST to open the pod, NOT a reward; the reward is the hard drive itself, which unlocks an alternate-recipe research at the MAM.',
       inputSchema: {
         location: vec3Schema,
         kinds: z.array(collectibleKindSchema).optional(),

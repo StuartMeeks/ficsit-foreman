@@ -357,8 +357,12 @@ export interface NearbyItem {
   distance: number;
   /** 8-point compass direction from the origin (N, NE, E, …). */
   bearing: string;
-  /** For hard-drive crash sites: what the pod requires to open (item and/or power). */
-  unlock?: ResolvedUnlock;
+  /**
+   * For hard-drive crash sites: the **cost to open the drop pod** (the items and/or
+   * power it requires) — NOT a reward. The reward is the hard drive itself, which
+   * unlocks an alternate-recipe research at the MAM.
+   */
+  unlockCost?: ResolvedUnlock;
 }
 
 export interface NearbyOptions {
@@ -426,7 +430,7 @@ export function nearbyFromWorld(
         location,
         distance: distance(origin, location),
         bearing: compassBearing(origin, location),
-        ...(c.unlock !== undefined ? { unlock: resolveUnlock(c.unlock, itemName) } : {}),
+        ...(c.unlock !== undefined ? { unlockCost: resolveUnlock(c.unlock, itemName) } : {}),
       };
     })
     .sort((a, b) => a.distance - b.distance);
