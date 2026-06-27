@@ -8,5 +8,6 @@
  * `docs/component-architecture.md`.
  */
 
-// Class-name resolution helpers.
-export { humaniseClassName, extractClassNames } from './classRef.js';
+// Class-name resolution helpers. (humaniseClassName is presentation, not identity —
+// it lives in @foreman/sf-present.)
+export { extractClassNames } from './classRef.js';

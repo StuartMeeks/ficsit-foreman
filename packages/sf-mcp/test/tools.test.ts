@@ -1,4 +1,5 @@
-import { humaniseClassName, type Collectible, type WorldLocations } from '@foreman/sf-game-data';
+import type { Collectible, WorldLocations } from '@foreman/sf-game-data';
+import { humaniseClassName } from '@foreman/sf-present';
 import { describe, expect, it } from 'vitest';
 
 import { emptySaveState, normaliseSave } from '@foreman/sf-save-data';

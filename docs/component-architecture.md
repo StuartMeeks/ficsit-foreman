@@ -60,27 +60,33 @@ and each consumer formats to taste.
 
 - **Unit conversion** — `cmToMetres` / `metresToCm` / `vecToMetres`. Graph and parser
   keep **centimetres** (the save's native unit); the MCP/app converts to metres "for
-  the HUD". ✅ Done — these live at `sf-mcp/src/units.ts`; `vecToMetres` is local to the
-  save selectors. `WorldQueries` returns raw centimetres.
+  the HUD". ✅ Done — `cmToMetres`/`metresToCm` live in **`@foreman/sf-present`** (the
+  reusable presentation lib); `vecToMetres` is local to the save selectors.
+  `WorldQueries` returns raw centimetres.
 - **Compass bearing** (`compassBearing`) — a derived, human-facing direction. ✅ Done
-  (`sf-mcp/src/units.ts`).
-- **Duration formatting** ("12h 34m") and **numeric rounding** — the graph keeps raw
-  seconds / full-precision values.
+  (`@foreman/sf-present`).
+- **Numeric rounding** — ✅ the parser no longer rounds (`round4` removed); `GameData`
+  carries full-precision rates and the graph rounds only computed query output.
+  **Duration formatting** ("12h 34m") stays at the edge.
 - **Cross-domain display-name enrichment** — upgrading a save's `Desc_*` class to the
   game's authored display name is a *join across both graphs*; it lives at `sf-mcp`,
   not inside `sf-save-data` (keeps the save graph game-data-agnostic, per decision 3).
-- **`humaniseClassName`** — the cosmetic class → Title-Case fallback; kept out of graph
-  logic.
+  ✅ Done — `SaveState` carries raw class names; `sf-mcp` selectors resolve via
+  `makeNameResolver(game)`.
+- **`humaniseClassName`** — the cosmetic class → Title-Case fallback. ✅ Done — lives in
+  **`@foreman/sf-present`**; the neutral parser/graph/save libs emit raw class names (or
+  `''`) and only the edge humanises.
 
 **Stays in the neutral layers (don't over-correct):**
 
-- `classNameFromPath` (structural identity), `distance` / geometry (pure maths), `Vec3`
-  (shared type) → `sf-core`.
+- `classNameFromPath`, `extractClassNames` (structural identity), `distance` / geometry
+  (pure maths), `Vec3` (shared type) → `sf-core`.
 - Computed *domain* quantities — `perMinute`, `craftTime`, stack sizes — and the game's
   authored `displayName` (a domain fact from `Docs.json`) → the relevant `sf-*` data lib.
 
 Net: **`sf-core` narrows to a structural/identity kernel** (class-name resolution,
-shared scalar types, channel/version logic) — no unit or formatting helpers.
+shared scalar types, channel/version logic) — no unit or formatting helpers. Those
+presentation helpers live in **`@foreman/sf-present`** (reusable without the MCP server).
 
 ---
 
@@ -88,7 +94,8 @@ shared scalar types, channel/version logic) — no unit or formatting helpers.
 
 | Package | Role | From (today) |
 |---|---|---|
-| **`sf-core`** | Slim shared kernel: class-name resolution, shared scalar types (`Vec3`), channel/version logic. | *split* out of `game-data-core` |
+| **`sf-core`** | Slim shared kernel: class-name resolution (identity), shared scalar types (`Vec3`), channel/version logic. No formatting helpers. | *split* out of `game-data-core` |
+| **`sf-present`** | Reusable presentation/formatting helpers — `humaniseClassName`, `cmToMetres`/`metresToCm`/`compassBearing`. Zero-dep leaf; usable without the MCP server. | new (#137; extracted from `sf-core`/`sf-mcp`) |
 | **`sf-game-data`** | Static reference data. `./parser`: `Docs.json` → recipes/buildings/items + world-locations + bundled data (→ `sf-core`). `./graph`: Kùzu graph **as a library** (→ `./parser`). | `game-data-core` (parser) + `mcp-game-data` (graph) |
 | **`sf-save-data`** | A player's save instance. `./parser`: adopted @etothepii parser + normalise (→ `sf-core`). `./graph`: the save-game graph **as a library** (→ `./parser`). | `mcp-save-game` (+ new graph) |
 | **`sf-mcp`** | Single, **domain-neutral** MCP server loading *both* graph libs and exposing their tools — **including cross-graph (save ↔ game-data) join tools**. The one place the two domains meet. | new (extracted from the MCP packages) |
@@ -115,6 +122,7 @@ graph TD
         gd["sf-game-data"]
         sdg["sf-save-data-graph<br/><i>+ kuzu</i>"]
         sd["sf-save-data"]
+        present["sf-present"]
         core["sf-core"]
     end
 
@@ -122,6 +130,7 @@ graph TD
     ffs -. "MCP transport" .-> mcp
     mcp --> gdg
     mcp --> sdg
+    mcp --> present
     gdg --> gd
     gd --> core
     sdg --> sd
@@ -130,11 +139,11 @@ graph TD
     classDef app fill:#fde8e8,stroke:#d98880,color:#000;
     classDef sf fill:#e8f0fe,stroke:#7fa8e0,color:#000;
     class ffc,ffs app;
-    class mcp,gdg,gd,sdg,sd,core sf;
+    class mcp,gdg,gd,sdg,sd,present,core sf;
 ```
 
 Text form (deps point right-to-left): `sf-core ← {game,save}-data ← {game,save}-data-graph
-← sf-mcp ← ff-server ← ff-client`.
+← sf-mcp ← ff-server ← ff-client`; `sf-present` is a zero-dep leaf consumed by `sf-mcp`.
 
 ### Guards
 

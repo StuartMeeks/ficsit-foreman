@@ -1,5 +1,5 @@
 import type { Coord, WorldQueries } from '@foreman/sf-game-data';
-import { cmToMetres, compassBearing, metresToCm } from '../units.js';
+import { cmToMetres, compassBearing, metresToCm } from '@foreman/sf-present';
 import type { GraphDB } from '@foreman/sf-game-data-graph';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
