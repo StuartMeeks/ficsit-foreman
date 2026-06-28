@@ -23,6 +23,7 @@
     "format": "prettier --write \"src/**/*.ts\""
   },
   "dependencies": {
+    "@foreman/sf-flow": "0.1.0",
     "@foreman/sf-game-data": "0.1.0",
     "@foreman/sf-game-data-graph": "0.1.0",
     "@foreman/sf-present": "0.1.0",

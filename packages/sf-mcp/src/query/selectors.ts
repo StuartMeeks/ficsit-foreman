@@ -717,7 +717,7 @@ function manufacturerLine(line: ProducerLine, game: GameDataIndex): MachineLine 
  * draw Water from a volume (no node, no purity); everything else snaps onto a
  * resource node, so we read the resource + purity from the node it sits on.
  */
-function resolveExtraction(
+export function resolveExtraction(
   line: ExtractorLine,
   world: WorldLocations,
 ): { resourceClass?: string; purity?: Purity | 'unknown'; purityMul: number } {
