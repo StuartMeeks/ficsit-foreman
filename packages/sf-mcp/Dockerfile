@@ -28,6 +28,7 @@ COPY package.json package-lock.json tsconfig.base.json ./
 RUN npm install -g "npm@$(node -p 'require("./package.json").packageManager.split("@")[1]')"
 COPY packages/sf-core/package.json ./packages/sf-core/package.json
 COPY packages/sf-present/package.json ./packages/sf-present/package.json
+COPY packages/sf-flow/package.json ./packages/sf-flow/package.json
 COPY packages/sf-game-data/package.json ./packages/sf-game-data/package.json
 COPY packages/sf-game-data-graph/package.json ./packages/sf-game-data-graph/package.json
 COPY packages/sf-save-data/package.json ./packages/sf-save-data/package.json
@@ -41,6 +42,8 @@ COPY packages/sf-core ./packages/sf-core
 RUN npm run build -w @foreman/sf-core
 COPY packages/sf-present ./packages/sf-present
 RUN npm run build -w @foreman/sf-present
+COPY packages/sf-flow ./packages/sf-flow
+RUN npm run build -w @foreman/sf-flow
 COPY packages/sf-game-data ./packages/sf-game-data
 RUN npm run build -w @foreman/sf-game-data
 COPY packages/sf-game-data-graph ./packages/sf-game-data-graph
@@ -69,6 +72,7 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 COPY packages/sf-core/package.json ./packages/sf-core/package.json
 COPY packages/sf-present/package.json ./packages/sf-present/package.json
+COPY packages/sf-flow/package.json ./packages/sf-flow/package.json
 COPY packages/sf-game-data/package.json ./packages/sf-game-data/package.json
 COPY packages/sf-game-data-graph/package.json ./packages/sf-game-data-graph/package.json
 COPY packages/sf-save-data/package.json ./packages/sf-save-data/package.json
@@ -81,6 +85,7 @@ COPY --from=builder /app/node_modules ./node_modules
 # sf-save-data-graph (the save connection graph).
 COPY --from=builder /app/packages/sf-core/dist ./packages/sf-core/dist
 COPY --from=builder /app/packages/sf-present/dist ./packages/sf-present/dist
+COPY --from=builder /app/packages/sf-flow/dist ./packages/sf-flow/dist
 COPY --from=builder /app/packages/sf-game-data/dist ./packages/sf-game-data/dist
 COPY --from=builder /app/packages/sf-game-data/data ./packages/sf-game-data/data
 COPY --from=builder /app/packages/sf-game-data-graph/dist ./packages/sf-game-data-graph/dist
@@ -92,7 +97,7 @@ COPY --from=builder /app/packages/sf-mcp/dist ./packages/sf-mcp/dist
 # this stage. The builder-stage resolve check can't catch a runtime-stage omission
 # (which is exactly how the sf-save-data-graph copy was missed). Runs here so every
 # @foreman/* package sf-mcp imports must resolve in the final image.
-RUN node -e "['@foreman/sf-game-data','@foreman/sf-game-data-graph','@foreman/sf-present','@foreman/sf-save-data','@foreman/sf-save-data-graph'].forEach((p) => require.resolve(p))"
+RUN node -e "['@foreman/sf-flow','@foreman/sf-game-data','@foreman/sf-game-data-graph','@foreman/sf-present','@foreman/sf-save-data','@foreman/sf-save-data-graph'].forEach((p) => require.resolve(p))"
 
 # Shared saves volume (SAVE_DATA_DIR=/data/saves, read here, written by the
 # server). This service starts first (the server depends on it), so it is the
