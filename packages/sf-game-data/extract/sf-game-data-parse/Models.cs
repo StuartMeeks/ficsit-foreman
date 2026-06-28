@@ -83,6 +83,8 @@ public sealed class Building
     public List<GeneratorFuel>? Fuels { get; set; }
     public double? ConveyorSpeedPerMin { get; set; }
     public double? PipeFlowPerMin { get; set; }
+    /// <summary>Pump design head lift in metres (<c>mDesignPressure</c>). Present only for pipeline pumps.</summary>
+    public double? HeadLiftMetres { get; set; }
     public double? ExtractionRatePerMin { get; set; }
     public List<BuildCostLine> BuildCost { get; set; } = [];
 }

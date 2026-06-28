@@ -119,6 +119,11 @@ public static class Buildings
         {
             building.PipeFlowPerMin = flowLimit * 60;
         }
+        var headLift = Util.GetNumber(raw, "mDesignPressure", 0); // pumps: design head lift in metres
+        if (headLift > 0)
+        {
+            building.HeadLiftMetres = headLift;
+        }
         var itemsPerCycle = Util.GetNumber(raw, "mItemsPerCycle", 0); // miners / extractors
         var cycleTime = Util.GetNumber(raw, "mExtractCycleTime", 0);
         if (itemsPerCycle > 0 && cycleTime > 0)
