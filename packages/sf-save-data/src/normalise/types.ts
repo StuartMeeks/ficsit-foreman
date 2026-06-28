@@ -105,10 +105,28 @@ export interface GeneratorLine {
   location?: Vec3;
 }
 
+/**
+ * A Power Storage (battery), as read from the save. It charges on circuit surplus and
+ * discharges on deficit, buffering the grid — so a circuit with charged batteries can
+ * survive a momentary over-draw. `chargeMWh` is the raw `mPowerStore`; full capacity
+ * (MWh) is a game-data join made at the query layer (a full Mk1 reads 100).
+ */
+export interface BatteryLine {
+  /** Stable per-save actor instance name — the join key to `topology` and the graph. */
+  instanceName: string;
+  /** Building class, e.g. `Build_PowerStorageMk1_C`. */
+  buildingClass: string;
+  /** Stored energy — the raw `mPowerStore` (a full Power Storage Mk1 reads 100 ≈ 100 MWh). */
+  chargeMWh: number;
+  location?: Vec3;
+}
+
 export interface ProductionState {
   producers: ProducerLine[];
   extractors: ExtractorLine[];
   generators: GeneratorLine[];
+  /** Power Storage (batteries) buffering the grid. */
+  batteries: BatteryLine[];
 }
 
 /**
@@ -271,7 +289,7 @@ export function emptySaveState(version: string, saveName: string, parsedAt: stri
     player: { inventory: [] },
     storage: { containers: [], dimensionalDepot: [] },
     recipes: [],
-    production: { producers: [], extractors: [], generators: [] },
+    production: { producers: [], extractors: [], generators: [], batteries: [] },
     milestones: [],
     topology: { buildables: [], edges: [], powerCircuits: [], splitters: [] },
     mamResearch: [],

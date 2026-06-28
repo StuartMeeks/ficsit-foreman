@@ -9,6 +9,7 @@
  * partial state simply yields an empty graph.
  */
 import type {
+  BatteryLine,
   ExtractorLine,
   GeneratorLine,
   ProducerLine,
@@ -41,6 +42,7 @@ export function buildSaveGraph(state: SaveState): SaveGraph {
   const producerByName = indexByInstance<ProducerLine>(state.production?.producers);
   const extractorByName = indexByInstance<ExtractorLine>(state.production?.extractors);
   const generatorByName = indexByInstance<GeneratorLine>(state.production?.generators);
+  const batteryByName = indexByInstance<BatteryLine>(state.production?.batteries);
   const splitterByName = indexByInstance<SplitterConfig>(topology.splitters);
 
   const actors = new Map<string, ActorNode>();
@@ -49,6 +51,7 @@ export function buildSaveGraph(state: SaveState): SaveGraph {
     const producer = producerByName.get(buildable.instanceName);
     const extractor = extractorByName.get(buildable.instanceName);
     const generator = generatorByName.get(buildable.instanceName);
+    const battery = batteryByName.get(buildable.instanceName);
     const splitter = splitterByName.get(buildable.instanceName);
     const kind: ActorKind = storage
       ? 'storage'
@@ -68,6 +71,7 @@ export function buildSaveGraph(state: SaveState): SaveGraph {
       ...(producer === undefined ? {} : { producer }),
       ...(extractor === undefined ? {} : { extractor }),
       ...(generator === undefined ? {} : { generator }),
+      ...(battery === undefined ? {} : { battery }),
       ...(splitter === undefined ? {} : { splitter }),
     });
   }

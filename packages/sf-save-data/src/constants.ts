@@ -88,6 +88,17 @@ export const WATER_ITEM_CLASS = 'Desc_Water_C';
  */
 export const GENERATOR_BUILDING = /Build_Generator/;
 
+/**
+ * Power Storage (battery). Buffers a circuit — charges on surplus, discharges on
+ * deficit — so a circuit with charged batteries can ride out a momentary over-draw
+ * that would otherwise read as a failure. The save persists its stored energy
+ * (`mPowerStore`); a full Power Storage Mk1 reads 100. Capacity (MWh) is a game-data
+ * join made at the query layer. `Build_PowerStorage` matches every tier.
+ */
+export const POWER_STORAGE_BUILDING = /Build_PowerStorage/;
+/** A power-storage building's stored energy (FloatProperty; a full Mk1 reads 100). */
+export const POWER_STORE_PROP = 'mPowerStore';
+
 /** The recipe a producing buildable is set to (ObjectProperty → recipe class). */
 export const CURRENT_RECIPE_PROP = 'mCurrentRecipe';
 /**
