@@ -326,5 +326,48 @@ describe('generators (#68)', () => {
     expect(powered.production.generators).toHaveLength(2);
     expect(powered.production.producers).toHaveLength(0);
     expect(powered.production.extractors).toHaveLength(0);
+    expect(powered.production.batteries).toHaveLength(0);
+  });
+});
+
+describe('batteries (#148)', () => {
+  const LVL = 'Persistent_Level:PersistentLevel';
+  const T_BATTERY =
+    '/Game/FactoryGame/Buildable/Factory/PowerStorageMk1/Build_PowerStorageMk1.Build_PowerStorageMk1_C';
+  const charged = normaliseSave(
+    makeSave({
+      objects: [
+        // A charged Power Storage.
+        obj(T_BATTERY, { mPowerStore: floatProp(73.5) }, {
+          instanceName: `${LVL}.Battery_1`,
+          transform: vec3(10, 20, 30),
+        }),
+        // An empty one — the save omits mPowerStore, so it must default to 0.
+        obj(T_BATTERY, {}, { instanceName: `${LVL}.Battery_2` }),
+      ],
+    }),
+    '2026-01-01T00:00:00.000Z',
+  ).state;
+
+  it('extracts stored charge, defaulting an absent mPowerStore to 0', () => {
+    expect(charged.production.batteries).toEqual([
+      {
+        instanceName: `${LVL}.Battery_1`,
+        buildingClass: 'Build_PowerStorageMk1_C',
+        chargeMWh: 73.5,
+        location: { x: 10, y: 20, z: 30 },
+      },
+      {
+        instanceName: `${LVL}.Battery_2`,
+        buildingClass: 'Build_PowerStorageMk1_C',
+        chargeMWh: 0,
+        location: undefined,
+      },
+    ]);
+  });
+
+  it('does not classify a battery as a generator/producer', () => {
+    expect(charged.production.generators).toHaveLength(0);
+    expect(charged.production.producers).toHaveLength(0);
   });
 });

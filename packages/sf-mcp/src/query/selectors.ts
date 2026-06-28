@@ -917,7 +917,10 @@ const POWER_NOTE =
   'powered buildings at 100% draw). Geothermal output is variable (geyser-purity ' +
   'dependent) and excluded from the numeric capacity — circuits containing one are ' +
   'flagged hasVariableGenerators, so real capacity is higher than shown. Fuel supply ' +
-  'is not checked: an unfuelled generator still counts toward capacity.';
+  'is not checked: an unfuelled generator still counts toward capacity. Power Storage ' +
+  '(batteries) is reported per circuit as batteryCount + batteryChargeMWh, NOT as ' +
+  'capacity or draw — charged batteries buffer a momentary deficit, so an overloaded ' +
+  'circuit with stored charge will not trip until that charge is exhausted.';
 
 export type PowerStatus = 'ok' | 'tight' | 'overloaded' | 'unknown';
 
@@ -935,6 +938,10 @@ export interface PowerCircuitView {
   /** capacityMW − consumptionMW (positive = headroom). */
   balanceMW: number;
   status: PowerStatus;
+  /** Power Storage (batteries) on this circuit — they buffer a momentary deficit. */
+  batteryCount: number;
+  /** Combined stored energy of those batteries (raw `mPowerStore`; a full Mk1 ≈ 100 MWh). */
+  batteryChargeMWh: number;
 }
 
 /** Generators of one building type, rolled up across the whole save. */
@@ -1046,6 +1053,8 @@ export function powerView(state: SaveState, graph: SaveGraph, game: GameDataInde
       let generatorCount = 0;
       let consumerCount = 0;
       let hasVariableGenerators = false;
+      let batteryCount = 0;
+      let batteryChargeMWh = 0;
       for (const member of circuit.members) {
         const node = graph.getActor(member);
         if (node === undefined) {
@@ -1063,6 +1072,11 @@ export function powerView(state: SaveState, graph: SaveGraph, game: GameDataInde
           } else {
             capacityMW += cap.mw;
           }
+        } else if (node.battery !== undefined) {
+          // A battery neither generates nor consumes in this balance; it buffers the
+          // circuit, so it is reported separately rather than as capacity/draw.
+          batteryCount += 1;
+          batteryChargeMWh += node.battery.chargeMWh;
         } else {
           const draw = consumerDrawMW(node, game);
           if (draw > 0) {
@@ -1083,6 +1097,8 @@ export function powerView(state: SaveState, graph: SaveGraph, game: GameDataInde
         consumptionMW,
         balanceMW,
         status: powerStatus(capacityMW, consumptionMW, balanceMW, hasVariableGenerators),
+        batteryCount,
+        batteryChargeMWh: round(batteryChargeMWh, 1),
       };
     })
     .sort((a, b) => a.circuitId - b.circuitId);

@@ -149,6 +149,42 @@ describe('powerView (#68)', () => {
     expect(view.totalConsumptionMW).toBe(4);
   });
 
+  it('reports Power Storage per circuit (charge buffer), not as capacity or draw', () => {
+    const T_BATTERY =
+      '/Game/FactoryGame/Buildable/Factory/PowerStorageMk1/Build_PowerStorageMk1.Build_PowerStorageMk1_C';
+    const BAT1 = `${LVL}.Bat_1`;
+    const BAT2 = `${LVL}.Bat_2`;
+    const buffered = makeSave({
+      objects: [
+        obj(T_CONSTRUCTOR, {}, { instanceName: CON }),
+        obj(T_BATTERY, { mPowerStore: floatProp(60) }, { instanceName: BAT1 }),
+        obj(T_BATTERY, { mPowerStore: floatProp(40.5) }, { instanceName: BAT2 }),
+        obj(
+          '/Script/FactoryGame.FGPowerCircuit',
+          {
+            mCircuitID: { type: 'IntProperty', value: 11 },
+            mComponents: refArrayProp([
+              `${CON}.PowerConnection`,
+              `${BAT1}.PowerConnection`,
+              `${BAT2}.PowerConnection`,
+            ]),
+          },
+          { instanceName: `${LVL}.CircuitSubsystem.FGPowerCircuit_3` },
+        ),
+      ],
+    });
+    const bs = normaliseSave(buffered, '2026-01-01T00:00:00.000Z').state;
+    const bv = powerView(bs, buildSaveGraph(bs), GAME);
+    expect(bv.circuits[0]).toMatchObject({
+      circuitId: 11,
+      batteryCount: 2,
+      batteryChargeMWh: 100.5,
+      consumerCount: 1, // the constructor only — batteries are not consumers
+      consumptionMW: 4,
+      capacityMW: 0,
+    });
+  });
+
   it('flags an overloaded grid when draw exceeds fixed capacity', () => {
     // A circuit with only the constructor (4 MW) and no generation.
     const drained = makeSave({

@@ -8,6 +8,7 @@
  * edge (`sf-mcp`). See `docs/component-architecture.md`.
  */
 import type {
+  BatteryLine,
   ExtractorLine,
   GeneratorLine,
   ProducerLine,
@@ -20,6 +21,7 @@ import type {
 // `SaveState.topology`); the graph is a pure projection of them. Re-exported here so
 // the graph package's public surface is unchanged for existing consumers.
 export type {
+  BatteryLine,
   ConnectionEdge,
   EdgeKind,
   PowerCircuit,
@@ -55,6 +57,12 @@ export interface ActorNode {
   extractor?: ExtractorLine;
   /** The generator record, when `kind === 'generator'`. */
   generator?: GeneratorLine;
+  /**
+   * The Power Storage (battery) record, present on power-storage actors only (`kind`
+   * stays `building`). A circuit's charged batteries buffer it against a momentary
+   * over-draw — read per-circuit via `powerView`.
+   */
+  battery?: BatteryLine;
   /**
    * Conditional output-routing rules, present on smart/programmable splitters only
    * (`kind` stays `building`). Drives feed-tracing: a filtered branch is not an even

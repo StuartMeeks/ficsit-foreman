@@ -5,11 +5,19 @@ import {
   EXTRACTOR_BUILDING,
   GENERATOR_BUILDING,
   MANUFACTURER_BUILDING,
+  POWER_STORAGE_BUILDING,
+  POWER_STORE_PROP,
   PRODUCTION_BOOST_PROP,
 } from '../constants.js';
 import type { RawObject } from '../parser/types.js';
 import { classNameFromPath } from './classRef.js';
-import type { ExtractorLine, GeneratorLine, ProducerLine, ProductionState } from './types.js';
+import type {
+  BatteryLine,
+  ExtractorLine,
+  GeneratorLine,
+  ProducerLine,
+  ProductionState,
+} from './types.js';
 import { numberField, propMap, refField, translation, type Warnings } from './util.js';
 
 /**
@@ -30,13 +38,16 @@ export function extractProduction(objects: RawObject[], warnings: Warnings): Pro
   const producers: ProducerLine[] = [];
   const extractors: ExtractorLine[] = [];
   const generators: GeneratorLine[] = [];
+  const batteries: BatteryLine[] = [];
 
   for (const obj of objects) {
     const typePath = obj.typePath ?? '';
     const isManufacturer = MANUFACTURER_BUILDING.test(typePath);
     const isExtractor = !isManufacturer && EXTRACTOR_BUILDING.test(typePath);
     const isGenerator = !isManufacturer && !isExtractor && GENERATOR_BUILDING.test(typePath);
-    if (!isManufacturer && !isExtractor && !isGenerator) {
+    const isBattery =
+      !isManufacturer && !isExtractor && !isGenerator && POWER_STORAGE_BUILDING.test(typePath);
+    if (!isManufacturer && !isExtractor && !isGenerator && !isBattery) {
       continue;
     }
     const props = propMap(obj);
@@ -70,7 +81,7 @@ export function extractProduction(objects: RawObject[], warnings: Warnings): Pro
         productionBoost: numberField(props, PRODUCTION_BOOST_PROP) ?? 1,
         location: translation(obj),
       });
-    } else {
+    } else if (isGenerator) {
       // Generator: burns fuel, no recipe/somersloop. `mCurrentFuelClass` is the item
       // loaded now (absent for geothermal / unfuelled). MW capacity is a game-data join.
       const fuelRef = refField(props, CURRENT_FUEL_PROP);
@@ -82,8 +93,17 @@ export function extractProduction(objects: RawObject[], warnings: Warnings): Pro
         ...(fuelClass === undefined ? {} : { fuelClass }),
         location: translation(obj),
       });
+    } else {
+      // Power Storage (battery): buffers the circuit. `mPowerStore` is its stored energy,
+      // saved only when non-empty (→ default 0). Capacity (MWh) is a game-data join.
+      batteries.push({
+        instanceName,
+        buildingClass,
+        chargeMWh: numberField(props, POWER_STORE_PROP) ?? 0,
+        location: translation(obj),
+      });
     }
   }
 
-  return { producers, extractors, generators };
+  return { producers, extractors, generators, batteries };
 }
