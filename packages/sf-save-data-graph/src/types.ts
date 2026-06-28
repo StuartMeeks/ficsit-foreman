@@ -87,3 +87,22 @@ export interface TraverseOptions {
   /** Maximum hops from the start (inclusive); omit for unbounded. */
   maxDepth?: number;
 }
+
+/** Options for the directed-flow queries (`upstreamOf` / `downstreamOf`). */
+export interface FlowOptions {
+  /** Maximum hops from the start; defaults to a safe finite bound. */
+  maxDepth?: number;
+}
+
+/**
+ * The result of a directed-flow query. Direction is inferred from connector tails and
+ * propagated along belt/pipe chains; where it cannot be resolved (ambiguous loops, or
+ * the depth bound was hit) `complete` is false — callers must treat that as *unknown*,
+ * never as a negative (a wrong "starved" verdict is worse than "unknown").
+ */
+export interface FlowReach {
+  /** Reached actor instance names, excluding the start. */
+  actors: string[];
+  /** False when some direction could not be resolved or the traversal was truncated. */
+  complete: boolean;
+}

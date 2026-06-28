@@ -148,3 +148,38 @@ describe('domain projection (nodes carry their typed save records)', () => {
     expect(graph.getActor(CONSTRUCTOR)?.splitter).toBeUndefined();
   });
 });
+
+describe('directed-flow inference (feed-tracing substrate)', () => {
+  const graph = buildSaveGraph(SCENE_STATE);
+
+  it('orients a machine→belt→machine chain from connectors and propagates through the belt', () => {
+    // constructor.Output0 → belt.ConveyorAny0 (certain) and belt.ConveyorAny1 →
+    // storage.Input0 (certain): the belt itself carries no directional connector but is
+    // oriented by propagation, so storage traces all the way back to the constructor.
+    const up = graph.upstreamOf(STORAGE);
+    expect(up.actors.sort()).toEqual([BELT, CONSTRUCTOR].sort());
+    expect(up.complete).toBe(true);
+
+    const down = graph.downstreamOf(CONSTRUCTOR);
+    expect(down.actors.sort()).toEqual([BELT, STORAGE].sort());
+    expect(down.complete).toBe(true);
+  });
+
+  it('orients a pipe link from the Input connector', () => {
+    // coal.PipeInput0 ↔ pipe.PipelineConnection0: the Input end fixes flow as pipe→coal.
+    expect(graph.upstreamOf(COAL).actors).toContain(PIPE);
+    expect(graph.downstreamOf(PIPE).actors).toContain(COAL);
+  });
+
+  it('reports nothing upstream of a true source, completely', () => {
+    const up = graph.upstreamOf(CONSTRUCTOR);
+    expect(up.actors).toEqual([]);
+    expect(up.complete).toBe(true);
+  });
+
+  it('respects the depth bound, flagging the result incomplete when truncated', () => {
+    const up = graph.upstreamOf(STORAGE, { maxDepth: 1 });
+    expect(up.actors).toEqual([BELT]); // only one hop; the constructor is two away
+    expect(up.complete).toBe(false);
+  });
+});
