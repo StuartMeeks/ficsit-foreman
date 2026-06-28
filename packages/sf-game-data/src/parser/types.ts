@@ -109,6 +109,8 @@ export interface Building {
   conveyorSpeedPerMin?: number;
   /** Pipe throughput in m³/min (`mFlowLimit * 60`). Present only for pipelines. */
   pipeFlowPerMin?: number;
+  /** Pump design head lift in metres (`mDesignPressure`). Present only for pipeline pumps. */
+  headLiftMetres?: number;
   /**
    * Base extraction rate at a normal-purity node, in the resource's native unit
    * (items/min for solids, m³/min for fluids). Present only for miners /
