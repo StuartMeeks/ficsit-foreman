@@ -16,6 +16,7 @@ import type {
   EdgeKind,
   PowerCircuit,
   SaveGraphStats,
+  SplitterRule,
   TraverseOptions,
 } from './types.js';
 
@@ -129,6 +130,16 @@ export class SaveGraph {
   /** Every power circuit (pre-grouped by the game). */
   public powerCircuits(): PowerCircuit[] {
     return [...this.circuits];
+  }
+
+  /**
+   * The conditional output-routing rules of a smart/programmable splitter, or
+   * `undefined` for any other actor (plain splitters, mergers, machines, …). A
+   * smart splitter with no rules configured returns an empty array, not `undefined`.
+   * Feed-tracing uses this to honour a filtered branch rather than assuming an even split.
+   */
+  public splitterRulesOf(instanceName: string): SplitterRule[] | undefined {
+    return this.actors.get(instanceName)?.splitter?.rules;
   }
 
   /** The power circuit an actor belongs to, if any. */

@@ -13,13 +13,14 @@ import type {
   GeneratorLine,
   ProducerLine,
   SaveState,
+  SplitterConfig,
   StorageContainer,
 } from '@foreman/sf-save-data';
 
 import { SaveGraph } from './graph.js';
 import type { ActorKind, ActorNode } from './types.js';
 
-const EMPTY_TOPOLOGY = { buildables: [], edges: [], powerCircuits: [] } as const;
+const EMPTY_TOPOLOGY = { buildables: [], edges: [], powerCircuits: [], splitters: [] } as const;
 
 function indexByInstance<T extends { instanceName: string }>(
   records: T[] | undefined,
@@ -40,6 +41,7 @@ export function buildSaveGraph(state: SaveState): SaveGraph {
   const producerByName = indexByInstance<ProducerLine>(state.production?.producers);
   const extractorByName = indexByInstance<ExtractorLine>(state.production?.extractors);
   const generatorByName = indexByInstance<GeneratorLine>(state.production?.generators);
+  const splitterByName = indexByInstance<SplitterConfig>(topology.splitters);
 
   const actors = new Map<string, ActorNode>();
   for (const buildable of topology.buildables) {
@@ -47,6 +49,7 @@ export function buildSaveGraph(state: SaveState): SaveGraph {
     const producer = producerByName.get(buildable.instanceName);
     const extractor = extractorByName.get(buildable.instanceName);
     const generator = generatorByName.get(buildable.instanceName);
+    const splitter = splitterByName.get(buildable.instanceName);
     const kind: ActorKind = storage
       ? 'storage'
       : producer
@@ -65,6 +68,7 @@ export function buildSaveGraph(state: SaveState): SaveGraph {
       ...(producer === undefined ? {} : { producer }),
       ...(extractor === undefined ? {} : { extractor }),
       ...(generator === undefined ? {} : { generator }),
+      ...(splitter === undefined ? {} : { splitter }),
     });
   }
 

@@ -11,6 +11,7 @@ import type {
   ExtractorLine,
   GeneratorLine,
   ProducerLine,
+  SplitterConfig,
   StorageContainer,
   Vec3,
 } from '@foreman/sf-save-data';
@@ -18,7 +19,14 @@ import type {
 // The relational fact types now live in `@foreman/sf-save-data` (they are part of
 // `SaveState.topology`); the graph is a pure projection of them. Re-exported here so
 // the graph package's public surface is unchanged for existing consumers.
-export type { ConnectionEdge, EdgeKind, PowerCircuit } from '@foreman/sf-save-data';
+export type {
+  ConnectionEdge,
+  EdgeKind,
+  PowerCircuit,
+  SplitterConfig,
+  SplitterRule,
+  SplitterRuleKind,
+} from '@foreman/sf-save-data';
 
 import type { EdgeKind } from '@foreman/sf-save-data';
 
@@ -47,6 +55,12 @@ export interface ActorNode {
   extractor?: ExtractorLine;
   /** The generator record, when `kind === 'generator'`. */
   generator?: GeneratorLine;
+  /**
+   * Conditional output-routing rules, present on smart/programmable splitters only
+   * (`kind` stays `building`). Drives feed-tracing: a filtered branch is not an even
+   * split. Read via `SaveGraph.splitterRulesOf`.
+   */
+  splitter?: SplitterConfig;
 }
 
 /** Counts for diagnostics and tests. */

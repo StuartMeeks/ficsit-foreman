@@ -127,6 +127,32 @@ export const CIRCUIT_COMPONENTS_PROP = 'mComponents';
 /** Actor nodes in the connection graph are the buildings (their class-name keys start with `Build_`). */
 export const BUILDABLE_ACTOR = /^Build_/;
 
+/* ── Smart / programmable splitter sort rules (#148) ────────────────────────────
+ * Smart and programmable splitters carry `mSortRules`: an array of `SplitterSortRule`
+ * structs that route items to a given output by a filter. Plain splitters/mergers
+ * carry no rules. Confirmed against real saves (118 smart splitters, 354 rules).
+ */
+
+/** Smart splitter (single conditional filter per output). */
+export const SMART_SPLITTER = /Build_ConveyorAttachmentSplitterSmart/;
+/** Programmable splitter (multiple conditional filters per output). */
+export const PROGRAMMABLE_SPLITTER = /Build_ConveyorAttachmentSplitterProgrammable/;
+/** The conditional output-routing rules array (`ArrayProperty` of `SplitterSortRule`). */
+export const SORT_RULES_PROP = 'mSortRules';
+/** A `SplitterSortRule` struct's item-filter ref (`ObjectProperty` → a `FilteringRules` or item descriptor class). */
+export const SORT_RULE_ITEM_CLASS_PROP = 'ItemClass';
+/** A `SplitterSortRule` struct's destination output (`IntProperty`, 0-based). */
+export const SORT_RULE_OUTPUT_INDEX_PROP = 'OutputIndex';
+
+/**
+ * The special `FilteringRules` descriptor classes a rule's `ItemClass` can name in
+ * place of a real item descriptor. Anything else is a concrete item (rule `item`).
+ */
+export const FILTER_RULE_NONE = 'Desc_None_C';
+export const FILTER_RULE_ANY = 'Desc_Wildcard_C';
+export const FILTER_RULE_ANY_UNDEFINED = 'Desc_AnyUndefined_C';
+export const FILTER_RULE_OVERFLOW = 'Desc_Overflow_C';
+
 /**
  * The subsystem that records exactly which collectibles a pioneer has collected,
  * by GUID: `mDestroyedPickups` (spheres/sloops/slugs) and `mLootedDropPods`

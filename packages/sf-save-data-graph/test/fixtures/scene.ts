@@ -27,6 +27,19 @@ function refArrayProp(pathNames: string[]): unknown {
   return { type: 'ArrayProperty', values: pathNames.map(ref) };
 }
 
+function sortRules(rules: { itemClass: string; output: number }[]): unknown {
+  return {
+    type: 'ArrayProperty',
+    values: rules.map(({ itemClass, output }) => ({
+      type: 'SplitterSortRule',
+      properties: {
+        ItemClass: { type: 'ObjectProperty', value: ref(itemClass) },
+        OutputIndex: { type: 'IntProperty', value: output },
+      },
+    })),
+  };
+}
+
 function vec3(x: number, y: number, z: number): { translation: { x: number; y: number; z: number } } {
   return { translation: { x, y, z } };
 }
@@ -54,6 +67,8 @@ const T_GENERATOR = '/Game/FactoryGame/Buildable/Factory/GeneratorBiomass/Build_
 const T_MINER = '/Game/FactoryGame/Buildable/Factory/MinerMk2/Build_MinerMk2.Build_MinerMk2_C';
 const T_COAL = '/Game/FactoryGame/Buildable/Factory/GeneratorCoal/Build_GeneratorCoal.Build_GeneratorCoal_C';
 const T_PIPE = '/Game/FactoryGame/Buildable/Factory/Pipeline/Build_Pipeline_NoIndicator.Build_Pipeline_NoIndicator_C';
+const T_SMART_SPLITTER =
+  '/Game/FactoryGame/Buildable/Factory/CA_Splitter/Build_ConveyorAttachmentSplitterSmart.Build_ConveyorAttachmentSplitterSmart_C';
 const T_FACTORY_CONN = '/Script/FactoryGame.FGFactoryConnectionComponent';
 const T_PIPE_CONN = '/Script/FactoryGame.FGPipeConnectionFactory';
 const T_POWER_CIRCUIT = '/Script/FactoryGame.FGPowerCircuit';
@@ -67,6 +82,7 @@ export const MINER = `${LVL}.Build_MinerMk2_C_1`;
 export const COAL = `${LVL}.Build_GeneratorCoal_C_1`;
 export const PIPE = `${LVL}.Build_Pipeline_NoIndicator_C_1`;
 export const STRAY_BELT = `${LVL}.Build_ConveyorBeltMk1_C_2`;
+export const SMART_SPLITTER = `${LVL}.Build_ConveyorAttachmentSplitterSmart_C_1`;
 
 function makeSave(objects: RawObject[]): RawSave {
   return {
@@ -86,6 +102,21 @@ export const SCENE: RawSave = makeSave([
   obj(T_COAL, COAL, {}, vec3(0, 300, 0)),
   obj(T_PIPE, PIPE, {}, vec3(0, 400, 0)),
   obj(T_BELT, STRAY_BELT, {}, vec3(0, 500, 0)),
+  // A smart splitter carrying conditional routing rules (an item filter + overflow).
+  obj(
+    T_SMART_SPLITTER,
+    SMART_SPLITTER,
+    {
+      mSortRules: sortRules([
+        { itemClass: '/Game/FactoryGame/Resource/Parts/Wire/Desc_Wire.Desc_Wire_C', output: 0 },
+        {
+          itemClass: '/Game/FactoryGame/Resource/FilteringRules/Desc_Overflow.Desc_Overflow_C',
+          output: 1,
+        },
+      ]),
+    },
+    vec3(0, 600, 0),
+  ),
 
   // Conveyor chain: constructor.Output0 ↔ belt.ConveyorAny0, belt.ConveyorAny1 ↔ storage.Input0.
   // Both ends of each link declare it — the builder must dedup the symmetric pair.
