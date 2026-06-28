@@ -258,8 +258,13 @@ export class SaveGraph {
       link(ambAdj, edge.to, edge.from);
     }
     const orientedKeys = new Set<string>();
-    // Seed from every node already touched by directed flow; flow continues outward.
-    const queue = [...new Set<string>([...up.keys(), ...down.keys()])];
+    // Seed only from nodes that have *incoming* flow (a resolved upstream): flow
+    // continues forward out of them. Seeding from outgoing-only nodes would be wrong —
+    // a belt that feeds a machine (`belt→machine`) must not orient its *other*
+    // (upstream) edge as leaving it, which would cut the chain at every splitter/merger.
+    // A source's downstream neighbour gains an incoming certain edge, so it seeds the
+    // forward sweep without the source itself needing to.
+    const queue = [...up.keys()];
     const queued = new Set(queue);
     while (queue.length > 0) {
       const u = queue.shift() as string;
@@ -349,6 +354,23 @@ export class SaveGraph {
       this.flowDown as Map<string, Set<string>>,
       options.maxDepth ?? DEFAULT_FLOW_DEPTH,
     );
+  }
+
+  /**
+   * Every inferred directed flow edge (`from` → `to`), including belt/pipe edges oriented
+   * by propagation. The feed-tracing consumer builds a flow network over these; edge
+   * capacity (belt/pipe throughput) is a game-data join made at that layer. Edges whose
+   * direction could not be resolved are omitted (see {@link upstreamOf} for that signal).
+   */
+  public flowEdges(): Array<{ from: string; to: string }> {
+    this.ensureFlow();
+    const edges: Array<{ from: string; to: string }> = [];
+    for (const [from, tos] of this.flowDown as Map<string, Set<string>>) {
+      for (const to of tos) {
+        edges.push({ from, to });
+      }
+    }
+    return edges;
   }
 
   /** Counts for diagnostics and tests. */

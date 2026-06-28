@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest';
 
-import { emptySaveState } from '@foreman/sf-save-data';
+import { emptySaveState, normaliseSave } from '@foreman/sf-save-data';
 
 import { buildSaveGraph, ownerOf } from '../src/index.js';
+import { makeSave, obj, objectProp, vec3 } from '../../sf-save-data/test/fixtures/save.js';
 import {
   BELT,
   CONSTRUCTOR,
@@ -181,5 +182,40 @@ describe('directed-flow inference (feed-tracing substrate)', () => {
     const up = graph.upstreamOf(STORAGE, { maxDepth: 1 });
     expect(up.actors).toEqual([BELT]); // only one hop; the constructor is two away
     expect(up.complete).toBe(false);
+  });
+
+  it('propagates direction through an ambiguous belt→belt link (not just certain ends)', () => {
+    // A genuine ConveyorAny↔ConveyorAny middle edge (belt1↔belt2) carries no directional
+    // connector, so only forward propagation from the source can orient it. The source's
+    // output and the sink's input are the only certain edges.
+    const LVL = 'Persistent_Level:PersistentLevel';
+    const A = `${LVL}.Build_ConstructorMk1_C_1`;
+    const B1 = `${LVL}.Build_ConveyorBeltMk1_C_1`;
+    const B2 = `${LVL}.Build_ConveyorBeltMk1_C_2`;
+    const ST = `${LVL}.Build_StorageContainerMk1_C_1`;
+    const T_CONN = '/Script/FactoryGame.FGFactoryConnectionComponent';
+    const link = (owner: string, conn: string, peer: string) =>
+      obj(T_CONN, { mConnectedComponent: objectProp(peer) }, { instanceName: `${owner}.${conn}` });
+    const state = normaliseSave(
+      makeSave({
+        objects: [
+          obj('/Game/FactoryGame/Buildable/Factory/ConstructorMk1/Build_ConstructorMk1.Build_ConstructorMk1_C', {}, { instanceName: A, transform: vec3(0, 0, 0) }),
+          obj('/Game/FactoryGame/Buildable/Factory/ConveyorBeltMk1/Build_ConveyorBeltMk1.Build_ConveyorBeltMk1_C', {}, { instanceName: B1, transform: vec3(1, 0, 0) }),
+          obj('/Game/FactoryGame/Buildable/Factory/ConveyorBeltMk1/Build_ConveyorBeltMk1.Build_ConveyorBeltMk1_C', {}, { instanceName: B2, transform: vec3(2, 0, 0) }),
+          obj('/Game/FactoryGame/Buildable/Storage/Build_StorageContainerMk1.Build_StorageContainerMk1_C', {}, { instanceName: ST, transform: vec3(3, 0, 0) }),
+          link(A, 'Output0', `${B1}.ConveyorAny0`),
+          link(B1, 'ConveyorAny0', `${A}.Output0`),
+          link(B1, 'ConveyorAny1', `${B2}.ConveyorAny0`), // ambiguous middle edge
+          link(B2, 'ConveyorAny0', `${B1}.ConveyorAny1`),
+          link(B2, 'ConveyorAny1', `${ST}.Input0`),
+          link(ST, 'Input0', `${B2}.ConveyorAny1`),
+        ],
+      }),
+      '2026-01-01T00:00:00.000Z',
+    ).state;
+    const g = buildSaveGraph(state);
+    const up = g.upstreamOf(ST);
+    expect(up.actors.sort()).toEqual([A, B1, B2].sort());
+    expect(up.complete).toBe(true);
   });
 });

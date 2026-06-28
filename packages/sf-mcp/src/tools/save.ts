@@ -2,6 +2,7 @@ import { loadWorldLocations, type WorldLocations } from '@foreman/sf-game-data';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 
+import { bottlenecksView } from '../query/bottlenecks.js';
 import { loadGameDataIndex, makeNameResolver } from '../gameData.js';
 import { logger } from '../logger.js';
 import {
@@ -229,6 +230,24 @@ export function registerSaveTools(server: McpServer, registry: SaveStoreRegistry
     async ({ savePath }): Promise<ToolResult> => {
       const store = registry.resolve(savePath);
       return ok(store, { power: powerView(store.getState(), store.getGraph(), gameData) });
+    },
+  );
+
+  server.registerTool(
+    'find_bottlenecks',
+    {
+      title: 'Find production bottlenecks',
+      description:
+        'Reconciles the factory\'s actual material flow and reports which machines are not running at full rate, and WHY. Distributes every source\'s output through belts/pipes (throughput-capped) and splitters/mergers to each machine input, then flags a producer "starved" when an input is delivered below its required rate (beyond the tolerance), "unpowered" (on an overloaded power circuit with no battery buffer), "idle" (no recipe set), or "unknown" (flow direction could not be resolved — never a false starved). Returns a summary by verdict plus the affected machines with the upstream cause (which input, delivered vs required) — not a graph dump. Unlike get_production (configured capacity), this accounts for feed, contention and belt limits. Pass `tolerance` (default 0.05) to widen/narrow the band. v1 models smart-splitter outputs as plain demand-weighted splits and does not yet apply fluid head lift or 1.2 recipe/power modifiers, so it is exact on belt-fed solid lines and conservative elsewhere.',
+      inputSchema: { tolerance: z.number().min(0).max(1).optional(), savePath: savePathSchema },
+    },
+    async ({ tolerance, savePath }): Promise<ToolResult> => {
+      const store = registry.resolve(savePath);
+      return ok(store, {
+        bottlenecks: bottlenecksView(store.getState(), store.getGraph(), gameData, world, {
+          tolerance,
+        }),
+      });
     },
   );
 
