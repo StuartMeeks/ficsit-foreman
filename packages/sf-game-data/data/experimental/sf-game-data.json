@@ -26708,7 +26708,7 @@
   "gameData": {
     "version": "1.2.3.1",
     "build": 495413,
-    "parsedAt": "2026-06-27T12:08:43.529Z",
+    "parsedAt": "2026-06-28T12:08:22.656Z",
     "items": {
       "Desc_IronPlate_C": {
         "className": "Desc_IronPlate_C",
@@ -52428,6 +52428,7 @@
         "description": "Can be attached to a Pipeline to apply Head Lift.\r\nMaximum Head Lift: 20\u202Fm\r\n(Allows fluids to be transported 20\u202Fmeters upwards.)\r\n\r\nNOTE: Arrows and holograms when building indicate Head Lift direction.\r\nNOTE: Head Lift does not stack, so space between Pumps is recommended.",
         "category": "PipelinePump",
         "powerConsumption": 4,
+        "headLiftMetres": 20,
         "buildCost": [
           {
             "itemClassName": "Desc_CopperSheet_C",
@@ -52445,6 +52446,7 @@
         "description": "Can be attached to a Pipeline to apply Head Lift.\r\nMaximum Head Lift: 50\u202Fm\r\n(Allows fluids to be transported 50 meters upwards.)\r\n\r\nNOTE: Arrows and holograms when building indicate Head Lift direction.\r\nNOTE: Head Lift does not stack, so space between Pumps is recommended.",
         "category": "PipelinePump",
         "powerConsumption": 8,
+        "headLiftMetres": 50,
         "buildCost": [
           {
             "itemClassName": "Desc_ModularFrameHeavy_C",
