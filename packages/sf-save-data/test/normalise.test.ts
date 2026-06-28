@@ -8,6 +8,7 @@ import {
   obj,
   objectProp,
   refArrayProp,
+  sortRules,
   vec3,
 } from './fixtures/save.js';
 
@@ -128,7 +129,12 @@ describe('partial parse', () => {
     const { state: empty } = normaliseSave({}, '2026-01-01T00:00:00.000Z');
     expect(empty.recipes).toEqual([]);
     expect(empty.player.inventory).toEqual([]);
-    expect(empty.topology).toEqual({ buildables: [], edges: [], powerCircuits: [] });
+    expect(empty.topology).toEqual({
+      buildables: [],
+      edges: [],
+      powerCircuits: [],
+      splitters: [],
+    });
     expect(empty.warnings.length).toBeGreaterThan(0);
   });
 });
@@ -199,6 +205,76 @@ describe('topology (the connectivity the graph projects)', () => {
 
   it('reads pre-grouped power-circuit membership', () => {
     expect(wired.topology.powerCircuits).toEqual([{ circuitId: 7, members: [CONSTRUCTOR] }]);
+  });
+});
+
+describe('splitter sort rules (#148)', () => {
+  const LVL = 'Persistent_Level:PersistentLevel';
+  const FILTER = '/Game/FactoryGame/Resource/FilteringRules';
+  const SMART = `${LVL}.Build_ConveyorAttachmentSplitterSmart_C_1`;
+  const PROG = `${LVL}.Build_ConveyorAttachmentSplitterProgrammable_C_1`;
+  const PLAIN = `${LVL}.Build_ConveyorAttachmentSplitter_C_1`;
+  const SMART_CLASS =
+    '/Game/FactoryGame/Buildable/Factory/CA_Splitter/Build_ConveyorAttachmentSplitterSmart.Build_ConveyorAttachmentSplitterSmart_C';
+  const PROG_CLASS =
+    '/Game/FactoryGame/Buildable/Factory/CA_Splitter/Build_ConveyorAttachmentSplitterProgrammable.Build_ConveyorAttachmentSplitterProgrammable_C';
+  const PLAIN_CLASS =
+    '/Game/FactoryGame/Buildable/Factory/CA_Splitter/Build_ConveyorAttachmentSplitter.Build_ConveyorAttachmentSplitter_C';
+
+  const wired = normaliseSave(
+    makeSave({
+      objects: [
+        obj(
+          SMART_CLASS,
+          {
+            mSortRules: sortRules([
+              { itemClass: `${FILTER}/Desc_Wildcard.Desc_Wildcard_C`, output: 0 },
+              { itemClass: '/Game/FactoryGame/Resource/Parts/Wire/Desc_Wire.Desc_Wire_C', output: 1 },
+              { itemClass: `${FILTER}/Desc_Overflow.Desc_Overflow_C`, output: 2 },
+              { itemClass: `${FILTER}/Desc_AnyUndefined.Desc_AnyUndefined_C`, output: 1 },
+              { itemClass: `${FILTER}/Desc_None.Desc_None_C`, output: 2 },
+            ]),
+          },
+          { instanceName: SMART, transform: vec3(0, 0, 0) },
+        ),
+        obj(
+          PROG_CLASS,
+          {
+            mSortRules: sortRules([
+              { itemClass: '/Game/FactoryGame/Resource/Parts/IronPlate/Desc_IronPlate.Desc_IronPlate_C', output: 0 },
+            ]),
+          },
+          { instanceName: PROG, transform: vec3(10, 0, 0) },
+        ),
+        // A plain splitter carries no rules and must not appear in topology.splitters.
+        obj(PLAIN_CLASS, {}, { instanceName: PLAIN, transform: vec3(20, 0, 0) }),
+      ],
+    }),
+    '2026-01-01T00:00:00.000Z',
+  ).state;
+
+  it('decodes every filter category, keeping the item class only for item rules', () => {
+    const smart = wired.topology.splitters.find((s) => s.instanceName === SMART);
+    expect(smart).toMatchObject({ classKey: 'Build_ConveyorAttachmentSplitterSmart_C' });
+    expect(smart?.rules).toEqual([
+      { outputIndex: 0, rule: 'any' },
+      { outputIndex: 1, rule: 'item', itemClass: 'Desc_Wire_C' },
+      { outputIndex: 2, rule: 'overflow' },
+      { outputIndex: 1, rule: 'anyUndefined' },
+      { outputIndex: 2, rule: 'none' },
+    ]);
+  });
+
+  it('records programmable splitters too', () => {
+    const prog = wired.topology.splitters.find((s) => s.instanceName === PROG);
+    expect(prog?.classKey).toBe('Build_ConveyorAttachmentSplitterProgrammable_C');
+    expect(prog?.rules).toEqual([{ outputIndex: 0, rule: 'item', itemClass: 'Desc_IronPlate_C' }]);
+  });
+
+  it('does not record plain splitters (they carry no rules)', () => {
+    expect(wired.topology.splitters.map((s) => s.instanceName)).not.toContain(PLAIN);
+    // …but the plain splitter is still a node in the complete buildable set.
+    expect(wired.topology.buildables.map((b) => b.instanceName)).toContain(PLAIN);
   });
 });
 

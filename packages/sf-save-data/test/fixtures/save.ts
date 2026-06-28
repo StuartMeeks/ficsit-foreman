@@ -57,6 +57,20 @@ export function inventoryStacks(items: { item: string; num: number }[]): unknown
   };
 }
 
+/** An `mSortRules` ArrayProperty of `SplitterSortRule` structs (the smart-splitter shape). */
+export function sortRules(rules: { itemClass: string; output: number }[]): unknown {
+  return {
+    type: 'ArrayProperty',
+    values: rules.map(({ itemClass, output }) => ({
+      type: 'SplitterSortRule',
+      properties: {
+        ItemClass: { type: 'ObjectProperty', value: ref(itemClass) },
+        OutputIndex: { type: 'IntProperty', value: output },
+      },
+    })),
+  };
+}
+
 /** A SetProperty of FGuid structs (each a 4×uint32 array), as FGScannableSubsystem stores. */
 export function guidSetProp(guids: number[][]): unknown {
   return { type: 'SetProperty', values: guids };

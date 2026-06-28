@@ -162,16 +162,50 @@ export interface PowerCircuit {
 }
 
 /**
+ * The filter category of a smart/programmable splitter output rule. `item` routes a
+ * specific item (see `itemClass`); the rest are the special `FilteringRules` classes:
+ * `any` (Wildcard — anything), `anyUndefined` (anything not matched by another rule),
+ * `overflow` (only when other outputs back up), `none` (nothing).
+ */
+export type SplitterRuleKind = 'item' | 'any' | 'anyUndefined' | 'overflow' | 'none';
+
+/** One output-routing rule on a smart/programmable splitter (raw class names only). */
+export interface SplitterRule {
+  /** The output this rule routes to (0-based; left/centre/right are 0/1/2). */
+  outputIndex: number;
+  /** The item descriptor class routed, present only when `rule === 'item'` (e.g. `Desc_Wire_C`). */
+  itemClass?: string;
+  /** The filter category. */
+  rule: SplitterRuleKind;
+}
+
+/**
+ * A smart or programmable splitter's conditional output routing (`mSortRules`). Plain
+ * splitters/mergers carry none and never appear here. Kept as a separate
+ * `topology.splitters` list keyed by `instanceName` so `BuildableActor` stays minimal.
+ */
+export interface SplitterConfig {
+  /** Owner splitter actor instance name (joins to a `BuildableActor`). */
+  instanceName: string;
+  /** Raw class-name key — distinguishes smart from programmable. */
+  classKey: string;
+  /** The routing rules, in save order. */
+  rules: SplitterRule[];
+}
+
+/**
  * The factory's connectivity, exactly as the save stores it: the complete set of
- * buildable actors (nodes), the conveyor/pipe links between them (edges), and the
- * pre-grouped power circuits. This is the relational fact layer; the in-memory
- * adjacency/BFS index over it lives in `@foreman/sf-save-data-graph`, which is a
- * pure projection of this data.
+ * buildable actors (nodes), the conveyor/pipe links between them (edges), the
+ * pre-grouped power circuits, and the smart/programmable splitter routing rules.
+ * This is the relational fact layer; the in-memory adjacency/BFS index over it lives
+ * in `@foreman/sf-save-data-graph`, which is a pure projection of this data.
  */
 export interface TopologyState {
   buildables: BuildableActor[];
   edges: ConnectionEdge[];
   powerCircuits: PowerCircuit[];
+  /** Smart/programmable splitter output-routing rules; empty for saves with none. */
+  splitters: SplitterConfig[];
 }
 
 export interface SaveState {
@@ -239,7 +273,7 @@ export function emptySaveState(version: string, saveName: string, parsedAt: stri
     recipes: [],
     production: { producers: [], extractors: [], generators: [] },
     milestones: [],
-    topology: { buildables: [], edges: [], powerCircuits: [] },
+    topology: { buildables: [], edges: [], powerCircuits: [], splitters: [] },
     mamResearch: [],
     collectedPickupGuids: [],
     lootedDropPodGuids: [],

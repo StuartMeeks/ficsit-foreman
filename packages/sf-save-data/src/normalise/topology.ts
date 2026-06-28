@@ -4,9 +4,18 @@ import {
   CIRCUIT_ID_PROP,
   CONNECTED_COMPONENT_PROP,
   FACTORY_CONNECTION_COMPONENT,
+  FILTER_RULE_ANY,
+  FILTER_RULE_ANY_UNDEFINED,
+  FILTER_RULE_NONE,
+  FILTER_RULE_OVERFLOW,
   PIPE_CONNECTION_COMPONENT,
   PIPE_NETWORK_ID_PROP,
   POWER_CIRCUIT,
+  PROGRAMMABLE_SPLITTER,
+  SMART_SPLITTER,
+  SORT_RULE_ITEM_CLASS_PROP,
+  SORT_RULE_OUTPUT_INDEX_PROP,
+  SORT_RULES_PROP,
 } from '../constants.js';
 import type { RawObject } from '../parser/types.js';
 import { classNameFromPath } from './classRef.js';
@@ -15,12 +24,16 @@ import type {
   ConnectionEdge,
   EdgeKind,
   PowerCircuit,
+  SplitterConfig,
+  SplitterRule,
+  SplitterRuleKind,
   TopologyState,
 } from './types.js';
 import {
   arrayField,
   asString,
   dig,
+  entryProps,
   numberField,
   propMap,
   refField,
@@ -32,6 +45,50 @@ import {
 export function ownerOf(componentPath: string): string {
   const dot = componentPath.lastIndexOf('.');
   return dot < 0 ? componentPath : componentPath.slice(0, dot);
+}
+
+/** Maps a rule's filter-class tail to its category; a concrete item descriptor is `item`. */
+function ruleKind(filterClass: string): SplitterRuleKind {
+  switch (filterClass) {
+    case FILTER_RULE_NONE:
+      return 'none';
+    case FILTER_RULE_ANY:
+      return 'any';
+    case FILTER_RULE_ANY_UNDEFINED:
+      return 'anyUndefined';
+    case FILTER_RULE_OVERFLOW:
+      return 'overflow';
+    default:
+      return 'item';
+  }
+}
+
+/**
+ * Decodes a smart/programmable splitter's `mSortRules` into routing rules. Each
+ * `SplitterSortRule` struct carries an `ItemClass` ref (a `FilteringRules` class or a
+ * real item descriptor) and an `OutputIndex`. Malformed entries are skipped and
+ * counted (returned in `malformed`) rather than throwing.
+ */
+function decodeSortRules(obj: RawObject): { rules: SplitterRule[]; malformed: number } {
+  const rules: SplitterRule[] = [];
+  let malformed = 0;
+  for (const entry of arrayField(propMap(obj), SORT_RULES_PROP)) {
+    const props = entryProps(entry);
+    const outputIndex = numberField(props, SORT_RULE_OUTPUT_INDEX_PROP);
+    const itemPath = refField(props, SORT_RULE_ITEM_CLASS_PROP);
+    if (outputIndex === undefined || itemPath === undefined) {
+      malformed++;
+      continue;
+    }
+    const filterClass = classNameFromPath(itemPath);
+    const kind = ruleKind(filterClass);
+    rules.push({
+      outputIndex,
+      rule: kind,
+      ...(kind === 'item' ? { itemClass: filterClass } : {}),
+    });
+  }
+  return { rules, malformed };
 }
 
 /**
@@ -47,8 +104,12 @@ export function ownerOf(componentPath: string): string {
  */
 export function extractTopology(objects: RawObject[], warnings: Warnings): TopologyState {
   // 1. Buildable actors → the complete node set (machines, belts, splitters, poles, …).
+  //    Smart/programmable splitters additionally carry conditional routing rules, decoded
+  //    here in the same pass (their class key is already to hand).
   const buildables: BuildableActor[] = [];
   const actorNames = new Set<string>();
+  const splitters: SplitterConfig[] = [];
+  let malformedSortRules = 0;
   for (const obj of objects) {
     const instanceName = obj.instanceName;
     const typePath = obj.typePath;
@@ -59,6 +120,11 @@ export function extractTopology(objects: RawObject[], warnings: Warnings): Topol
     if (BUILDABLE_ACTOR.test(classKey)) {
       actorNames.add(instanceName);
       buildables.push({ instanceName, classKey, location: translation(obj) });
+      if (SMART_SPLITTER.test(classKey) || PROGRAMMABLE_SPLITTER.test(classKey)) {
+        const { rules, malformed } = decodeSortRules(obj);
+        malformedSortRules += malformed;
+        splitters.push({ instanceName, classKey, rules });
+      }
     }
   }
 
@@ -153,6 +219,9 @@ export function extractTopology(objects: RawObject[], warnings: Warnings): Topol
       `${unresolvedCircuitMembers} power-circuit member(s) referenced an unknown owner actor.`,
     );
   }
+  if (malformedSortRules > 0) {
+    warnings.add(`${malformedSortRules} splitter sort-rule(s) had an unreadable shape.`);
+  }
 
-  return { buildables, edges, powerCircuits };
+  return { buildables, edges, powerCircuits, splitters };
 }

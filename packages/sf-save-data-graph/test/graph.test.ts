@@ -11,6 +11,7 @@ import {
   MINER,
   PIPE,
   SCENE_STATE,
+  SMART_SPLITTER,
   STORAGE,
 } from './fixtures/scene.js';
 
@@ -29,8 +30,8 @@ describe('buildSaveGraph', () => {
 
   it('registers only building actors (not connection components or circuits)', () => {
     const stats = graph.stats();
-    // 8 Build_* actors in the scene; connectors/circuits are not actor nodes.
-    expect(stats.actors).toBe(8);
+    // 9 Build_* actors in the scene; connectors/circuits are not actor nodes.
+    expect(stats.actors).toBe(9);
     expect(graph.getActor(CONSTRUCTOR)?.classKey).toBe('Build_ConstructorMk1_C');
     expect(graph.getActor(`${CONSTRUCTOR}.Output0`)).toBeUndefined();
   });
@@ -130,5 +131,20 @@ describe('domain projection (nodes carry their typed save records)', () => {
   it('exposes the backing SaveState so every save fact is reachable from the graph', () => {
     expect(graph.state()).toBe(SCENE_STATE);
     expect(graph.state().topology.buildables).toHaveLength(graph.stats().actors);
+  });
+
+  it('projects smart-splitter routing rules onto the node and via splitterRulesOf', () => {
+    const node = graph.getActor(SMART_SPLITTER);
+    expect(node?.kind).toBe('building'); // a splitter carries no domain record
+    expect(node?.splitter?.classKey).toBe('Build_ConveyorAttachmentSplitterSmart_C');
+    expect(graph.splitterRulesOf(SMART_SPLITTER)).toEqual([
+      { outputIndex: 0, rule: 'item', itemClass: 'Desc_Wire_C' },
+      { outputIndex: 1, rule: 'overflow' },
+    ]);
+  });
+
+  it('returns undefined splitter rules for non-splitter actors', () => {
+    expect(graph.splitterRulesOf(CONSTRUCTOR)).toBeUndefined();
+    expect(graph.getActor(CONSTRUCTOR)?.splitter).toBeUndefined();
   });
 });
