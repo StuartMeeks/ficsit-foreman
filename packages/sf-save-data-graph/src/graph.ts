@@ -57,11 +57,11 @@ export class SaveGraph {
   private readonly adjacency = new Map<string, Map<EdgeKind, Set<string>>>();
   /** Actor instance name → the id of the power circuit it belongs to. */
   private readonly actorCircuit = new Map<string, number>();
-  /** Inferred directed flow (lazy): actor → actors it flows into / from. */
-  private flowDown?: Map<string, Set<string>>;
-  private flowUp?: Map<string, Set<string>>;
-  /** Actor → count of incident edges whose direction could not be resolved. */
-  private flowUnresolved?: Map<string, number>;
+  /** Inferred directed flow (lazy): actor → edge kind → actors it flows into / from. */
+  private flowDown?: Map<string, Map<EdgeKind, Set<string>>>;
+  private flowUp?: Map<string, Map<EdgeKind, Set<string>>>;
+  /** Actor → the edge kinds with an incident edge whose direction could not be resolved. */
+  private flowUnresolved?: Map<string, Set<EdgeKind>>;
 
   public constructor(
     private readonly actors: Map<string, ActorNode>,
@@ -229,13 +229,23 @@ export class SaveGraph {
     if (this.flowDown !== undefined) {
       return;
     }
-    const down = new Map<string, Set<string>>();
-    const up = new Map<string, Set<string>>();
-    const link = (m: Map<string, Set<string>>, a: string, b: string): void => {
-      let set = m.get(a);
+    const down = new Map<string, Map<EdgeKind, Set<string>>>();
+    const up = new Map<string, Map<EdgeKind, Set<string>>>();
+    const link = (
+      m: Map<string, Map<EdgeKind, Set<string>>>,
+      a: string,
+      b: string,
+      kind: EdgeKind,
+    ): void => {
+      let byKind = m.get(a);
+      if (byKind === undefined) {
+        byKind = new Map();
+        m.set(a, byKind);
+      }
+      let set = byKind.get(kind);
       if (set === undefined) {
         set = new Set();
-        m.set(a, set);
+        byKind.set(kind, set);
       }
       set.add(b);
     };
@@ -246,35 +256,43 @@ export class SaveGraph {
       if (dir === undefined) {
         ambiguous.push(edge);
       } else {
-        link(down, dir.src, dir.dst);
-        link(up, dir.dst, dir.src);
+        link(down, dir.src, dir.dst, edge.kind);
+        link(up, dir.dst, dir.src, edge.kind);
       }
     }
 
-    // Undirected adjacency over the still-ambiguous edges, oriented by propagation.
-    const ambAdj = new Map<string, Set<string>>();
+    // Undirected adjacency over the still-ambiguous edges (carrying their kind), oriented by
+    // propagation.
+    const ambAdj = new Map<string, Array<{ to: string; kind: EdgeKind }>>();
+    const pushAmb = (a: string, b: string, kind: EdgeKind): void => {
+      const list = ambAdj.get(a);
+      if (list === undefined) {
+        ambAdj.set(a, [{ to: b, kind }]);
+      } else {
+        list.push({ to: b, kind });
+      }
+    };
     for (const edge of ambiguous) {
-      link(ambAdj, edge.from, edge.to);
-      link(ambAdj, edge.to, edge.from);
+      pushAmb(edge.from, edge.to, edge.kind);
+      pushAmb(edge.to, edge.from, edge.kind);
     }
     const orientedKeys = new Set<string>();
-    // Seed only from nodes that have *incoming* flow (a resolved upstream): flow
-    // continues forward out of them. Seeding from outgoing-only nodes would be wrong —
-    // a belt that feeds a machine (`belt→machine`) must not orient its *other*
-    // (upstream) edge as leaving it, which would cut the chain at every splitter/merger.
-    // A source's downstream neighbour gains an incoming certain edge, so it seeds the
-    // forward sweep without the source itself needing to.
+    // Seed only from nodes that have *incoming* flow (a resolved upstream): flow continues forward
+    // out of them. Seeding from outgoing-only nodes would be wrong — a belt that feeds a machine
+    // (`belt→machine`) must not orient its *other* (upstream) edge as leaving it, which would cut
+    // the chain at every splitter/merger. A source's downstream neighbour gains an incoming certain
+    // edge, so it seeds the forward sweep without the source itself needing to.
     const queue = [...up.keys()];
     const queued = new Set(queue);
     while (queue.length > 0) {
       const u = queue.shift() as string;
-      for (const v of ambAdj.get(u) ?? []) {
+      for (const { to: v, kind } of ambAdj.get(u) ?? []) {
         if (orientedKeys.has(`${u}|${v}`) || orientedKeys.has(`${v}|${u}`)) {
           continue;
         }
         orientedKeys.add(`${u}|${v}`);
-        link(down, u, v);
-        link(up, v, u);
+        link(down, u, v, kind);
+        link(up, v, u, kind);
         if (!queued.has(v)) {
           queued.add(v);
           queue.push(v);
@@ -282,14 +300,22 @@ export class SaveGraph {
       }
     }
 
-    const unresolved = new Map<string, number>();
+    const unresolved = new Map<string, Set<EdgeKind>>();
+    const markUnresolved = (id: string, kind: EdgeKind): void => {
+      const set = unresolved.get(id);
+      if (set === undefined) {
+        unresolved.set(id, new Set([kind]));
+      } else {
+        set.add(kind);
+      }
+    };
     for (const edge of ambiguous) {
       if (
         !orientedKeys.has(`${edge.from}|${edge.to}`) &&
         !orientedKeys.has(`${edge.to}|${edge.from}`)
       ) {
-        unresolved.set(edge.from, (unresolved.get(edge.from) ?? 0) + 1);
-        unresolved.set(edge.to, (unresolved.get(edge.to) ?? 0) + 1);
+        markUnresolved(edge.from, edge.kind);
+        markUnresolved(edge.to, edge.kind);
       }
     }
     this.flowDown = down;
@@ -299,25 +325,47 @@ export class SaveGraph {
 
   private flowReach(
     start: string,
-    adjacency: Map<string, Set<string>>,
+    adjacency: Map<string, Map<EdgeKind, Set<string>>>,
     maxDepth: number,
+    kind: EdgeKind | undefined,
   ): FlowReach {
     this.ensureFlow();
-    const unresolved = this.flowUnresolved as Map<string, number>;
+    const unresolved = this.flowUnresolved as Map<string, Set<EdgeKind>>;
+    const hasUnresolved = (id: string): boolean => {
+      const set = unresolved.get(id);
+      return set !== undefined && (kind === undefined ? set.size > 0 : set.has(kind));
+    };
+    const neighboursOf = (id: string): string[] => {
+      const byKind = adjacency.get(id);
+      if (byKind === undefined) {
+        return [];
+      }
+      if (kind !== undefined) {
+        return [...(byKind.get(kind) ?? [])];
+      }
+      const all: string[] = [];
+      for (const set of byKind.values()) {
+        for (const n of set) {
+          all.push(n);
+        }
+      }
+      return all;
+    };
+
     const visited = new Set<string>([start]);
     const actors: string[] = [];
-    let complete = (unresolved.get(start) ?? 0) === 0;
+    let complete = !hasUnresolved(start);
     let frontier = [start];
     let depth = 0;
     while (frontier.length > 0 && depth < maxDepth) {
       const next: string[] = [];
       for (const node of frontier) {
-        for (const neighbour of adjacency.get(node) ?? []) {
+        for (const neighbour of neighboursOf(node)) {
           if (!visited.has(neighbour)) {
             visited.add(neighbour);
             actors.push(neighbour);
             next.push(neighbour);
-            if ((unresolved.get(neighbour) ?? 0) > 0) {
+            if (hasUnresolved(neighbour)) {
               complete = false;
             }
           }
@@ -341,8 +389,9 @@ export class SaveGraph {
     this.ensureFlow();
     return this.flowReach(
       instanceName,
-      this.flowUp as Map<string, Set<string>>,
+      this.flowUp as Map<string, Map<EdgeKind, Set<string>>>,
       options.maxDepth ?? DEFAULT_FLOW_DEPTH,
+      options.kind,
     );
   }
 
@@ -351,23 +400,26 @@ export class SaveGraph {
     this.ensureFlow();
     return this.flowReach(
       instanceName,
-      this.flowDown as Map<string, Set<string>>,
+      this.flowDown as Map<string, Map<EdgeKind, Set<string>>>,
       options.maxDepth ?? DEFAULT_FLOW_DEPTH,
+      options.kind,
     );
   }
 
   /**
-   * Every inferred directed flow edge (`from` → `to`), including belt/pipe edges oriented
-   * by propagation. The feed-tracing consumer builds a flow network over these; edge
-   * capacity (belt/pipe throughput) is a game-data join made at that layer. Edges whose
-   * direction could not be resolved are omitted (see {@link upstreamOf} for that signal).
+   * Every inferred directed flow edge (`from` → `to`, with its kind), including belt/pipe edges
+   * oriented by propagation. The feed-tracing consumer builds a flow network over these; edge
+   * capacity (belt/pipe throughput) is a game-data join made at that layer. Edges whose direction
+   * could not be resolved are omitted (see {@link upstreamOf} for that signal).
    */
-  public flowEdges(): Array<{ from: string; to: string }> {
+  public flowEdges(): Array<{ from: string; to: string; kind: EdgeKind }> {
     this.ensureFlow();
-    const edges: Array<{ from: string; to: string }> = [];
-    for (const [from, tos] of this.flowDown as Map<string, Set<string>>) {
-      for (const to of tos) {
-        edges.push({ from, to });
+    const edges: Array<{ from: string; to: string; kind: EdgeKind }> = [];
+    for (const [from, byKind] of this.flowDown as Map<string, Map<EdgeKind, Set<string>>>) {
+      for (const [kind, tos] of byKind) {
+        for (const to of tos) {
+          edges.push({ from, to, kind });
+        }
       }
     }
     return edges;

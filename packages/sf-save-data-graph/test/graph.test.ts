@@ -218,4 +218,32 @@ describe('directed-flow inference (feed-tracing substrate)', () => {
     expect(up.actors.sort()).toEqual([A, B1, B2].sort());
     expect(up.complete).toBe(true);
   });
+
+  it('filters reach by edge kind so an ambiguous pipe does not pollute the belt feed', () => {
+    // A machine with no belt feed (so it is not a propagation seed) wired to an ambiguous pipe
+    // (PipelineConnection both ends → unresolvable) — exactly the case where pipe ambiguity used to
+    // make a belt-fed producer read `unknown`. The all-kinds reach is incomplete; conveyor-only is not.
+    const LVL = 'Persistent_Level:PersistentLevel';
+    const M = `${LVL}.Build_AssemblerMk1_C_1`;
+    const PIPE2 = `${LVL}.Build_Pipeline_C_1`;
+    const T_PC = '/Script/FactoryGame.FGPipeConnectionFactory';
+    const c = (owner: string, conn: string, peer: string) =>
+      obj(T_PC, { mConnectedComponent: objectProp(peer) }, { instanceName: `${owner}.${conn}` });
+    const state = normaliseSave(
+      makeSave({
+        objects: [
+          obj('/Game/FactoryGame/Buildable/Factory/AssemblerMk1/Build_AssemblerMk1.Build_AssemblerMk1_C', {}, { instanceName: M, transform: vec3(0, 0, 0) }),
+          obj('/Game/FactoryGame/Buildable/Factory/Pipeline/Build_Pipeline.Build_Pipeline_C', {}, { instanceName: PIPE2, transform: vec3(1, 0, 0) }),
+          // Ambiguous pipe edge (PipelineConnection both ends, no source seed → stays unresolved).
+          c(M, 'PipelineConnection0', `${PIPE2}.PipelineConnection0`),
+          c(PIPE2, 'PipelineConnection0', `${M}.PipelineConnection0`),
+        ],
+      }),
+      '2026-01-01T00:00:00.000Z',
+    ).state;
+    const g = buildSaveGraph(state);
+    expect(g.upstreamOf(M).complete).toBe(false); // all kinds: the ambiguous pipe pollutes it
+    expect(g.upstreamOf(M, { kind: 'conveyor' }).complete).toBe(true); // conveyor-only: no unresolved belt
+    expect(g.upstreamOf(M, { kind: 'pipe' }).complete).toBe(false); // pipe-only is still ambiguous
+  });
 });
