@@ -30,21 +30,22 @@ export type ExpectedOutput =
   | { kind: 'unlock'; schematic: string }
   | { kind: 'infrastructure'; description: string };
 
-export interface MachineRequirement {
+export interface BuildCostLine {
+  itemName: string;
+  itemClass?: string;
+  amount: number;
+}
+
+export interface Buildable {
   id: string;
-  machineName: string;
+  name: string;
+  buildingClass?: string;
   requiredCount: number;
   builtCount: number;
   recipeName?: string;
   notes?: string;
-}
-
-export interface MaterialRequirement {
-  id: string;
-  itemName: string;
-  requiredQuantity: number;
-  checked: boolean;
-  notes?: string;
+  /** Per-unit build cost, resolved server-side; [] when unresolved. */
+  buildCost: BuildCostLine[];
 }
 
 export interface WorkOrderStep {
@@ -53,6 +54,8 @@ export interface WorkOrderStep {
   description?: string;
   checked: boolean;
   order: number;
+  /** The buildables this step requires (with per-unit cost). */
+  buildables: Buildable[];
 }
 
 export interface RecipeItemRate {
@@ -147,8 +150,6 @@ export interface WorkOrder {
   notes?: string[];
   locationRecommendation?: LocationRecommendation;
   resourceNodes?: ResourceNodeReference[];
-  machines: MachineRequirement[];
-  buildMaterials: MaterialRequirement[];
   recipes: RecipeAssignment[];
   expectedOutputs: ExpectedOutput[];
   buildSteps: WorkOrderStep[];

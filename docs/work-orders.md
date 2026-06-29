@@ -84,8 +84,8 @@ and acknowledgement:
 * A **plan revision** is a change the Foreman makes to the contract (goal,
   steps, materials, machines, recipes, etc.). Plan revisions are snapshotted and
   are subject to Pioneer acknowledgement. They are relatively rare.
-* **Execution progress** is what the Pioneer does: ticking steps/materials,
-  entering machine built counts, logging hours. This lives on the live work-order
+* **Execution progress** is what the Pioneer does: ticking steps, entering
+  per-buildable built counts, logging hours. This lives on the live work-order
   record. Its history is the **audit trail** — it is *not* snapshotted, and it
   does *not* bump the plan revision number.
 
@@ -93,7 +93,7 @@ Consequences:
 
 * Revision snapshots store **plan fields only** (see *Snapshot scope*).
 * Reverting restores a previous **plan**; it never un-ticks the Pioneer's boxes,
-  resets machine counts, or undoes logged hours.
+  resets buildable built counts, or undoes logged hours.
 * `currentRevision` moves only on plan changes, so "the plan changed since you
   acknowledged revision N" stays meaningful.
 
@@ -125,7 +125,7 @@ type WorkOrderActor = 'Pioneer' | 'Foreman' | 'System';
 ### Pioneer (the human player)
 
 May: start, pause, resume, complete, force-complete, cancel work; check/uncheck
-materials and steps; enter machine built counts; log hours; acknowledge Foreman
+steps; enter per-buildable built counts; log hours; acknowledge Foreman
 revisions; revert a non-terminal work order to a previous plan revision.
 
 ### Foreman (the AI Factory Director)
@@ -253,8 +253,8 @@ separate field — they are recorded as `build_plan_adapted` audit events.
 
 ### Force completion
 
-The Pioneer may complete even with incomplete steps, materials, or machine
-counts. The UI warns first, summarising what is incomplete; completion is still
+The Pioneer may complete even with incomplete steps or unbuilt buildables.
+The UI warns first, summarising what is incomplete; completion is still
 allowed. The audit trail records the force completion and the incomplete-item
 summary.
 
@@ -271,7 +271,7 @@ Reverting must:
 * Delete no history.
 
 Reverting restores the **plan only**. It does **not** touch execution progress —
-checked steps/materials, machine built counts, and logged hours are preserved. If
+checked steps, per-buildable built counts, and logged hours are preserved. If
 the restored plan changes the checklist, the merge-forward rule applies (see
 *Checklists & stable IDs*). If the restored snapshot implies a different state,
 that state change is recorded as part of the revert audit event.
@@ -324,9 +324,9 @@ A snapshot contains the complete **plan** after the change:
 
 * Plan text (title, goal, objective, strategic significance, success condition)
 * Location recommendation, resource nodes
-* Machines required (with required counts and stable ids — *not* built counts)
-* Build materials (with stable ids — *not* checked state)
-* Build steps (with stable ids and order — *not* checked state)
+* Build steps (with stable ids and order — *not* checked state), each carrying the
+  **buildables** it requires (machines + logistics, with `requiredCount`, stable ids,
+  and server-resolved per-unit `buildCost` — *not* built counts)
 * Recipes, expected outputs
 * Opportunity guidance
 * Blocked reason and resolution hint
@@ -338,10 +338,10 @@ events are stored separately.
 
 ## Checklists & stable IDs
 
-Every material, step, and machine requirement carries a permanent `id`. When a
-plan revision changes a checklist, apply **merge-forward**:
+Every step and every per-step buildable carries a permanent `id`. When a plan
+revision changes a checklist, apply **merge-forward** (by step id *and* buildable id):
 
-* Items whose `id` still exists keep their checked state / built count.
+* Steps/buildables whose `id` still exists keep their checked state / built count.
 * New items appear unchecked / with `builtCount` 0.
 * Removed items drop.
 
@@ -369,11 +369,9 @@ type WorkOrder = {
   notes?: string[];              // freeform foreman build notes
   locationRecommendation?: LocationRecommendation;
   resourceNodes?: ResourceNodeReference[];
-  machines: MachineRequirement[];
-  buildMaterials: MaterialRequirement[];
   recipes: RecipeAssignment[];
   expectedOutputs: ExpectedOutput[];
-  buildSteps: WorkOrderStep[];
+  buildSteps: WorkOrderStep[];   // each step nests the buildables it requires
   opportunities?: WorkOrderOpportunities;
   blockedReason?: string;
   blockedResolutionHint?: string;
@@ -417,24 +415,31 @@ type ExpectedOutput =
   | { kind: 'infrastructure'; description: string };
 ```
 
-### Machine / material / step requirements
+### Steps, buildables & cost
+
+A build step holds the **buildables** it physically places — every machine *and*
+logistics piece (belts, splitters, mergers, pipes, poles), with a `requiredCount`.
+Each buildable's per-unit `buildCost` is resolved **server-side at author time** from
+game data (via the `get_building` MCP tool), so the foreman supplies only the name +
+count. Per-step and total build cost (and the *remaining* cost as the Pioneer builds)
+are derived from this hierarchy — there is no separately-authored materials list.
 
 ```ts
-type MachineRequirement = {
-  id: string;
-  machineName: string;
-  requiredCount: number;
-  builtCount: number;        // manual; execution state
-  recipeName?: string;
-  notes?: string;
+type BuildCostLine = {
+  itemName: string;
+  itemClass?: string;        // resolved game-data class, when known
+  amount: number;
 };
 
-type MaterialRequirement = {
+type Buildable = {
   id: string;
-  itemName: string;
-  requiredQuantity: number;
-  checked: boolean;          // execution state
+  name: string;              // foreman-authored display name, e.g. "Conveyor Splitter"
+  buildingClass?: string;    // server-resolved; undefined when unresolved
+  requiredCount: number;
+  builtCount: number;        // manual; execution state (per buildable)
+  recipeName?: string;
   notes?: string;
+  buildCost: BuildCostLine[];  // PER-UNIT, server-resolved; [] when unresolved
 };
 
 type WorkOrderStep = {
@@ -443,6 +448,7 @@ type WorkOrderStep = {
   description?: string;
   checked: boolean;          // execution state
   order: number;
+  buildables: Buildable[];
 };
 ```
 
@@ -602,9 +608,8 @@ type WorkOrderAuditEventType =
   | 'completion_proposed'           // Foreman suggested completion (Option A)
   | 'child_work_order_created'
   | 'child_work_order_completed'
-  | 'material_checked' | 'material_unchecked'
   | 'step_checked' | 'step_unchecked'
-  | 'machine_built_count_changed'
+  | 'buildable_built_count_changed'
   | 'hours_logged'
   | 'recipe_choice_changed'
   | 'build_plan_adapted'
@@ -634,7 +639,7 @@ Extend the existing work-order REST API. Required operations:
 * Fetch parent / children
 * Start; transition state; block; unblock
 * Update work-order plan (writes revision + audit)
-* Update machine built count; check/uncheck material; check/uncheck step; log
+* Update per-buildable built count; check/uncheck step; log
   hours (audit only). Collapse these behind a small number of endpoints rather
   than one per verb.
 * Acknowledge current revision
@@ -656,9 +661,9 @@ complete.
 
 The active work-order panel prioritises low cognitive load.
 
-**Default visible:** goal/objective; current state; location recommendation; next
-build steps; materials checklist; machines required/built; expected output (power
-as the hero metric when present); start/pause/complete controls.
+**Default visible:** goal/objective; current state; location recommendation; build
+steps with their buildables (required/built); derived build cost (total + remaining);
+expected output (power as the hero metric when present); start/pause/complete controls.
 
 **Collapsible:** recipes; resource nodes; nearby collectibles (two groups — near
 Pioneer / near work-order location); overclocking options; alternate recipe
@@ -674,8 +679,8 @@ trail.
 ## Non-goals for this implementation
 
 * No separate MCP server for work orders.
-* No automatic machine-count detection / save-game reconciliation — counts are
-  manual.
+* No automatic buildable-count detection / save-game reconciliation — built counts
+  are manual.
 * No inferring logged hours from timestamps.
 * No requiring optional opportunities for completion.
 * No editing/reverting terminal work orders in place.
@@ -696,7 +701,8 @@ trail.
 4. **Revert** — plan-only revert-to-revision (new revision, audit event, progress
    preserved), confirmation, UI warning.
 5. **Expanded model** — plan + execution fields, discriminated expected outputs,
-   machine/material/step models with stable ids + merge-forward, blocked fields.
+   step → buildables (with server-derived build cost) models with stable ids +
+   merge-forward (by step + buildable id), blocked fields.
 6. **Foreman tools + REST API** — create (no auto-supersede), propose-completion,
    revise/block/unblock/supersede/create-child; full Pioneer REST surface.
 7. **Opportunities** — cross-MCP population (game-data world tools + save player

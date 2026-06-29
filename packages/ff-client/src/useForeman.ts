@@ -30,8 +30,7 @@ import {
   patchForeman,
   patchPlaythrough,
   revertToRevision,
-  setMachineBuiltCount,
-  setMaterialChecked,
+  setBuildableBuiltCount,
   setStepChecked,
   streamChat,
   transitionWorkOrder,
@@ -239,9 +238,8 @@ function pickCurrent(history: WorkOrder[]): WorkOrder | null {
 /** Pioneer-driven work-order mutations. Each swaps the updated order into state. */
 export interface WorkOrderActions {
   transition(id: string, action: WorkOrderAction, options?: TransitionOptions): Promise<void>;
-  setMaterial(id: string, materialId: string, checked: boolean): Promise<void>;
   setStep(id: string, stepId: string, checked: boolean): Promise<void>;
-  setMachine(id: string, machineId: string, builtCount: number): Promise<void>;
+  setBuildable(id: string, stepId: string, buildableId: string, builtCount: number): Promise<void>;
   acknowledge(id: string, revisionNumber?: number): Promise<void>;
   revert(id: string, revisionNumber: number): Promise<void>;
   logHours(id: string, hours: number): Promise<void>;
@@ -538,14 +536,11 @@ export function useForeman(): ForemanState {
       transition: async (id, action, options) => {
         replaceOrder(await transitionWorkOrder(pid(), id, action, options));
       },
-      setMaterial: async (id, materialId, checked) => {
-        replaceOrder(await setMaterialChecked(pid(), id, materialId, checked));
-      },
       setStep: async (id, stepId, checked) => {
         replaceOrder(await setStepChecked(pid(), id, stepId, checked));
       },
-      setMachine: async (id, machineId, builtCount) => {
-        replaceOrder(await setMachineBuiltCount(pid(), id, machineId, builtCount));
+      setBuildable: async (id, stepId, buildableId, builtCount) => {
+        replaceOrder(await setBuildableBuiltCount(pid(), id, stepId, buildableId, builtCount));
       },
       acknowledge: async (id, revisionNumber) => {
         replaceOrder(await acknowledgeRevision(pid(), id, revisionNumber));

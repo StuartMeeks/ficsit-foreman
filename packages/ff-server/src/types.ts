@@ -56,27 +56,36 @@ export type ExpectedOutput =
 // The `*Def` shapes are the plan-only definition (no execution fields); the
 // live shapes extend them with the execution state the Pioneer owns.
 
-export interface MachineRequirementDef {
+/** One line of a buildable's per-unit construction cost (an item + amount). */
+export interface BuildCostLine {
+  itemName: string;
+  /** Resolved game-data item class, when known (e.g. `Desc_IronPlate_C`). */
+  itemClass?: string;
+  amount: number;
+}
+
+/**
+ * A buildable the step requires — a machine, belt, splitter, merger, pipe, pole,
+ * etc. — with how many to build. `buildCost` is the PER-UNIT construction cost,
+ * resolved server-side from game data at author time (empty when the name could
+ * not be resolved). The foreman supplies `name` + `count` (+ optional recipe/notes);
+ * the server fills `buildingClass` and `buildCost`.
+ */
+export interface BuildableDef {
   id: string;
-  machineName: string;
+  /** Foreman-authored display name, e.g. "Coal Generator", "Conveyor Splitter". */
+  name: string;
+  /** Resolved building class (server-derived); undefined when unresolved. */
+  buildingClass?: string;
   requiredCount: number;
   recipeName?: string;
   notes?: string;
+  /** Per-unit build cost, resolved from game data; [] when unresolved. */
+  buildCost: BuildCostLine[];
 }
-export interface MachineRequirement extends MachineRequirementDef {
-  /** Manual; execution state owned by the Pioneer. */
+export interface Buildable extends BuildableDef {
+  /** Manual; execution state owned by the Pioneer (0..requiredCount, uncapped). */
   builtCount: number;
-}
-
-export interface MaterialRequirementDef {
-  id: string;
-  itemName: string;
-  requiredQuantity: number;
-  notes?: string;
-}
-export interface MaterialRequirement extends MaterialRequirementDef {
-  /** Execution state owned by the Pioneer. */
-  checked: boolean;
 }
 
 export interface WorkOrderStepDef {
@@ -84,10 +93,14 @@ export interface WorkOrderStepDef {
   title: string;
   description?: string;
   order: number;
+  /** The buildables this step requires (with per-unit cost). */
+  buildables: BuildableDef[];
 }
 export interface WorkOrderStep extends WorkOrderStepDef {
   /** Execution state owned by the Pioneer. */
   checked: boolean;
+  /** The step's buildables carrying per-buildable built counts. */
+  buildables: Buildable[];
 }
 
 export interface RecipeItemRate {
@@ -183,10 +196,9 @@ export interface WorkOrderPlanSnapshot {
   notes?: string[];
   locationRecommendation?: LocationRecommendation;
   resourceNodes?: ResourceNodeReference[];
-  machines: MachineRequirementDef[];
-  buildMaterials: MaterialRequirementDef[];
   recipes: RecipeAssignment[];
   expectedOutputs: ExpectedOutput[];
+  /** Build steps, each carrying the buildables it requires (with per-unit cost). */
   buildSteps: WorkOrderStepDef[];
   opportunities?: WorkOrderOpportunities;
   blockedReason?: string;
@@ -213,8 +225,6 @@ export interface WorkOrder {
   notes?: string[];
   locationRecommendation?: LocationRecommendation;
   resourceNodes?: ResourceNodeReference[];
-  machines: MachineRequirement[];
-  buildMaterials: MaterialRequirement[];
   recipes: RecipeAssignment[];
   expectedOutputs: ExpectedOutput[];
   buildSteps: WorkOrderStep[];
@@ -268,11 +278,9 @@ export type WorkOrderAuditEventType =
   | 'completion_proposed'
   | 'child_work_order_created'
   | 'child_work_order_completed'
-  | 'material_checked'
-  | 'material_unchecked'
   | 'step_checked'
   | 'step_unchecked'
-  | 'machine_built_count_changed'
+  | 'buildable_built_count_changed'
   | 'hours_logged'
   | 'recipe_choice_changed'
   | 'build_plan_adapted'

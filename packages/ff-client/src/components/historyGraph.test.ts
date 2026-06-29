@@ -10,8 +10,6 @@ function order(partial: Partial<WorkOrder> & { id: string; createdAt: string }):
     version: '1',
     title: partial.id,
     goal: '',
-    machines: [],
-    buildMaterials: [],
     recipes: [],
     expectedOutputs: [],
     buildSteps: [],

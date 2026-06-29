@@ -38,7 +38,6 @@ const stubMcp: McpGateway = {
 const workOrderBody = {
   title: 'Iron Plate Line',
   goal: 'Make 20 plates per minute.',
-  buildMaterials: [{ itemName: 'Iron Ingot', requiredQuantity: 30 }],
   buildSteps: [{ title: 'Place constructors' }],
   expectedOutputs: [{ kind: 'item', item: 'Iron Plate', perMinute: 20 }],
 };

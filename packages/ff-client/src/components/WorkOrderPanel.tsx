@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 
 import { getAuditTrail, getRevisionDiff, getRevisions } from '../api/client.js';
 import type {
+  Buildable,
   CollectibleKind,
   CollectibleOpportunity,
   ExpectedOutput,
@@ -11,7 +12,18 @@ import type {
   WorkOrderRevisionDiff,
 } from '../api/types.js';
 import type { WorkOrderActions } from '../useForeman.js';
+import { remainingCost, totalCost, type CostLine } from '../workOrderCost.js';
 import { STATE_LABEL, woLabel } from './workOrderLabels.js';
+
+/** "12 Iron Plate, 4 Cable" — compact cost summary for display. */
+function fmtCost(lines: CostLine[]): string {
+  return lines.map((l) => `${l.amount} ${l.itemName}`).join(', ');
+}
+
+/** A single buildable's extended build cost (per-unit × requiredCount). */
+function buildableCostLines(b: Buildable): CostLine[] {
+  return b.buildCost.map((c) => ({ ...c, amount: c.amount * b.requiredCount }));
+}
 
 interface WorkOrderPanelProps {
   playthroughId: string | null;
@@ -164,12 +176,10 @@ export function WorkOrderPanel({
   const otherOutputs = o.expectedOutputs.filter((out) => out.kind !== 'power');
 
   const incompleteSteps = o.buildSteps.filter((s) => !s.checked);
-  const incompleteMaterials = o.buildMaterials.filter((m) => !m.checked);
-  const incompleteMachines = o.machines.filter((m) => m.builtCount < m.requiredCount);
-  const isComplete =
-    incompleteSteps.length === 0 &&
-    incompleteMaterials.length === 0 &&
-    incompleteMachines.length === 0;
+  const incompleteBuildables = o.buildSteps.flatMap((s) =>
+    s.buildables.filter((b) => b.builtCount < b.requiredCount),
+  );
+  const isComplete = incompleteSteps.length === 0 && incompleteBuildables.length === 0;
 
   const lastEvent = audit[audit.length - 1];
   const proposed =
@@ -186,8 +196,7 @@ export function WorkOrderPanel({
   const onForceComplete = (): void => {
     const summary = [
       incompleteSteps.length > 0 ? `${incompleteSteps.length} steps unchecked` : null,
-      incompleteMaterials.length > 0 ? `${incompleteMaterials.length} materials unchecked` : null,
-      incompleteMachines.length > 0 ? `${incompleteMachines.length} machine groups short` : null,
+      incompleteBuildables.length > 0 ? `${incompleteBuildables.length} buildables short` : null,
     ]
       .filter(Boolean)
       .join('; ');
@@ -304,7 +313,7 @@ export function WorkOrderPanel({
           </div>
         ) : null}
 
-        {/* ── Build steps ──────────────────────────────────────────── */}
+        {/* ── Build steps & their buildables ───────────────────────── */}
         {o.buildSteps.length > 0 ? (
           <div className="section">
             <span className="label">Build Steps</span>
@@ -326,81 +335,93 @@ export function WorkOrderPanel({
                         <span className="check-note">{step.description}</span>
                       ) : null}
                     </span>
+                    {step.buildables.length > 0 ? (
+                      <div className="machines step-buildables">
+                        {step.buildables.map((b) => (
+                          <div key={b.id} className="machine">
+                            <span className="check-body">
+                              {b.name}
+                              {b.recipeName !== undefined ? (
+                                <span className="check-note">{b.recipeName}</span>
+                              ) : null}
+                              {b.buildCost.length > 0 ? (
+                                <span className="check-note">{fmtCost(buildableCostLines(b))}</span>
+                              ) : null}
+                            </span>
+                            <div className="stepper">
+                              <button
+                                type="button"
+                                disabled={busy || readOnly || b.builtCount <= 0}
+                                onClick={() =>
+                                  run(() =>
+                                    actions.setBuildable(
+                                      o.id,
+                                      step.id,
+                                      b.id,
+                                      Math.max(0, b.builtCount - 1),
+                                    ),
+                                  )
+                                }
+                              >
+                                −
+                              </button>
+                              <span
+                                className={`count ${b.builtCount >= b.requiredCount ? 'met' : ''}`}
+                              >
+                                {b.builtCount}
+                              </span>
+                              <button
+                                type="button"
+                                disabled={busy || readOnly || b.builtCount >= b.requiredCount}
+                                onClick={() =>
+                                  run(() =>
+                                    actions.setBuildable(
+                                      o.id,
+                                      step.id,
+                                      b.id,
+                                      Math.min(b.requiredCount, b.builtCount + 1),
+                                    ),
+                                  )
+                                }
+                              >
+                                +
+                              </button>
+                              <span className="req">/ {b.requiredCount}</span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : null}
                   </li>
                 ))}
             </ol>
           </div>
         ) : null}
 
-        {/* ── Materials ────────────────────────────────────────────── */}
-        {o.buildMaterials.length > 0 ? (
-          <div className="section">
-            <span className="label">Materials</span>
-            <div className="checks materials">
-              {o.buildMaterials.map((mat) => (
-                <label key={mat.id} className={`material ${mat.checked ? 'done' : ''}`}>
-                  <input
-                    type="checkbox"
-                    checked={mat.checked}
-                    disabled={busy || readOnly}
-                    onChange={(e) => run(() => actions.setMaterial(o.id, mat.id, e.target.checked))}
-                  />
-                  <span className="check-body">{mat.itemName}</span>
-                  <span className="qty">{mat.requiredQuantity}</span>
-                </label>
-              ))}
-            </div>
-          </div>
-        ) : null}
-
-        {/* ── Machines built ───────────────────────────────────────── */}
-        {o.machines.length > 0 ? (
-          <div className="section">
-            <span className="label">Machines Built</span>
-            <div className="machines">
-              {o.machines.map((m) => (
-                <div key={m.id} className="machine">
-                  <span className="check-body">
-                    {m.machineName}
-                    {m.recipeName !== undefined ? (
-                      <span className="check-note">{m.recipeName}</span>
-                    ) : null}
+        {/* ── Build cost (derived from buildables) ─────────────────── */}
+        {(() => {
+          const total = totalCost(o.buildSteps);
+          if (total.length === 0) {
+            return null;
+          }
+          const remaining = remainingCost(o.buildSteps);
+          const partlyBuilt = fmtCost(remaining) !== fmtCost(total);
+          return (
+            <div className="section">
+              <span className="label">Build Cost</span>
+              <div className="checks materials">
+                <span className="check-body">Total: {fmtCost(total)}</span>
+                {partlyBuilt ? (
+                  <span className="check-note">
+                    {remaining.length > 0
+                      ? `Remaining: ${fmtCost(remaining)}`
+                      : 'All buildables built.'}
                   </span>
-                  <div className="stepper">
-                    <button
-                      type="button"
-                      disabled={busy || readOnly || m.builtCount <= 0}
-                      onClick={() =>
-                        run(() => actions.setMachine(o.id, m.id, Math.max(0, m.builtCount - 1)))
-                      }
-                    >
-                      −
-                    </button>
-                    <span className={`count ${m.builtCount >= m.requiredCount ? 'met' : ''}`}>
-                      {m.builtCount}
-                    </span>
-                    <button
-                      type="button"
-                      disabled={busy || readOnly || m.builtCount >= m.requiredCount}
-                      onClick={() =>
-                        run(() =>
-                          actions.setMachine(
-                            o.id,
-                            m.id,
-                            Math.min(m.requiredCount, m.builtCount + 1),
-                          ),
-                        )
-                      }
-                    >
-                      +
-                    </button>
-                    <span className="req">/ {m.requiredCount}</span>
-                  </div>
-                </div>
-              ))}
+                ) : null}
+              </div>
             </div>
-          </div>
-        ) : null}
+          );
+        })()}
 
         {/* ── Expected output (power hero) ─────────────────────────── */}
         {o.expectedOutputs.length > 0 ? (
@@ -551,11 +572,8 @@ export function WorkOrderPanel({
                   {incompleteSteps.length > 0 ? (
                     <li>{incompleteSteps.length} steps unchecked</li>
                   ) : null}
-                  {incompleteMaterials.length > 0 ? (
-                    <li>{incompleteMaterials.length} materials unchecked</li>
-                  ) : null}
-                  {incompleteMachines.length > 0 ? (
-                    <li>{incompleteMachines.length} machine groups short</li>
+                  {incompleteBuildables.length > 0 ? (
+                    <li>{incompleteBuildables.length} buildables short</li>
                   ) : null}
                 </ul>
                 <div className="force-actions">

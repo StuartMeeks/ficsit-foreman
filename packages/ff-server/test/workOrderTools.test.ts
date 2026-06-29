@@ -1,11 +1,13 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
+import type { McpGateway, ToolDefinition, ToolInvocationResult } from '../src/mcp/client.js';
 import { WorkOrderService } from '../src/services/workOrderService.js';
 import {
   BLOCK_WORK_ORDER,
   CREATE_WORK_ORDER,
   PROPOSE_COMPLETION,
   REVISE_WORK_ORDER,
+  enrichBuildCosts,
   handleWorkOrderTool,
   isWorkOrderTool,
   workOrderToolDefinitions,
@@ -20,17 +22,52 @@ async function seedPlaythrough(): Promise<string> {
   return createTestPlaythrough(db.prisma);
 }
 
+/** A stub gateway whose get_building returns a fixed cost for a couple of buildings. */
+function stubMcp(): McpGateway {
+  const costs: Record<
+    string,
+    { className: string; buildCost: { item: string; itemClassName: string; amount: number }[] }
+  > = {
+    Smelter: {
+      className: 'Build_SmelterMk1_C',
+      buildCost: [{ item: 'Iron Rod', itemClassName: 'Desc_IronRod_C', amount: 5 }],
+    },
+    'Conveyor Splitter': {
+      className: 'Build_ConveyorAttachmentSplitter_C',
+      buildCost: [{ item: 'Iron Plate', itemClassName: 'Desc_IronPlate_C', amount: 2 }],
+    },
+  };
+  return {
+    gameVersion: '1.2.3.0',
+    listTools: async (): Promise<ToolDefinition[]> => [],
+    callTool: async (name, args): Promise<ToolInvocationResult> => {
+      if (name === 'get_building') {
+        const building = costs[String((args as { name?: string }).name)];
+        return building === undefined
+          ? { text: 'Not found: building.', isError: true }
+          : { text: JSON.stringify({ building }), isError: false };
+      }
+      return { text: '', isError: true };
+    },
+  };
+}
+
 const validCreateInput = {
   title: 'Establish Iron Ingot Line',
   goal: 'Smelt 30 iron ingots per minute.',
-  buildMaterials: [{ itemName: 'Iron Ore', requiredQuantity: 30 }],
-  buildSteps: [{ title: 'Place two smelters' }],
+  buildSteps: [
+    { title: 'Place two smelters', buildables: [{ name: 'Smelter', requiredCount: 2 }] },
+  ],
   expectedOutputs: [{ kind: 'item', item: 'Iron Ingot', perMinute: 30 }],
 };
 
 beforeAll(async () => {
   db = await createTestDb();
-  deps = { workOrders: new WorkOrderService(db.prisma), gameVersion: () => '1.2.3.0' };
+  deps = {
+    workOrders: new WorkOrderService(db.prisma),
+    gameVersion: () => '1.2.3.0',
+    mcp: stubMcp(),
+  };
 });
 
 afterAll(async () => {
@@ -55,7 +92,7 @@ describe('work-order tool registry', () => {
 });
 
 describe('handleWorkOrderTool', () => {
-  it('creates an order in the new state and stamps the game version', async () => {
+  it('creates an order in the new state, stamps the version, and resolves build cost', async () => {
     const playthrough = await seedPlaythrough();
     const outcome = await handleWorkOrderTool(
       playthrough,
@@ -68,6 +105,12 @@ describe('handleWorkOrderTool', () => {
     expect(outcome.workOrder?.state).toBe('new');
     expect(outcome.workOrder?.version).toBe('1.2.3.0');
     expect(outcome.text).toContain('WO-001');
+    // The server resolved the Smelter's per-unit build cost via get_building.
+    const buildable = outcome.workOrder?.buildSteps[0]?.buildables[0];
+    expect(buildable?.buildingClass).toBe('Build_SmelterMk1_C');
+    expect(buildable?.buildCost).toEqual([
+      { itemName: 'Iron Rod', itemClass: 'Desc_IronRod_C', amount: 5 },
+    ]);
   });
 
   it('does not supersede the previous order on a second create', async () => {
@@ -164,5 +207,34 @@ describe('handleWorkOrderTool', () => {
     const playthrough = await seedPlaythrough();
     const outcome = await handleWorkOrderTool(playthrough, PROPOSE_COMPLETION, {}, deps);
     expect(outcome.isError).toBe(true);
+  });
+});
+
+describe('enrichBuildCosts', () => {
+  it('attaches per-unit cost + class for resolved buildables', async () => {
+    const plan = {
+      buildSteps: [
+        { title: 'a', buildables: [{ name: 'Smelter', requiredCount: 2 }] },
+        { title: 'b', buildables: [{ name: 'Conveyor Splitter', requiredCount: 4 }] },
+      ],
+    };
+    const note = await enrichBuildCosts(plan, stubMcp());
+    expect(note).toBeUndefined();
+    expect(plan.buildSteps[0]!.buildables[0]).toMatchObject({
+      buildingClass: 'Build_SmelterMk1_C',
+      buildCost: [{ itemName: 'Iron Rod', itemClass: 'Desc_IronRod_C', amount: 5 }],
+    });
+    expect(plan.buildSteps[1]!.buildables[0]!.buildingClass).toBe(
+      'Build_ConveyorAttachmentSplitter_C',
+    );
+  });
+
+  it('leaves cost empty and returns a note for an unresolved buildable', async () => {
+    const plan = {
+      buildSteps: [{ title: 'a', buildables: [{ name: 'Nonexistent Machine', requiredCount: 1 }] }],
+    };
+    const note = await enrichBuildCosts(plan, stubMcp());
+    expect(plan.buildSteps[0]!.buildables[0]!.buildCost).toEqual([]);
+    expect(note).toContain('Nonexistent Machine');
   });
 });
