@@ -32,15 +32,10 @@ var outPath = Resolve("out", "OUT", "sf-game-data.json");
 var version = Resolve("version", "GAME_VERSION", "1.2.3.0");
 var build = int.TryParse(Resolve("build", "BUILD", "493833"), out var parsedBuild) ? parsedBuild : 493833;
 
-// Investigation (#172 slice E): dump the project-assembly phase asset properties and exit.
-if (flags.ContainsKey("dump-gamephases"))
-{
-    GamePhaseDump.Dump(paks, usmap);
-    return;
-}
-
-// 1. World data from the cooked assets (returns the dataset object).
-var world = WorldExtractor.Extract(new ExtractOptions(paks, usmap, version, build));
+// 1. World data from the cooked assets (returns the dataset object + the
+// project-assembly phase deliverable costs, which are cooked-asset game data).
+var extracted = WorldExtractor.Extract(new ExtractOptions(paks, usmap, version, build));
+var world = extracted.Dataset;
 
 // 2. gameData from en-US.json (items/recipes/buildings/schematics).
 Console.WriteLine($"parsing docs: {enus}");
@@ -59,7 +54,11 @@ var writeOptions = new JsonSerializerOptions
     Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
 };
 var merged = (JsonObject)JsonSerializer.SerializeToNode(world, writeOptions)!;
-merged["gameData"] = JsonSerializer.SerializeToNode(g, ParseJson.Options);
+var gameDataNode = (JsonObject)JsonSerializer.SerializeToNode(g, ParseJson.Options)!;
+// Project-assembly phase costs are game data, but come from the cooked assets (CUE4Parse),
+// not the Docs parse — attach them under gameData (camelCase, like the rest of the node).
+gameDataNode["projectAssemblyPhases"] = JsonSerializer.SerializeToNode(extracted.ProjectAssemblyPhases, ParseJson.Options);
+merged["gameData"] = gameDataNode;
 var json = merged.ToJsonString(writeOptions).Replace("\r\n", "\n");
 File.WriteAllText(outPath, json);
 
