@@ -29,18 +29,23 @@ export interface EffectiveGameData {
 }
 
 /**
- * Builds the effective-game-data view for a save. `state` is accepted now (and reserved
- * for #172's Advanced-Game-Settings modifiers, read from `state`); for #148/#126 the view
- * is a faithful pass-through of `game`.
+ * Builds the effective-game-data view for a save, applying the 1.2 Advanced Game
+ * Settings modifiers from `state`. Today that is the **Recipe Parts Cost ×**
+ * (`recipeCostMultiplier`) scaling of recipe ingredient rates; outputs, capacities and
+ * name resolution are a faithful pass-through of `game`. Consumers read rates through
+ * this accessor, never the raw index, so the overlay is applied uniformly.
  */
-export function getEffectiveGameData(_state: SaveState, game: GameDataIndex): EffectiveGameData {
+export function getEffectiveGameData(state: SaveState, game: GameDataIndex): EffectiveGameData {
+  const recipeCostMultiplier = state.advancedGameSettings.recipeCostMultiplier;
   return {
     requiredInputs(producer) {
       const recipe =
         producer.recipeClass === undefined ? undefined : game.recipes[producer.recipeClass];
       const out: Record<string, number> = {};
       for (const ingredient of recipe?.ingredients ?? []) {
-        out[ingredient.itemClassName] = ingredient.perMinute * producer.clockSpeed;
+        // Recipe Parts Cost × scales ingredient (input) amounts; outputs are unaffected.
+        out[ingredient.itemClassName] =
+          ingredient.perMinute * producer.clockSpeed * recipeCostMultiplier;
       }
       return out;
     },

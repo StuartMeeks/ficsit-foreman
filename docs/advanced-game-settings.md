@@ -120,13 +120,24 @@ Behind the existing **`getEffectiveGameData(state, game)`** seam
 (`sf-mcp/src/query/effectiveGameData.ts`, introduced by #148):
 
 - **Recipe parts ×** — multiply `requiredInputs` (ingredient rates) by `recipeCostMultiplier`;
-  outputs unchanged.
-- **Power ×** — power accessor × `powerConsumptionMultiplier`; **consumers only**, generators
-  unaffected.
-- **Space Elevator deliverable ×** — multiply project-assembly phase deliverable costs
-  (`GP_Project_Assembly_Phase_*`, via `assemblyPhase`) by `spaceElevatorCostMultiplier`.
-- **Node type/purity** — join `resourceNodeOverrides` to bundled world `resourceNodes` by
-  nearest position; override `resourceClass` + `purity`.
+  outputs unchanged. *(shipped — in the seam)*
+- **Power ×** — consumer draw × `powerConsumptionMultiplier` (threaded through
+  `estimatePower`/`consumerDrawMW`); **consumers only**, generators unaffected. *(shipped)*
+- **Node type/purity** — `resourceNodeOverrides` matched to an extractor by nearest position
+  in `resolveExtraction` take precedence over the canonical (bundled) node. *(shipped)*
+- **Space Elevator deliverable ×** — **split to its own slice (E)**: investigation found the
+  project-assembly phase deliverable costs are **not in the game data** (the extractor doesn't
+  emit `GP_Project_Assembly_Phase_*` costs, and no tool surfaces them), so there is nothing to
+  multiply yet. This needs the phase costs plumbed through first (extractor → `sf-game-data` →
+  a phase-cost view), then the multiplier applies. Base (default) costs for reference:
+
+  | Phase | Name | Deliverable cost |
+  |---|---|---|
+  | 1 | Distribution Platform | 50 Smart Plating |
+  | 2 | Construction Dock | 1,000 Smart Plating · 1,000 Versatile Framework · 100 Automated Wiring |
+  | 3 | Main Body | 2,500 Versatile Framework · 500 Modular Engine · 100 Adaptive Control Unit |
+  | 4 | Propulsion | 500 Assembly Director System · 500 Magnetic Field Generator · 250 Thermal Propulsion Rocket · 100 Nuclear Pasta |
+  | 5 | Assembly | 1,000 Nuclear Pasta · 1,000 Biochemical Sculptor · 256 AI Expansion Server · 200 Ballistic Warp Drive |
 
 ## Scope C — parse Creative Mode (`sf-save-data`, pure)
 
@@ -203,11 +214,14 @@ all-default (non-creative) save leaves every one a no-op.
 ## Plan (slices)
 
 1. **A** — parse Game Modes → `advancedGameSettings` + `resourceNodeOverrides` (+ all-default
-   no-op test).
+   no-op test). ✅ shipped (#198)
 2. **C** — parse Creative Mode → `creativeMode` (per-property defaults, local-player rules).
-3. **B** — Game Modes overlay in `getEffectiveGameData` (recipe×, power×, space-elevator×, node
-   type/purity).
+   ✅ shipped (#199)
+3. **B** — Game Modes overlay in `getEffectiveGameData` (recipe×, power×, node type/purity).
+   ✅ shipped — space-elevator× split to E.
 4. **D** — Creative overlay (no-power/fuel/build/unlock-cost, unlock-all, progression).
+5. **E** — Space-elevator deliverable cost ×: extract `GP_Project_Assembly_Phase_*` costs in the
+   game-data extractor, surface them (a phase-cost view), then apply `spaceElevatorCostMultiplier`.
 
 Each slice is its own PR linking #172; A and C are independent (parallelisable), B depends on
-A, D depends on C.
+A, D depends on C; E depends on a game-data extractor change.
