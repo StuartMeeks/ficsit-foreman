@@ -1,26 +1,51 @@
 import {
+  CHEAT_NO_FUEL_PROP,
+  CHEAT_NO_POWER_PROP,
+  DISABLE_ARACHNIDS_PROP,
+  GAME_RULES_SUBSYSTEM,
   GAME_STATE,
+  NO_UNLOCK_COST_PROP,
   NODE_PURITY_SETTINGS_PROP,
   NODE_RANDOMIZATION_PROP,
+  PLAYER_RULE_FLIGHT_MODE,
+  PLAYER_RULE_GOD_MODE,
+  PLAYER_RULE_NO_BUILD_COST,
+  PLAYER_RULES_PROP,
+  PLAYER_STATE,
   POWER_CONSUMPTION_MULT_PROP,
   PURITY_OVERRIDE_PROP,
   RECIPE_COST_MULT_PROP,
   RESOURCE_CLASS_OVERRIDE_PROP,
   RESOURCE_NODE_ACTOR,
   SPACE_ELEVATOR_COST_MULT_PROP,
+  STARTING_TIER_PROP,
+  UNLOCK_ALL_RESEARCH_PROP,
+  UNLOCK_ALL_SHOP_PROP,
+  UNLOCK_INSTANT_ALT_RECIPES_PROP,
   WORLD_SEED_PROP,
 } from '../constants.js';
 import type { RawObject } from '../parser/types.js';
 import { classNameFromPath } from './classRef.js';
 import {
   DEFAULT_ADVANCED_GAME_SETTINGS,
+  DEFAULT_CREATIVE_MODE_SETTINGS,
   type AdvancedGameSettings,
+  type CreativeModeSettings,
   type NodePuritySetting,
   type NodeRandomizationMode,
   type ResourceNodeOverride,
   type ResourcePurity,
 } from './types.js';
-import { enumField, numberField, propMap, refField, translation, type Warnings } from './util.js';
+import {
+  boolField,
+  enumField,
+  numberField,
+  propMap,
+  refField,
+  structField,
+  translation,
+  type Warnings,
+} from './util.js';
 
 export interface GameSettingsResult {
   advancedGameSettings: AdvancedGameSettings;
@@ -128,6 +153,50 @@ function readNodePuritySettings(
     return DEFAULT_ADVANCED_GAME_SETTINGS.nodePuritySettings;
   }
   return value as NodePuritySetting;
+}
+
+/**
+ * Parses the **Creative Mode** Advanced Game Settings from across `BP_GameState_C`
+ * (cheat flags), the local player's `mPlayerRules` (build/flight/god), and
+ * `FGGameRulesSubsystem` (unlock/progression rules). Pure save facts; the effective
+ * overlay is the edge's job. `enabled` comes from the header's `creativeModeEnabled`
+ * (the authoritative flag); every field defaults independently when absent, so a
+ * non-creative save yields the canonical no-op state.
+ */
+export function extractCreativeMode(
+  objects: RawObject[],
+  creativeModeEnabled: boolean,
+): CreativeModeSettings {
+  const gameStateBag = bagOf(objects, GAME_STATE);
+  const rulesBag = bagOf(objects, GAME_RULES_SUBSYSTEM);
+  const playerState = objects.find(
+    (o) => PLAYER_STATE.test(o.typePath ?? '') && PLAYER_RULES_PROP in propMap(o),
+  );
+  const playerRules =
+    playerState === undefined ? {} : structField(propMap(playerState), PLAYER_RULES_PROP);
+
+  const d = DEFAULT_CREATIVE_MODE_SETTINGS;
+  return {
+    enabled: creativeModeEnabled,
+    noPower: boolField(gameStateBag, CHEAT_NO_POWER_PROP) ?? d.noPower,
+    noFuel: boolField(gameStateBag, CHEAT_NO_FUEL_PROP) ?? d.noFuel,
+    noBuildCost: boolField(playerRules, PLAYER_RULE_NO_BUILD_COST) ?? d.noBuildCost,
+    flightMode: boolField(playerRules, PLAYER_RULE_FLIGHT_MODE) ?? d.flightMode,
+    godMode: boolField(playerRules, PLAYER_RULE_GOD_MODE) ?? d.godMode,
+    noUnlockCost: boolField(rulesBag, NO_UNLOCK_COST_PROP) ?? d.noUnlockCost,
+    unlockInstantAltRecipes:
+      boolField(rulesBag, UNLOCK_INSTANT_ALT_RECIPES_PROP) ?? d.unlockInstantAltRecipes,
+    unlockAllResearch: boolField(rulesBag, UNLOCK_ALL_RESEARCH_PROP) ?? d.unlockAllResearch,
+    unlockAllShop: boolField(rulesBag, UNLOCK_ALL_SHOP_PROP) ?? d.unlockAllShop,
+    disableArachnids: boolField(rulesBag, DISABLE_ARACHNIDS_PROP) ?? d.disableArachnids,
+    startingTier: numberField(rulesBag, STARTING_TIER_PROP) ?? d.startingTier,
+  };
+}
+
+/** The property bag of the first actor matching `matcher`, or an empty bag. */
+function bagOf(objects: RawObject[], matcher: RegExp): Record<string, unknown> {
+  const actor = objects.find((o) => matcher.test(o.typePath ?? ''));
+  return actor === undefined ? {} : propMap(actor);
 }
 
 /**

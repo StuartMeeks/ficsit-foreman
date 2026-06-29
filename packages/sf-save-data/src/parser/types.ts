@@ -50,6 +50,8 @@ export interface RawHeader {
   saveName?: string;
   mapName?: string;
   playDurationSeconds?: number;
+  /** Whether Creative Mode is enabled for this save — the authoritative creative flag (#172). */
+  creativeModeEnabled?: boolean;
 }
 
 export interface RawSave {

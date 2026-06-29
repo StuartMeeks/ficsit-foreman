@@ -1,5 +1,5 @@
 import type { RawObject, RawSave } from '../parser/types.js';
-import { extractGameSettings } from './gameSettings.js';
+import { extractCreativeMode, extractGameSettings } from './gameSettings.js';
 import { extractPlayer } from './player.js';
 import { extractProduction } from './production.js';
 import { extractRecipes } from './recipes.js';
@@ -82,6 +82,7 @@ export function normaliseSave(
     assemblyPhase: progression.assemblyPhase,
     advancedGameSettings: gameSettings.advancedGameSettings,
     resourceNodeOverrides: gameSettings.resourceNodeOverrides,
+    creativeMode: extractCreativeMode(objects, raw.header?.creativeModeEnabled ?? false),
     collectedPickupGuids: scannable.collectedPickupGuids,
     lootedDropPodGuids: scannable.lootedDropPodGuids,
     collectedLootIds,

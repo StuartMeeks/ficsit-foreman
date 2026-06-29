@@ -294,6 +294,62 @@ export interface ResourceNodeOverride {
   purity?: ResourcePurity;
 }
 
+/**
+ * The **Creative Mode** Advanced Game Settings, read raw from across `BP_GameState_C`,
+ * the local player's `mPlayerRules`, and `FGGameRulesSubsystem`. Pure save facts —
+ * the effective-state overlay (no-power circuits, zero build cost, expanded unlocked
+ * set, granted tier/phase) happens at the edge (`sf-mcp`). Every field defaults
+ * independently when absent (the rules only persist when creative is on), so a
+ * non-creative save yields {@link DEFAULT_CREATIVE_MODE_SETTINGS} and every overlay is
+ * a no-op. `enabled` mirrors the header's `creativeModeEnabled` — the authoritative
+ * flag (the body `mIsCreativeModeEnabled` reads false even on creative saves). The
+ * cheats are per-player; the local/first player's rules are used. `startingTier` and
+ * the set game phase manifest in the normal milestone / `assemblyPhase` state.
+ * See `docs/advanced-game-settings.md`.
+ */
+export interface CreativeModeSettings {
+  /** Creative Mode active for this save (header `creativeModeEnabled`). */
+  enabled: boolean;
+  /** No Power — machines run without power. */
+  noPower: boolean;
+  /** No Fuel — generators/vehicles run without fuel. */
+  noFuel: boolean;
+  /** No Build Cost — building consumes no materials. */
+  noBuildCost: boolean;
+  /** Flight Mode. */
+  flightMode: boolean;
+  /** God Mode. */
+  godMode: boolean;
+  /** No Unlock Cost — milestones/MAM/shop cost nothing. */
+  noUnlockCost: boolean;
+  /** Alternate recipes unlock instantly. */
+  unlockInstantAltRecipes: boolean;
+  /** All MAM research unlocked. */
+  unlockAllResearch: boolean;
+  /** All AWESOME-shop schematics unlocked. */
+  unlockAllShop: boolean;
+  /** Arachnid creatures disabled (arachnophobia mode). */
+  disableArachnids: boolean;
+  /** Starting tier granted (0 = none / default). */
+  startingTier: number;
+}
+
+/** Canonical (off) Creative Mode settings — the no-op overlay state for non-creative saves. */
+export const DEFAULT_CREATIVE_MODE_SETTINGS: CreativeModeSettings = {
+  enabled: false,
+  noPower: false,
+  noFuel: false,
+  noBuildCost: false,
+  flightMode: false,
+  godMode: false,
+  noUnlockCost: false,
+  unlockInstantAltRecipes: false,
+  unlockAllResearch: false,
+  unlockAllShop: false,
+  disableArachnids: false,
+  startingTier: 0,
+};
+
 export interface SaveState {
   /** Detected game version (build number, with save version), or 'unknown'. */
   version: string;
@@ -340,6 +396,11 @@ export interface SaveState {
    */
   resourceNodeOverrides: ResourceNodeOverride[];
   /**
+   * The **Creative Mode** Advanced Game Settings. Always present —
+   * {@link DEFAULT_CREATIVE_MODE_SETTINGS} for non-creative saves.
+   */
+  creativeMode: CreativeModeSettings;
+  /**
    * GUIDs of collected collectibles (spheres/sloops/slugs), from
    * `FGScannableSubsystem.mDestroyedPickups` — matched against the world-locations
    * dataset for exact per-kind collected counts. See `collectibleProgressView`.
@@ -373,6 +434,7 @@ export function emptySaveState(version: string, saveName: string, parsedAt: stri
     mamResearch: [],
     advancedGameSettings: { ...DEFAULT_ADVANCED_GAME_SETTINGS },
     resourceNodeOverrides: [],
+    creativeMode: { ...DEFAULT_CREATIVE_MODE_SETTINGS },
     collectedPickupGuids: [],
     lootedDropPodGuids: [],
     collectedLootIds: [],

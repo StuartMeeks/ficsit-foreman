@@ -1,8 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
 import { normaliseSave } from '../src/normalise/index.js';
-import { DEFAULT_ADVANCED_GAME_SETTINGS } from '../src/normalise/types.js';
 import {
+  DEFAULT_ADVANCED_GAME_SETTINGS,
+  DEFAULT_CREATIVE_MODE_SETTINGS,
+} from '../src/normalise/types.js';
+import {
+  boolProp,
   byteEnumProp,
   enumProp,
   FIXTURE_SAVE,
@@ -13,6 +17,7 @@ import {
   objectProp,
   refArrayProp,
   sortRules,
+  structProp,
   vec3,
 } from './fixtures/save.js';
 
@@ -491,5 +496,90 @@ describe('advanced game settings (Game Modes, #172)', () => {
     expect(parsed.resourceNodeOverrides).toEqual([
       { position: undefined, resourceClass: undefined, purity: 'impure' },
     ]);
+  });
+});
+
+describe('creative mode (#172)', () => {
+  const LVL = 'Persistent_Level:PersistentLevel';
+  const GAME_STATE = '/Game/FactoryGame/-Shared/Blueprint/BP_GameState.BP_GameState_C';
+  const PLAYER_STATE = '/Game/FactoryGame/-Shared/Blueprint/BP_PlayerState.BP_PlayerState_C';
+  const GAME_RULES = '/Script/FactoryGame.FGGameRulesSubsystem';
+
+  it('defaults to a no-op state for a non-creative save', () => {
+    // FIXTURE_SAVE has no creative actors and no header creative flag.
+    expect(state.creativeMode).toEqual(DEFAULT_CREATIVE_MODE_SETTINGS);
+  });
+
+  it('reads enabled from the header creative flag even when the body flags are off', () => {
+    // Mirrors the real combo save: header says creative, but mIsCreativeModeEnabled is false.
+    const { state: parsed } = normaliseSave(
+      makeSave({
+        header: { buildVersion: 1, saveVersion: 60, creativeModeEnabled: true },
+        objects: [
+          obj(
+            GAME_RULES,
+            { mStartingTier: intProp(6) },
+            { instanceName: `${LVL}.GameRulesSubsystem` },
+          ),
+        ],
+      }),
+      '2026-01-01T00:00:00.000Z',
+    );
+    expect(parsed.creativeMode.enabled).toBe(true);
+    expect(parsed.creativeMode.startingTier).toBe(6);
+  });
+
+  it('parses cheats, player rules and unlock/progression rules across the three actors', () => {
+    const { state: parsed } = normaliseSave(
+      makeSave({
+        header: { buildVersion: 1, saveVersion: 60, creativeModeEnabled: true },
+        objects: [
+          obj(
+            GAME_STATE,
+            { mCheatNoPower: boolProp(true), mCheatNoFuel: boolProp(true) },
+            { instanceName: `${LVL}.BP_GameState_C_1` },
+          ),
+          obj(
+            PLAYER_STATE,
+            {
+              mPlayerRules: structProp('PlayerRules', {
+                HasInitialized: boolProp(true),
+                NoBuildCost: boolProp(true),
+                FlightMode: boolProp(true),
+                GodMode: boolProp(true),
+              }),
+            },
+            { instanceName: `${LVL}.BP_PlayerState_C_1` },
+          ),
+          obj(
+            GAME_RULES,
+            {
+              mNoUnlockCost: boolProp(true),
+              mUnlockInstantAltRecipes: boolProp(true),
+              mUnlockAllResearchSchematics: boolProp(true),
+              mUnlockAllResourceSinkSchematics: boolProp(true),
+              mDisableArachnidCreatures: boolProp(true),
+              mStartingTier: intProp(9),
+            },
+            { instanceName: `${LVL}.GameRulesSubsystem` },
+          ),
+        ],
+      }),
+      '2026-01-01T00:00:00.000Z',
+    );
+    expect(parsed.creativeMode).toEqual({
+      enabled: true,
+      noPower: true,
+      noFuel: true,
+      noBuildCost: true,
+      flightMode: true,
+      godMode: true,
+      noUnlockCost: true,
+      unlockInstantAltRecipes: true,
+      unlockAllResearch: true,
+      unlockAllShop: true,
+      disableArachnids: true,
+      startingTier: 9,
+    });
   });
 });
