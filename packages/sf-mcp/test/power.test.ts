@@ -238,3 +238,35 @@ describe('power consumption multiplier overlay (#172)', () => {
     });
   });
 });
+
+describe('creative No Power overlay (#172)', () => {
+  const GAME_STATE = '/Game/FactoryGame/-Shared/Blueprint/BP_GameState.BP_GameState_C';
+
+  it('zeroes consumer draw and reports every circuit ok', () => {
+    // creativeModeEnabled + mCheatNoPower → consumers draw nothing.
+    const save = makeSave({
+      header: { buildVersion: 1, saveVersion: 60, creativeModeEnabled: true },
+      objects: [
+        obj(
+          GAME_STATE,
+          { mCheatNoPower: { type: 'BoolProperty', value: true } },
+          { instanceName: `${LVL}.BP_GameState_C_1` },
+        ),
+        obj(T_CONSTRUCTOR, {}, { instanceName: CON, transform: vec3(0, 0, 0) }),
+        obj(
+          '/Script/FactoryGame.FGPowerCircuit',
+          {
+            mCircuitID: { type: 'IntProperty', value: 9 },
+            mComponents: refArrayProp([`${CON}.PowerConnection`]),
+          },
+          { instanceName: `${LVL}.CircuitSubsystem.FGPowerCircuit_2` },
+        ),
+      ],
+    });
+    const s = normaliseSave(save, '2026-01-01T00:00:00.000Z').state;
+    const v = powerView(s, buildSaveGraph(s), GAME);
+    // Without No Power this would be 4 MW with no generation → overloaded; here it's a no-op.
+    expect(v.circuits[0]).toMatchObject({ consumptionMW: 0, status: 'ok' });
+    expect(v.totalConsumptionMW).toBe(0);
+  });
+});

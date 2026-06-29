@@ -164,25 +164,34 @@ Behind the existing **`getEffectiveGameData(state, game)`** seam
 
 ## Scope D — overlay Creative Mode (`sf-mcp`, full)
 
-Behaviourally-relevant settings (the rest — god/flight/arachnid — are parsed for completeness
-but have no tool relevance, so **no overlay**):
+An overlay only bites where a tool reports the affected number. Mapping the settings to the
+actual sf-mcp surfaces:
 
-- **No Power** (`noPower`) — effective building power consumption → 0; circuits never overload.
-  `find_bottlenecks` / power views drop power constraints.
-- **No Fuel** (`noFuel`) — generators consume no fuel; fuel supply never constrains production.
-- **No Build Cost** (`noBuildCost`) — effective build costs → 0 (work-order / build-cost
-  estimates report 0).
-- **No Unlock Cost** (`noUnlockCost`) — milestone / MAM / schematic unlock costs → 0.
-- **Unlock toggles** (`unlockInstantAltRecipes`, `unlockAllResearch`, `unlockAllShop`) — expand
-  the **effective unlocked set**: all alt recipes / all MAM research / all AWESOME-shop
-  schematics are treated as unlocked regardless of the parsed `recipes` / `mamResearch` /
-  milestone state. Affects "what can I build/research" answers and recipe availability.
-- **Progression** (`startingTier`, set game phase) — milestone & progression reporting reflect
-  the granted tier and current phase as unlocked.
+**Shipped (real numeric / state surface):**
 
-The power / build-cost / recipe-availability overlays extend the same `getEffectiveGameData`
-seam; the unlock-all and tier/phase overlays extend the milestone/progression views. An
-all-default (non-creative) save leaves every one a no-op.
+- **No Power** (`noPower`) — effective consumer power draw → 0 (folded into the power path via
+  `effectivePowerMultiplier`): `get_power` and `find_bottlenecks` report 0 consumption / every
+  circuit `ok`, generators untouched.
+- **Progression awareness** (`startingTier`, `unlockAllResearch`, `unlockAllShop`,
+  `unlockInstantAltRecipes`, `noUnlockCost`) — surfaced on `get_milestones` as a `creative`
+  block (present only when creative is on), so the foreman knows the effective unlocked state
+  is broader and unlocks are free. `creativeModeEnabled` is also added to `describe_save`.
+
+**No sf-mcp surface yet (parsed, documented, not overlaid):**
+
+- **No Build Cost** (`noBuildCost`) — no save tool reports build costs (that's an `ff-server`
+  work-order concern); apply there when work-order costing reads game data.
+- **No Unlock Cost** (`noUnlockCost`) — milestone/MAM/shop *unlock costs* aren't surfaced by a
+  save tool (only the hard-drive drop-pod open-cost is, which is a different thing). The flag is
+  surfaced for awareness via the `get_milestones` `creative` block.
+- **No Fuel** (`noFuel`) — generator fuel isn't modelled as flow demand (`find_bottlenecks`
+  reconciles material flow between producers/extractors), so there is no constraint to drop.
+- **god/flight/arachnid** — parsed for completeness; no tool relevance.
+
+The "effective unlocked set" expansion (treating every recipe/research as unlocked under
+unlock-all) is deliberately *surfaced as flags* rather than fabricated into the unlocked lists —
+the foreman reads the flags and reasons, avoiding a misleading "you have unlocked X" for things
+the pioneer never actually researched. A non-creative save leaves every overlay a no-op.
 
 ## Test fixtures (under `~/saves/` on the VM)
 
