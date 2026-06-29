@@ -1,11 +1,11 @@
 # FICSIT Foreman — Component Architecture (target)
 
-How the codebase is **intended** to decompose into reusable, community-shippable
-Satisfactory components (`sf-*`) cleanly separated from the Ficsit Foreman application
-(`ff-*`). This is a **forward-looking target**, not the current layout — see
-[`architecture.md`](./architecture.md) for how the system fits together *today*. The
-package renames and extraction are a sequenced, **foreman-first** refactor (tracked as
-its own issue); nothing here blocks ongoing feature work.
+How the codebase decomposes into reusable, community-shippable Satisfactory components
+(`sf-*`) cleanly separated from the Ficsit Foreman application (`ff-*`). The package split
+described here is now **realised** — all `sf-*`/`ff-*` packages exist with these boundaries;
+this doc is the **rationale and the guards** that keep them clean for an eventual per-repo
+split. See [`architecture.md`](./architecture.md) for how the system fits together *today*.
+What remains "target" is the repo split itself (we still publish from this monorepo).
 
 ---
 
@@ -92,14 +92,17 @@ presentation helpers live in **`@foreman/sf-present`** (reusable without the MCP
 
 ## Packages
 
-| Package | Role | From (today) |
-|---|---|---|
-| **`sf-core`** | Slim shared kernel: class-name resolution (identity), shared scalar types (`Vec3`), channel/version logic. No formatting helpers. | *split* out of `game-data-core` |
-| **`sf-present`** | Reusable presentation/formatting helpers — `humaniseClassName`, `cmToMetres`/`metresToCm`/`compassBearing`. Zero-dep leaf; usable without the MCP server. | new (#137; extracted from `sf-core`/`sf-mcp`) |
-| **`sf-game-data`** | Static reference data. `./parser`: `Docs.json` → recipes/buildings/items + world-locations + bundled data (→ `sf-core`). `./graph`: Kùzu graph **as a library** (→ `./parser`). | `game-data-core` (parser) + `mcp-game-data` (graph) |
-| **`sf-save-data`** | A player's save instance. `./parser`: adopted @etothepii parser + normalise into the complete `SaveState` (incl. `topology`) (→ `sf-core`). `./graph`: the save-game graph **as a library** — a pure projection of `SaveState.topology`, holding no facts of its own (→ `./parser`). | `mcp-save-game` (+ new graph) |
-| **`sf-mcp`** | Single, **domain-neutral** MCP server loading *both* graph libs and exposing their tools — **including cross-graph (save ↔ game-data) join tools**. The one place the two domains meet. | new (extracted from the MCP packages) |
-| **`ff-server`, `ff-client`** | The Ficsit Foreman app (`ff` = Ficsit Foreman). `ff-server` runs the LLM proxy + MCP gateway (talks to `sf-mcp`) and injects the work-order tools per request. | renamed from `server` / `client` |
+| Package | Role |
+|---|---|
+| **`sf-core`** | Slim shared kernel: class-name resolution (identity), shared scalar types (`Vec3`), channel/version logic. No formatting helpers. |
+| **`sf-present`** | Reusable presentation/formatting helpers — `humaniseClassName`, `cmToMetres`/`metresToCm`/`compassBearing`. Zero-dep leaf; usable without the MCP server. |
+| **`sf-flow`** | Pure steady-state material-flow solver — abstract network (per-item supply/demand, edge caps + filters) → delivered rates + throughput. Zero-dep leaf; game-data-agnostic (the `sf-mcp` adapter maps the save graph + game data onto it). Backs `find_bottlenecks`. |
+| **`sf-game-data`** | Static reference data: the offline C# extractor's merged `sf-game-data.json` (recipes / buildings / items + world-locations) loaded at runtime (→ `sf-core`). |
+| **`sf-game-data-graph`** | The game-data production graph **as a library** — **Kùzu** (carries the native addon) (→ `sf-game-data`). |
+| **`sf-save-data`** | A player's save instance: the adopted @etothepii parser + normalise into the complete `SaveState` (incl. `topology`) (→ `sf-core`). |
+| **`sf-save-data-graph`** | The save-game connection graph **as a library** — a pure **in-memory** projection of `SaveState.topology` (no native deps, no facts of its own); provides adjacency, power circuits, splitter rules, and kind-aware directed-flow inference (→ `sf-save-data`). |
+| **`sf-mcp`** | Single, **domain-neutral** MCP server loading *both* graph libs (+ `sf-flow`, `sf-present`) and exposing their tools — **including cross-graph (save ↔ game-data) join tools** like `find_bottlenecks`. The one place the two domains meet; holds the effective-game-data join seam. |
+| **`ff-server`, `ff-client`** | The Ficsit Foreman app (`ff` = Ficsit Foreman). `ff-server` runs the LLM proxy + MCP gateway (talks to `sf-mcp`) and injects the work-order tools per request; `ff-client` is the React/Vite chat + work-order cockpit. |
 
 **Namespace:** `sf-*` are the reusable, community-shippable components; `ff-*` are the
 app. The prefix marks which side of the reuse boundary a package sits on.
@@ -107,29 +110,32 @@ app. The prefix marks which side of the reuse boundary a package sits on.
 **Dependency DAG (acyclic).** Solid arrows are npm/compile-time dependencies; dashed
 arrows are runtime edges (`ff-client → ff-server` over HTTP/SSE, `ff-server → sf-mcp` over
 the MCP transport via the gateway — `ff-server` does not `import` `sf-mcp`). `kuzu` (the
-graph engine, ~541 MB of native binaries) lives only under the `-graph` packages, so it
-never reaches `sf-core` or the parser packages.
+graph engine, ~541 MB of native binaries) lives **only in `sf-game-data-graph`** — the
+save-game graph is a pure in-memory projection (no native deps), and `kuzu` never reaches
+`sf-core`, `sf-flow`, or the parser packages.
 
 ```mermaid
 graph TD
     subgraph app["Ficsit Foreman app (ff-*)"]
-        ffc["ff-client"]
-        ffs["ff-server"]
+        ffc["ff-client<br/><i>chat + cockpit UI</i>"]
+        ffs["ff-server<br/><i>LLM proxy, work orders</i>"]
     end
     subgraph reusable["Reusable Satisfactory components (sf-*)"]
-        mcp["sf-mcp"]
-        gdg["sf-game-data-graph<br/><i>+ kuzu</i>"]
-        gd["sf-game-data"]
-        sdg["sf-save-data-graph<br/><i>+ kuzu</i>"]
-        sd["sf-save-data"]
-        present["sf-present"]
-        core["sf-core"]
+        mcp["sf-mcp<br/><i>MCP tools + graph join</i>"]
+        flow["sf-flow<br/><i>steady-state flow solver</i>"]
+        gdg["sf-game-data-graph<br/><i>Kùzu production graph</i>"]
+        gd["sf-game-data<br/><i>static game data</i>"]
+        sdg["sf-save-data-graph<br/><i>in-memory connection graph</i>"]
+        sd["sf-save-data<br/><i>.sav → SaveState</i>"]
+        present["sf-present<br/><i>name + unit formatting</i>"]
+        core["sf-core<br/><i>identity / scalar kernel</i>"]
     end
 
     ffc -. "HTTP / SSE" .-> ffs
     ffs -. "MCP transport" .-> mcp
     mcp --> gdg
     mcp --> sdg
+    mcp --> flow
     mcp --> present
     gdg --> gd
     gd --> core
@@ -139,17 +145,18 @@ graph TD
     classDef app fill:#fde8e8,stroke:#d98880,color:#000;
     classDef sf fill:#e8f0fe,stroke:#7fa8e0,color:#000;
     class ffc,ffs app;
-    class mcp,gdg,gd,sdg,sd,present,core sf;
+    class mcp,flow,gdg,gd,sdg,sd,present,core sf;
 ```
 
 Text form (deps point right-to-left): `sf-core ← {game,save}-data ← {game,save}-data-graph
-← sf-mcp ← ff-server ← ff-client`; `sf-present` is a zero-dep leaf consumed by `sf-mcp`.
+← sf-mcp ← ff-server ← ff-client`; `sf-present` and `sf-flow` are zero-dep leaves consumed
+by `sf-mcp` (it also imports `sf-game-data`/`sf-save-data` directly for their loaders/types).
 
 ### Guards
 
-- The reusable artifact is the **graph-as-a-library**, not the MCP server. The
-  **load-bearing refactor** is pulling the graph out of today's `mcp-game-data` (which
-  *fuses* graph + MCP) into `sf-game-data/graph`.
+- The reusable artifact is the **graph-as-a-library**, not the MCP server — done: both
+  graphs ship as standalone libs (`sf-game-data-graph`, `sf-save-data-graph`) that `sf-mcp`
+  composes. Keep it that way; never re-fuse graph + MCP.
 - **Guard `sf-mcp`'s contents:** it does exactly one thing — expose + join the two
   graphs. Foreman *business* logic (work orders, playthroughs, BYOK, persona) stays in
   `ff-server`. The neutral name is itself the guard; leaking app logic into `sf-mcp` is
@@ -169,17 +176,14 @@ Text form (deps point right-to-left): `sf-core ← {game,save}-data ← {game,sa
 - **License: MIT** (v4.1.x), pulled as a normal npm dependency (not vendored) — so no
   copyleft constraint on `sf-save-data`'s license; just preserve attribution. We
   *depend*, not redistribute source, so this is the low-friction case.
-- **Asymmetry:** unlike `sf-game-data` (we own the parser), `sf-save-data`'s `./parser`
-  is an **adapter + clean model** over etothepii — the binary `.sav` parsing is theirs
+- **Asymmetry:** unlike `sf-game-data` (we own the parser), `sf-save-data` is an
+  **adapter + clean model** over etothepii — the binary `.sav` parsing is theirs
   (mature; not worth reinventing).
-- **Insulation (already mostly in place):** `parseSaveFile` is the *sole* boundary to
-  etothepii; we keep our own minimal `RawSave`/`RawObject` types and expose our own
-  `SaveState` + graph. etothepii stays an implementation detail behind one module, so a
-  save-format change — or even a parser swap — touches one file, not the public API.
-  Keep this strict.
-- **Naming:** lean toward keeping `./parser` (symmetry with `sf-game-data/parser`) while
-  stating in its README that binary parsing is provided by etothepii. (Alternative:
-  `./model` / `./normalise` to be literal — minor.)
+- **Insulation (in place):** `parseSaveFile` is the *sole* boundary to etothepii; we keep
+  our own minimal `RawSave`/`RawObject` types and expose our own `SaveState` (the graph is
+  a separate package projecting it). etothepii stays an implementation detail behind one
+  module, so a save-format change — or even a parser swap — touches one file, not the
+  public API. Keep this strict.
 - **Risk/contingency:** we are downstream of etothepii's release cadence for save-format
   updates; mitigated by the boundary, with fork/vendor as the *fallback* (precedent: the
   vendored world-locations extractor), not the default. Community posture: contribute
@@ -191,23 +195,24 @@ Text form (deps point right-to-left): `sf-core ← {game,save}-data ← {game,sa
 
 - Licensing of the **bundled game data** (Coffee Stain's `Docs.json` / `en-US.json` in
   `sf-game-data`) — what can ship standalone. (The save parser is resolved: MIT.)
-- The save graph's **build/cache lifecycle** — Kùzu-per-save vs an in-memory adjacency
-  structure — needs a spike; owned by the graph-foundation issue.
+- ~~The save graph's **build/cache lifecycle** — Kùzu-per-save vs an in-memory adjacency
+  structure.~~ ✅ Resolved (#122): a pure **in-memory** projection (rebuilt per parse,
+  mtime-gated), ~150 ms vs ~5 s for Kùzu — so the save graph carries no native deps.
 
 ---
 
 ## Sequencing
 
-Foreman-first. The `sf-*`/`ff-*` rename and extraction is a single tracked refactor,
-deferred until the capabilities it would reorganise actually exist. The near-term path
-that moves toward this target:
+Foreman-first. The path that got here (all shipped):
 
-1. **Save-game graph foundation** (`sf-save-data/graph`) — the general connection graph
-   as a library (the substrate all relational save tools query).
-2. **Power** as the first, cheapest consumer of that graph (`FGPowerCircuit` pre-groups
-   circuits, so it is mostly aggregation).
-3. **Actual production accounting** (feed-tracing over belts/splitters/pipes + real
-   bottlenecks) as the second consumer.
-4. The **package restructure** itself, once the above prove the layering.
+1. ✅ **Save-game graph foundation** (`sf-save-data-graph`) — the general connection graph
+   as a library (in-memory; the substrate all relational save tools query).
+2. ✅ **Power** — the first, cheapest consumer (`FGPowerCircuit` pre-groups circuits).
+3. ✅ **Actual production accounting** — the steady-state flow engine (`sf-flow` + the
+   `find_bottlenecks` adapter: feed-tracing over belts/splitters/pipes with splitter
+   filters + fluid head lift). Closed #148 / #126 / #190.
+4. ✅ **Package restructure** — the `sf-*`/`ff-*` split is in place.
 
-Live work is tracked in the [issue tracker](https://github.com/StuartMeeks/ficsit-foreman/issues).
+Remaining: the **per-repo split** (still monorepo) and the #172 Advanced-Game-Settings
+modifier overlay. Live work is tracked in the
+[issue tracker](https://github.com/StuartMeeks/ficsit-foreman/issues).
