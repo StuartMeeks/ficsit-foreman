@@ -37,22 +37,15 @@ public static class GamePhaseDump
         Console.WriteLine($"candidate assets = {keys.Count}");
         foreach (var k in keys) { Console.WriteLine($"  {k}"); }
 
-        foreach (var k in keys)
+        foreach (var k in keys.Where(k => k.Contains("/GamePhases/")))
         {
             try
             {
                 var pkg = provider.LoadPackage(k);
-                foreach (var e in pkg.GetExports())
+                foreach (var e in pkg.GetExports().Where(x => x.ExportType == "FGGamePhase"))
                 {
-                    Console.WriteLine($"\n==== {k}");
-                    Console.WriteLine($"     export={e.Name} type={e.ExportType}");
-                    foreach (var p in e.Properties)
-                    {
-                        var tagType = p.Tag?.GetType().Name ?? "?";
-                        var val = p.Tag?.GenericValue?.ToString() ?? "(null)";
-                        if (val.Length > 600) { val = val[..600] + "…"; }
-                        Console.WriteLine($"     - {p.Name.Text} [{tagType}] = {val}");
-                    }
+                    Console.WriteLine($"\n==== {k} :: {e.Name}");
+                    Console.WriteLine(Newtonsoft.Json.JsonConvert.SerializeObject(e, Newtonsoft.Json.Formatting.Indented));
                 }
             }
             catch (Exception ex) { Console.Error.WriteLine($"[dump] {k}: {ex.Message}"); }
