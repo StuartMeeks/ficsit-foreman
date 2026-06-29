@@ -32,6 +32,13 @@ var outPath = Resolve("out", "OUT", "sf-game-data.json");
 var version = Resolve("version", "GAME_VERSION", "1.2.3.0");
 var build = int.TryParse(Resolve("build", "BUILD", "493833"), out var parsedBuild) ? parsedBuild : 493833;
 
+// Investigation (#172 slice E): dump the project-assembly phase asset properties and exit.
+if (flags.ContainsKey("dump-gamephases"))
+{
+    GamePhaseDump.Dump(paks, usmap);
+    return;
+}
+
 // 1. World data from the cooked assets (returns the dataset object).
 var world = WorldExtractor.Extract(new ExtractOptions(paks, usmap, version, build));
 
