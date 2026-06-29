@@ -14,21 +14,26 @@ export const coordinatesSchema = z.object({
   z: z.number().optional(),
 });
 
-export const machineRequirementSchema = z.object({
+export const buildCostLineSchema = z.object({
+  itemName: z.string().min(1),
+  itemClass: z.string().optional(),
+  amount: z.number(),
+});
+
+/**
+ * A buildable a step requires. The foreman supplies `name` + `requiredCount`
+ * (+ optional recipe/notes); the server fills `id`, `buildingClass` and
+ * `buildCost`, so those are optional here and accepted on round-trips.
+ */
+export const buildableSchema = z.object({
   id: z.string().optional(),
-  machineName: z.string().min(1),
+  name: z.string().min(1),
+  buildingClass: z.string().optional(),
   requiredCount: z.number().int().min(0),
   builtCount: z.number().int().min(0).optional(),
   recipeName: z.string().optional(),
   notes: z.string().optional(),
-});
-
-export const materialRequirementSchema = z.object({
-  id: z.string().optional(),
-  itemName: z.string().min(1),
-  requiredQuantity: z.number().min(0),
-  checked: z.boolean().optional(),
-  notes: z.string().optional(),
+  buildCost: z.array(buildCostLineSchema).optional(),
 });
 
 export const workOrderStepSchema = z.object({
@@ -37,6 +42,7 @@ export const workOrderStepSchema = z.object({
   description: z.string().optional(),
   checked: z.boolean().optional(),
   order: z.number().int().optional(),
+  buildables: z.array(buildableSchema).optional(),
 });
 
 export const recipeItemRateSchema = z.object({
@@ -155,8 +161,6 @@ const planFields = {
   notes: z.array(z.string()).optional(),
   locationRecommendation: locationRecommendationSchema.optional(),
   resourceNodes: z.array(resourceNodeReferenceSchema).optional(),
-  machines: z.array(machineRequirementSchema).optional(),
-  buildMaterials: z.array(materialRequirementSchema).optional(),
   recipes: z.array(recipeAssignmentSchema).optional(),
   expectedOutputs: z.array(expectedOutputSchema).optional(),
   buildSteps: z.array(workOrderStepSchema).optional(),
@@ -183,8 +187,6 @@ export const workOrderPlanPatchSchema = z
     notes: planFields.notes,
     locationRecommendation: planFields.locationRecommendation,
     resourceNodes: planFields.resourceNodes,
-    machines: planFields.machines,
-    buildMaterials: planFields.buildMaterials,
     recipes: planFields.recipes,
     expectedOutputs: planFields.expectedOutputs,
     buildSteps: planFields.buildSteps,
@@ -227,9 +229,8 @@ export const transitionSchema = z.object({
   pioneerFeedback: pioneerFeedbackSchema.optional(),
 });
 
-export const materialCheckSchema = z.object({ checked: z.boolean() });
 export const stepCheckSchema = z.object({ checked: z.boolean() });
-export const machineCountSchema = z.object({ builtCount: z.number().int().min(0) });
+export const buildableCountSchema = z.object({ builtCount: z.number().int().min(0) });
 export const logHoursSchema = z.object({ hours: z.number().positive() });
 export const acknowledgeSchema = z.object({
   revisionNumber: z.number().int().positive().optional(),
@@ -273,8 +274,6 @@ export const reviseToolSchema = z.object({
     notes: planFields.notes,
     locationRecommendation: planFields.locationRecommendation,
     resourceNodes: planFields.resourceNodes,
-    machines: planFields.machines,
-    buildMaterials: planFields.buildMaterials,
     recipes: planFields.recipes,
     expectedOutputs: planFields.expectedOutputs,
     buildSteps: planFields.buildSteps,

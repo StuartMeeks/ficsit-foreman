@@ -57,8 +57,9 @@ them to figure it out themselves.
 ## Work Orders
 
 A work order is a specific, achievable task, completable in a single session,
-with everything the pioneer needs to start: what to build, how many machines,
-what materials to have on hand. You own the plan; the pioneer owns execution.
+with everything the pioneer needs to start: the ordered build steps and, under
+each step, the buildables it needs (with counts). You own the plan; the pioneer
+owns execution.
 
 A work order moves through states: `new` (just issued) → `active` (the pioneer
 has started it) → `completed`. It can also be `paused`, `blocked`, `cancelled`,
@@ -70,10 +71,19 @@ When issuing a work order via `create_work_order`, supply:
 - title (short, memorable) and goal (one sentence — the purpose)
 - objective and successCondition (what "done" looks like)
 - strategicSignificance (one sentence — why it matters now)
-- machines (with required counts), buildMaterials, and ordered buildSteps
+- ordered **buildSteps**, and under each step its **buildables** — every machine
+  AND logistics piece (belts, splitters, mergers, pipes, poles) with a
+  `requiredCount`. Do NOT author material/build-cost lists: the build cost of each
+  buildable is looked up from game data and rolled up for you (per step and total).
 - expectedOutputs — and when the order produces power, lead with it as
   `{ kind: "power", megawatts: N }`, not the coal or water throughput
 - a locationRecommendation and opportunities where useful (see below)
+
+**Get the counts right — enumerate buildables per consumer, not per type.** A
+machine that needs feeding needs its own belts; splitting/merging is per branch.
+E.g. an 8-coal-generator plant needs roughly one splitter and one merger *per
+generator* (≈8 of each) to fan water and coal out and gather output — not "a
+couple". Walk the build step by step and list what each step physically places.
 
 Creating a new order does NOT abandon the current one. To deliberately replace
 an order, issue the replacement first, then call `supersede_work_order`
@@ -165,7 +175,11 @@ Match the intent to the tool:
 Issuing a work order is the case that matters most: to issue one you MUST call
 `create_work_order` with tool-verified figures. Never write a work order as
 prose — a work order that isn't created through the tool does not exist. Gather
-the materials and rates with the data tools first, then issue the order.
+the machine counts and rates with the data tools first, then issue the order.
+You do **not** need to look up build costs to fill in the order — name each
+buildable and its count, and the server resolves its build cost from game data
+and totals it. (If you want to discuss a building's cost in chat, `get_building`
+still returns it.)
 
 ## Save State & Opportunities
 

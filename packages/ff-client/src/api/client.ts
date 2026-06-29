@@ -345,15 +345,6 @@ export async function transitionWorkOrder(
   });
 }
 
-export async function setMaterialChecked(
-  playthroughId: string,
-  id: string,
-  materialId: string,
-  checked: boolean,
-): Promise<WorkOrder> {
-  return send<WorkOrder>(`${wo(playthroughId, id)}/materials/${materialId}`, 'PATCH', { checked });
-}
-
 export async function setStepChecked(
   playthroughId: string,
   id: string,
@@ -363,13 +354,18 @@ export async function setStepChecked(
   return send<WorkOrder>(`${wo(playthroughId, id)}/steps/${stepId}`, 'PATCH', { checked });
 }
 
-export async function setMachineBuiltCount(
+export async function setBuildableBuiltCount(
   playthroughId: string,
   id: string,
-  machineId: string,
+  stepId: string,
+  buildableId: string,
   builtCount: number,
 ): Promise<WorkOrder> {
-  return send<WorkOrder>(`${wo(playthroughId, id)}/machines/${machineId}`, 'PATCH', { builtCount });
+  return send<WorkOrder>(
+    `${wo(playthroughId, id)}/steps/${stepId}/buildables/${buildableId}`,
+    'PATCH',
+    { builtCount },
+  );
 }
 
 export async function logHours(

@@ -1,5 +1,5 @@
-import type { ToolDefinition } from '../mcp/client.js';
-import type { WorkOrder } from '../types.js';
+import type { McpGateway, ToolDefinition } from '../mcp/client.js';
+import type { BuildCostLine, WorkOrder } from '../types.js';
 import {
   formatWorkOrderLabel,
   type UpdatePlanInput,
@@ -20,6 +20,8 @@ export interface WorkOrderToolDeps {
   workOrders: WorkOrderService;
   /** Current game data version, stamped onto newly-issued orders. */
   gameVersion: () => string;
+  /** MCP gateway — used to resolve each buildable's build cost via `get_building`. */
+  mcp: McpGateway;
 }
 
 /** Outcome of a work-order tool call: text for the model, struct for the UI. */
@@ -85,41 +87,33 @@ const expectedOutputItemSchema = {
   ],
 };
 
-const machinesSchema = {
+const buildablesSchema = {
   type: 'array',
-  description: 'Machines to build, with required counts. Built counts start at 0.',
+  description:
+    'The buildables this step requires — every machine AND logistics piece (belts, splitters, mergers, pipes, poles), each with how many to build. Enumerate per consumer: e.g. an 8-generator plant needs a splitter and a merger PER generator, and belts feeding each machine — not one or two of each. Do NOT include build-cost materials; the server computes the construction cost from game data automatically.',
   items: {
     type: 'object',
     properties: {
-      machineName: { type: 'string' },
+      name: { type: 'string', description: 'Building display name, e.g. "Coal Generator".' },
       requiredCount: { type: 'integer', minimum: 0 },
       recipeName: { type: 'string' },
       notes: { type: 'string' },
     },
-    required: ['machineName', 'requiredCount'],
-  },
-};
-
-const materialsSchema = {
-  type: 'array',
-  description: 'Materials the pioneer should have on hand; each is checkable.',
-  items: {
-    type: 'object',
-    properties: {
-      itemName: { type: 'string' },
-      requiredQuantity: { type: 'number' },
-      notes: { type: 'string' },
-    },
-    required: ['itemName', 'requiredQuantity'],
+    required: ['name', 'requiredCount'],
   },
 };
 
 const stepsSchema = {
   type: 'array',
-  description: 'Ordered, plain-language build steps; each is checkable.',
+  description:
+    'Ordered build steps; each is checkable and holds the buildables (with counts) it requires.',
   items: {
     type: 'object',
-    properties: { title: { type: 'string' }, description: { type: 'string' } },
+    properties: {
+      title: { type: 'string' },
+      description: { type: 'string' },
+      buildables: buildablesSchema,
+    },
     required: ['title'],
   },
 };
@@ -145,8 +139,6 @@ const planProperties: Record<string, unknown> = {
     },
     required: ['summary'],
   },
-  machines: machinesSchema,
-  buildMaterials: materialsSchema,
   buildSteps: stepsSchema,
   expectedOutputs: {
     type: 'array',
@@ -313,10 +305,11 @@ async function handleCreate(
   if (!parsed.success) {
     return { text: `Invalid create_work_order arguments: ${parsed.error.message}`, isError: true };
   }
+  const costNote = await enrichBuildCosts(parsed.data, deps.mcp);
   const order = await deps.workOrders.create(playthroughId, parsed.data, deps.gameVersion());
   const label = formatWorkOrderLabel(order.sequenceNumber);
   return {
-    text: `Issued ${label}: "${order.title}" (state: new). Tell the pioneer it is ready to start.`,
+    text: `Issued ${label}: "${order.title}" (state: new). Tell the pioneer it is ready to start.${costNote ?? ''}`,
     isError: false,
     workOrder: order,
   };
@@ -361,6 +354,7 @@ async function handleRevise(
   }
   const { workOrderId: _id, changeSummary, ...patch } = parsed.data;
   void _id;
+  const costNote = await enrichBuildCosts(patch, deps.mcp);
   const meta = changeSummary !== undefined ? { changeSummary } : {};
   const outcome = await deps.workOrders.updatePlan(
     playthroughId,
@@ -370,7 +364,7 @@ async function handleRevise(
     meta,
   );
   return mapOutcome(outcome, (order) => ({
-    text: `Revised ${formatWorkOrderLabel(order.sequenceNumber)} (now revision ${order.currentRevision}). The pioneer will see a plan-changed notice to acknowledge.`,
+    text: `Revised ${formatWorkOrderLabel(order.sequenceNumber)} (now revision ${order.currentRevision}). The pioneer will see a plan-changed notice to acknowledge.${costNote ?? ''}`,
     workOrder: order,
   }));
 }
@@ -478,16 +472,111 @@ async function handleCreateChild(
     }
     parentId = current.id;
   }
+  const costNote = await enrichBuildCosts(parsed.data, deps.mcp);
   const order = await deps.workOrders.create(
     playthroughId,
     { ...parsed.data, parentWorkOrderId: parentId },
     deps.gameVersion(),
   );
   return {
-    text: `Issued child ${formatWorkOrderLabel(order.sequenceNumber)}: "${order.title}" under the parent. Completing it will auto-unblock a blocked parent.`,
+    text: `Issued child ${formatWorkOrderLabel(order.sequenceNumber)}: "${order.title}" under the parent. Completing it will auto-unblock a blocked parent.${costNote ?? ''}`,
     isError: false,
     workOrder: order,
   };
+}
+
+/** Per-unit build cost + resolved class for one buildable, from `get_building`. */
+interface ResolvedBuild {
+  buildingClass?: string;
+  buildCost: BuildCostLine[];
+}
+
+interface BuildableInput {
+  name: string;
+  buildingClass?: string;
+  buildCost?: BuildCostLine[];
+}
+interface StepInput {
+  buildables?: BuildableInput[];
+}
+
+/**
+ * Fills each buildable's per-unit `buildCost` (+ resolved `buildingClass`) from game
+ * data via the `get_building` MCP tool, resolving each DISTINCT name once. Mutates the
+ * plan's `buildSteps` in place; returns a note naming any buildables whose cost could
+ * not be resolved (so the foreman/pioneer sees the gap), or undefined when all resolve.
+ */
+export async function enrichBuildCosts(
+  plan: { buildSteps?: StepInput[] },
+  mcp: McpGateway,
+): Promise<string | undefined> {
+  const steps = plan.buildSteps ?? [];
+  const names = new Set<string>();
+  for (const step of steps) {
+    for (const b of step.buildables ?? []) {
+      names.add(b.name);
+    }
+  }
+  if (names.size === 0) {
+    return undefined;
+  }
+
+  const resolved = new Map<string, ResolvedBuild | null>();
+  for (const name of names) {
+    resolved.set(name, await resolveBuild(name, mcp));
+  }
+
+  const unresolved: string[] = [];
+  for (const step of steps) {
+    for (const b of step.buildables ?? []) {
+      const r = resolved.get(b.name);
+      if (r === null || r === undefined) {
+        b.buildCost = [];
+        unresolved.push(b.name);
+      } else {
+        b.buildCost = r.buildCost;
+        if (r.buildingClass !== undefined) {
+          b.buildingClass = r.buildingClass;
+        }
+      }
+    }
+  }
+  if (unresolved.length === 0) {
+    return undefined;
+  }
+  const names2 = [...new Set(unresolved)].map((n) => `"${n}"`).join(', ');
+  return ` Note: could not resolve build cost for ${names2} — verify the buildable name(s).`;
+}
+
+/** Resolves one buildable name to its class + per-unit build cost via `get_building`. */
+async function resolveBuild(name: string, mcp: McpGateway): Promise<ResolvedBuild | null> {
+  try {
+    const res = await mcp.callTool('get_building', { name });
+    if (res.isError) {
+      return null;
+    }
+    const parsed = JSON.parse(res.text) as {
+      building?: {
+        className?: string;
+        buildCost?: { item?: string; itemClassName?: string; amount?: number }[];
+      };
+    };
+    const building = parsed.building;
+    if (building === undefined) {
+      return null;
+    }
+    const buildCost: BuildCostLine[] = (building.buildCost ?? []).map((c) => ({
+      itemName: c.item ?? c.itemClassName ?? 'Unknown',
+      ...(c.itemClassName !== undefined ? { itemClass: c.itemClassName } : {}),
+      amount: c.amount ?? 0,
+    }));
+    return {
+      buildCost,
+      ...(building.className !== undefined ? { buildingClass: building.className } : {}),
+    };
+  } catch {
+    return null;
+  }
 }
 
 /** Resolves the target order id (explicit, or the playthrough's current order). */

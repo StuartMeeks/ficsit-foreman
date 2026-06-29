@@ -125,6 +125,7 @@ async function dispatchTool(
     const outcome = await handleWorkOrderTool(playthroughId, call.name, call.arguments, {
       workOrders: deps.workOrders,
       gameVersion: () => deps.mcp.gameVersion,
+      mcp: deps.mcp,
     });
     if (outcome.workOrder !== undefined) {
       events.workOrder(outcome.workOrder);

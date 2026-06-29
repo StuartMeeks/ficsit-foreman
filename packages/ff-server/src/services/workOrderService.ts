@@ -9,10 +9,11 @@ import type {
 } from '@prisma/client';
 
 import type {
+  Buildable,
+  BuildableDef,
+  BuildCostLine,
   ExpectedOutput,
   LocationRecommendation,
-  MachineRequirement,
-  MaterialRequirement,
   PioneerFeedback,
   RecipeAssignment,
   ResourceNodeReference,
@@ -28,6 +29,7 @@ import type {
   WorkOrderRevisionDiff,
   WorkOrderState,
   WorkOrderStep,
+  WorkOrderStepDef,
 } from '../types.js';
 import {
   transitionEventType,
@@ -35,21 +37,16 @@ import {
   type WorkOrderAction,
 } from './workOrderTransitions.js';
 
-/** A checklist item as supplied to create/revise — ids are generated if absent. */
-export interface MachineRequirementInput {
+/** A buildable as supplied to create/revise — ids generated if absent; cost server-filled. */
+export interface BuildableInput {
   id?: string;
-  machineName: string;
+  name: string;
+  buildingClass?: string;
   requiredCount: number;
   builtCount?: number;
   recipeName?: string;
   notes?: string;
-}
-export interface MaterialRequirementInput {
-  id?: string;
-  itemName: string;
-  requiredQuantity: number;
-  checked?: boolean;
-  notes?: string;
+  buildCost?: BuildCostLine[];
 }
 export interface WorkOrderStepInput {
   id?: string;
@@ -57,6 +54,7 @@ export interface WorkOrderStepInput {
   description?: string;
   checked?: boolean;
   order?: number;
+  buildables?: BuildableInput[];
 }
 
 /** Plan fields the Foreman supplies when issuing or revising an order. */
@@ -70,8 +68,6 @@ export interface WorkOrderPlanInput {
   notes?: string[];
   locationRecommendation?: LocationRecommendation;
   resourceNodes?: ResourceNodeReference[];
-  machines?: MachineRequirementInput[];
-  buildMaterials?: MaterialRequirementInput[];
   recipes?: RecipeAssignment[];
   expectedOutputs?: ExpectedOutput[];
   buildSteps?: WorkOrderStepInput[];
@@ -133,8 +129,6 @@ export class WorkOrderService {
     version: string,
     actor: WorkOrderActor = 'Foreman',
   ): Promise<WorkOrder> {
-    const machines = normaliseMachines(input.machines ?? []);
-    const buildMaterials = normaliseMaterials(input.buildMaterials ?? []);
     const buildSteps = normaliseSteps(input.buildSteps ?? []);
 
     const row = await this.prisma.$transaction(async (tx): Promise<WorkOrderRow> => {
@@ -159,8 +153,10 @@ export class WorkOrderService {
           notes: toJsonOrNull(input.notes),
           locationRecommendation: toJsonOrNull(input.locationRecommendation),
           resourceNodes: toJsonOrNull(input.resourceNodes),
-          machines: JSON.stringify(machines),
-          buildMaterials: JSON.stringify(buildMaterials),
+          // machines/buildMaterials columns are retired (#62) — kept empty for the
+          // non-nullable column; the live model derives cost from step buildables.
+          machines: '[]',
+          buildMaterials: '[]',
           recipes: JSON.stringify(input.recipes ?? []),
           expectedOutputs: JSON.stringify(input.expectedOutputs ?? []),
           buildSteps: JSON.stringify(buildSteps),
@@ -480,20 +476,8 @@ export class WorkOrderService {
       const data: Prisma.WorkOrderUpdateInput = {};
       assignPlainPlanFields(data, patch);
 
-      // Checklists merge execution state forward by id when replaced.
-      if (patch.machines !== undefined) {
-        data.machines = JSON.stringify(
-          mergeMachines(normaliseMachines(patch.machines), parseMachines(row.machines)),
-        );
-      }
-      if (patch.buildMaterials !== undefined) {
-        data.buildMaterials = JSON.stringify(
-          mergeMaterials(
-            normaliseMaterials(patch.buildMaterials),
-            parseMaterials(row.buildMaterials),
-          ),
-        );
-      }
+      // Steps merge execution state forward by id (step checked + per-buildable
+      // built counts) when replaced.
       if (patch.buildSteps !== undefined) {
         data.buildSteps = JSON.stringify(
           mergeSteps(normaliseSteps(patch.buildSteps), parseSteps(row.buildSteps)),
@@ -522,12 +506,7 @@ export class WorkOrderService {
           note: meta.changeSummary,
         });
       }
-      if (
-        patch.machines !== undefined ||
-        patch.buildMaterials !== undefined ||
-        patch.buildSteps !== undefined ||
-        patch.expectedOutputs !== undefined
-      ) {
+      if (patch.buildSteps !== undefined || patch.expectedOutputs !== undefined) {
         await this.appendAudit(tx, id, actor, 'build_plan_adapted', {
           revisionNumber: nextRevision,
           note: meta.changeSummary,
@@ -615,16 +594,8 @@ export class WorkOrderService {
         blockedReason: snapshot.blockedReason ?? null,
         blockedResolutionHint: snapshot.blockedResolutionHint ?? null,
         relationshipToParent: snapshot.relationshipToParent ?? null,
-        // Merge execution state forward from the live row by stable id.
-        machines: JSON.stringify(
-          mergeMachines(machinesFromDefs(snapshot.machines), parseMachines(row.machines)),
-        ),
-        buildMaterials: JSON.stringify(
-          mergeMaterials(
-            materialsFromDefs(snapshot.buildMaterials),
-            parseMaterials(row.buildMaterials),
-          ),
-        ),
+        // Merge execution state forward from the live row by stable id (step checked +
+        // per-buildable built counts).
         buildSteps: JSON.stringify(
           mergeSteps(stepsFromDefs(snapshot.buildSteps), parseSteps(row.buildSteps)),
         ),
@@ -648,28 +619,6 @@ export class WorkOrderService {
 
   // --- Execution mutations (audit-only, no revision) -----------------------
 
-  public async setMaterialChecked(
-    playthroughId: string,
-    id: string,
-    materialId: string,
-    checked: boolean,
-    actor: WorkOrderActor = 'Pioneer',
-  ): Promise<WorkOrderOutcome> {
-    return this.mutateChecklist(playthroughId, id, actor, (row) => {
-      const items = parseMaterials(row.buildMaterials);
-      const item = items.find((m) => m.id === materialId);
-      if (item === undefined) {
-        return { error: `Material '${materialId}' not found.` };
-      }
-      item.checked = checked;
-      return {
-        data: { buildMaterials: JSON.stringify(items) },
-        eventType: checked ? 'material_checked' : 'material_unchecked',
-        details: { materialId, itemName: item.itemName },
-      };
-    });
-  }
-
   public async setStepChecked(
     playthroughId: string,
     id: string,
@@ -692,25 +641,30 @@ export class WorkOrderService {
     });
   }
 
-  public async setMachineBuiltCount(
+  public async setBuildableBuiltCount(
     playthroughId: string,
     id: string,
-    machineId: string,
+    stepId: string,
+    buildableId: string,
     builtCount: number,
     actor: WorkOrderActor = 'Pioneer',
   ): Promise<WorkOrderOutcome> {
     return this.mutateChecklist(playthroughId, id, actor, (row) => {
-      const items = parseMachines(row.machines);
-      const item = items.find((m) => m.id === machineId);
+      const steps = parseSteps(row.buildSteps);
+      const step = steps.find((s) => s.id === stepId);
+      if (step === undefined) {
+        return { error: `Step '${stepId}' not found.` };
+      }
+      const item = step.buildables.find((b) => b.id === buildableId);
       if (item === undefined) {
-        return { error: `Machine '${machineId}' not found.` };
+        return { error: `Buildable '${buildableId}' not found in step '${stepId}'.` };
       }
       const previous = item.builtCount;
       item.builtCount = builtCount;
       return {
-        data: { machines: JSON.stringify(items) },
-        eventType: 'machine_built_count_changed',
-        details: { machineId, machineName: item.machineName, from: previous, to: builtCount },
+        data: { buildSteps: JSON.stringify(steps) },
+        eventType: 'buildable_built_count_changed',
+        details: { stepId, buildableId, name: item.name, from: previous, to: builtCount },
       };
     });
   }
@@ -963,25 +917,17 @@ function notFound(): WorkOrderOutcome {
   return { ok: false, reason: 'notFound', message: 'Work order not found.' };
 }
 
-function normaliseMachines(input: MachineRequirementInput[]): MachineRequirement[] {
-  return input.map((m) => ({
-    id: m.id ?? randomUUID(),
-    machineName: m.machineName,
-    requiredCount: m.requiredCount,
-    builtCount: m.builtCount ?? 0,
-    ...(m.recipeName !== undefined ? { recipeName: m.recipeName } : {}),
-    ...(m.notes !== undefined ? { notes: m.notes } : {}),
-  }));
-}
-
-function normaliseMaterials(input: MaterialRequirementInput[]): MaterialRequirement[] {
-  return input.map((m) => ({
-    id: m.id ?? randomUUID(),
-    itemName: m.itemName,
-    requiredQuantity: m.requiredQuantity,
-    checked: m.checked ?? false,
-    ...(m.notes !== undefined ? { notes: m.notes } : {}),
-  }));
+function normaliseBuildable(b: BuildableInput): Buildable {
+  return {
+    id: b.id ?? randomUUID(),
+    name: b.name,
+    requiredCount: b.requiredCount,
+    builtCount: b.builtCount ?? 0,
+    buildCost: b.buildCost ?? [],
+    ...(b.buildingClass !== undefined ? { buildingClass: b.buildingClass } : {}),
+    ...(b.recipeName !== undefined ? { recipeName: b.recipeName } : {}),
+    ...(b.notes !== undefined ? { notes: b.notes } : {}),
+  };
 }
 
 function normaliseSteps(input: WorkOrderStepInput[]): WorkOrderStep[] {
@@ -990,40 +936,41 @@ function normaliseSteps(input: WorkOrderStepInput[]): WorkOrderStep[] {
     title: s.title,
     checked: s.checked ?? false,
     order: s.order ?? index,
+    buildables: (s.buildables ?? []).map(normaliseBuildable),
     ...(s.description !== undefined ? { description: s.description } : {}),
   }));
 }
 
-/** Carry execution state forward by id: incoming defs, existing checked/counts. */
-function mergeMachines(
-  incoming: MachineRequirement[],
-  existing: MachineRequirement[],
-): MachineRequirement[] {
-  const byId = new Map(existing.map((m) => [m.id, m]));
-  return incoming.map((m) => ({ ...m, builtCount: byId.get(m.id)?.builtCount ?? m.builtCount }));
-}
-
-function mergeMaterials(
-  incoming: MaterialRequirement[],
-  existing: MaterialRequirement[],
-): MaterialRequirement[] {
-  const byId = new Map(existing.map((m) => [m.id, m]));
-  return incoming.map((m) => ({ ...m, checked: byId.get(m.id)?.checked ?? m.checked }));
-}
-
+/**
+ * Carry execution state forward across a revision by id: incoming defs win on
+ * structure, but a step's `checked` and each surviving buildable's `builtCount`
+ * (matched by buildable id) are preserved from the existing order.
+ */
 function mergeSteps(incoming: WorkOrderStep[], existing: WorkOrderStep[]): WorkOrderStep[] {
-  const byId = new Map(existing.map((s) => [s.id, s]));
-  return incoming.map((s) => ({ ...s, checked: byId.get(s.id)?.checked ?? s.checked }));
+  const stepById = new Map(existing.map((s) => [s.id, s]));
+  return incoming.map((s) => {
+    const prev = stepById.get(s.id);
+    const prevBuildables = new Map((prev?.buildables ?? []).map((b) => [b.id, b]));
+    return {
+      ...s,
+      checked: prev?.checked ?? s.checked,
+      buildables: s.buildables.map((b) => ({
+        ...b,
+        builtCount: prevBuildables.get(b.id)?.builtCount ?? b.builtCount,
+      })),
+    };
+  });
 }
 
-function machinesFromDefs(defs: WorkOrderPlanSnapshot['machines']): MachineRequirement[] {
-  return defs.map((d) => ({ ...d, builtCount: 0 }));
-}
-function materialsFromDefs(defs: WorkOrderPlanSnapshot['buildMaterials']): MaterialRequirement[] {
-  return defs.map((d) => ({ ...d, checked: false }));
+function buildableFromDef(d: BuildableDef): Buildable {
+  return { ...d, builtCount: 0 };
 }
 function stepsFromDefs(defs: WorkOrderPlanSnapshot['buildSteps']): WorkOrderStep[] {
-  return defs.map((d) => ({ ...d, checked: false }));
+  return defs.map((d) => ({
+    ...d,
+    checked: false,
+    buildables: (d.buildables ?? []).map(buildableFromDef),
+  }));
 }
 
 function assignPlainPlanFields(data: Prisma.WorkOrderUpdateInput, patch: UpdatePlanInput): void {
@@ -1071,48 +1018,44 @@ function assignPlainPlanFields(data: Prisma.WorkOrderUpdateInput, patch: UpdateP
   }
 }
 
-function parseMachines(raw: string): MachineRequirement[] {
-  return parseJson<MachineRequirement[]>(raw, []);
-}
-function parseMaterials(raw: string): MaterialRequirement[] {
-  return parseJson<MaterialRequirement[]>(raw, []);
-}
+/**
+ * Parses stored steps, tolerating the pre-#62 shape: a step without `buildables`
+ * (old orders predating the redesign) defaults to an empty buildables list, and any
+ * stored buildable missing `buildCost` defaults to `[]` — so old orders render
+ * without crashing rather than needing a migration.
+ */
 function parseSteps(raw: string): WorkOrderStep[] {
-  return parseJson<WorkOrderStep[]>(raw, []);
+  return parseJson<WorkOrderStep[]>(raw, []).map((s) => ({
+    ...s,
+    buildables: (s.buildables ?? []).map((b) => ({ ...b, buildCost: b.buildCost ?? [] })),
+  }));
 }
 
 /** Derives a plan-only snapshot from a stored row (strips execution state). */
 function planSnapshotFromRow(row: WorkOrderRow): WorkOrderPlanSnapshot {
-  const machines = parseMachines(row.machines).map((m) => {
-    const def: WorkOrderPlanSnapshot['machines'][number] = {
-      id: m.id,
-      machineName: m.machineName,
-      requiredCount: m.requiredCount,
-    };
-    if (m.recipeName !== undefined) {
-      def.recipeName = m.recipeName;
-    }
-    if (m.notes !== undefined) {
-      def.notes = m.notes;
-    }
-    return def;
-  });
-  const buildMaterials = parseMaterials(row.buildMaterials).map((m) => {
-    const def: WorkOrderPlanSnapshot['buildMaterials'][number] = {
-      id: m.id,
-      itemName: m.itemName,
-      requiredQuantity: m.requiredQuantity,
-    };
-    if (m.notes !== undefined) {
-      def.notes = m.notes;
-    }
-    return def;
-  });
   const buildSteps = parseSteps(row.buildSteps).map((s) => {
-    const def: WorkOrderPlanSnapshot['buildSteps'][number] = {
+    const def: WorkOrderStepDef = {
       id: s.id,
       title: s.title,
       order: s.order,
+      buildables: s.buildables.map((b) => {
+        const bd: BuildableDef = {
+          id: b.id,
+          name: b.name,
+          requiredCount: b.requiredCount,
+          buildCost: b.buildCost,
+        };
+        if (b.buildingClass !== undefined) {
+          bd.buildingClass = b.buildingClass;
+        }
+        if (b.recipeName !== undefined) {
+          bd.recipeName = b.recipeName;
+        }
+        if (b.notes !== undefined) {
+          bd.notes = b.notes;
+        }
+        return bd;
+      }),
     };
     if (s.description !== undefined) {
       def.description = s.description;
@@ -1123,8 +1066,6 @@ function planSnapshotFromRow(row: WorkOrderRow): WorkOrderPlanSnapshot {
   const snapshot: WorkOrderPlanSnapshot = {
     title: row.title,
     goal: row.goal,
-    machines,
-    buildMaterials,
     buildSteps,
     recipes: parseJson<RecipeAssignment[]>(row.recipes, []),
     expectedOutputs: parseJson<ExpectedOutput[]>(row.expectedOutputs, []),
@@ -1183,8 +1124,6 @@ export function rowToWorkOrder(row: WorkOrderRow, childWorkOrderIds: string[] = 
     state: row.state as WorkOrderState,
     title: row.title,
     goal: row.goal,
-    machines: parseMachines(row.machines),
-    buildMaterials: parseMaterials(row.buildMaterials),
     recipes: parseJson<RecipeAssignment[]>(row.recipes, []),
     expectedOutputs: parseJson<ExpectedOutput[]>(row.expectedOutputs, []),
     buildSteps: parseSteps(row.buildSteps),
@@ -1331,8 +1270,6 @@ const DIFF_FIELDS: readonly (keyof WorkOrderPlanSnapshot)[] = [
   'notes',
   'locationRecommendation',
   'resourceNodes',
-  'machines',
-  'buildMaterials',
   'recipes',
   'expectedOutputs',
   'buildSteps',

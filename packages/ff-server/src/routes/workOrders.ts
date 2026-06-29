@@ -5,9 +5,8 @@ import type { WorkOrderOutcome } from '../services/workOrderService.js';
 import type { WorkOrderAction } from '../services/workOrderTransitions.js';
 import {
   acknowledgeSchema,
+  buildableCountSchema,
   logHoursSchema,
-  machineCountSchema,
-  materialCheckSchema,
   revertSchema,
   stepCheckSchema,
   transitionSchema,
@@ -180,21 +179,6 @@ export function workOrdersRouter(deps: AppDeps): Router {
 
   // --- Execution mutations (Pioneer; audit-only, no revision) --------------
 
-  router.patch('/:id/materials/:materialId', async (req, res) => {
-    const parsed = materialCheckSchema.safeParse(req.body);
-    if (!parsed.success) {
-      res.status(400).json({ error: parsed.error.message });
-      return;
-    }
-    const outcome = await deps.workOrders.setMaterialChecked(
-      playthroughId(req),
-      req.params.id,
-      req.params.materialId,
-      parsed.data.checked,
-    );
-    respond(res, outcome);
-  });
-
   router.patch('/:id/steps/:stepId', async (req, res) => {
     const parsed = stepCheckSchema.safeParse(req.body);
     if (!parsed.success) {
@@ -210,16 +194,17 @@ export function workOrdersRouter(deps: AppDeps): Router {
     respond(res, outcome);
   });
 
-  router.patch('/:id/machines/:machineId', async (req, res) => {
-    const parsed = machineCountSchema.safeParse(req.body);
+  router.patch('/:id/steps/:stepId/buildables/:buildableId', async (req, res) => {
+    const parsed = buildableCountSchema.safeParse(req.body);
     if (!parsed.success) {
       res.status(400).json({ error: parsed.error.message });
       return;
     }
-    const outcome = await deps.workOrders.setMachineBuiltCount(
+    const outcome = await deps.workOrders.setBuildableBuiltCount(
       playthroughId(req),
       req.params.id,
-      req.params.machineId,
+      req.params.stepId,
+      req.params.buildableId,
       parsed.data.builtCount,
     );
     respond(res, outcome);

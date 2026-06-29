@@ -19,9 +19,25 @@ function sampleInput(title: string): CreateWorkOrderInput {
     title,
     goal: 'Stand up an iron plate line.',
     objective: 'Smelt and press to 20 plates/min.',
-    buildMaterials: [{ itemName: 'Iron Ingot', requiredQuantity: 30 }],
-    buildSteps: [{ title: 'Place constructors' }, { title: 'Connect belts' }],
-    machines: [{ machineName: 'Constructor', requiredCount: 2 }],
+    buildSteps: [
+      {
+        title: 'Place constructors',
+        buildables: [
+          {
+            name: 'Constructor',
+            requiredCount: 2,
+            buildCost: [
+              {
+                itemName: 'Reinforced Iron Plate',
+                itemClass: 'Desc_IronPlateReinforced_C',
+                amount: 2,
+              },
+            ],
+          },
+        ],
+      },
+      { title: 'Connect belts' },
+    ],
     expectedOutputs: [{ kind: 'item', item: 'Iron Plate', perMinute: 20 }],
   };
 }
@@ -70,10 +86,13 @@ describe('WorkOrderService — creation & numbering', () => {
     const playthrough = await seedPlaythrough();
     const created = await service.create(playthrough, sampleInput('Round trip'), '1.2.3.0');
     const fetched = await service.get(playthrough, created.id);
-    expect(fetched?.buildMaterials[0]?.itemName).toBe('Iron Ingot');
-    expect(fetched?.buildMaterials[0]?.id).toBeTruthy();
-    expect(fetched?.buildMaterials[0]?.checked).toBe(false);
+    const buildable = fetched?.buildSteps[0]?.buildables[0];
+    expect(buildable?.name).toBe('Constructor');
+    expect(buildable?.id).toBeTruthy();
+    expect(buildable?.builtCount).toBe(0);
+    expect(buildable?.buildCost[0]?.itemName).toBe('Reinforced Iron Plate');
     expect(fetched?.buildSteps).toHaveLength(2);
+    expect(fetched?.buildSteps[1]?.buildables).toEqual([]); // step with no buildables
     expect(fetched?.expectedOutputs[0]).toEqual({
       kind: 'item',
       item: 'Iron Plate',
@@ -169,18 +188,25 @@ describe('WorkOrderService — transitions', () => {
 });
 
 describe('WorkOrderService — plan revisions vs execution', () => {
-  it('preserves checked state when the plan is revised (merge-forward)', async () => {
+  it('preserves per-buildable built count when the plan is revised (merge-forward)', async () => {
     const playthrough = await seedPlaythrough();
     const order = await service.create(playthrough, sampleInput('Merge'), '1.0.0');
-    const materialId = order.buildMaterials[0]!.id;
+    const stepId = order.buildSteps[0]!.id;
+    const buildableId = order.buildSteps[0]!.buildables[0]!.id;
 
-    await service.setMaterialChecked(playthrough, order.id, materialId, true);
+    await service.setBuildableBuiltCount(playthrough, order.id, stepId, buildableId, 1);
 
-    // Revise: keep the existing material (by id), add a new one.
+    // Revise: keep the existing step + buildable (by id), add a new buildable.
     const revised = await service.updatePlan(playthrough, order.id, {
-      buildMaterials: [
-        { id: materialId, itemName: 'Iron Ingot', requiredQuantity: 30 },
-        { itemName: 'Copper Sheet', requiredQuantity: 10 },
+      buildSteps: [
+        {
+          id: stepId,
+          title: 'Place constructors',
+          buildables: [
+            { id: buildableId, name: 'Constructor', requiredCount: 2 },
+            { name: 'Conveyor Splitter', requiredCount: 2 },
+          ],
+        },
       ],
     });
     expect(revised.ok).toBe(true);
@@ -188,33 +214,32 @@ describe('WorkOrderService — plan revisions vs execution', () => {
       return;
     }
     expect(revised.order.currentRevision).toBe(2);
-    const kept = revised.order.buildMaterials.find((m) => m.id === materialId);
-    const added = revised.order.buildMaterials.find((m) => m.itemName === 'Copper Sheet');
-    expect(kept?.checked).toBe(true);
-    expect(added?.checked).toBe(false);
+    const buildables = revised.order.buildSteps[0]!.buildables;
+    expect(buildables.find((b) => b.id === buildableId)?.builtCount).toBe(1);
+    expect(buildables.find((b) => b.name === 'Conveyor Splitter')?.builtCount).toBe(0);
   });
 
-  it('merge-forward preserves progress across all three checklists by stable id', async () => {
+  it('merge-forward preserves step checked + buildable built counts by stable id', async () => {
     const playthrough = await seedPlaythrough();
     const order = await service.create(playthrough, sampleInput('Merge all'), '1.0.0');
-    const materialId = order.buildMaterials[0]!.id;
     const stepId = order.buildSteps[0]!.id;
-    const machineId = order.machines[0]!.id;
+    const buildableId = order.buildSteps[0]!.buildables[0]!.id;
 
-    await service.setMaterialChecked(playthrough, order.id, materialId, true);
     await service.setStepChecked(playthrough, order.id, stepId, true);
-    await service.setMachineBuiltCount(playthrough, order.id, machineId, 2);
+    await service.setBuildableBuiltCount(playthrough, order.id, stepId, buildableId, 2);
 
-    // Revise: keep each existing item (by id), add a new one to each checklist.
+    // Revise: keep the step + its buildable (by id), add a new buildable + a new step.
     const revised = await service.updatePlan(playthrough, order.id, {
-      buildMaterials: [
-        { id: materialId, itemName: 'Iron Ingot', requiredQuantity: 30 },
-        { itemName: 'Copper Sheet', requiredQuantity: 10 },
-      ],
-      buildSteps: [{ id: stepId, title: 'Place constructors' }, { title: 'Wire power' }],
-      machines: [
-        { id: machineId, machineName: 'Constructor', requiredCount: 2 },
-        { machineName: 'Smelter', requiredCount: 4 },
+      buildSteps: [
+        {
+          id: stepId,
+          title: 'Place constructors',
+          buildables: [
+            { id: buildableId, name: 'Constructor', requiredCount: 2 },
+            { name: 'Smelter', requiredCount: 4 },
+          ],
+        },
+        { title: 'Wire power' },
       ],
     });
     expect(revised.ok).toBe(true);
@@ -223,20 +248,19 @@ describe('WorkOrderService — plan revisions vs execution', () => {
     }
     const o = revised.order;
     // Surviving ids keep their progress; brand-new items default to unchecked / 0.
-    expect(o.buildMaterials.find((m) => m.id === materialId)?.checked).toBe(true);
-    expect(o.buildMaterials.find((m) => m.itemName === 'Copper Sheet')?.checked).toBe(false);
     expect(o.buildSteps.find((s) => s.id === stepId)?.checked).toBe(true);
     expect(o.buildSteps.find((s) => s.title === 'Wire power')?.checked).toBe(false);
-    expect(o.machines.find((m) => m.id === machineId)?.builtCount).toBe(2);
-    expect(o.machines.find((m) => m.machineName === 'Smelter')?.builtCount).toBe(0);
+    const survivingStep = o.buildSteps.find((s) => s.id === stepId)!;
+    expect(survivingStep.buildables.find((b) => b.id === buildableId)?.builtCount).toBe(2);
+    expect(survivingStep.buildables.find((b) => b.name === 'Smelter')?.builtCount).toBe(0);
   });
 
   it('reverts the plan only, leaving execution progress intact', async () => {
     const playthrough = await seedPlaythrough();
     const order = await service.create(playthrough, sampleInput('Revert'), '1.0.0');
-    const materialId = order.buildMaterials[0]!.id;
+    const stepId = order.buildSteps[0]!.id;
 
-    await service.setMaterialChecked(playthrough, order.id, materialId, true);
+    await service.setStepChecked(playthrough, order.id, stepId, true);
     await service.logHours(playthrough, order.id, 1.5);
     await service.updatePlan(playthrough, order.id, { goal: 'Revised goal' });
 
@@ -249,7 +273,7 @@ describe('WorkOrderService — plan revisions vs execution', () => {
     expect(reverted.order.goal).toBe('Stand up an iron plate line.');
     expect(reverted.order.currentRevision).toBe(3);
     // ...but execution progress survives.
-    expect(reverted.order.buildMaterials.find((m) => m.id === materialId)?.checked).toBe(true);
+    expect(reverted.order.buildSteps.find((s) => s.id === stepId)?.checked).toBe(true);
     expect(reverted.order.hoursLogged).toBe(1.5);
 
     const audit = await service.getAuditTrail(playthrough, order.id);
@@ -274,7 +298,9 @@ describe('WorkOrderService — plan revisions vs execution', () => {
       recipes: [{ machineName: 'Constructor', recipeName: 'Alternate: Steel Screw' }],
     });
     await service.updatePlan(playthrough, order.id, {
-      machines: [{ machineName: 'Constructor', requiredCount: 4 }],
+      buildSteps: [
+        { title: 'Place constructors', buildables: [{ name: 'Constructor', requiredCount: 4 }] },
+      ],
     });
 
     const types = (await service.getAuditTrail(playthrough, order.id)).map((e) => e.eventType);
@@ -285,14 +311,15 @@ describe('WorkOrderService — plan revisions vs execution', () => {
   it('records execution mutations as audit events, not revisions', async () => {
     const playthrough = await seedPlaythrough();
     const order = await service.create(playthrough, sampleInput('Exec audit'), '1.0.0');
-    const machineId = order.machines[0]!.id;
+    const stepId = order.buildSteps[0]!.id;
+    const buildableId = order.buildSteps[0]!.buildables[0]!.id;
 
-    await service.setMachineBuiltCount(playthrough, order.id, machineId, 1);
+    await service.setBuildableBuiltCount(playthrough, order.id, stepId, buildableId, 1);
     const revisions = await service.getRevisions(playthrough, order.id);
     const audit = await service.getAuditTrail(playthrough, order.id);
     // Still only the initial revision — execution does not snapshot.
     expect(revisions).toHaveLength(1);
-    expect(audit.map((e) => e.eventType)).toContain('machine_built_count_changed');
+    expect(audit.map((e) => e.eventType)).toContain('buildable_built_count_changed');
   });
 });
 
@@ -368,7 +395,9 @@ describe('WorkOrderService — tier, notes & revision diff', () => {
     await service.updatePlan(playthrough, order.id, {
       tier: 3,
       goal: 'Revised goal',
-      machines: [{ machineName: 'Constructor', requiredCount: 4 }],
+      buildSteps: [
+        { title: 'Place constructors', buildables: [{ name: 'Constructor', requiredCount: 4 }] },
+      ],
     });
 
     const diff = await service.diffRevisions(playthrough, order.id);
@@ -377,7 +406,7 @@ describe('WorkOrderService — tier, notes & revision diff', () => {
     const fields = (diff?.changes ?? []).map((c) => c.field);
     expect(fields).toContain('goal');
     expect(fields).toContain('tier');
-    expect(fields).toContain('machines');
+    expect(fields).toContain('buildSteps');
     const tierChange = diff?.changes.find((c) => c.field === 'tier');
     expect(tierChange?.before).toBe(2);
     expect(tierChange?.after).toBe(3);
