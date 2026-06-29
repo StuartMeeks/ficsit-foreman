@@ -223,16 +223,37 @@ describe('buildNetwork — smart-splitter filter routing (#148/#126)', () => {
   });
 });
 
-describe('buildNetwork — head-lift gate (#148/#126)', () => {
+describe('bottlenecksView — fluid head lift (#148/#126)', () => {
   const T_WATER = '/Game/FactoryGame/Buildable/Factory/WaterPump/Build_WaterPump.Build_WaterPump_C';
   const T_PUMP =
-    '/Game/FactoryGame/Buildable/Factory/PipelinePump/Build_PipelinePump.Build_PipelinePump_C';
-  const T_JUNCTION =
-    '/Game/FactoryGame/Buildable/Factory/PipelineJunction/Build_PipelineJunction_Cross.Build_PipelineJunction_Cross_C';
+    '/Game/FactoryGame/Buildable/Factory/PipelinePump/Build_PipelinePumpMk2.Build_PipelinePumpMk2_C';
+  const T_PACKAGER =
+    '/Game/FactoryGame/Buildable/Factory/Packager/Build_Packager.Build_Packager_C';
   const T_PIPE_CONN = '/Script/FactoryGame.FGPipeConnectionFactory';
-  const hlGame: GameDataIndex = {
-    displayNames: new Map(),
-    recipes: {},
+  const RECIPE_PW = '/Game/FactoryGame/Recipes/Packager/Recipe_PackagedWater.Recipe_PackagedWater_C';
+
+  // A Packager makes Packaged Water (a SOLID output) from Water — so it consumes fluid and must
+  // not credit its own head lift to its supply network.
+  const game: GameDataIndex = {
+    displayNames: new Map([['Desc_Water_C', 'Water']]),
+    recipes: {
+      Recipe_PackagedWater_C: {
+        className: 'Recipe_PackagedWater_C',
+        displayName: 'Packaged Water',
+        isAlternate: false,
+        craftTime: 1,
+        ingredients: [
+          { itemClassName: 'Desc_Water_C', displayName: 'Water', amount: 2, perMinute: 60, unit: 'm³' },
+        ],
+        products: [
+          { itemClassName: 'Desc_PackagedWater_C', displayName: '', amount: 2, perMinute: 60, unit: 'items' },
+        ],
+        producedIn: [],
+        producedInClasses: [],
+        inBuildGun: false,
+        inWorkshop: false,
+      } satisfies Recipe,
+    },
     buildings: {
       Build_WaterPump_C: {
         className: 'Build_WaterPump_C',
@@ -243,24 +264,32 @@ describe('buildNetwork — head-lift gate (#148/#126)', () => {
         extractionRatePerMin: 120,
         buildCost: [],
       } satisfies Building,
+      Build_Packager_C: {
+        className: 'Build_Packager_C',
+        displayName: 'Packager',
+        description: '',
+        category: 'production',
+        powerConsumption: 10,
+        buildCost: [],
+      } satisfies Building,
     },
     fluids: new Set(['Desc_Water_C']),
   };
   const pipe = (owner: string, c: string, peer: string) =>
     obj(T_PIPE_CONN, { mConnectedComponent: objectProp(peer) }, { instanceName: `${owner}.${c}` });
 
-  // A water extractor (max head lift 13 m) feeding a junction 20 m above it.
-  const objects = (withPump: boolean) => {
+  // A water extractor at z=0 piped to a Packager 20 m above it (max water head lift 13 m).
+  const scene = (withPump: boolean) => {
     const WP = `${LVL}.Water_1`;
-    const J = `${LVL}.Junction_1`;
+    const PK = `${LVL}.Packager_1`;
     const list = [
       obj(T_WATER, {}, { instanceName: WP, transform: vec3(0, 0, 0) }),
-      obj(T_JUNCTION, {}, { instanceName: J, transform: vec3(0, 0, 2000) }), // 20 m up
-      pipe(WP, 'PipeOutput0', `${J}.PipeInput0`),
-      pipe(J, 'PipeInput0', `${WP}.PipeOutput0`),
+      obj(T_PACKAGER, { mCurrentRecipe: objectProp(RECIPE_PW) }, { instanceName: PK, transform: vec3(0, 0, 2000) }),
+      pipe(WP, 'PipeOutput0', `${PK}.PipeInput0`),
+      pipe(PK, 'PipeInput0', `${WP}.PipeOutput0`),
     ];
     if (withPump) {
-      // A pump at the extractor's level shares 23 m head lift across the network (153→23 ≥ 20).
+      // A Mk2 pump (57 m) at the extractor's level lifts the whole shared network past 20 m.
       const P = `${LVL}.Pump_1`;
       list.push(
         obj(T_PUMP, {}, { instanceName: P, transform: vec3(0, 0, 0) }),
@@ -268,36 +297,35 @@ describe('buildNetwork — head-lift gate (#148/#126)', () => {
         pipe(P, 'PipeInput0', `${WP}.PipeOutput1`),
       );
     }
-    return { WP, J, list };
+    return makeSave({ objects: list });
   };
 
-  it('zeroes a fluid leg that rises above the network’s head lift (no pump)', () => {
-    const { WP, J, list } = objects(false);
-    const state = normaliseSave(makeSave({ objects: list }), '2026-01-01T00:00:00.000Z').state;
-    const net = buildNetwork(state, buildSaveGraph(state), getEffectiveGameData(state, hlGame), emptyWorld);
-    const edge = net.edges.find((e) => (e.from === WP && e.to === J) || (e.from === J && e.to === WP));
-    expect(edge?.capacity).toBe(0); // 20 m > 13 m max head lift
+  it('flags a fluid consumer above its network’s head lift as starved (no pump)', () => {
+    const state = normaliseSave(scene(false), '2026-01-01T00:00:00.000Z').state;
+    const view = bottlenecksView(state, buildSaveGraph(state), game, emptyWorld);
+    expect(view.summary.starved).toBe(1);
+    const b = view.bottlenecks.find((x) => x.verdict === 'starved');
+    expect(b?.detail).toContain('Water');
+    expect(b?.detail).toContain('lifted'); // head-lift cause, not a generic shortfall
   });
 
-  it('does not block when a pump shares enough head lift across the network', () => {
+  it('does not starve it once a pump shares enough head lift across the network', () => {
     const pumpGame: GameDataIndex = {
-      ...hlGame,
+      ...game,
       buildings: {
-        ...hlGame.buildings,
-        Build_PipelinePump_C: {
-          className: 'Build_PipelinePump_C',
-          displayName: 'Pipeline Pump',
+        ...game.buildings,
+        Build_PipelinePumpMk2_C: {
+          className: 'Build_PipelinePumpMk2_C',
+          displayName: 'Pipeline Pump Mk.2',
           description: '',
           category: 'logistics',
-          powerConsumption: 4,
+          powerConsumption: 8,
           buildCost: [],
         } satisfies Building,
       },
     };
-    const { WP, J, list } = objects(true);
-    const state = normaliseSave(makeSave({ objects: list }), '2026-01-01T00:00:00.000Z').state;
-    const net = buildNetwork(state, buildSaveGraph(state), getEffectiveGameData(state, pumpGame), emptyWorld);
-    const edge = net.edges.find((e) => (e.from === WP && e.to === J) || (e.from === J && e.to === WP));
-    expect(edge?.capacity).not.toBe(0); // pump shares 23 m ≥ 20 m
+    const state = normaliseSave(scene(true), '2026-01-01T00:00:00.000Z').state;
+    const view = bottlenecksView(state, buildSaveGraph(state), pumpGame, emptyWorld);
+    expect(view.summary.starved).toBe(0); // water now reachable
   });
 });
