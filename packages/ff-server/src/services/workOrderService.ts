@@ -103,16 +103,10 @@ export interface TransitionOptions {
 }
 
 export type FailureReason =
-  | 'notFound'
-  | 'terminal'
-  | 'state'
-  | 'actor'
-  | 'requirement'
-  | 'conflict';
+  'notFound' | 'terminal' | 'state' | 'actor' | 'requirement' | 'conflict';
 
 export type WorkOrderOutcome =
-  | { ok: true; order: WorkOrder }
-  | { ok: false; reason: FailureReason; message: string };
+  { ok: true; order: WorkOrder } | { ok: false; reason: FailureReason; message: string };
 
 /**
  * Persistence and lifecycle for work orders (v2), per docs/work-orders.md.

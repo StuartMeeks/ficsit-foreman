@@ -41,8 +41,7 @@ export type NeutralMessage = NeutralTextMessage | NeutralAssistantTurn | Neutral
 
 /** Normalized streaming events the loop receives as a turn unfolds. */
 export type LlmStreamEvent =
-  | { type: 'text'; delta: string }
-  | { type: 'tool_call'; call: NeutralToolCall };
+  { type: 'text'; delta: string } | { type: 'tool_call'; call: NeutralToolCall };
 
 /** Why a turn ended: the model wants tools run, or it is finished. */
 export type StopReason = 'stop' | 'tool_use';

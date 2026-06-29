@@ -17,13 +17,7 @@ export type { CollectibleKind, Purity };
 
 /** Lifecycle state. `new`/`active`/`paused`/`blocked` are non-terminal. */
 export type WorkOrderState =
-  | 'new'
-  | 'active'
-  | 'paused'
-  | 'blocked'
-  | 'completed'
-  | 'cancelled'
-  | 'superseded';
+  'new' | 'active' | 'paused' | 'blocked' | 'completed' | 'cancelled' | 'superseded';
 
 export type TerminalWorkOrderState = 'completed' | 'cancelled' | 'superseded';
 
