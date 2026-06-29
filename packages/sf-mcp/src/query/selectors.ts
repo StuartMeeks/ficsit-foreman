@@ -1297,3 +1297,100 @@ export function powerView(state: SaveState, graph: SaveGraph, game: GameDataInde
     note: POWER_NOTE,
   };
 }
+
+/** One material's coverage verdict for the work-order dependency check (#62). */
+export interface MaterialCoverage {
+  /** The query string the caller supplied (item name or class). */
+  query: string;
+  /** Resolved display name when matched, else the query echoed back. */
+  item: string;
+  itemClass?: string;
+  /** True when an existing machine/extractor produces this item. */
+  automated: boolean;
+  /** Summed effective output across producing machines (0 when not automated). */
+  producedPerMinute: number;
+  /** How many machines/extractors produce it. */
+  machineCount: number;
+  /** Total quantity on hand across storage containers + the dimensional depot. */
+  inStock: number;
+  /** Covered when it is produced by automation OR present in storage. */
+  covered: boolean;
+}
+
+export interface MaterialCoverageView {
+  coverage: MaterialCoverage[];
+  /** The queries that are neither automated nor in stock — candidate prerequisites. */
+  gaps: string[];
+  note: string;
+}
+
+const MATERIAL_COVERAGE_NOTE =
+  'Coverage = produced by existing automation (effective per-minute capacity) OR present in storage. ' +
+  'Build costs are one-off quantities — judge whether the on-hand stock / production can amass the amount ' +
+  'a build needs; for a `gap` (neither produced nor stocked) issue a prerequisite work order before this one.';
+
+/**
+ * Pre-work-order dependency check (#62): for each requested material, report whether
+ * existing automation produces it and how much is in storage — so the foreman can issue
+ * a prerequisite order for anything uncovered before issuing the main order. Matches a
+ * query against produced/stored items by display name or class (case-insensitive, exact
+ * then substring). Read-only; reuses the production + storage views.
+ */
+export function materialCoverageView(
+  state: SaveState,
+  game: GameDataIndex,
+  world: WorldLocations,
+  queries: string[],
+  resolve: NameResolver,
+): MaterialCoverageView {
+  const production = productionView(state, game, world);
+  const storage = storageView(state, resolve);
+  const stock = [...storage.dimensionalDepot, ...storage.containers.flatMap((c) => c.inventory)];
+
+  const matchItem = (q: string): ProductionItem | undefined => {
+    const lower = q.toLowerCase();
+    return (
+      production.items.find(
+        (i) => i.item.toLowerCase() === lower || i.itemClass.toLowerCase() === lower,
+      ) ??
+      production.items.find(
+        (i) => i.item.toLowerCase().includes(lower) || i.itemClass.toLowerCase().includes(lower),
+      )
+    );
+  };
+  const stockFor = (q: string, itemClass?: string): number => {
+    const lower = q.toLowerCase();
+    return stock
+      .filter((s) =>
+        itemClass !== undefined
+          ? s.itemClass === itemClass
+          : s.displayName.toLowerCase() === lower ||
+            s.itemClass.toLowerCase() === lower ||
+            s.displayName.toLowerCase().includes(lower),
+      )
+      .reduce((sum, s) => sum + s.quantity, 0);
+  };
+
+  const coverage: MaterialCoverage[] = queries.map((query) => {
+    const prod = matchItem(query);
+    const itemClass = prod?.itemClass;
+    const inStock = stockFor(query, itemClass);
+    const automated = prod !== undefined && prod.machineCount > 0;
+    return {
+      query,
+      item: prod?.item ?? query,
+      ...(itemClass !== undefined ? { itemClass } : {}),
+      automated,
+      producedPerMinute: prod?.effectivePerMinute ?? 0,
+      machineCount: prod?.machineCount ?? 0,
+      inStock,
+      covered: automated || inStock > 0,
+    };
+  });
+
+  return {
+    coverage,
+    gaps: coverage.filter((c) => !c.covered).map((c) => c.query),
+    note: MATERIAL_COVERAGE_NOTE,
+  };
+}

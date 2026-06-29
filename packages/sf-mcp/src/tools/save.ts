@@ -10,6 +10,7 @@ import {
   collectedLootIdSet,
   unlockedSchematicSet,
   collectibleProgressView,
+  materialCoverageView,
   milestones,
   nearbyFromWorld,
   nearbyParts,
@@ -216,6 +217,25 @@ export function registerSaveTools(server: McpServer, registry: SaveStoreRegistry
     async ({ item, savePath }): Promise<ToolResult> => {
       const store = registry.resolve(savePath);
       return ok(store, { production: productionView(store.getState(), gameData, world, { item }) });
+    },
+  );
+
+  server.registerTool(
+    'check_material_coverage',
+    {
+      title: 'Check material coverage',
+      description:
+        'Pre-work-order dependency check: given a list of materials (item names or classes), reports for each whether existing automation already produces it (effective per-minute + machine count) and how much is on hand in storage + the dimensional depot, plus a `gaps` list of materials that are neither produced nor stocked. Call this BEFORE issuing a work order with the materials it requires (build-cost items and/or production inputs); for any gap, issue a prerequisite work order to automate it first. Coverage is capacity/stock, not a guarantee the amount suffices — judge quantities for one-off builds.',
+      inputSchema: {
+        items: z.array(z.string()).min(1).describe('Materials to check (item name or class).'),
+        savePath: savePathSchema,
+      },
+    },
+    async ({ items, savePath }): Promise<ToolResult> => {
+      const store = registry.resolve(savePath);
+      return ok(store, {
+        coverage: materialCoverageView(store.getState(), gameData, world, items, resolveName),
+      });
     },
   );
 
