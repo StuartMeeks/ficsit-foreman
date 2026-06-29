@@ -14,6 +14,8 @@ export interface GameDataIndex {
   displayNames: Map<string, string>;
   recipes: Record<string, Recipe>;
   buildings: Record<string, Building>;
+  /** Class names of fluid (liquid/gas) items + resources — seeds the head-lift gate. Optional for test literals. */
+  fluids?: Set<string>;
 }
 
 /**
@@ -45,8 +47,14 @@ export function loadGameDataIndex(): GameDataIndex {
       displayNames.set(entry.className, entry.displayName);
     }
   }
+  const fluids = new Set<string>();
+  for (const item of [...Object.values(gameData.items), ...Object.values(gameData.resources)]) {
+    if (item.form === 'liquid' || item.form === 'gas') {
+      fluids.add(item.className);
+    }
+  }
   logger.info(`Loaded ${displayNames.size} display names from game data (${gameData.version}).`);
-  return { displayNames, recipes: gameData.recipes, buildings: gameData.buildings };
+  return { displayNames, recipes: gameData.recipes, buildings: gameData.buildings, fluids };
 }
 
 /**

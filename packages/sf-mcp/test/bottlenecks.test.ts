@@ -222,3 +222,82 @@ describe('buildNetwork — smart-splitter filter routing (#148/#126)', () => {
     expect(edge(B3)?.allow).toEqual(['Desc_OreIron_C']);
   });
 });
+
+describe('buildNetwork — head-lift gate (#148/#126)', () => {
+  const T_WATER = '/Game/FactoryGame/Buildable/Factory/WaterPump/Build_WaterPump.Build_WaterPump_C';
+  const T_PUMP =
+    '/Game/FactoryGame/Buildable/Factory/PipelinePump/Build_PipelinePump.Build_PipelinePump_C';
+  const T_JUNCTION =
+    '/Game/FactoryGame/Buildable/Factory/PipelineJunction/Build_PipelineJunction_Cross.Build_PipelineJunction_Cross_C';
+  const T_PIPE_CONN = '/Script/FactoryGame.FGPipeConnectionFactory';
+  const hlGame: GameDataIndex = {
+    displayNames: new Map(),
+    recipes: {},
+    buildings: {
+      Build_WaterPump_C: {
+        className: 'Build_WaterPump_C',
+        displayName: 'Water Extractor',
+        description: '',
+        category: 'production',
+        powerConsumption: 20,
+        extractionRatePerMin: 120,
+        buildCost: [],
+      } satisfies Building,
+    },
+    fluids: new Set(['Desc_Water_C']),
+  };
+  const pipe = (owner: string, c: string, peer: string) =>
+    obj(T_PIPE_CONN, { mConnectedComponent: objectProp(peer) }, { instanceName: `${owner}.${c}` });
+
+  // A water extractor (max head lift 13 m) feeding a junction 20 m above it.
+  const objects = (withPump: boolean) => {
+    const WP = `${LVL}.Water_1`;
+    const J = `${LVL}.Junction_1`;
+    const list = [
+      obj(T_WATER, {}, { instanceName: WP, transform: vec3(0, 0, 0) }),
+      obj(T_JUNCTION, {}, { instanceName: J, transform: vec3(0, 0, 2000) }), // 20 m up
+      pipe(WP, 'PipeOutput0', `${J}.PipeInput0`),
+      pipe(J, 'PipeInput0', `${WP}.PipeOutput0`),
+    ];
+    if (withPump) {
+      // A pump at the extractor's level shares 23 m head lift across the network (153→23 ≥ 20).
+      const P = `${LVL}.Pump_1`;
+      list.push(
+        obj(T_PUMP, {}, { instanceName: P, transform: vec3(0, 0, 0) }),
+        pipe(WP, 'PipeOutput1', `${P}.PipeInput0`),
+        pipe(P, 'PipeInput0', `${WP}.PipeOutput1`),
+      );
+    }
+    return { WP, J, list };
+  };
+
+  it('zeroes a fluid leg that rises above the network’s head lift (no pump)', () => {
+    const { WP, J, list } = objects(false);
+    const state = normaliseSave(makeSave({ objects: list }), '2026-01-01T00:00:00.000Z').state;
+    const net = buildNetwork(state, buildSaveGraph(state), getEffectiveGameData(state, hlGame), emptyWorld);
+    const edge = net.edges.find((e) => (e.from === WP && e.to === J) || (e.from === J && e.to === WP));
+    expect(edge?.capacity).toBe(0); // 20 m > 13 m max head lift
+  });
+
+  it('does not block when a pump shares enough head lift across the network', () => {
+    const pumpGame: GameDataIndex = {
+      ...hlGame,
+      buildings: {
+        ...hlGame.buildings,
+        Build_PipelinePump_C: {
+          className: 'Build_PipelinePump_C',
+          displayName: 'Pipeline Pump',
+          description: '',
+          category: 'logistics',
+          powerConsumption: 4,
+          buildCost: [],
+        } satisfies Building,
+      },
+    };
+    const { WP, J, list } = objects(true);
+    const state = normaliseSave(makeSave({ objects: list }), '2026-01-01T00:00:00.000Z').state;
+    const net = buildNetwork(state, buildSaveGraph(state), getEffectiveGameData(state, pumpGame), emptyWorld);
+    const edge = net.edges.find((e) => (e.from === WP && e.to === J) || (e.from === J && e.to === WP));
+    expect(edge?.capacity).not.toBe(0); // pump shares 23 m ≥ 20 m
+  });
+});

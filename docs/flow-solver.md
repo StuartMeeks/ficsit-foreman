@@ -3,9 +3,11 @@
 > Status: **shipped** (#148 + #126 closed). The engine and `find_bottlenecks` are live, now
 > **honouring smart/programmable splitter sort-rules** (item filters / any / overflow /
 > any-undefined, via the verified `outputIndex = OutputN − 1` mapping and an sf-flow edge
-> `deny` list). Remaining refinement: **fluid head-lift wiring** (the data shipped as
-> `Building.headLiftMetres`; the geometry wiring per §"Prerequisite for full headlift" is
-> still to do). Supersedes the separate framing of #148/#126 — they are one engine.
+> `deny` list) **and fluid head lift** (a leg rising above its pipe network's *shared* head
+> lift — `max(elevation + maxHeadLift)` over the connected component's sources/pumps/buffers —
+> is cut; uses each building's *maximum* head lift so it only blocks the genuinely-unreachable).
+> Remaining: 1.2 recipe/power modifiers via #172's effective-game-data seam. Supersedes the
+> separate framing of #148/#126 — they are one engine.
 
 ## Problem
 
