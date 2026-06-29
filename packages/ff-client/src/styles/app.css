@@ -845,12 +845,25 @@ button:disabled {
   gap: 4px;
 }
 
+/*
+ * A step's buildables sit in the step's grid (16px checkbox · 22px number · 1fr
+ * title). Place them in the title column, spanning to the end, so the list is
+ * indented to align under the step title — only the checkbox + step number stay
+ * in the left margin — and gets the full column width instead of being squeezed
+ * into the 16px checkbox track (which forced every name/cost to wrap vertically).
+ */
+.checks li .step-buildables {
+  grid-column: 3 / -1;
+  margin-top: 6px;
+}
+
 .machine {
   display: grid;
-  grid-template-columns: 1fr auto;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
   gap: 12px;
-  padding: 8px;
+  padding: 8px 10px;
+  min-width: 0;
 }
 
 .stepper {
