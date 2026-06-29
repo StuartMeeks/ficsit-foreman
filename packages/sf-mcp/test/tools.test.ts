@@ -13,6 +13,7 @@ import {
   unlockedRecipes,
   unlockedSchematicSet,
 } from '../src/query/selectors.js';
+import type { GameDataIndex } from '../src/gameData.js';
 import { SaveStore } from '../src/store/saveStore.js';
 import { FIXTURE_SAVE } from '../../sf-save-data/test/fixtures/save.js';
 
@@ -56,13 +57,16 @@ describe('selectors', () => {
     expect(r.alternateCount).toBe(1);
   });
 
+  const EMPTY_GAME: GameDataIndex = { displayNames: new Map(), recipes: {}, buildings: {} };
+
   it('milestones groups by tier and surfaces phase + MAM', () => {
-    const m = milestones(store.getState(), resolve);
+    const m = milestones(store.getState(), EMPTY_GAME, resolve);
     expect(m.milestonesByTier).toEqual([{ tier: 3, milestones: expect.any(Array) }]);
     expect(m.tutorials).toHaveLength(1);
     expect(m.assemblyPhase?.phase).toBe(2);
     expect(m.mamResearch).toEqual(['Caterium']);
     expect(m.creative).toBeUndefined(); // non-creative save: no overlay
+    expect(m.projectAssembly).toEqual([]); // no phase data in EMPTY_GAME
   });
 
   it('milestones surfaces creative progression when Creative Mode is on (#172)', () => {
@@ -74,7 +78,7 @@ describe('selectors', () => {
       unlockAllResearch: true,
       noUnlockCost: true,
     };
-    const m = milestones(s, resolve);
+    const m = milestones(s, EMPTY_GAME, resolve);
     expect(m.creative).toEqual({
       startingTier: 6,
       unlockAllResearch: true,
@@ -82,6 +86,44 @@ describe('selectors', () => {
       unlockInstantAltRecipes: false,
       noUnlockCost: true,
     });
+  });
+
+  it('milestones applies the Space Elevator cost multiplier to phase deliverables (#172, slice E)', () => {
+    const s = emptySaveState('v', 'n', 't');
+    s.advancedGameSettings.spaceElevatorCostMultiplier = 10;
+    s.assemblyPhase = { phase: 1 };
+    const game: GameDataIndex = {
+      displayNames: new Map([['Desc_SpaceElevatorPart_1_C', 'Smart Plating']]),
+      recipes: {},
+      buildings: {},
+      projectAssemblyPhases: [
+        {
+          phase: 1,
+          lastTierOfPhase: 4,
+          cost: [
+            {
+              itemClassName: 'Desc_SpaceElevatorPart_1_C',
+              displayName: '',
+              amount: 50,
+              perMinute: 0,
+              unit: 'items',
+            },
+          ],
+        },
+      ],
+    };
+    const gameResolve = (c: string): string => game.displayNames.get(c) ?? c;
+    const m = milestones(s, game, gameResolve);
+    expect(m.projectAssembly).toEqual([
+      {
+        phase: 1,
+        unlocksTier: 4,
+        current: true,
+        cost: [
+          { itemClass: 'Desc_SpaceElevatorPart_1_C', displayName: 'Smart Plating', amount: 500 },
+        ], // 50 × 10
+      },
+    ]);
   });
 
   it('storageView sorts containers nearest-first when given a location', () => {

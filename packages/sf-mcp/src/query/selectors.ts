@@ -162,6 +162,18 @@ export interface CreativeProgression {
   noUnlockCost: boolean;
 }
 
+/** One Space Elevator / Project Assembly phase with its **effective** deliverable cost. */
+export interface ProjectAssemblyPhaseView {
+  /** Phase number (matches `assemblyPhase.phase`). */
+  phase: number;
+  /** HUB tier this phase unlocks. */
+  unlocksTier: number;
+  /** True for the pioneer's current phase. */
+  current: boolean;
+  /** Deliverables, each amount already scaled by the Space Elevator cost multiplier. */
+  cost: { itemClass: string; displayName: string; amount: number }[];
+}
+
 export interface MilestoneSummary {
   assemblyPhase?: AssemblyPhase;
   milestonesByTier: { tier: number; milestones: NamedMilestone[] }[];
@@ -170,9 +182,19 @@ export interface MilestoneSummary {
   mamResearch: string[];
   /** Creative Mode progression overlay — present only when creative is enabled. */
   creative?: CreativeProgression;
+  /**
+   * Space Elevator / Project Assembly phase deliverables with **effective** costs
+   * (base × the 1.2 Space Elevator cost multiplier). Empty when the dataset carries no
+   * phase costs (pre-#172).
+   */
+  projectAssembly: ProjectAssemblyPhaseView[];
 }
 
-export function milestones(state: SaveState, resolve: NameResolver): MilestoneSummary {
+export function milestones(
+  state: SaveState,
+  game: GameDataIndex,
+  resolve: NameResolver,
+): MilestoneSummary {
   const byTier = new Map<number, NamedMilestone[]>();
   const tutorials: NamedMilestone[] = [];
   const other: NamedMilestone[] = [];
@@ -216,7 +238,32 @@ export function milestones(state: SaveState, resolve: NameResolver): MilestoneSu
           },
         }
       : {}),
+    projectAssembly: projectAssemblyView(state, game, resolve),
   };
+}
+
+/**
+ * The Space Elevator phase deliverables with **effective** costs: each base amount is
+ * scaled by the 1.2 Space Elevator deliverable cost multiplier (rounded to a whole
+ * deliverable). Empty when the dataset carries no phase costs.
+ */
+function projectAssemblyView(
+  state: SaveState,
+  game: GameDataIndex,
+  resolve: NameResolver,
+): ProjectAssemblyPhaseView[] {
+  const mul = state.advancedGameSettings.spaceElevatorCostMultiplier;
+  const currentPhase = state.assemblyPhase?.phase;
+  return (game.projectAssemblyPhases ?? []).map((p) => ({
+    phase: p.phase,
+    unlocksTier: p.lastTierOfPhase,
+    current: currentPhase !== undefined && currentPhase === p.phase,
+    cost: p.cost.map((c) => ({
+      itemClass: c.itemClassName,
+      displayName: resolve(c.itemClassName),
+      amount: Math.round(c.amount * mul),
+    })),
+  }));
 }
 
 export interface StorageView {

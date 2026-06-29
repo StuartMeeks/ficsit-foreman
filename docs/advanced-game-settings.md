@@ -125,11 +125,11 @@ Behind the existing **`getEffectiveGameData(state, game)`** seam
   `estimatePower`/`consumerDrawMW`); **consumers only**, generators unaffected. *(shipped)*
 - **Node type/purity** — `resourceNodeOverrides` matched to an extractor by nearest position
   in `resolveExtraction` take precedence over the canonical (bundled) node. *(shipped)*
-- **Space Elevator deliverable ×** — **split to its own slice (E)**: investigation found the
-  project-assembly phase deliverable costs are **not in the game data** (the extractor doesn't
-  emit `GP_Project_Assembly_Phase_*` costs, and no tool surfaces them), so there is nothing to
-  multiply yet. This needs the phase costs plumbed through first (extractor → `sf-game-data` →
-  a phase-cost view), then the multiplier applies. Base (default) costs for reference:
+- **Space Elevator deliverable ×** — shipped in **slice E**. The project-assembly phase
+  deliverable costs were cooked-asset-only (not in `en-US.json`), so the extractor now reads
+  them from the `FGGamePhase` (`GP_Project_Assembly_Phase_N`) assets' `mCosts` into
+  `gameData.projectAssemblyPhases`; `get_milestones` surfaces them with effective costs
+  (base × `spaceElevatorCostMultiplier`), marking the current phase. Base (default) costs:
 
   | Phase | Name | Deliverable cost |
   |---|---|---|
@@ -229,8 +229,9 @@ the pioneer never actually researched. A non-creative save leaves every overlay 
 3. **B** — Game Modes overlay in `getEffectiveGameData` (recipe×, power×, node type/purity).
    ✅ shipped — space-elevator× split to E.
 4. **D** — Creative overlay (no-power/fuel/build/unlock-cost, unlock-all, progression).
-5. **E** — Space-elevator deliverable cost ×: extract `GP_Project_Assembly_Phase_*` costs in the
-   game-data extractor, surface them (a phase-cost view), then apply `spaceElevatorCostMultiplier`.
+5. **E** — Space-elevator deliverable cost ×: extract `GP_Project_Assembly_Phase_*` `mCosts` in the
+   game-data extractor → `gameData.projectAssemblyPhases`, surface in `get_milestones`, apply
+   `spaceElevatorCostMultiplier`. ✅ shipped — dataset regenerated (v1.2.3.1 / build 495413).
 
 Each slice is its own PR linking #172; A and C are independent (parallelisable), B depends on
-A, D depends on C; E depends on a game-data extractor change.
+A, D depends on C; E depends on a game-data extractor change + dataset regen.

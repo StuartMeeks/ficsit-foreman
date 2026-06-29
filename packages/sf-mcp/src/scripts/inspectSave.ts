@@ -34,7 +34,7 @@ type ToolRunner = (state: ReturnType<typeof loadState>, resolve: NameResolver) =
 const TOOL_RUNNERS: Record<string, ToolRunner> = {
   get_player_state: (s, r) => playerSummary(s, r),
   get_unlocked_recipes: (s, r) => unlockedRecipes(s, r),
-  get_milestones: (s, r) => milestones(s, r),
+  get_milestones: (s, r) => milestones(s, loadGameDataIndex(), r),
   get_storage: (s, r) => storageView(s, r),
   get_collectibles: (s) => collectibleProgressView(s, loadWorldLocations().world),
   // Nearby uses the player's own location as the origin (when known), querying
