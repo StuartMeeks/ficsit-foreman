@@ -4,8 +4,9 @@ import { buildSaveGraph } from '@foreman/sf-save-data-graph';
 import { describe, expect, it } from 'vitest';
 
 import type { GameDataIndex } from '../src/gameData.js';
-import { bottlenecksView } from '../src/query/bottlenecks.js';
-import { makeSave, obj, objectProp, vec3 } from '../../sf-save-data/test/fixtures/save.js';
+import { bottlenecksView, buildNetwork } from '../src/query/bottlenecks.js';
+import { getEffectiveGameData } from '../src/query/effectiveGameData.js';
+import { makeSave, obj, objectProp, sortRules, vec3 } from '../../sf-save-data/test/fixtures/save.js';
 
 const LVL = 'Persistent_Level:PersistentLevel';
 const T_CONSTRUCTOR =
@@ -165,5 +166,59 @@ describe('bottlenecksView (#148/#126)', () => {
     const view = bottlenecksView(state, buildSaveGraph(state), game, world);
     expect(view.summary.starved).toBe(1);
     expect(view.bottlenecks[0]?.detail).toContain('per min');
+  });
+});
+
+describe('buildNetwork — smart-splitter filter routing (#148/#126)', () => {
+  const T_SMART =
+    '/Game/FactoryGame/Buildable/Factory/CA_Splitter/Build_ConveyorAttachmentSplitterSmart.Build_ConveyorAttachmentSplitterSmart_C';
+  const T_BELT2 =
+    '/Game/FactoryGame/Buildable/Factory/ConveyorBeltMk1/Build_ConveyorBeltMk1.Build_ConveyorBeltMk1_C';
+  const FILTER = '/Game/FactoryGame/Resource/FilteringRules';
+
+  it('maps each output (Output1/2/3 → outputIndex 0/1/2) to its sort-rule filter', () => {
+    const SS = `${LVL}.Smart_1`;
+    const B1 = `${LVL}.B1`;
+    const B2 = `${LVL}.B2`;
+    const B3 = `${LVL}.B3`;
+    const conn = (owner: string, c: string, peer: string) =>
+      obj(T_CONN, { mConnectedComponent: objectProp(peer) }, { instanceName: `${owner}.${c}` });
+    const save = makeSave({
+      objects: [
+        obj(
+          T_SMART,
+          {
+            // idx0 = any (Wildcard), idx1 = overflow, idx2 = item Iron Ore — as in the real save.
+            mSortRules: sortRules([
+              { itemClass: `${FILTER}/Desc_Wildcard.Desc_Wildcard_C`, output: 0 },
+              { itemClass: `${FILTER}/Desc_Overflow.Desc_Overflow_C`, output: 1 },
+              { itemClass: '/Game/FactoryGame/Resource/RawResources/OreIron/Desc_OreIron.Desc_OreIron_C', output: 2 },
+            ]),
+          },
+          { instanceName: SS, transform: vec3(0, 0, 0) },
+        ),
+        obj(T_BELT2, {}, { instanceName: B1, transform: vec3(1, 0, 0) }),
+        obj(T_BELT2, {}, { instanceName: B2, transform: vec3(2, 0, 0) }),
+        obj(T_BELT2, {}, { instanceName: B3, transform: vec3(3, 0, 0) }),
+        conn(SS, 'Output1', `${B1}.ConveyorAny0`),
+        conn(B1, 'ConveyorAny0', `${SS}.Output1`),
+        conn(SS, 'Output2', `${B2}.ConveyorAny0`),
+        conn(B2, 'ConveyorAny0', `${SS}.Output2`),
+        conn(SS, 'Output3', `${B3}.ConveyorAny0`),
+        conn(B3, 'ConveyorAny0', `${SS}.Output3`),
+      ],
+    });
+    const state = normaliseSave(save, '2026-01-01T00:00:00.000Z').state;
+    const game: GameDataIndex = { displayNames: new Map(), recipes: {}, buildings: {} };
+    const net = buildNetwork(state, buildSaveGraph(state), getEffectiveGameData(state, game), emptyWorld);
+    const edge = (to: string) => net.edges.find((e) => e.from === SS && e.to === to);
+
+    // Output1 (idx0, Wildcard) → unrestricted.
+    expect(edge(B1)?.allow).toBeUndefined();
+    expect(edge(B1)?.overflow).toBeUndefined();
+    // Output2 (idx1, Overflow) → overflow output.
+    expect(edge(B2)?.overflow).toBe(true);
+    // Output3 (idx2, Iron Ore) → allow only iron ore.
+    expect(edge(B3)?.allow).toEqual(['Desc_OreIron_C']);
   });
 });

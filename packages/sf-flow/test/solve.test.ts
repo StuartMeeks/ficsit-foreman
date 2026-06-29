@@ -108,6 +108,28 @@ describe('solveFlow — splitter filters & overflow', () => {
     expect(near(r.delivered.a?.ore ?? 0, 60)).toBe(true); // capped
     expect(near(r.delivered.b?.ore ?? 0, 60)).toBe(true); // the 60 A could not take
   });
+
+  it('blocks a denied item on an edge (Any-Undefined output excludes a routed item)', () => {
+    const net: FlowNetwork = {
+      nodes: [
+        { id: 'src', supply: { x: 60, y: 60 } },
+        { id: 'split' },
+        { id: 'a', demand: { y: 60 } }, // Any-Undefined branch: x is routed elsewhere, so denied here
+        { id: 'b', demand: { x: 60 } },
+      ],
+      edges: [
+        { from: 'src', to: 'split', capacity: Infinity },
+        { from: 'split', to: 'a', capacity: Infinity, deny: ['x'] },
+        { from: 'split', to: 'b', capacity: Infinity, allow: ['x'] },
+      ],
+    };
+    const r = solveFlow(net);
+    expect(r.delivered.a?.x ?? 0).toBe(0); // x denied on A's edge
+    expect(near(r.delivered.a?.y ?? 0, 60)).toBe(true);
+    expect(near(r.delivered.b?.x ?? 0, 60)).toBe(true);
+    expect(r.throughput.a).toBe(1);
+    expect(r.throughput.b).toBe(1);
+  });
 });
 
 describe('solveFlow — feedback & cycles', () => {

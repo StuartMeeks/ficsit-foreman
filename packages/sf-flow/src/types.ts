@@ -38,6 +38,12 @@ export interface FlowEdge {
    */
   allow?: string[];
   /**
+   * Item classes blocked on this edge (applied after {@link allow}). Models an
+   * "Any Undefined" splitter output, which carries anything *except* the items an item-rule
+   * routes to a sibling output. `undefined` blocks nothing.
+   */
+  deny?: string[];
+  /**
    * An overflow output: it only carries what its non-overflow siblings at the same
    * source cannot absorb (a smart-splitter `overflow` rule).
    */

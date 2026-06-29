@@ -1,7 +1,11 @@
 # Flow solver — steady-state production reconciliation (#148 + #126)
 
-> Status: **design, for sign-off.** Supersedes the separate framing of #148 (starvation
-> groundwork) and #126 (production accounting) — they are one engine.
+> Status: **shipped** (#148 + #126 closed). The engine and `find_bottlenecks` are live, now
+> **honouring smart/programmable splitter sort-rules** (item filters / any / overflow /
+> any-undefined, via the verified `outputIndex = OutputN − 1` mapping and an sf-flow edge
+> `deny` list). Remaining refinement: **fluid head-lift wiring** (the data shipped as
+> `Building.headLiftMetres`; the geometry wiring per §"Prerequisite for full headlift" is
+> still to do). Supersedes the separate framing of #148/#126 — they are one engine.
 
 ## Problem
 
