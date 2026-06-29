@@ -26,6 +26,10 @@ export function asString(value: unknown): string | undefined {
   return typeof value === 'string' ? value : undefined;
 }
 
+export function asBoolean(value: unknown): boolean | undefined {
+  return typeof value === 'boolean' ? value : undefined;
+}
+
 export function asArray(value: unknown): unknown[] {
   return Array.isArray(value) ? value : [];
 }
@@ -69,6 +73,16 @@ export function propMap(obj: RawObject): Record<string, unknown> {
 /** A scalar `IntProperty`/`FloatProperty` value by property name. */
 export function numberField(bag: Record<string, unknown>, name: string): number | undefined {
   return asNumber(dig(bag[name], 'value'));
+}
+
+/** A `BoolProperty` value by property name. */
+export function boolField(bag: Record<string, unknown>, name: string): boolean | undefined {
+  return asBoolean(dig(bag[name], 'value'));
+}
+
+/** The inner property bag of a `StructProperty` by name (e.g. `mPlayerRules`). */
+export function structField(bag: Record<string, unknown>, name: string): Record<string, unknown> {
+  return toPropMap(dig(bag[name], 'value', 'properties'));
 }
 
 /** An `ObjectProperty` reference's `pathName` by property name. */

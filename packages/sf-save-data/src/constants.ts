@@ -200,6 +200,33 @@ export const RESOURCE_CLASS_OVERRIDE_PROP = 'mResourceClassOverride';
 /** A node's resolved purity under randomisation (ByteProperty `EResourcePurity`). */
 export const PURITY_OVERRIDE_PROP = 'mPurityOverride';
 
+/* ── Advanced Game Settings: Creative Mode (#172) ───────────────────────────────
+ * Creative settings split across three actors and only populate when Creative Mode
+ * is on; each is omitted when default. The authoritative "creative active" flag is
+ * the header's `creativeModeEnabled` (the body bool `mIsCreativeModeEnabled` reads
+ * false even on creative saves). See docs/advanced-game-settings.md.
+ */
+
+/** Per-player creative rules struct (on BP_PlayerState_C) — holds build/flight/god cheats. */
+export const PLAYER_STATE = /BP_PlayerState\.BP_PlayerState_C/;
+export const PLAYER_RULES_PROP = 'mPlayerRules';
+export const PLAYER_RULE_NO_BUILD_COST = 'NoBuildCost';
+export const PLAYER_RULE_FLIGHT_MODE = 'FlightMode';
+export const PLAYER_RULE_GOD_MODE = 'GodMode';
+
+/** BP_GameState_C creative cheat flags (BoolProperty; default false). */
+export const CHEAT_NO_POWER_PROP = 'mCheatNoPower';
+export const CHEAT_NO_FUEL_PROP = 'mCheatNoFuel';
+
+/** The game-rules subsystem holding the progression/unlock creative rules (populated only when creative). */
+export const GAME_RULES_SUBSYSTEM = /FGGameRulesSubsystem/;
+export const NO_UNLOCK_COST_PROP = 'mNoUnlockCost';
+export const UNLOCK_INSTANT_ALT_RECIPES_PROP = 'mUnlockInstantAltRecipes';
+export const UNLOCK_ALL_RESEARCH_PROP = 'mUnlockAllResearchSchematics';
+export const UNLOCK_ALL_SHOP_PROP = 'mUnlockAllResourceSinkSchematics';
+export const STARTING_TIER_PROP = 'mStartingTier';
+export const DISABLE_ARACHNIDS_PROP = 'mDisableArachnidCreatures';
+
 /**
  * The subsystem that records exactly which collectibles a pioneer has collected,
  * by GUID: `mDestroyedPickups` (spheres/sloops/slugs) and `mLootedDropPods`

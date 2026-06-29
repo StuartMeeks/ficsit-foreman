@@ -49,6 +49,16 @@ export function intProp(value: number): unknown {
   return { type: 'IntProperty', value };
 }
 
+/** A BoolProperty wrapper. */
+export function boolProp(value: boolean): unknown {
+  return { type: 'BoolProperty', value };
+}
+
+/** A StructProperty wrapper whose inner bag is a name→property map (e.g. `mPlayerRules`). */
+export function structProp(structType: string, properties: Record<string, unknown>): unknown {
+  return { type: 'StructProperty', value: { type: structType, properties } };
+}
+
 /** An EnumProperty wrapper (e.g. `mNodeRandomization` → `ENodeRandomizationMode::NRM_Strict`). */
 export function enumProp(enumType: string, literal: string): unknown {
   return { type: 'EnumProperty', value: { value: `${enumType}::${literal}` } };
