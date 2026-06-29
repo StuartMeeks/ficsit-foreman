@@ -1,9 +1,13 @@
 import { describe, expect, it } from 'vitest';
 
 import { normaliseSave } from '../src/normalise/index.js';
+import { DEFAULT_ADVANCED_GAME_SETTINGS } from '../src/normalise/types.js';
 import {
+  byteEnumProp,
+  enumProp,
   FIXTURE_SAVE,
   floatProp,
+  intProp,
   makeSave,
   obj,
   objectProp,
@@ -229,7 +233,10 @@ describe('splitter sort rules (#148)', () => {
           {
             mSortRules: sortRules([
               { itemClass: `${FILTER}/Desc_Wildcard.Desc_Wildcard_C`, output: 0 },
-              { itemClass: '/Game/FactoryGame/Resource/Parts/Wire/Desc_Wire.Desc_Wire_C', output: 1 },
+              {
+                itemClass: '/Game/FactoryGame/Resource/Parts/Wire/Desc_Wire.Desc_Wire_C',
+                output: 1,
+              },
               { itemClass: `${FILTER}/Desc_Overflow.Desc_Overflow_C`, output: 2 },
               { itemClass: `${FILTER}/Desc_AnyUndefined.Desc_AnyUndefined_C`, output: 1 },
               { itemClass: `${FILTER}/Desc_None.Desc_None_C`, output: 2 },
@@ -241,7 +248,11 @@ describe('splitter sort rules (#148)', () => {
           PROG_CLASS,
           {
             mSortRules: sortRules([
-              { itemClass: '/Game/FactoryGame/Resource/Parts/IronPlate/Desc_IronPlate.Desc_IronPlate_C', output: 0 },
+              {
+                itemClass:
+                  '/Game/FactoryGame/Resource/Parts/IronPlate/Desc_IronPlate.Desc_IronPlate_C',
+                output: 0,
+              },
             ]),
           },
           { instanceName: PROG, transform: vec3(10, 0, 0) },
@@ -338,10 +349,14 @@ describe('batteries (#148)', () => {
     makeSave({
       objects: [
         // A charged Power Storage.
-        obj(T_BATTERY, { mPowerStore: floatProp(73.5) }, {
-          instanceName: `${LVL}.Battery_1`,
-          transform: vec3(10, 20, 30),
-        }),
+        obj(
+          T_BATTERY,
+          { mPowerStore: floatProp(73.5) },
+          {
+            instanceName: `${LVL}.Battery_1`,
+            transform: vec3(10, 20, 30),
+          },
+        ),
         // An empty one — the save omits mPowerStore, so it must default to 0.
         obj(T_BATTERY, {}, { instanceName: `${LVL}.Battery_2` }),
       ],
@@ -369,5 +384,112 @@ describe('batteries (#148)', () => {
   it('does not classify a battery as a generator/producer', () => {
     expect(charged.production.generators).toHaveLength(0);
     expect(charged.production.producers).toHaveLength(0);
+  });
+});
+
+describe('advanced game settings (Game Modes, #172)', () => {
+  const LVL = 'Persistent_Level:PersistentLevel';
+  const GAME_STATE = '/Game/FactoryGame/-Shared/Blueprint/BP_GameState.BP_GameState_C';
+  const RES_NODE = '/Game/FactoryGame/Resource/BP_ResourceNode.BP_ResourceNode_C';
+  const COAL = '/Game/FactoryGame/Resource/RawResources/Coal/Desc_Coal.Desc_Coal_C';
+
+  it('defaults to a no-op state when no BP_GameState_C is present (pre-1.2/vanilla)', () => {
+    // FIXTURE_SAVE carries no game-state actor.
+    expect(state.advancedGameSettings).toEqual(DEFAULT_ADVANCED_GAME_SETTINGS);
+    expect(state.resourceNodeOverrides).toEqual([]);
+  });
+
+  it('parses the six settings and resolved node overrides, matching the ground-truth save', () => {
+    const { state: parsed } = normaliseSave(
+      makeSave({
+        objects: [
+          obj(
+            GAME_STATE,
+            {
+              mNodeRandomizationSeed: intProp(2025976192),
+              mSpacePartsCostMultiplier: floatProp(10),
+              mPartsCostMultiplier: floatProp(1.5),
+              mEnergyCostMultiplier: floatProp(2),
+              mNodeRandomization: enumProp('ENodeRandomizationMode', 'NRM_Strict'),
+              mNodePuritySettings: enumProp('ENodePuritySettings', 'NPS_AllRandom'),
+            },
+            { instanceName: `${LVL}.BP_GameState_C_1` },
+          ),
+          obj(
+            RES_NODE,
+            {
+              mResourceClassOverride: objectProp(COAL),
+              mPurityOverride: byteEnumProp('EResourcePurity', 'RP_Pure'),
+            },
+            { instanceName: `${LVL}.BP_ResourceNode620`, transform: vec3(406197, -252989, 3920) },
+          ),
+        ],
+      }),
+      '2026-01-01T00:00:00.000Z',
+    );
+
+    expect(parsed.advancedGameSettings).toEqual({
+      worldSeed: 2025976192,
+      spaceElevatorCostMultiplier: 10,
+      recipeCostMultiplier: 1.5,
+      powerConsumptionMultiplier: 2,
+      nodeRandomization: 'Strict',
+      nodePuritySettings: 'AllRandom',
+    });
+    expect(parsed.resourceNodeOverrides).toEqual([
+      {
+        position: { x: 406197, y: -252989, z: 3920 },
+        resourceClass: 'Desc_Coal_C',
+        purity: 'pure',
+      },
+    ]);
+  });
+
+  it('defaults each setting independently when only some are non-default', () => {
+    const { state: parsed } = normaliseSave(
+      makeSave({
+        objects: [
+          obj(
+            GAME_STATE,
+            { mEnergyCostMultiplier: floatProp(5) },
+            { instanceName: `${LVL}.BP_GameState_C_1` },
+          ),
+        ],
+      }),
+      '2026-01-01T00:00:00.000Z',
+    );
+    expect(parsed.advancedGameSettings).toEqual({
+      ...DEFAULT_ADVANCED_GAME_SETTINGS,
+      powerConsumptionMultiplier: 5,
+    });
+    expect(parsed.resourceNodeOverrides).toEqual([]);
+  });
+
+  it('normalises the game’s RP_Inpure spelling and other randomisation modes', () => {
+    const { state: parsed } = normaliseSave(
+      makeSave({
+        objects: [
+          obj(
+            GAME_STATE,
+            {
+              mNodeRandomization: enumProp('ENodeRandomizationMode', 'NRM_AdvancedRich'),
+              mNodePuritySettings: enumProp('ENodePuritySettings', 'NPS_Increase'),
+            },
+            { instanceName: `${LVL}.BP_GameState_C_1` },
+          ),
+          obj(
+            RES_NODE,
+            { mPurityOverride: byteEnumProp('EResourcePurity', 'RP_Inpure') },
+            { instanceName: `${LVL}.BP_ResourceNode99` },
+          ),
+        ],
+      }),
+      '2026-01-01T00:00:00.000Z',
+    );
+    expect(parsed.advancedGameSettings.nodeRandomization).toBe('AdvancedRich');
+    expect(parsed.advancedGameSettings.nodePuritySettings).toBe('Increase');
+    expect(parsed.resourceNodeOverrides).toEqual([
+      { position: undefined, resourceClass: undefined, purity: 'impure' },
+    ]);
   });
 });

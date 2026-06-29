@@ -81,6 +81,19 @@ export function arrayField(bag: Record<string, unknown>, name: string): unknown[
   return asArray(dig(bag[name], 'values'));
 }
 
+/**
+ * An `EnumProperty`/`ByteProperty` literal by property name, with any `Enum::`
+ * namespace stripped — `mNodeRandomization` → `NRM_Strict`, `mPurityOverride` →
+ * `RP_Pure`. Both store the literal as `value.value`; returns undefined if absent.
+ */
+export function enumField(bag: Record<string, unknown>, name: string): string | undefined {
+  const literal = asString(dig(bag[name], 'value', 'value'));
+  if (literal === undefined) {
+    return undefined;
+  }
+  return literal.includes('::') ? literal.slice(literal.lastIndexOf('::') + 2) : literal;
+}
+
 /** The inner property bag of a struct array entry (e.g. an InventoryStack). */
 export function entryProps(entry: unknown): Record<string, unknown> {
   return toPropMap(dig(entry, 'properties'));
