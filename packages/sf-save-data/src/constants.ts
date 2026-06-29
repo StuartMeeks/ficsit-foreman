@@ -164,6 +164,42 @@ export const FILTER_RULE_ANY = 'Desc_Wildcard_C';
 export const FILTER_RULE_ANY_UNDEFINED = 'Desc_AnyUndefined_C';
 export const FILTER_RULE_OVERFLOW = 'Desc_Overflow_C';
 
+/* ── Advanced Game Settings: Game Modes (#172) ──────────────────────────────────
+ * Satisfactory 1.2's per-world Game Modes settings live as plain properties on the
+ * single BP_GameState_C actor — NOT the header, NOT mapOptions, NOT the game-rules
+ * subsystem. Each is omitted when at its default, so absence ⇒ default (per-property).
+ * The three multipliers are free FloatProperties; the two node settings are enums.
+ * See docs/advanced-game-settings.md.
+ */
+
+/** The persistent game-state actor that carries the Game Modes settings. */
+export const GAME_STATE = /BP_GameState\.BP_GameState_C/;
+/** Space-elevator deliverable cost multiplier (FloatProperty; default 1). */
+export const SPACE_ELEVATOR_COST_MULT_PROP = 'mSpacePartsCostMultiplier';
+/** Recipe parts cost multiplier (FloatProperty; default 1). */
+export const RECIPE_COST_MULT_PROP = 'mPartsCostMultiplier';
+/** Power consumption multiplier (FloatProperty; default 1). */
+export const POWER_CONSUMPTION_MULT_PROP = 'mEnergyCostMultiplier';
+/** World seed driving node randomisation (IntProperty; default 0). */
+export const WORLD_SEED_PROP = 'mNodeRandomizationSeed';
+/** Resource-node randomisation mode (EnumProperty `ENodeRandomizationMode`; default `NRM_None`). */
+export const NODE_RANDOMIZATION_PROP = 'mNodeRandomization';
+/** Resource-node purity setting (EnumProperty `ENodePuritySettings`; default `NPS_NoChange`). */
+export const NODE_PURITY_SETTINGS_PROP = 'mNodePuritySettings';
+
+/**
+ * Resource-node actors that record a *resolved* type/purity override under
+ * randomisation: standard nodes plus fracking satellites/cores. Each carries
+ * `mResourceClassOverride` (the resolved descriptor) and `mPurityOverride` (the
+ * resolved purity) only when randomisation is on — geysers and hand-mineable
+ * deposits never do. Joined to the bundled world dataset by world position.
+ */
+export const RESOURCE_NODE_ACTOR = /BP_(?:ResourceNode_C|FrackingSatellite_C|FrackingCore_C)/;
+/** A node's resolved resource descriptor under randomisation (ObjectProperty → `Desc_*_C`). */
+export const RESOURCE_CLASS_OVERRIDE_PROP = 'mResourceClassOverride';
+/** A node's resolved purity under randomisation (ByteProperty `EResourcePurity`). */
+export const PURITY_OVERRIDE_PROP = 'mPurityOverride';
+
 /**
  * The subsystem that records exactly which collectibles a pioneer has collected,
  * by GUID: `mDestroyedPickups` (spheres/sloops/slugs) and `mLootedDropPods`

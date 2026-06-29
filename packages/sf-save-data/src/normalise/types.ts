@@ -226,6 +226,74 @@ export interface TopologyState {
   splitters: SplitterConfig[];
 }
 
+/**
+ * Resource-node randomisation mode (1.2 Advanced Game Settings → Game Modes), as the
+ * raw enum literal with its `NRM_` prefix stripped. `'None'` is the default (off).
+ * UI labels (e.g. `Strict` → "Random") are resolved at the edge, not here.
+ */
+export type NodeRandomizationMode =
+  'None' | 'Strict' | 'BasicReach' | 'AdvancedRich' | 'FossilFuelRich';
+
+/**
+ * Resource-node purity setting (Game Modes), raw enum literal with its `NPS_` prefix
+ * stripped. `'NoChange'` is the default (off). `Increase`/`Decrease` are the UI's
+ * "Mostly Pure"/"Mostly Impure".
+ */
+export type NodePuritySetting =
+  'NoChange' | 'AllPure' | 'Increase' | 'AllNormal' | 'Decrease' | 'AllImpure' | 'AllRandom';
+
+/**
+ * The six per-world **Game Modes** settings (1.2 Advanced Game Settings), read raw
+ * from `BP_GameState_C`. Pure save facts — no game-data join (the overlay onto
+ * canonical recipe/power/node data happens at the edge, `sf-mcp`). Each field
+ * defaults independently when its property is absent (the game omits defaults), so
+ * a pre-1.2 or all-default save yields {@link DEFAULT_ADVANCED_GAME_SETTINGS} and
+ * the overlay is a no-op. See `docs/advanced-game-settings.md`.
+ */
+export interface AdvancedGameSettings {
+  /** World seed driving node randomisation; default 0. */
+  worldSeed: number;
+  /** Space-elevator deliverable cost multiplier; default 1. */
+  spaceElevatorCostMultiplier: number;
+  /** Recipe parts cost multiplier; default 1. */
+  recipeCostMultiplier: number;
+  /** Power consumption multiplier; default 1. */
+  powerConsumptionMultiplier: number;
+  /** Resource-node randomisation mode; default `'None'` (off). */
+  nodeRandomization: NodeRandomizationMode;
+  /** Resource-node purity setting; default `'NoChange'` (off). */
+  nodePuritySettings: NodePuritySetting;
+}
+
+/** Canonical (off) Game Modes settings — the no-op overlay state for pre-1.2/default saves. */
+export const DEFAULT_ADVANCED_GAME_SETTINGS: AdvancedGameSettings = {
+  worldSeed: 0,
+  spaceElevatorCostMultiplier: 1,
+  recipeCostMultiplier: 1,
+  powerConsumptionMultiplier: 1,
+  nodeRandomization: 'None',
+  nodePuritySettings: 'NoChange',
+};
+
+/** Resolved resource-node purity (the game's `EResourcePurity`, normalised). */
+export type ResourcePurity = 'impure' | 'normal' | 'pure';
+
+/**
+ * A resource node's **resolved** type/purity under node randomisation, read directly
+ * from the save (`mResourceClassOverride` + `mPurityOverride`) — so no seed-RNG
+ * reproduction is needed. Empty list when randomisation is off. `position` is the
+ * join key to the bundled world `resourceNodes` (the runtime instance name is not
+ * stable against static extraction); matched by nearest position at the edge.
+ */
+export interface ResourceNodeOverride {
+  /** World position from the actor transform — the join key to the world dataset. */
+  position?: Vec3;
+  /** Resolved resource descriptor class, e.g. `Desc_Coal_C` (undefined if unreadable). */
+  resourceClass?: string;
+  /** Resolved purity (undefined if unreadable). */
+  purity?: ResourcePurity;
+}
+
 export interface SaveState {
   /** Detected game version (build number, with save version), or 'unknown'. */
   version: string;
@@ -262,6 +330,16 @@ export interface SaveState {
   mamResearch: string[];
   assemblyPhase?: AssemblyPhase;
   /**
+   * The six per-world **Game Modes** settings (1.2 Advanced Game Settings). Always
+   * present — {@link DEFAULT_ADVANCED_GAME_SETTINGS} for pre-1.2/all-default saves.
+   */
+  advancedGameSettings: AdvancedGameSettings;
+  /**
+   * Resolved per-node resource/purity overrides under node randomisation, read
+   * directly from the save. Empty when randomisation is off.
+   */
+  resourceNodeOverrides: ResourceNodeOverride[];
+  /**
    * GUIDs of collected collectibles (spheres/sloops/slugs), from
    * `FGScannableSubsystem.mDestroyedPickups` — matched against the world-locations
    * dataset for exact per-kind collected counts. See `collectibleProgressView`.
@@ -293,6 +371,8 @@ export function emptySaveState(version: string, saveName: string, parsedAt: stri
     milestones: [],
     topology: { buildables: [], edges: [], powerCircuits: [], splitters: [] },
     mamResearch: [],
+    advancedGameSettings: { ...DEFAULT_ADVANCED_GAME_SETTINGS },
+    resourceNodeOverrides: [],
     collectedPickupGuids: [],
     lootedDropPodGuids: [],
     collectedLootIds: [],

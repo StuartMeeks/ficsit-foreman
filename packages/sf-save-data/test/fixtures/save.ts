@@ -15,12 +15,18 @@ const LVL = 'Persistent_Level:PersistentLevel';
 const WAT1 = '/Game/FactoryGame/Prototype/WAT/BP_WAT1.BP_WAT1_C';
 const WAT2 = '/Game/FactoryGame/Prototype/WAT/BP_WAT2.BP_WAT2_C';
 const CRYSTAL = '/Game/FactoryGame/Resource/Environment/Crystal/BP_Crystal.BP_Crystal_C';
-const CRYSTAL_MK2 = '/Game/FactoryGame/Resource/Environment/Crystal/BP_Crystal_mk2.BP_Crystal_mk2_C';
-const CRYSTAL_MK3 = '/Game/FactoryGame/Resource/Environment/Crystal/BP_Crystal_mk3.BP_Crystal_mk3_C';
+const CRYSTAL_MK2 =
+  '/Game/FactoryGame/Resource/Environment/Crystal/BP_Crystal_mk2.BP_Crystal_mk2_C';
+const CRYSTAL_MK3 =
+  '/Game/FactoryGame/Resource/Environment/Crystal/BP_Crystal_mk3.BP_Crystal_mk3_C';
 const DROP_POD = '/Game/FactoryGame/World/Benefit/DropPod/BP_DropPod.BP_DropPod_C';
 const RESOURCE_DEPOSIT = '/Game/FactoryGame/Resource/BP_ResourceDeposit.BP_ResourceDeposit_C';
 
-export function vec3(x: number, y: number, z: number): { translation: { x: number; y: number; z: number } } {
+export function vec3(
+  x: number,
+  y: number,
+  z: number,
+): { translation: { x: number; y: number; z: number } } {
   return { translation: { x, y, z } };
 }
 
@@ -36,6 +42,21 @@ export function objectProp(pathName: string): unknown {
 /** A FloatProperty wrapper (e.g. mCurrentPotential, mCurrentProductionBoost). */
 export function floatProp(value: number): unknown {
   return { type: 'FloatProperty', value };
+}
+
+/** An IntProperty wrapper. */
+export function intProp(value: number): unknown {
+  return { type: 'IntProperty', value };
+}
+
+/** An EnumProperty wrapper (e.g. `mNodeRandomization` → `ENodeRandomizationMode::NRM_Strict`). */
+export function enumProp(enumType: string, literal: string): unknown {
+  return { type: 'EnumProperty', value: { value: `${enumType}::${literal}` } };
+}
+
+/** A ByteProperty wrapper holding an enum literal (e.g. `mPurityOverride` → `RP_Pure`). */
+export function byteEnumProp(enumType: string, literal: string): unknown {
+  return { type: 'ByteProperty', value: { type: enumType, value: literal } };
 }
 
 /** An ArrayProperty of ObjectProperty references. */
@@ -96,7 +117,11 @@ interface ObjOpts {
   components?: string[];
 }
 
-export function obj(typePath: string, properties: Record<string, unknown>, opts: ObjOpts = {}): RawObject {
+export function obj(
+  typePath: string,
+  properties: Record<string, unknown>,
+  opts: ObjOpts = {},
+): RawObject {
   return {
     typePath,
     instanceName: opts.instanceName ?? `${LVL}.${typePath.split('.').pop() ?? 'X'}_1`,
@@ -135,13 +160,20 @@ export const FIXTURE_SAVE: RawSave = makeSave({
     obj(
       '/Game/FactoryGame/Character/Player/Char_Player.Char_Player_C',
       { mInventory: objectProp(PLAYER_INV) },
-      { instanceName: `${LVL}.Char_Player_C_1`, transform: vec3(100, 200, 300), components: [PLAYER_INV] },
+      {
+        instanceName: `${LVL}.Char_Player_C_1`,
+        transform: vec3(100, 200, 300),
+        components: [PLAYER_INV],
+      },
     ),
     obj(
       '/Script/FactoryGame.FGInventoryComponent',
       {
         mInventoryStacks: inventoryStacks([
-          { item: '/Game/FactoryGame/Resource/Parts/IronPlate/Desc_IronPlate.Desc_IronPlate_C', num: 50 },
+          {
+            item: '/Game/FactoryGame/Resource/Parts/IronPlate/Desc_IronPlate.Desc_IronPlate_C',
+            num: 50,
+          },
           { item: '/Game/FactoryGame/Resource/Parts/Cable/Desc_Cable.Desc_Cable_C', num: 0 },
         ]),
       },
@@ -149,27 +181,39 @@ export const FIXTURE_SAVE: RawSave = makeSave({
     ),
 
     // HUB.
-    obj('/Game/FactoryGame/Buildable/Factory/TradingPost/Build_TradingPost.Build_TradingPost_C', {}, {
-      instanceName: `${LVL}.Hub_1`,
-      transform: vec3(0, 0, 0),
-    }),
+    obj(
+      '/Game/FactoryGame/Buildable/Factory/TradingPost/Build_TradingPost.Build_TradingPost_C',
+      {},
+      {
+        instanceName: `${LVL}.Hub_1`,
+        transform: vec3(0, 0, 0),
+      },
+    ),
 
     // Two storage containers at different distances, each with an inventory component.
-    obj('/Game/FactoryGame/Buildable/Storage/Build_StorageContainerMk1.Build_StorageContainerMk1_C', {}, {
-      instanceName: `${LVL}.StoreNear`,
-      transform: vec3(10, 0, 0),
-      components: [STORE_NEAR_INV],
-    }),
+    obj(
+      '/Game/FactoryGame/Buildable/Storage/Build_StorageContainerMk1.Build_StorageContainerMk1_C',
+      {},
+      {
+        instanceName: `${LVL}.StoreNear`,
+        transform: vec3(10, 0, 0),
+        components: [STORE_NEAR_INV],
+      },
+    ),
     obj(
       '/Script/FactoryGame.FGInventoryComponent',
       { mInventoryStacks: inventoryStacks([{ item: 'Desc_Coal_C', num: 200 }]) },
       { instanceName: STORE_NEAR_INV },
     ),
-    obj('/Game/FactoryGame/Buildable/Storage/Build_StorageContainerMk2.Build_StorageContainerMk2_C', {}, {
-      instanceName: `${LVL}.StoreFar`,
-      transform: vec3(1000, 0, 0),
-      components: [STORE_FAR_INV],
-    }),
+    obj(
+      '/Game/FactoryGame/Buildable/Storage/Build_StorageContainerMk2.Build_StorageContainerMk2_C',
+      {},
+      {
+        instanceName: `${LVL}.StoreFar`,
+        transform: vec3(1000, 0, 0),
+        components: [STORE_FAR_INV],
+      },
+    ),
     obj(
       '/Script/FactoryGame.FGInventoryComponent',
       { mInventoryStacks: inventoryStacks([{ item: 'Desc_Wire_C', num: 100 }]) },
@@ -210,7 +254,11 @@ export const FIXTURE_SAVE: RawSave = makeSave({
     // MAM research manager.
     obj(
       '/Game/FactoryGame/Recipes/Research/BP_ResearchManager.BP_ResearchManager_C',
-      { mUnlockedResearchTrees: refArrayProp(['/Game/FactoryGame/Research/Research_Caterium.Research_Caterium_C']) },
+      {
+        mUnlockedResearchTrees: refArrayProp([
+          '/Game/FactoryGame/Research/Research_Caterium.Research_Caterium_C',
+        ]),
+      },
       { instanceName: `${LVL}.ResearchManager` },
     ),
 
@@ -218,8 +266,12 @@ export const FIXTURE_SAVE: RawSave = makeSave({
     obj(
       '/Game/FactoryGame/Schematics/Progression/BP_GamePhaseManager.BP_GamePhaseManager_C',
       {
-        mCurrentGamePhase: objectProp('/Game/FactoryGame/GamePhases/GP_Project_Assembly_Phase_2.GP_Project_Assembly_Phase_2'),
-        mTargetGamePhase: objectProp('/Game/FactoryGame/GamePhases/GP_Project_Assembly_Phase_3.GP_Project_Assembly_Phase_3'),
+        mCurrentGamePhase: objectProp(
+          '/Game/FactoryGame/GamePhases/GP_Project_Assembly_Phase_2.GP_Project_Assembly_Phase_2',
+        ),
+        mTargetGamePhase: objectProp(
+          '/Game/FactoryGame/GamePhases/GP_Project_Assembly_Phase_3.GP_Project_Assembly_Phase_3',
+        ),
       },
       { instanceName: `${LVL}.GamePhaseManager` },
     ),

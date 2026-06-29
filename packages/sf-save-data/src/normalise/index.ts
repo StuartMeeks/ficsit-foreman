@@ -1,4 +1,5 @@
 import type { RawObject, RawSave } from '../parser/types.js';
+import { extractGameSettings } from './gameSettings.js';
 import { extractPlayer } from './player.js';
 import { extractProduction } from './production.js';
 import { extractRecipes } from './recipes.js';
@@ -42,6 +43,7 @@ export function normaliseSave(
 
   const progression = extractProgression(objects, warnings);
   const scannable = extractScannable(objects);
+  const gameSettings = extractGameSettings(objects, warnings);
 
   // Collected loose crash-site parts are recorded per-sublevel in `collectables`
   // (the collected/removed-actor list), by path name — NOT in mDestroyedPickups. We
@@ -78,6 +80,8 @@ export function normaliseSave(
     milestones: progression.milestones,
     mamResearch: progression.mamResearch,
     assemblyPhase: progression.assemblyPhase,
+    advancedGameSettings: gameSettings.advancedGameSettings,
+    resourceNodeOverrides: gameSettings.resourceNodeOverrides,
     collectedPickupGuids: scannable.collectedPickupGuids,
     lootedDropPodGuids: scannable.lootedDropPodGuids,
     collectedLootIds,
