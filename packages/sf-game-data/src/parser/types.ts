@@ -121,12 +121,7 @@ export interface Building {
 }
 
 export type SchematicType =
-  | 'milestone'
-  | 'mam'
-  | 'awesome_shop'
-  | 'hard_drive'
-  | 'tutorial'
-  | 'other';
+  'milestone' | 'mam' | 'awesome_shop' | 'hard_drive' | 'tutorial' | 'other';
 
 export interface Schematic {
   className: string;

@@ -26,8 +26,7 @@ export interface UpdatePlaythroughInput {
 
 /** Outcome of claiming a pre-accounts anonymous playthrough for a user. */
 export type ClaimResult =
-  | { ok: true; playthrough: Playthrough }
-  | { ok: false; reason: 'notFound' | 'owned' };
+  { ok: true; playthrough: Playthrough } | { ok: false; reason: 'notFound' | 'owned' };
 
 /**
  * Playthrough lifecycle and message history. A playthrough is one save's journey

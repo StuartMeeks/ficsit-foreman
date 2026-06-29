@@ -2,13 +2,7 @@
 // (Work Orders v2 — see docs/work-orders.md).
 
 export type WorkOrderState =
-  | 'new'
-  | 'active'
-  | 'paused'
-  | 'blocked'
-  | 'completed'
-  | 'cancelled'
-  | 'superseded';
+  'new' | 'active' | 'paused' | 'blocked' | 'completed' | 'cancelled' | 'superseded';
 
 export const TERMINAL_STATES: readonly WorkOrderState[] = ['completed', 'cancelled', 'superseded'];
 
