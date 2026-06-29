@@ -38,8 +38,30 @@ const NOTE =
   '(throughput-capped) and splitters/mergers to every machine input — honouring smart/' +
   'programmable splitter sort-rules (item filters, any, overflow, any-undefined) — then flags ' +
   'a producer starved when an input is delivered below its required rate (beyond tolerance). ' +
-  'Does not yet apply fluid head lift or 1.2 recipe/power modifiers (#172). Ambiguous flow ' +
-  '(looping/unresolved belts) → unknown, never a false starved.';
+  'Fluid legs that rise above their pipe network’s shared head lift are cut. Does not yet apply ' +
+  '1.2 recipe/power modifiers (#172). Ambiguous flow (looping/unresolved belts) → unknown, never ' +
+  'a false starved.';
+
+/**
+ * Maximum head lift (metres — the height at which flow hits zero) per fluid building, used as
+ * the conservative reachable-height bound so the gate only ever blocks the genuinely-unreachable.
+ * Values from the Satisfactory wiki's head-lift table. Any other fluid-producing building (not
+ * listed) falls back to 13 m (the common extractor/refinery figure) via {@link EffectiveGameData.isFluid}.
+ */
+const HEAD_LIFT_MAX_METRES: Record<string, number> = {
+  Build_PipelinePump_C: 23,
+  Build_PipelinePumpMk2_C: 57,
+  Build_WaterPump_C: 13,
+  Build_OilPump_C: 13,
+  Build_FrackingExtractor_C: 13,
+  Build_OilRefinery_C: 13,
+  Build_Packager_C: 13,
+  Build_Blender_C: 13,
+  Build_PipeStorageTank_C: 8, // Fluid Buffer (a filled buffer shares head lift even at zero flow)
+  Build_IndustrialTank_C: 12, // Industrial Fluid Buffer
+  Build_TrainDockingStationLiquid_C: 13, // Fluid Freight Platform
+};
+const FLUID_PRODUCER_DEFAULT_HEAD_LIFT = 13;
 
 const capOf = (graph: SaveGraph, eff: EffectiveGameData, id: string): number => {
   const node = graph.getActor(id);
@@ -86,6 +108,115 @@ function outputFilter(
     return overflow; // overflow-only output: any item, but only as spillover
   }
   return { allow: [] }; // `none`
+}
+
+const pairKey = (a: string, b: string): string => (a < b ? `${a}|${b}` : `${b}|${a}`);
+
+/** Tolerance (metres) for height comparisons — absorbs cm→m noise without missing real lift gaps. */
+const HEAD_LIFT_EPS = 1;
+
+/**
+ * Head-lift gate. In Satisfactory the **highest head lift among the fluid sources/pumps connected
+ * to a pipe network is shared across that entire (undirected) network** — so a connected
+ * component can lift fluid to `max(elevation + maxHeadLift)` over its head-lift providers. Pipe
+ * flow direction is unreliable to infer anyway, so this works on the undirected pipe graph: it
+ * computes that shared reachable height per connected component and **zeroes the capacity** of any
+ * pipe edge whose higher endpoint sits above it. Using each building's *maximum* head lift (the
+ * height at which flow truly stops) makes the bound an upper bound on reachable height — it only
+ * ever blocks the genuinely-unreachable, never a false starve. Components with no head-lift
+ * provider, and position-less nodes, are left untouched. Mutates `edges` in place.
+ */
+function applyHeadLiftGate(
+  state: SaveState,
+  graph: SaveGraph,
+  eff: EffectiveGameData,
+  nodes: FlowNode[],
+  edges: FlowEdge[],
+): void {
+  const pipeTopoEdges = state.topology.edges.filter((e) => e.kind === 'pipe' && e.from !== e.to);
+  if (pipeTopoEdges.length === 0) {
+    return;
+  }
+
+  // Union-find over the undirected pipe network (head lift is shared across the whole component).
+  const parent = new Map<string, string>();
+  const find = (x: string): string => {
+    let root = x;
+    while ((parent.get(root) ?? root) !== root) {
+      root = parent.get(root) as string;
+    }
+    let cur = x;
+    while (cur !== root) {
+      const next = parent.get(cur) ?? cur;
+      parent.set(cur, root);
+      cur = next;
+    }
+    return root;
+  };
+  const union = (a: string, b: string): void => {
+    if (!parent.has(a)) {
+      parent.set(a, a);
+    }
+    if (!parent.has(b)) {
+      parent.set(b, b);
+    }
+    parent.set(find(a), find(b));
+  };
+  for (const edge of pipeTopoEdges) {
+    union(edge.from, edge.to);
+  }
+
+  const nodeById = new Map(nodes.map((n) => [n.id, n]));
+  const heightOf = (id: string): number | undefined => {
+    const loc = graph.getActor(id)?.location;
+    return loc === undefined ? undefined : cmToMetres(loc.z);
+  };
+  // A node's head lift (metres), or undefined if it provides none. Tabled fluid buildings use
+  // their exact maximum; any other fluid-producing node gets the common default.
+  const headLiftOf = (id: string): number | undefined => {
+    const classKey = graph.getActor(id)?.classKey;
+    if (classKey === undefined) {
+      return undefined;
+    }
+    const tabled = HEAD_LIFT_MAX_METRES[classKey];
+    if (tabled !== undefined) {
+      return tabled;
+    }
+    const supply = nodeById.get(id)?.supply;
+    const producesFluid = supply !== undefined && Object.keys(supply).some((it) => eff.isFluid(it));
+    return producesFluid ? FLUID_PRODUCER_DEFAULT_HEAD_LIFT : undefined;
+  };
+
+  // Per-component max reachable height = max over providers of (elevation + max head lift).
+  const maxHead = new Map<string, number>();
+  for (const id of parent.keys()) {
+    const lift = headLiftOf(id);
+    const z = heightOf(id);
+    if (lift === undefined || z === undefined) {
+      continue;
+    }
+    const root = find(id);
+    maxHead.set(root, Math.max(maxHead.get(root) ?? -Infinity, z + lift));
+  }
+
+  const pipePairs = new Set(pipeTopoEdges.map((e) => pairKey(e.from, e.to)));
+  for (const edge of edges) {
+    if (!pipePairs.has(pairKey(edge.from, edge.to)) || !parent.has(edge.from)) {
+      continue;
+    }
+    const head = maxHead.get(find(edge.from));
+    if (head === undefined) {
+      continue; // component has no head-lift provider — don't constrain
+    }
+    const zFrom = heightOf(edge.from);
+    const zTo = heightOf(edge.to);
+    if (zFrom === undefined || zTo === undefined) {
+      continue;
+    }
+    if (Math.max(zFrom, zTo) > head + HEAD_LIFT_EPS) {
+      edge.capacity = 0; // the higher end is above any reachable fluid height in this network
+    }
+  }
 }
 
 /** Maps the save graph + effective game data onto the abstract flow network the solver reconciles. */
@@ -165,6 +296,9 @@ export function buildNetwork(
     }
     return edge;
   });
+
+  // Zero the capacity of any fluid leg that rises above its pipe network's shared head lift.
+  applyHeadLiftGate(state, graph, eff, nodes, edges);
 
   return { nodes, edges };
 }

@@ -22,6 +22,8 @@ export interface EffectiveGameData {
   conveyorCapacity(classKey: string): number;
   /** Pipe throughput cap (m³/min) for a buildable class, or `Infinity` if not a pipe. */
   pipeCapacity(classKey: string): number;
+  /** True when an item class is a fluid (liquid/gas) — a fluid-producing node provides head lift. */
+  isFluid(itemClass: string): boolean;
   /** Escape hatch for name resolution etc. */
   readonly raw: GameDataIndex;
 }
@@ -57,6 +59,9 @@ export function getEffectiveGameData(_state: SaveState, game: GameDataIndex): Ef
     },
     pipeCapacity(classKey) {
       return game.buildings[classKey]?.pipeFlowPerMin ?? Infinity;
+    },
+    isFluid(itemClass) {
+      return game.fluids?.has(itemClass) ?? false;
     },
     raw: game,
   };
