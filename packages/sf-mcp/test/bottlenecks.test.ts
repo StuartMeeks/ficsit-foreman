@@ -326,6 +326,37 @@ describe('bottlenecksView — fluid head lift (#148/#126)', () => {
     };
     const state = normaliseSave(scene(true), '2026-01-01T00:00:00.000Z').state;
     const view = bottlenecksView(state, buildSaveGraph(state), pumpGame, emptyWorld);
-    expect(view.summary.starved).toBe(0); // water now reachable
+    expect(view.summary.starved).toBe(0); // water now reachable, and supply (120) ≥ demand (60)
+  });
+
+  it('rate-starves fluid consumers sharing an under-supplied network (contention)', () => {
+    // One extractor (60 m³/min) feeding two Packagers that each need 60 → 120 demand > 60 supply.
+    const thinGame: GameDataIndex = {
+      ...game,
+      buildings: {
+        ...game.buildings,
+        Build_WaterPump_C: { ...game.buildings.Build_WaterPump_C, extractionRatePerMin: 60 } as Building,
+      },
+    };
+    const WP = `${LVL}.W`;
+    const P1 = `${LVL}.P1`;
+    const P2 = `${LVL}.P2`;
+    const save = makeSave({
+      objects: [
+        obj(T_WATER, {}, { instanceName: WP, transform: vec3(0, 0, 0) }),
+        obj(T_PACKAGER, { mCurrentRecipe: objectProp(RECIPE_PW) }, { instanceName: P1, transform: vec3(5, 0, 0) }),
+        obj(T_PACKAGER, { mCurrentRecipe: objectProp(RECIPE_PW) }, { instanceName: P2, transform: vec3(10, 0, 0) }),
+        pipe(WP, 'PipeOutput0', `${P1}.PipeInput0`),
+        pipe(P1, 'PipeInput0', `${WP}.PipeOutput0`),
+        pipe(WP, 'PipeOutput1', `${P2}.PipeInput0`),
+        pipe(P2, 'PipeInput0', `${WP}.PipeOutput1`),
+      ],
+    });
+    const state = normaliseSave(save, '2026-01-01T00:00:00.000Z').state;
+    const view = bottlenecksView(state, buildSaveGraph(state), thinGame, emptyWorld);
+    expect(view.summary.starved).toBe(2); // both packagers, supply 60 / demand 120
+    const b = view.bottlenecks.find((x) => x.verdict === 'starved');
+    expect(b?.detail).toContain('30'); // delivered 60 × 0.5
+    expect(b?.detail).toContain('per min');
   });
 });

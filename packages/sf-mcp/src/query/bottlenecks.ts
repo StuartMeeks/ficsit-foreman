@@ -38,10 +38,11 @@ const NOTE =
   '(throughput-capped) and splitters/mergers to every machine input — honouring smart/' +
   'programmable splitter sort-rules (item filters, any, overflow, any-undefined) — then flags ' +
   'a producer starved when a belt input is delivered below its required rate (beyond tolerance). ' +
-  'Fluid (pipe) inputs are checked over the connected pipe network instead — starved if the ' +
-  'network has no source of the fluid, or the machine sits above the network’s shared head lift ' +
-  '(reachability, not rate). Does not yet apply 1.2 recipe/power modifiers (#172). Ambiguous belt ' +
-  'flow (looping/unresolved) → unknown, never a false starved.';
+  'Fluid (pipe) inputs are reconciled over the connected pipe network instead — starved if the ' +
+  'network has no source of the fluid, the machine sits above the network’s shared head lift, or ' +
+  'the network’s total supply of that fluid is short of its total reachable demand (a whole-' +
+  'component balance; per-leg pipe throughput is not modelled). Does not yet apply 1.2 recipe/' +
+  'power modifiers (#172). Ambiguous belt flow (looping/unresolved) → unknown, never a false starved.';
 
 /**
  * Maximum head lift (metres — the height at which flow stops) for the infrastructure that
@@ -131,6 +132,14 @@ export interface PipeNetworkAnalysis {
   maxReachableHeight(id: string): number | undefined;
   /** Whether `id`'s pipe network can supply fluid item `itemClass` (a producing source, or a wildcard buffer/freight). */
   hasFluidSource(id: string, itemClass: string): boolean;
+  /**
+   * The fraction (0–1) of fluid `itemClass`'s demand that `id`'s connected pipe network can meet,
+   * by conservation across the shared pool (total source output ÷ total reachable demand, capped
+   * at 1). `undefined` when it can't be quantified — a wildcard buffer/freight source is present
+   * (unknown sustained output), or the network has no demand for it. Per-leg pipe throughput is
+   * not modelled; this is a whole-component supply/demand balance.
+   */
+  fluidSupplyRatio(id: string, itemClass: string): number | undefined;
 }
 
 /**
@@ -182,16 +191,32 @@ function analyzePipeNetwork(
     return loc === undefined ? undefined : cmToMetres(loc.z);
   };
 
+  const addRate = (
+    m: Map<string, Map<string, number>>,
+    root: string,
+    item: string,
+    rate: number,
+  ): void => {
+    let byItem = m.get(root);
+    if (byItem === undefined) {
+      byItem = new Map();
+      m.set(root, byItem);
+    }
+    byItem.set(item, (byItem.get(item) ?? 0) + rate);
+  };
+
   const maxHead = new Map<string, number>();
   const sourcedFluids = new Map<string, Set<string>>();
   const wildcardSource = new Set<string>();
+  const supplyByRoot = new Map<string, Map<string, number>>(); // root → fluid item → total source output
+
+  // Pass 1: head lift, fluid sources, and per-component fluid supply.
   for (const id of parent.keys()) {
     const root = find(id);
     const classKey = graph.getActor(id)?.classKey ?? '';
     const supply = nodeById.get(id)?.supply;
-    const fluidOutputs = Object.keys(supply ?? {}).filter((it) => eff.isFluid(it));
+    const fluidOutputs = Object.entries(supply ?? {}).filter(([it]) => eff.isFluid(it));
 
-    // Head lift: infrastructure (pump/buffer) always; otherwise only if it outputs fluid.
     const lift =
       INFRASTRUCTURE_HEAD_LIFT[classKey] ??
       (fluidOutputs.length > 0 ? FLUID_OUTPUT_HEAD_LIFT : undefined);
@@ -200,19 +225,37 @@ function analyzePipeNetwork(
       maxHead.set(root, Math.max(maxHead.get(root) ?? -Infinity, z + lift));
     }
 
-    // Fluid sources feeding the network.
     if (fluidOutputs.length > 0) {
       let set = sourcedFluids.get(root);
       if (set === undefined) {
         set = new Set();
         sourcedFluids.set(root, set);
       }
-      for (const it of fluidOutputs) {
+      for (const [it, rate] of fluidOutputs) {
         set.add(it);
+        addRate(supplyByRoot, root, it, rate);
       }
     }
     if (WILDCARD_FLUID_SOURCE.has(classKey)) {
       wildcardSource.add(root);
+    }
+  }
+
+  // Pass 2: per-component fluid demand from the consumers the network can actually reach
+  // (above the shared head lift → unreachable, so they don't draw from the pool).
+  const reachableDemandByRoot = new Map<string, Map<string, number>>();
+  for (const id of parent.keys()) {
+    const root = find(id);
+    const z = heightOf(id);
+    const head = maxHead.get(root);
+    const reachable = z === undefined || head === undefined || z <= head + HEAD_LIFT_EPS;
+    if (!reachable) {
+      continue;
+    }
+    for (const [item, rate] of Object.entries(nodeById.get(id)?.demand ?? {})) {
+      if (eff.isFluid(item)) {
+        addRate(reachableDemandByRoot, root, item, rate);
+      }
     }
   }
 
@@ -225,6 +268,21 @@ function analyzePipeNetwork(
       }
       const root = find(id);
       return (sourcedFluids.get(root)?.has(itemClass) ?? false) || wildcardSource.has(root);
+    },
+    fluidSupplyRatio: (id, itemClass) => {
+      if (!parent.has(id)) {
+        return undefined;
+      }
+      const root = find(id);
+      if (wildcardSource.has(root)) {
+        return undefined; // a buffer/freight could supply an unknown sustained rate — don't rate-starve
+      }
+      const demand = reachableDemandByRoot.get(root)?.get(itemClass) ?? 0;
+      if (demand <= 0) {
+        return undefined;
+      }
+      const supply = supplyByRoot.get(root)?.get(itemClass) ?? 0;
+      return Math.min(1, supply / demand);
     },
   };
 }
@@ -397,7 +455,7 @@ export function bottlenecksView(
     //    verdict here is definite). A fluid input fails when the network has no source of it, or
     //    the machine sits above the network's shared head lift.
     let fluidCause: string | undefined;
-    for (const [item] of required.filter(([it]) => eff.isFluid(it))) {
+    for (const [item, need] of required.filter(([it]) => eff.isFluid(it))) {
       if (!pipes.inNetwork(id) || !pipes.hasFluidSource(id, item)) {
         fluidCause = `no ${name(item)} reaches it (no source in its pipe network)`;
         break;
@@ -407,6 +465,14 @@ export function bottlenecksView(
         fluidCause =
           `${name(item)} can't be lifted to it — its pipe network's head lift reaches ~` +
           `${Math.round(head)} m but the machine is at ${Math.round(zHere)} m (add a pump)`;
+        break;
+      }
+      // Reachable, but is the shared pipe network supplying enough? (whole-component balance)
+      const ratio = pipes.fluidSupplyRatio(id, item);
+      if (ratio !== undefined && ratio < 1 - tolerance) {
+        fluidCause =
+          `only ${round(need * ratio)}/${round(need)} ${name(item)} per min ` +
+          `(its pipe network's ${name(item)} supply is shared short)`;
         break;
       }
     }
