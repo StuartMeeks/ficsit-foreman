@@ -1,7 +1,7 @@
 import { solveFlow, type FlowEdge, type FlowNetwork, type FlowNode } from '@foreman/sf-flow';
 import type { WorldLocations } from '@foreman/sf-game-data';
 import type { SaveGraph } from '@foreman/sf-save-data-graph';
-import type { SaveState } from '@foreman/sf-save-data';
+import type { SaveState, SplitterRule } from '@foreman/sf-save-data';
 import { cmToMetres, humaniseClassName } from '@foreman/sf-present';
 
 import type { GameDataIndex } from '../gameData.js';
@@ -35,11 +35,11 @@ export interface BottlenecksView {
 
 const NOTE =
   'Steady-state feed reconciliation: distributes each source’s output through belts/pipes ' +
-  '(throughput-capped) and splitters/mergers to every machine input, then flags a producer ' +
-  'starved when an input is delivered below its required rate (beyond tolerance). v1 models ' +
-  'smart-splitter outputs as plain demand-weighted splits and does not yet apply fluid head ' +
-  'lift or recipe/power modifiers (#172) — so verdicts are exact on vanilla, belt-fed solid ' +
-  'lines and conservative elsewhere (ambiguous flow → unknown, never a false starved).';
+  '(throughput-capped) and splitters/mergers to every machine input — honouring smart/' +
+  'programmable splitter sort-rules (item filters, any, overflow, any-undefined) — then flags ' +
+  'a producer starved when an input is delivered below its required rate (beyond tolerance). ' +
+  'Does not yet apply fluid head lift or 1.2 recipe/power modifiers (#172). Ambiguous flow ' +
+  '(looping/unresolved belts) → unknown, never a false starved.';
 
 const capOf = (graph: SaveGraph, eff: EffectiveGameData, id: string): number => {
   const node = graph.getActor(id);
@@ -49,8 +49,47 @@ const capOf = (graph: SaveGraph, eff: EffectiveGameData, id: string): number => 
   return Math.min(eff.conveyorCapacity(node.classKey), eff.pipeCapacity(node.classKey));
 };
 
+/**
+ * The flow-edge filter for one smart/programmable splitter output, from its `mSortRules`.
+ * Rules for the same output combine: `any` (Wildcard) → unrestricted; `anyUndefined` →
+ * unrestricted minus the items an item-rule routes to a *sibling* output (a `deny` list);
+ * `item` rules → an `allow` list; `none` → carries nothing; `overflow` → an overflow output.
+ */
+function outputFilter(
+  rules: SplitterRule[],
+  outputIndex: number,
+): { allow?: string[]; deny?: string[]; overflow?: boolean } {
+  const own = rules.filter((r) => r.outputIndex === outputIndex);
+  if (own.length === 0) {
+    return {}; // no rule configured for this output — carries anything
+  }
+  const overflow = own.some((r) => r.rule === 'overflow') ? { overflow: true } : {};
+  const items = own.flatMap((r) =>
+    r.rule === 'item' && r.itemClass !== undefined ? [r.itemClass] : [],
+  );
+  if (own.some((r) => r.rule === 'any')) {
+    return { ...overflow };
+  }
+  if (own.some((r) => r.rule === 'anyUndefined')) {
+    const deny = rules
+      .filter(
+        (r) => r.outputIndex !== outputIndex && r.rule === 'item' && r.itemClass !== undefined,
+      )
+      .map((r) => r.itemClass as string)
+      .filter((it) => !items.includes(it));
+    return { ...(deny.length > 0 ? { deny: [...new Set(deny)] } : {}), ...overflow };
+  }
+  if (items.length > 0) {
+    return { allow: [...new Set(items)], ...overflow };
+  }
+  if ('overflow' in overflow) {
+    return overflow; // overflow-only output: any item, but only as spillover
+  }
+  return { allow: [] }; // `none`
+}
+
 /** Maps the save graph + effective game data onto the abstract flow network the solver reconciles. */
-function buildNetwork(
+export function buildNetwork(
   state: SaveState,
   graph: SaveGraph,
   eff: EffectiveGameData,
@@ -86,11 +125,46 @@ function buildNetwork(
     }
   }
 
-  const edges: FlowEdge[] = graph.flowEdges().map(({ from, to }) => ({
-    from,
-    to,
-    capacity: Math.min(capOf(graph, eff, from), capOf(graph, eff, to)),
-  }));
+  // Map each smart/programmable splitter's output edge to its rule outputIndex. The
+  // splitter-side connector is `OutputN`; verified mapping is `outputIndex = N − 1`
+  // (Output1/2/3 ↔ idx 0/1/2). Single pass over the topology edges.
+  const splitterIds = new Set(state.topology.splitters.map((s) => s.instanceName));
+  const outputIndexFor = new Map<string, Map<string, number>>();
+  for (const edge of state.topology.edges) {
+    for (const [owner, connector, other] of [
+      [edge.from, edge.fromConnector, edge.to],
+      [edge.to, edge.toConnector, edge.from],
+    ] as const) {
+      if (!splitterIds.has(owner)) {
+        continue;
+      }
+      const match = /^Output(\d+)$/.exec(connector);
+      if (match === null) {
+        continue;
+      }
+      let byNeighbour = outputIndexFor.get(owner);
+      if (byNeighbour === undefined) {
+        byNeighbour = new Map();
+        outputIndexFor.set(owner, byNeighbour);
+      }
+      byNeighbour.set(other, Number(match[1]) - 1);
+    }
+  }
+
+  const edges: FlowEdge[] = graph.flowEdges().map(({ from, to }) => {
+    const edge: FlowEdge = {
+      from,
+      to,
+      capacity: Math.min(capOf(graph, eff, from), capOf(graph, eff, to)),
+    };
+    // A smart/programmable splitter output carries only what its sort-rules allow.
+    const rules = graph.getActor(from)?.splitter?.rules;
+    const outputIndex = outputIndexFor.get(from)?.get(to);
+    if (rules !== undefined && outputIndex !== undefined) {
+      return { ...edge, ...outputFilter(rules, outputIndex) };
+    }
+    return edge;
+  });
 
   return { nodes, edges };
 }

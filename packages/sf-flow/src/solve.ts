@@ -1,4 +1,4 @@
-import type { FlowNetwork, FlowResult, RateMap, SolveOptions } from './types.js';
+import type { FlowEdge, FlowNetwork, FlowResult, RateMap, SolveOptions } from './types.js';
 
 interface Indexed {
   /** Outgoing edge indices per node id. */
@@ -53,8 +53,8 @@ function topoSort(network: FlowNetwork): Indexed {
   return { out, order, cyclic };
 }
 
-const edgeAllows = (allow: string[] | undefined, item: string): boolean =>
-  allow === undefined || allow.includes(item);
+const edgeAllows = (edge: Pick<FlowEdge, 'allow' | 'deny'>, item: string): boolean =>
+  (edge.allow === undefined || edge.allow.includes(item)) && edge.deny?.includes(item) !== true;
 
 function addRate(map: RateMap, item: string, amount: number): void {
   map[item] = (map[item] ?? 0) + amount;
@@ -97,7 +97,7 @@ export function solveFlow(network: FlowNetwork, options: SolveOptions = {}): Flo
         continue;
       }
       for (const [item, rate] of Object.entries(wants.get(edge.to) ?? {})) {
-        if (edgeAllows(edge.allow, item)) {
+        if (edgeAllows(edge, item)) {
           addRate(w, item, rate);
         }
       }
@@ -201,10 +201,10 @@ function distribute(
     }
     const normal = edges
       .map((edge, i) => ({ edge, i }))
-      .filter((e) => !e.edge.overflow && edgeAllows(e.edge.allow, item));
+      .filter((e) => !e.edge.overflow && edgeAllows(e.edge, item));
     const overflow = edges
       .map((edge, i) => ({ edge, i }))
-      .filter((e) => e.edge.overflow && edgeAllows(e.edge.allow, item));
+      .filter((e) => e.edge.overflow && edgeAllows(e.edge, item));
 
     let remaining = total;
     // 1. Demand-weighted across non-overflow edges, capped by each edge's capacity.

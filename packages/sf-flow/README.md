@@ -30,8 +30,9 @@ const { delivered, throughput, cyclic } = solveFlow({
 
 - **Node** — `{ id, supply?, demand? }`. A source has `supply` only; a final consumer
   `demand` only; a producer has both (its output scales by its solved throughput).
-- **Edge** — `{ from, to, capacity, allow?, overflow? }`. `capacity` caps the total across
-  all items; `allow` restricts which items may pass (a smart-splitter output filter);
+- **Edge** — `{ from, to, capacity, allow?, deny?, overflow? }`. `capacity` caps the total
+  across all items; `allow` restricts which items may pass (a smart-splitter output filter);
+  `deny` blocks specific items (an "Any Undefined" output excludes items routed to a sibling);
   `overflow` marks an output that only carries what its siblings cannot.
 - **Result** — `delivered[node][item]`, `throughput[node]` (0–1), and `cyclic[]` (nodes on
   a directed loop that could not be ordered — treat as *unknown*, never a negative).
