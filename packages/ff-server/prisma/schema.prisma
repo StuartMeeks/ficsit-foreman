@@ -295,6 +295,11 @@ model TwoFactor {
   userId      String
   user        User    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  // Account-level verification lockout (better-auth ≥ 1.6.22): failed-attempt counter and
+  // a lock expiry, both written by the twoFactor plugin.
+  failedVerificationCount Int       @default(0)
+  lockedUntil             DateTime?
+
   @@index([secret])
   @@index([userId])
   @@map("twoFactor")
