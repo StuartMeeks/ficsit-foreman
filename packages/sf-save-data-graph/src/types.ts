@@ -92,6 +92,11 @@ export interface TraverseOptions {
 export interface FlowOptions {
   /** Maximum hops from the start; defaults to a safe finite bound. */
   maxDepth?: number;
+  /**
+   * Restrict to one edge kind. Use `'conveyor'` to trace solid feed without ambiguous pipe edges
+   * polluting completeness, or `'pipe'` for fluid. Omit to traverse both kinds together.
+   */
+  kind?: EdgeKind;
 }
 
 /**

@@ -426,8 +426,10 @@ export function bottlenecksView(
       continue;
     }
 
-    // Under-fed on a belt input, but if the feed direction couldn't be resolved, say unknown.
-    const reach = graph.upstreamOf(id);
+    // Under-fed on a belt input. Only the *conveyor* feed matters here — ambiguous pipe edges must
+    // not make a belt-fed machine read `unknown` (fluids are handled above). If the belt feed
+    // direction is unresolved, say unknown.
+    const reach = graph.upstreamOf(id, { kind: 'conveyor' });
     if (cyclic.has(id) || !reach.complete) {
       summary.unknown += 1;
       bottlenecks.push(
