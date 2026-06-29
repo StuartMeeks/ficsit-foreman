@@ -37,31 +37,36 @@ const NOTE =
   'Steady-state feed reconciliation: distributes each source’s output through belts/pipes ' +
   '(throughput-capped) and splitters/mergers to every machine input — honouring smart/' +
   'programmable splitter sort-rules (item filters, any, overflow, any-undefined) — then flags ' +
-  'a producer starved when an input is delivered below its required rate (beyond tolerance). ' +
-  'Fluid legs that rise above their pipe network’s shared head lift are cut. Does not yet apply ' +
-  '1.2 recipe/power modifiers (#172). Ambiguous flow (looping/unresolved belts) → unknown, never ' +
-  'a false starved.';
+  'a producer starved when a belt input is delivered below its required rate (beyond tolerance). ' +
+  'Fluid (pipe) inputs are checked over the connected pipe network instead — starved if the ' +
+  'network has no source of the fluid, or the machine sits above the network’s shared head lift ' +
+  '(reachability, not rate). Does not yet apply 1.2 recipe/power modifiers (#172). Ambiguous belt ' +
+  'flow (looping/unresolved) → unknown, never a false starved.';
 
 /**
- * Maximum head lift (metres — the height at which flow hits zero) per fluid building, used as
- * the conservative reachable-height bound so the gate only ever blocks the genuinely-unreachable.
- * Values from the Satisfactory wiki's head-lift table. Any other fluid-producing building (not
- * listed) falls back to 13 m (the common extractor/refinery figure) via {@link EffectiveGameData.isFluid}.
+ * Maximum head lift (metres — the height at which flow stops) for the infrastructure that
+ * re-pressurises or stores fluid: pumps push, buffers hold and re-share. These provide head lift
+ * to a connected pipe network regardless of which way fluid flows through them. Values from the
+ * Satisfactory wiki's head-lift table (max column).
  */
-const HEAD_LIFT_MAX_METRES: Record<string, number> = {
+const INFRASTRUCTURE_HEAD_LIFT: Record<string, number> = {
   Build_PipelinePump_C: 23,
   Build_PipelinePumpMk2_C: 57,
-  Build_WaterPump_C: 13,
-  Build_OilPump_C: 13,
-  Build_FrackingExtractor_C: 13,
-  Build_OilRefinery_C: 13,
-  Build_Packager_C: 13,
-  Build_Blender_C: 13,
-  Build_PipeStorageTank_C: 8, // Fluid Buffer (a filled buffer shares head lift even at zero flow)
+  Build_PipeStorageTank_C: 8, // Fluid Buffer — a filled buffer shares head lift even at zero flow
   Build_IndustrialTank_C: 12, // Industrial Fluid Buffer
-  Build_TrainDockingStationLiquid_C: 13, // Fluid Freight Platform
 };
-const FLUID_PRODUCER_DEFAULT_HEAD_LIFT = 13;
+/** Max head lift (metres) of a building that *outputs* fluid (extractor / refinery / blender / …). */
+const FLUID_OUTPUT_HEAD_LIFT = 13;
+/**
+ * Buildings that can supply *any* fluid to a network without appearing as a producer/extractor —
+ * a filled buffer (water-tower) or a train fluid platform. Treated as a wildcard fluid source so
+ * the feed check never falsely starves a consumer fed from one.
+ */
+const WILDCARD_FLUID_SOURCE = new Set([
+  'Build_PipeStorageTank_C',
+  'Build_IndustrialTank_C',
+  'Build_TrainDockingStationLiquid_C',
+]);
 
 const capOf = (graph: SaveGraph, eff: EffectiveGameData, id: string): number => {
   const node = graph.getActor(id);
@@ -110,35 +115,40 @@ function outputFilter(
   return { allow: [] }; // `none`
 }
 
-const pairKey = (a: string, b: string): string => (a < b ? `${a}|${b}` : `${b}|${a}`);
-
 /** Tolerance (metres) for height comparisons — absorbs cm→m noise without missing real lift gaps. */
 const HEAD_LIFT_EPS = 1;
 
+/** Direction-independent reachability of fluids over the connected pipe network. */
+export interface PipeNetworkAnalysis {
+  /** Whether `id` is connected to any pipe. */
+  inNetwork(id: string): boolean;
+  /**
+   * The maximum height (metres) fluid can reach in `id`'s connected pipe network — `max(elevation
+   * + max head lift)` over its head-lift providers (pumps, buffers, and fluid-OUTPUTTING buildings;
+   * a fluid *consumer* does not credit its own head lift). `undefined` if not on a pipe network or
+   * the network has no provider.
+   */
+  maxReachableHeight(id: string): number | undefined;
+  /** Whether `id`'s pipe network can supply fluid item `itemClass` (a producing source, or a wildcard buffer/freight). */
+  hasFluidSource(id: string, itemClass: string): boolean;
+}
+
 /**
- * Head-lift gate. In Satisfactory the **highest head lift among the fluid sources/pumps connected
- * to a pipe network is shared across that entire (undirected) network** — so a connected
- * component can lift fluid to `max(elevation + maxHeadLift)` over its head-lift providers. Pipe
- * flow direction is unreliable to infer anyway, so this works on the undirected pipe graph: it
- * computes that shared reachable height per connected component and **zeroes the capacity** of any
- * pipe edge whose higher endpoint sits above it. Using each building's *maximum* head lift (the
- * height at which flow truly stops) makes the bound an upper bound on reachable height — it only
- * ever blocks the genuinely-unreachable, never a false starve. Components with no head-lift
- * provider, and position-less nodes, are left untouched. Mutates `edges` in place.
+ * Analyses the **undirected** pipe network — pipe flow direction can't be reliably inferred
+ * (ambiguous `PipelineConnection` connectors), and in Satisfactory head lift is anyway *shared*
+ * across the whole connected network (the highest among its providers applies everywhere). So per
+ * connected component this computes the max reachable fluid height and which fluids are sourced,
+ * for the fluid-feed verdict. A building credits head lift only as infrastructure (pump/buffer) or
+ * when it actually outputs fluid — a water Packager (fluid in, solid out) is a consumer and does
+ * not lift its own supply.
  */
-function applyHeadLiftGate(
+function analyzePipeNetwork(
   state: SaveState,
   graph: SaveGraph,
   eff: EffectiveGameData,
   nodes: FlowNode[],
-  edges: FlowEdge[],
-): void {
+): PipeNetworkAnalysis {
   const pipeTopoEdges = state.topology.edges.filter((e) => e.kind === 'pipe' && e.from !== e.to);
-  if (pipeTopoEdges.length === 0) {
-    return;
-  }
-
-  // Union-find over the undirected pipe network (head lift is shared across the whole component).
   const parent = new Map<string, string>();
   const find = (x: string): string => {
     let root = x;
@@ -171,52 +181,52 @@ function applyHeadLiftGate(
     const loc = graph.getActor(id)?.location;
     return loc === undefined ? undefined : cmToMetres(loc.z);
   };
-  // A node's head lift (metres), or undefined if it provides none. Tabled fluid buildings use
-  // their exact maximum; any other fluid-producing node gets the common default.
-  const headLiftOf = (id: string): number | undefined => {
-    const classKey = graph.getActor(id)?.classKey;
-    if (classKey === undefined) {
-      return undefined;
-    }
-    const tabled = HEAD_LIFT_MAX_METRES[classKey];
-    if (tabled !== undefined) {
-      return tabled;
-    }
-    const supply = nodeById.get(id)?.supply;
-    const producesFluid = supply !== undefined && Object.keys(supply).some((it) => eff.isFluid(it));
-    return producesFluid ? FLUID_PRODUCER_DEFAULT_HEAD_LIFT : undefined;
-  };
 
-  // Per-component max reachable height = max over providers of (elevation + max head lift).
   const maxHead = new Map<string, number>();
+  const sourcedFluids = new Map<string, Set<string>>();
+  const wildcardSource = new Set<string>();
   for (const id of parent.keys()) {
-    const lift = headLiftOf(id);
-    const z = heightOf(id);
-    if (lift === undefined || z === undefined) {
-      continue;
-    }
     const root = find(id);
-    maxHead.set(root, Math.max(maxHead.get(root) ?? -Infinity, z + lift));
+    const classKey = graph.getActor(id)?.classKey ?? '';
+    const supply = nodeById.get(id)?.supply;
+    const fluidOutputs = Object.keys(supply ?? {}).filter((it) => eff.isFluid(it));
+
+    // Head lift: infrastructure (pump/buffer) always; otherwise only if it outputs fluid.
+    const lift =
+      INFRASTRUCTURE_HEAD_LIFT[classKey] ??
+      (fluidOutputs.length > 0 ? FLUID_OUTPUT_HEAD_LIFT : undefined);
+    const z = heightOf(id);
+    if (lift !== undefined && z !== undefined) {
+      maxHead.set(root, Math.max(maxHead.get(root) ?? -Infinity, z + lift));
+    }
+
+    // Fluid sources feeding the network.
+    if (fluidOutputs.length > 0) {
+      let set = sourcedFluids.get(root);
+      if (set === undefined) {
+        set = new Set();
+        sourcedFluids.set(root, set);
+      }
+      for (const it of fluidOutputs) {
+        set.add(it);
+      }
+    }
+    if (WILDCARD_FLUID_SOURCE.has(classKey)) {
+      wildcardSource.add(root);
+    }
   }
 
-  const pipePairs = new Set(pipeTopoEdges.map((e) => pairKey(e.from, e.to)));
-  for (const edge of edges) {
-    if (!pipePairs.has(pairKey(edge.from, edge.to)) || !parent.has(edge.from)) {
-      continue;
-    }
-    const head = maxHead.get(find(edge.from));
-    if (head === undefined) {
-      continue; // component has no head-lift provider — don't constrain
-    }
-    const zFrom = heightOf(edge.from);
-    const zTo = heightOf(edge.to);
-    if (zFrom === undefined || zTo === undefined) {
-      continue;
-    }
-    if (Math.max(zFrom, zTo) > head + HEAD_LIFT_EPS) {
-      edge.capacity = 0; // the higher end is above any reachable fluid height in this network
-    }
-  }
+  return {
+    inNetwork: (id) => parent.has(id),
+    maxReachableHeight: (id) => (parent.has(id) ? maxHead.get(find(id)) : undefined),
+    hasFluidSource: (id, itemClass) => {
+      if (!parent.has(id)) {
+        return false;
+      }
+      const root = find(id);
+      return (sourcedFluids.get(root)?.has(itemClass) ?? false) || wildcardSource.has(root);
+    },
+  };
 }
 
 /** Maps the save graph + effective game data onto the abstract flow network the solver reconciles. */
@@ -297,9 +307,6 @@ export function buildNetwork(
     return edge;
   });
 
-  // Zero the capacity of any fluid leg that rises above its pipe network's shared head lift.
-  applyHeadLiftGate(state, graph, eff, nodes, edges);
-
   return { nodes, edges };
 }
 
@@ -321,8 +328,12 @@ export function bottlenecksView(
   const tolerance = options.tolerance ?? 0.05;
   const limit = options.limit ?? 50;
   const eff = getEffectiveGameData(state, game);
-  const result = solveFlow(buildNetwork(state, graph, eff, world));
+  const network = buildNetwork(state, graph, eff, world);
+  const result = solveFlow(network);
   const cyclic = new Set(result.cyclic);
+  // Fluids are reconciled over the undirected pipe network (direction is unreliable; head lift is
+  // shared), separately from the directed solid solve.
+  const pipes = analyzePipeNetwork(state, graph, eff, network.nodes);
 
   // Per-circuit power status, for the unpowered verdict.
   const power = powerView(state, graph, game);
@@ -378,20 +389,46 @@ export function bottlenecksView(
       continue;
     }
 
-    const required = eff.requiredInputs(producer);
-    const delivered = result.delivered[node.instanceName] ?? {};
-    const starved = Object.entries(required).filter(
-      ([item, need]) => need > 0 && (delivered[item] ?? 0) < need * (1 - tolerance),
-    );
+    const required = Object.entries(eff.requiredInputs(producer)).filter(([, need]) => need > 0);
+    const id = node.instanceName;
+    const zHere = node.location === undefined ? undefined : cmToMetres(node.location.z);
 
-    if (starved.length === 0) {
+    // 1. Fluid inputs — reconciled over the undirected pipe network (direction-independent, so a
+    //    verdict here is definite). A fluid input fails when the network has no source of it, or
+    //    the machine sits above the network's shared head lift.
+    let fluidCause: string | undefined;
+    for (const [item] of required.filter(([it]) => eff.isFluid(it))) {
+      if (!pipes.inNetwork(id) || !pipes.hasFluidSource(id, item)) {
+        fluidCause = `no ${name(item)} reaches it (no source in its pipe network)`;
+        break;
+      }
+      const head = pipes.maxReachableHeight(id);
+      if (zHere !== undefined && head !== undefined && zHere > head + HEAD_LIFT_EPS) {
+        fluidCause =
+          `${name(item)} can't be lifted to it — its pipe network's head lift reaches ~` +
+          `${Math.round(head)} m but the machine is at ${Math.round(zHere)} m (add a pump)`;
+        break;
+      }
+    }
+    if (fluidCause !== undefined) {
+      summary.starved += 1;
+      bottlenecks.push(base('starved', `starved: ${fluidCause}`));
+      continue;
+    }
+
+    // 2. Solid inputs — from the directed belt solve.
+    const delivered = result.delivered[id] ?? {};
+    const solidStarved = required.filter(
+      ([item, need]) => !eff.isFluid(item) && (delivered[item] ?? 0) < need * (1 - tolerance),
+    );
+    if (solidStarved.length === 0) {
       summary.ok += 1;
       continue;
     }
 
-    // Under-fed, but if the feed direction couldn't be resolved we cannot be sure — say unknown.
-    const reach = graph.upstreamOf(node.instanceName);
-    if (cyclic.has(node.instanceName) || !reach.complete) {
+    // Under-fed on a belt input, but if the feed direction couldn't be resolved, say unknown.
+    const reach = graph.upstreamOf(id);
+    if (cyclic.has(id) || !reach.complete) {
       summary.unknown += 1;
       bottlenecks.push(
         base(
@@ -402,9 +439,9 @@ export function bottlenecksView(
       continue;
     }
 
-    // Report the hungriest input as the cause.
-    starved.sort((a, b) => (delivered[a[0]] ?? 0) / a[1] - (delivered[b[0]] ?? 0) / b[1]);
-    const [item, need] = starved[0] as [string, number];
+    // Report the hungriest belt input as the cause.
+    solidStarved.sort((a, b) => (delivered[a[0]] ?? 0) / a[1] - (delivered[b[0]] ?? 0) / b[1]);
+    const [item, need] = solidStarved[0] as [string, number];
     const got = delivered[item] ?? 0;
     const cause =
       got <= 0
