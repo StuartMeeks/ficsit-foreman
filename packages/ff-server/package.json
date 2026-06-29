@@ -24,17 +24,17 @@
     "db:push": "prisma db push"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.105.0",
+    "@anthropic-ai/sdk": "^0.106.0",
     "@foreman/sf-game-data": "0.1.0",
     "@modelcontextprotocol/sdk": "^1.12.0",
     "@prisma/adapter-better-sqlite3": "^7.8.0",
     "@prisma/client": "^7.8.0",
-    "better-auth": "^1.6.20",
+    "better-auth": "^1.6.22",
     "better-sqlite3": "^12.11.1",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
     "multer": "^2.2.0",
-    "openai": "^6.44.0",
+    "openai": "^6.45.0",
     "zod": "^4.4.3"
   },
   "devDependencies": {
