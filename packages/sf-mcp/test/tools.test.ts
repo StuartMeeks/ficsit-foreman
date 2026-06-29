@@ -62,6 +62,26 @@ describe('selectors', () => {
     expect(m.tutorials).toHaveLength(1);
     expect(m.assemblyPhase?.phase).toBe(2);
     expect(m.mamResearch).toEqual(['Caterium']);
+    expect(m.creative).toBeUndefined(); // non-creative save: no overlay
+  });
+
+  it('milestones surfaces creative progression when Creative Mode is on (#172)', () => {
+    const s = emptySaveState('v', 'n', 't');
+    s.creativeMode = {
+      ...s.creativeMode,
+      enabled: true,
+      startingTier: 6,
+      unlockAllResearch: true,
+      noUnlockCost: true,
+    };
+    const m = milestones(s, resolve);
+    expect(m.creative).toEqual({
+      startingTier: 6,
+      unlockAllResearch: true,
+      unlockAllShop: false,
+      unlockInstantAltRecipes: false,
+      noUnlockCost: true,
+    });
   });
 
   it('storageView sorts containers nearest-first when given a location', () => {

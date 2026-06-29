@@ -143,12 +143,33 @@ export function unlockedRecipes(state: SaveState, resolve: NameResolver): Recipe
   };
 }
 
+/**
+ * The Creative Mode settings that change *effective* progression — present only on a
+ * creative save. The pioneer's actual purchased milestones/research are still listed
+ * normally; these flags tell the foreman the effective unlocked state is broader (and
+ * unlocks are free), so it doesn't advise grinding for what's already granted.
+ */
+export interface CreativeProgression {
+  /** Tier granted at start (0 = none). */
+  startingTier: number;
+  /** All MAM research is unlocked. */
+  unlockAllResearch: boolean;
+  /** All AWESOME-shop schematics are unlocked. */
+  unlockAllShop: boolean;
+  /** Alternate recipes unlock instantly. */
+  unlockInstantAltRecipes: boolean;
+  /** Milestones / MAM / shop cost nothing to unlock. */
+  noUnlockCost: boolean;
+}
+
 export interface MilestoneSummary {
   assemblyPhase?: AssemblyPhase;
   milestonesByTier: { tier: number; milestones: NamedMilestone[] }[];
   tutorials: NamedMilestone[];
   other: NamedMilestone[];
   mamResearch: string[];
+  /** Creative Mode progression overlay — present only when creative is enabled. */
+  creative?: CreativeProgression;
 }
 
 export function milestones(state: SaveState, resolve: NameResolver): MilestoneSummary {
@@ -184,6 +205,17 @@ export function milestones(state: SaveState, resolve: NameResolver): MilestoneSu
     mamResearch: state.mamResearch
       .map((cls) => cleanResearchTreeName(resolve(cls)))
       .sort((a, b) => a.localeCompare(b)),
+    ...(state.creativeMode.enabled
+      ? {
+          creative: {
+            startingTier: state.creativeMode.startingTier,
+            unlockAllResearch: state.creativeMode.unlockAllResearch,
+            unlockAllShop: state.creativeMode.unlockAllShop,
+            unlockInstantAltRecipes: state.creativeMode.unlockInstantAltRecipes,
+            noUnlockCost: state.creativeMode.noUnlockCost,
+          },
+        }
+      : {}),
   };
 }
 
@@ -660,6 +692,15 @@ function round(n: number, dp = 3): number {
 }
 
 /**
+ * The effective consumer power multiplier for a save: the 1.2 Power Consumption ×,
+ * or **0 under Creative Mode "No Power"** (machines run without drawing power).
+ * Generators are unaffected — this is the consumer side only.
+ */
+function effectivePowerMultiplier(state: SaveState): number {
+  return state.creativeMode.noPower ? 0 : state.advancedGameSettings.powerConsumptionMultiplier;
+}
+
+/**
  * Estimated MW draw at the line's clock + boost (undefined for generators/unknown).
  * `powerMul` is the 1.2 Power Consumption × (consumers only; default 1 / no-op).
  */
@@ -873,9 +914,9 @@ export function productionView(
   world: WorldLocations,
   options: { item?: string } = {},
 ): ProductionView {
-  // 1.2 Advanced Game Settings overlay: power draw × on consumers, resolved node
-  // type/purity from the save's randomisation overrides.
-  const powerMul = state.advancedGameSettings.powerConsumptionMultiplier;
+  // 1.2 Advanced Game Settings overlay: power draw × on consumers (0 under Creative
+  // No Power), resolved node type/purity from the save's randomisation overrides.
+  const powerMul = effectivePowerMultiplier(state);
   const overrides = state.resourceNodeOverrides;
   const lines: MachineLine[] = [
     ...state.production.producers.map((p) => manufacturerLine(p, game, powerMul)),
@@ -1091,8 +1132,9 @@ function powerStatus(
  * consumer draw on the other — and summed. See {@link POWER_NOTE} for caveats.
  */
 export function powerView(state: SaveState, graph: SaveGraph, game: GameDataIndex): PowerView {
-  // 1.2 Power Consumption × scales consumer draw (generators are unaffected).
-  const powerMul = state.advancedGameSettings.powerConsumptionMultiplier;
+  // 1.2 Power Consumption × scales consumer draw (generators are unaffected); Creative
+  // No Power zeroes it, so every circuit reads ok.
+  const powerMul = effectivePowerMultiplier(state);
   const circuits: PowerCircuitView[] = graph
     .powerCircuits()
     .map((circuit) => {

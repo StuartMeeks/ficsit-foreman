@@ -277,6 +277,7 @@ export function registerSaveTools(server: McpServer, registry: SaveStoreRegistry
               buildVersion: state.buildVersion,
               saveVersion: state.saveVersion,
               playDurationSeconds: state.playDurationSeconds,
+              creativeModeEnabled: state.creativeMode.enabled,
             }),
           },
         ],
