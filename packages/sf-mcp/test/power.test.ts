@@ -205,3 +205,36 @@ describe('powerView (#68)', () => {
     expect(dv.circuits[0]).toMatchObject({ capacityMW: 0, consumptionMW: 4, status: 'overloaded' });
   });
 });
+
+describe('power consumption multiplier overlay (#172)', () => {
+  const GAME_STATE = '/Game/FactoryGame/-Shared/Blueprint/BP_GameState.BP_GameState_C';
+
+  it('scales consumer draw by the multiplier, leaving generator capacity unchanged', () => {
+    const save = makeSave({
+      objects: [
+        obj(
+          GAME_STATE,
+          { mEnergyCostMultiplier: floatProp(2) },
+          { instanceName: `${LVL}.BP_GameState_C_1` },
+        ),
+        obj(T_FUEL_GEN, { mCurrentFuelClass: objectProp(DESC_FUEL) }, { instanceName: GEN_FUEL }),
+        obj(T_CONSTRUCTOR, {}, { instanceName: CON, transform: vec3(100, 0, 0) }),
+        obj(
+          '/Script/FactoryGame.FGPowerCircuit',
+          {
+            mCircuitID: { type: 'IntProperty', value: 7 },
+            mComponents: refArrayProp([`${GEN_FUEL}.PowerConnection`, `${CON}.PowerConnection`]),
+          },
+          { instanceName: `${LVL}.CircuitSubsystem.FGPowerCircuit_1` },
+        ),
+      ],
+    });
+    const s = normaliseSave(save, '2026-01-01T00:00:00.000Z').state;
+    const v = powerView(s, buildSaveGraph(s), GAME);
+    expect(v.circuits[0]).toMatchObject({
+      capacityMW: 250, // fuel generator — unaffected by the consumption multiplier
+      consumptionMW: 8, // constructor 4 MW × 2
+      status: 'ok',
+    });
+  });
+});

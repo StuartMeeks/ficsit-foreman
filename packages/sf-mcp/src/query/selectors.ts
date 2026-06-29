@@ -21,6 +21,7 @@ import type {
   Inventory,
   MilestoneKind,
   ProducerLine,
+  ResourceNodeOverride,
   SaveState,
   Vec3,
 } from '@foreman/sf-save-data';
@@ -658,12 +659,16 @@ function round(n: number, dp = 3): number {
   return Math.round(n * f) / f;
 }
 
-/** Estimated MW draw at the line's clock + boost (undefined for generators/unknown). */
+/**
+ * Estimated MW draw at the line's clock + boost (undefined for generators/unknown).
+ * `powerMul` is the 1.2 Power Consumption × (consumers only; default 1 / no-op).
+ */
 function estimatePower(
   building: Building | undefined,
   recipe: Recipe | undefined,
   clock: number,
   boost: number,
+  powerMul = 1,
 ): number | undefined {
   if (building === undefined) {
     return undefined;
@@ -679,11 +684,11 @@ function estimatePower(
     }
   }
   const factor = clock ** OVERCLOCK_POWER_EXPONENT * (boost > 1 ? boost * boost : 1);
-  return round(base * factor, 1);
+  return round(base * factor * powerMul, 1);
 }
 
 /** Build one manufacturer's theoretical line from its config + the recipe/building data. */
-function manufacturerLine(line: ProducerLine, game: GameDataIndex): MachineLine {
+function manufacturerLine(line: ProducerLine, game: GameDataIndex, powerMul = 1): MachineLine {
   const recipe = line.recipeClass === undefined ? undefined : game.recipes[line.recipeClass];
   const building = game.buildings[line.buildingClass];
   const scale = line.clockSpeed * line.productionBoost;
@@ -708,7 +713,7 @@ function manufacturerLine(line: ProducerLine, game: GameDataIndex): MachineLine 
     boost: line.productionBoost,
     location: line.location === undefined ? undefined : vecToMetres(line.location),
     outputs,
-    powerMW: estimatePower(building, recipe, line.clockSpeed, line.productionBoost),
+    powerMW: estimatePower(building, recipe, line.clockSpeed, line.productionBoost, powerMul),
   };
 }
 
@@ -720,19 +725,26 @@ function manufacturerLine(line: ProducerLine, game: GameDataIndex): MachineLine 
 export function resolveExtraction(
   line: ExtractorLine,
   world: WorldLocations,
+  overrides: ResourceNodeOverride[] = [],
 ): { resourceClass?: string; purity?: Purity | 'unknown'; purityMul: number } {
   if (WATER_EXTRACTOR.test(line.buildingClass)) {
     return { resourceClass: WATER_ITEM_CLASS, purityMul: 1 };
   }
   const node =
     line.location === undefined ? undefined : nearestNode(world.resourceNodes, line.location);
-  if (node?.resourceClass == null) {
+  // Under 1.2 node randomisation the canonical (bundled) node's type/purity is stale;
+  // the save's resolved override at this position is authoritative when present.
+  const override =
+    line.location === undefined ? undefined : nearestNodeOverride(overrides, line.location);
+  const resourceClass = override?.resourceClass ?? node?.resourceClass ?? undefined;
+  const purity = override?.purity ?? node?.purity ?? undefined;
+  if (resourceClass == null) {
     return { resourceClass: undefined, purity: 'unknown', purityMul: 1 };
   }
   return {
-    resourceClass: node.resourceClass,
-    purity: node.purity ?? 'unknown',
-    purityMul: node.purity == null ? 1 : PURITY_MULTIPLIER[node.purity],
+    resourceClass,
+    purity: purity ?? 'unknown',
+    purityMul: purity == null ? 1 : PURITY_MULTIPLIER[purity],
   };
 }
 
@@ -741,9 +753,11 @@ function extractorLine(
   line: ExtractorLine,
   game: GameDataIndex,
   world: WorldLocations,
+  overrides: ResourceNodeOverride[] = [],
+  powerMul = 1,
 ): MachineLine {
   const building = game.buildings[line.buildingClass];
-  const { resourceClass, purity, purityMul } = resolveExtraction(line, world);
+  const { resourceClass, purity, purityMul } = resolveExtraction(line, world, overrides);
   const outputs: RateFlow[] = [];
   if (building?.extractionRatePerMin !== undefined && resourceClass !== undefined) {
     const base = building.extractionRatePerMin * purityMul;
@@ -769,7 +783,7 @@ function extractorLine(
     boost: line.productionBoost,
     location: line.location === undefined ? undefined : vecToMetres(line.location),
     outputs,
-    powerMW: estimatePower(building, undefined, line.clockSpeed, line.productionBoost),
+    powerMW: estimatePower(building, undefined, line.clockSpeed, line.productionBoost, powerMul),
   };
 }
 
@@ -790,6 +804,32 @@ function nearestNode(nodes: ResourceNode[], locCm: Vec3): ResourceNode | undefin
     if (d < bestDistance) {
       bestDistance = d;
       best = node;
+    }
+  }
+  return bestDistance <= NODE_MATCH_CM ? best : undefined;
+}
+
+/**
+ * The nearest save-recorded node override to a centimetre position, within
+ * {@link NODE_MATCH_CM}. Under 1.2 node randomisation the save carries each node's
+ * *resolved* resource/purity (`SaveState.resourceNodeOverrides`); matched by position
+ * to an extractor it takes precedence over the bundled (canonical-world) node.
+ */
+function nearestNodeOverride(
+  overrides: ResourceNodeOverride[],
+  locCm: Vec3,
+): ResourceNodeOverride | undefined {
+  let best: ResourceNodeOverride | undefined;
+  let bestDistance = Infinity;
+  for (const override of overrides) {
+    if (override.position === undefined) {
+      continue;
+    }
+    const { x, y, z } = override.position;
+    const d = Math.hypot(x - locCm.x, y - locCm.y, z - locCm.z);
+    if (d < bestDistance) {
+      bestDistance = d;
+      best = override;
     }
   }
   return bestDistance <= NODE_MATCH_CM ? best : undefined;
@@ -833,9 +873,13 @@ export function productionView(
   world: WorldLocations,
   options: { item?: string } = {},
 ): ProductionView {
+  // 1.2 Advanced Game Settings overlay: power draw × on consumers, resolved node
+  // type/purity from the save's randomisation overrides.
+  const powerMul = state.advancedGameSettings.powerConsumptionMultiplier;
+  const overrides = state.resourceNodeOverrides;
   const lines: MachineLine[] = [
-    ...state.production.producers.map((p) => manufacturerLine(p, game)),
-    ...state.production.extractors.map((e) => extractorLine(e, game, world)),
+    ...state.production.producers.map((p) => manufacturerLine(p, game, powerMul)),
+    ...state.production.extractors.map((e) => extractorLine(e, game, world, overrides, powerMul)),
   ];
 
   const needle = options.item?.trim().toLowerCase();
@@ -990,7 +1034,7 @@ function generatorCapacityMW(
  * A node's estimated power draw: production machines scale by clock/somersloop; other
  * powered buildings draw their flat consumption at 100%. Generators draw nothing.
  */
-function consumerDrawMW(node: ActorNode, game: GameDataIndex): number {
+function consumerDrawMW(node: ActorNode, game: GameDataIndex, powerMul = 1): number {
   if (node.producer !== undefined) {
     const recipe =
       node.producer.recipeClass === undefined ? undefined : game.recipes[node.producer.recipeClass];
@@ -1000,6 +1044,7 @@ function consumerDrawMW(node: ActorNode, game: GameDataIndex): number {
         recipe,
         node.producer.clockSpeed,
         node.producer.productionBoost,
+        powerMul,
       ) ?? 0
     );
   }
@@ -1010,6 +1055,7 @@ function consumerDrawMW(node: ActorNode, game: GameDataIndex): number {
         undefined,
         node.extractor.clockSpeed,
         node.extractor.productionBoost,
+        powerMul,
       ) ?? 0
     );
   }
@@ -1017,7 +1063,7 @@ function consumerDrawMW(node: ActorNode, game: GameDataIndex): number {
     return 0;
   }
   const consumption = game.buildings[node.classKey]?.powerConsumption ?? 0;
-  return consumption > 0 ? round(consumption, 1) : 0;
+  return consumption > 0 ? round(consumption * powerMul, 1) : 0;
 }
 
 function powerStatus(
@@ -1045,6 +1091,8 @@ function powerStatus(
  * consumer draw on the other — and summed. See {@link POWER_NOTE} for caveats.
  */
 export function powerView(state: SaveState, graph: SaveGraph, game: GameDataIndex): PowerView {
+  // 1.2 Power Consumption × scales consumer draw (generators are unaffected).
+  const powerMul = state.advancedGameSettings.powerConsumptionMultiplier;
   const circuits: PowerCircuitView[] = graph
     .powerCircuits()
     .map((circuit) => {
@@ -1078,7 +1126,7 @@ export function powerView(state: SaveState, graph: SaveGraph, game: GameDataInde
           batteryCount += 1;
           batteryChargeMWh += node.battery.chargeMWh;
         } else {
-          const draw = consumerDrawMW(node, game);
+          const draw = consumerDrawMW(node, game, powerMul);
           if (draw > 0) {
             consumptionMW += draw;
             consumerCount += 1;

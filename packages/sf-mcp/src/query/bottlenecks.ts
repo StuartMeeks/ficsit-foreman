@@ -304,7 +304,11 @@ export function buildNetwork(
         supply: eff.producerOutputs(node.producer),
       });
     } else if (node?.extractor !== undefined) {
-      const { resourceClass, purityMul } = resolveExtraction(node.extractor, world);
+      const { resourceClass, purityMul } = resolveExtraction(
+        node.extractor,
+        world,
+        state.resourceNodeOverrides,
+      );
       const rate = eff.raw.buildings[node.extractor.buildingClass]?.extractionRatePerMin;
       const supply =
         resourceClass !== undefined && rate !== undefined

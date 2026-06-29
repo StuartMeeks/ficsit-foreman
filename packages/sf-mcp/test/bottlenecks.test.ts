@@ -1,18 +1,24 @@
 import type { Building, Recipe, WorldLocations } from '@foreman/sf-game-data';
-import { normaliseSave } from '@foreman/sf-save-data';
+import { emptySaveState, normaliseSave } from '@foreman/sf-save-data';
 import { buildSaveGraph } from '@foreman/sf-save-data-graph';
 import { describe, expect, it } from 'vitest';
 
 import type { GameDataIndex } from '../src/gameData.js';
 import { bottlenecksView, buildNetwork } from '../src/query/bottlenecks.js';
 import { getEffectiveGameData } from '../src/query/effectiveGameData.js';
-import { makeSave, obj, objectProp, sortRules, vec3 } from '../../sf-save-data/test/fixtures/save.js';
+import { resolveExtraction } from '../src/query/selectors.js';
+import {
+  makeSave,
+  obj,
+  objectProp,
+  sortRules,
+  vec3,
+} from '../../sf-save-data/test/fixtures/save.js';
 
 const LVL = 'Persistent_Level:PersistentLevel';
 const T_CONSTRUCTOR =
   '/Game/FactoryGame/Buildable/Factory/ConstructorMk1/Build_ConstructorMk1.Build_ConstructorMk1_C';
-const T_MINER =
-  '/Game/FactoryGame/Buildable/Factory/MinerMk1/Build_MinerMk1.Build_MinerMk1_C';
+const T_MINER = '/Game/FactoryGame/Buildable/Factory/MinerMk1/Build_MinerMk1.Build_MinerMk1_C';
 const T_BELT =
   '/Game/FactoryGame/Buildable/Factory/ConveyorBeltMk1/Build_ConveyorBeltMk1.Build_ConveyorBeltMk1_C';
 const T_CONN = '/Script/FactoryGame.FGFactoryConnectionComponent';
@@ -92,7 +98,11 @@ describe('bottlenecksView (#148/#126)', () => {
     const IDLE = `${LVL}.Con_2`;
     const save = makeSave({
       objects: [
-        obj(T_CONSTRUCTOR, { mCurrentRecipe: objectProp(RECIPE_INGOT) }, { instanceName: CON, transform: vec3(0, 0, 0) }),
+        obj(
+          T_CONSTRUCTOR,
+          { mCurrentRecipe: objectProp(RECIPE_INGOT) },
+          { instanceName: CON, transform: vec3(0, 0, 0) },
+        ),
         obj(T_CONSTRUCTOR, {}, { instanceName: IDLE, transform: vec3(10, 0, 0) }),
       ],
     });
@@ -115,17 +125,47 @@ describe('bottlenecksView (#148/#126)', () => {
     const CON = `${LVL}.Con_1`;
     const world: WorldLocations = {
       ...emptyWorld,
-      resourceNodes: [{ id: 'n1', kind: 'resourceNode', resourceClass: 'Desc_OreIron_C', purity: 'normal', x: 0, y: 0, z: 0 }],
+      resourceNodes: [
+        {
+          id: 'n1',
+          kind: 'resourceNode',
+          resourceClass: 'Desc_OreIron_C',
+          purity: 'normal',
+          x: 0,
+          y: 0,
+          z: 0,
+        },
+      ],
     };
     const save = makeSave({
       objects: [
         obj(T_MINER, {}, { instanceName: MINER, transform: vec3(0, 0, 0) }),
         obj(T_BELT, {}, { instanceName: BELT, transform: vec3(50, 0, 0) }),
-        obj(T_CONSTRUCTOR, { mCurrentRecipe: objectProp(RECIPE_INGOT) }, { instanceName: CON, transform: vec3(100, 0, 0) }),
-        obj(T_CONN, { mConnectedComponent: objectProp(`${BELT}.ConveyorAny0`) }, { instanceName: `${MINER}.Output0` }),
-        obj(T_CONN, { mConnectedComponent: objectProp(`${MINER}.Output0`) }, { instanceName: `${BELT}.ConveyorAny0` }),
-        obj(T_CONN, { mConnectedComponent: objectProp(`${CON}.Input0`) }, { instanceName: `${BELT}.ConveyorAny1` }),
-        obj(T_CONN, { mConnectedComponent: objectProp(`${BELT}.ConveyorAny1`) }, { instanceName: `${CON}.Input0` }),
+        obj(
+          T_CONSTRUCTOR,
+          { mCurrentRecipe: objectProp(RECIPE_INGOT) },
+          { instanceName: CON, transform: vec3(100, 0, 0) },
+        ),
+        obj(
+          T_CONN,
+          { mConnectedComponent: objectProp(`${BELT}.ConveyorAny0`) },
+          { instanceName: `${MINER}.Output0` },
+        ),
+        obj(
+          T_CONN,
+          { mConnectedComponent: objectProp(`${MINER}.Output0`) },
+          { instanceName: `${BELT}.ConveyorAny0` },
+        ),
+        obj(
+          T_CONN,
+          { mConnectedComponent: objectProp(`${CON}.Input0`) },
+          { instanceName: `${BELT}.ConveyorAny1` },
+        ),
+        obj(
+          T_CONN,
+          { mConnectedComponent: objectProp(`${BELT}.ConveyorAny1`) },
+          { instanceName: `${CON}.Input0` },
+        ),
       ],
     });
     const state = normaliseSave(save, '2026-01-01T00:00:00.000Z').state;
@@ -144,22 +184,58 @@ describe('bottlenecksView (#148/#126)', () => {
     const CON = `${LVL}.Con_1`;
     const world: WorldLocations = {
       ...emptyWorld,
-      resourceNodes: [{ id: 'n1', kind: 'resourceNode', resourceClass: 'Desc_OreIron_C', purity: 'normal', x: 0, y: 0, z: 0 }],
+      resourceNodes: [
+        {
+          id: 'n1',
+          kind: 'resourceNode',
+          resourceClass: 'Desc_OreIron_C',
+          purity: 'normal',
+          x: 0,
+          y: 0,
+          z: 0,
+        },
+      ],
     };
     // A throttled belt that can only carry 15/min — below the recipe's 30/min need.
     const game: GameDataIndex = {
       ...GAME,
-      buildings: { ...GAME.buildings, Build_ConveyorBeltMk1_C: { ...GAME.buildings.Build_ConveyorBeltMk1_C, conveyorSpeedPerMin: 15 } as Building },
+      buildings: {
+        ...GAME.buildings,
+        Build_ConveyorBeltMk1_C: {
+          ...GAME.buildings.Build_ConveyorBeltMk1_C,
+          conveyorSpeedPerMin: 15,
+        } as Building,
+      },
     };
     const save = makeSave({
       objects: [
         obj(T_MINER, {}, { instanceName: MINER, transform: vec3(0, 0, 0) }),
         obj(T_BELT, {}, { instanceName: BELT, transform: vec3(50, 0, 0) }),
-        obj(T_CONSTRUCTOR, { mCurrentRecipe: objectProp(RECIPE_INGOT) }, { instanceName: CON, transform: vec3(100, 0, 0) }),
-        obj(T_CONN, { mConnectedComponent: objectProp(`${BELT}.ConveyorAny0`) }, { instanceName: `${MINER}.Output0` }),
-        obj(T_CONN, { mConnectedComponent: objectProp(`${MINER}.Output0`) }, { instanceName: `${BELT}.ConveyorAny0` }),
-        obj(T_CONN, { mConnectedComponent: objectProp(`${CON}.Input0`) }, { instanceName: `${BELT}.ConveyorAny1` }),
-        obj(T_CONN, { mConnectedComponent: objectProp(`${BELT}.ConveyorAny1`) }, { instanceName: `${CON}.Input0` }),
+        obj(
+          T_CONSTRUCTOR,
+          { mCurrentRecipe: objectProp(RECIPE_INGOT) },
+          { instanceName: CON, transform: vec3(100, 0, 0) },
+        ),
+        obj(
+          T_CONN,
+          { mConnectedComponent: objectProp(`${BELT}.ConveyorAny0`) },
+          { instanceName: `${MINER}.Output0` },
+        ),
+        obj(
+          T_CONN,
+          { mConnectedComponent: objectProp(`${MINER}.Output0`) },
+          { instanceName: `${BELT}.ConveyorAny0` },
+        ),
+        obj(
+          T_CONN,
+          { mConnectedComponent: objectProp(`${CON}.Input0`) },
+          { instanceName: `${BELT}.ConveyorAny1` },
+        ),
+        obj(
+          T_CONN,
+          { mConnectedComponent: objectProp(`${BELT}.ConveyorAny1`) },
+          { instanceName: `${CON}.Input0` },
+        ),
       ],
     });
     const state = normaliseSave(save, '2026-01-01T00:00:00.000Z').state;
@@ -192,7 +268,11 @@ describe('buildNetwork — smart-splitter filter routing (#148/#126)', () => {
             mSortRules: sortRules([
               { itemClass: `${FILTER}/Desc_Wildcard.Desc_Wildcard_C`, output: 0 },
               { itemClass: `${FILTER}/Desc_Overflow.Desc_Overflow_C`, output: 1 },
-              { itemClass: '/Game/FactoryGame/Resource/RawResources/OreIron/Desc_OreIron.Desc_OreIron_C', output: 2 },
+              {
+                itemClass:
+                  '/Game/FactoryGame/Resource/RawResources/OreIron/Desc_OreIron.Desc_OreIron_C',
+                output: 2,
+              },
             ]),
           },
           { instanceName: SS, transform: vec3(0, 0, 0) },
@@ -210,7 +290,12 @@ describe('buildNetwork — smart-splitter filter routing (#148/#126)', () => {
     });
     const state = normaliseSave(save, '2026-01-01T00:00:00.000Z').state;
     const game: GameDataIndex = { displayNames: new Map(), recipes: {}, buildings: {} };
-    const net = buildNetwork(state, buildSaveGraph(state), getEffectiveGameData(state, game), emptyWorld);
+    const net = buildNetwork(
+      state,
+      buildSaveGraph(state),
+      getEffectiveGameData(state, game),
+      emptyWorld,
+    );
     const edge = (to: string) => net.edges.find((e) => e.from === SS && e.to === to);
 
     // Output1 (idx0, Wildcard) → unrestricted.
@@ -227,10 +312,10 @@ describe('bottlenecksView — fluid head lift (#148/#126)', () => {
   const T_WATER = '/Game/FactoryGame/Buildable/Factory/WaterPump/Build_WaterPump.Build_WaterPump_C';
   const T_PUMP =
     '/Game/FactoryGame/Buildable/Factory/PipelinePump/Build_PipelinePumpMk2.Build_PipelinePumpMk2_C';
-  const T_PACKAGER =
-    '/Game/FactoryGame/Buildable/Factory/Packager/Build_Packager.Build_Packager_C';
+  const T_PACKAGER = '/Game/FactoryGame/Buildable/Factory/Packager/Build_Packager.Build_Packager_C';
   const T_PIPE_CONN = '/Script/FactoryGame.FGPipeConnectionFactory';
-  const RECIPE_PW = '/Game/FactoryGame/Recipes/Packager/Recipe_PackagedWater.Recipe_PackagedWater_C';
+  const RECIPE_PW =
+    '/Game/FactoryGame/Recipes/Packager/Recipe_PackagedWater.Recipe_PackagedWater_C';
 
   // A Packager makes Packaged Water (a SOLID output) from Water — so it consumes fluid and must
   // not credit its own head lift to its supply network.
@@ -243,10 +328,22 @@ describe('bottlenecksView — fluid head lift (#148/#126)', () => {
         isAlternate: false,
         craftTime: 1,
         ingredients: [
-          { itemClassName: 'Desc_Water_C', displayName: 'Water', amount: 2, perMinute: 60, unit: 'm³' },
+          {
+            itemClassName: 'Desc_Water_C',
+            displayName: 'Water',
+            amount: 2,
+            perMinute: 60,
+            unit: 'm³',
+          },
         ],
         products: [
-          { itemClassName: 'Desc_PackagedWater_C', displayName: '', amount: 2, perMinute: 60, unit: 'items' },
+          {
+            itemClassName: 'Desc_PackagedWater_C',
+            displayName: '',
+            amount: 2,
+            perMinute: 60,
+            unit: 'items',
+          },
         ],
         producedIn: [],
         producedInClasses: [],
@@ -284,7 +381,11 @@ describe('bottlenecksView — fluid head lift (#148/#126)', () => {
     const PK = `${LVL}.Packager_1`;
     const list = [
       obj(T_WATER, {}, { instanceName: WP, transform: vec3(0, 0, 0) }),
-      obj(T_PACKAGER, { mCurrentRecipe: objectProp(RECIPE_PW) }, { instanceName: PK, transform: vec3(0, 0, 2000) }),
+      obj(
+        T_PACKAGER,
+        { mCurrentRecipe: objectProp(RECIPE_PW) },
+        { instanceName: PK, transform: vec3(0, 0, 2000) },
+      ),
       pipe(WP, 'PipeOutput0', `${PK}.PipeInput0`),
       pipe(PK, 'PipeInput0', `${WP}.PipeOutput0`),
     ];
@@ -335,7 +436,10 @@ describe('bottlenecksView — fluid head lift (#148/#126)', () => {
       ...game,
       buildings: {
         ...game.buildings,
-        Build_WaterPump_C: { ...game.buildings.Build_WaterPump_C, extractionRatePerMin: 60 } as Building,
+        Build_WaterPump_C: {
+          ...game.buildings.Build_WaterPump_C,
+          extractionRatePerMin: 60,
+        } as Building,
       },
     };
     const WP = `${LVL}.W`;
@@ -344,8 +448,16 @@ describe('bottlenecksView — fluid head lift (#148/#126)', () => {
     const save = makeSave({
       objects: [
         obj(T_WATER, {}, { instanceName: WP, transform: vec3(0, 0, 0) }),
-        obj(T_PACKAGER, { mCurrentRecipe: objectProp(RECIPE_PW) }, { instanceName: P1, transform: vec3(5, 0, 0) }),
-        obj(T_PACKAGER, { mCurrentRecipe: objectProp(RECIPE_PW) }, { instanceName: P2, transform: vec3(10, 0, 0) }),
+        obj(
+          T_PACKAGER,
+          { mCurrentRecipe: objectProp(RECIPE_PW) },
+          { instanceName: P1, transform: vec3(5, 0, 0) },
+        ),
+        obj(
+          T_PACKAGER,
+          { mCurrentRecipe: objectProp(RECIPE_PW) },
+          { instanceName: P2, transform: vec3(10, 0, 0) },
+        ),
         pipe(WP, 'PipeOutput0', `${P1}.PipeInput0`),
         pipe(P1, 'PipeInput0', `${WP}.PipeOutput0`),
         pipe(WP, 'PipeOutput1', `${P2}.PipeInput0`),
@@ -358,5 +470,58 @@ describe('bottlenecksView — fluid head lift (#148/#126)', () => {
     const b = view.bottlenecks.find((x) => x.verdict === 'starved');
     expect(b?.detail).toContain('30'); // delivered 60 × 0.5
     expect(b?.detail).toContain('per min');
+  });
+});
+
+describe('1.2 Game Modes overlay (#172)', () => {
+  it('recipe parts cost × scales required inputs, not outputs', () => {
+    const state = emptySaveState('test', 'test', '2026-01-01T00:00:00.000Z');
+    state.advancedGameSettings.recipeCostMultiplier = 1.5;
+    const eff = getEffectiveGameData(state, GAME);
+    const producer = {
+      instanceName: 'p',
+      buildingClass: 'Build_ConstructorMk1_C',
+      recipeClass: 'Recipe_IngotIron_C',
+      clockSpeed: 1,
+      productionBoost: 1,
+    };
+    expect(eff.requiredInputs(producer)).toEqual({ Desc_OreIron_C: 45 }); // 30 × 1.5
+    expect(eff.producerOutputs(producer)).toEqual({ Desc_IronIngot_C: 30 }); // outputs unaffected
+  });
+
+  it('a node-randomisation override takes precedence over the canonical world node', () => {
+    const world: WorldLocations = {
+      ...emptyWorld,
+      resourceNodes: [
+        {
+          id: 'n1',
+          kind: 'resourceNode',
+          resourceClass: 'Desc_OreIron_C',
+          purity: 'normal',
+          x: 0,
+          y: 0,
+          z: 0,
+        },
+      ],
+    };
+    const line = {
+      instanceName: 'e',
+      buildingClass: 'Build_MinerMk1_C',
+      clockSpeed: 1,
+      productionBoost: 1,
+      location: { x: 0, y: 0, z: 0 },
+    };
+    // Override wins: copper + pure (purityMul 2), not the canonical iron/normal.
+    expect(
+      resolveExtraction(line, world, [
+        { position: { x: 0, y: 0, z: 0 }, resourceClass: 'Desc_OreCopper_C', purity: 'pure' },
+      ]),
+    ).toMatchObject({ resourceClass: 'Desc_OreCopper_C', purity: 'pure', purityMul: 2 });
+    // No override: falls back to the canonical world node.
+    expect(resolveExtraction(line, world)).toMatchObject({
+      resourceClass: 'Desc_OreIron_C',
+      purity: 'normal',
+      purityMul: 1,
+    });
   });
 });
