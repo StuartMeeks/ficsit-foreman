@@ -19,6 +19,7 @@ export type {
   Building,
   Schematic,
   SchematicType,
+  ProjectAssemblyPhase,
   Ingredient,
   ItemForm,
   IngredientUnit,

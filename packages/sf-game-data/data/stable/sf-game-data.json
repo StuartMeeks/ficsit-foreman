@@ -26708,7 +26708,7 @@
   "gameData": {
     "version": "1.2.3.1",
     "build": 495413,
-    "parsedAt": "2026-06-28T12:08:22.656Z",
+    "parsedAt": "2026-06-29T14:00:53.234Z",
     "items": {
       "Desc_IronPlate_C": {
         "className": "Desc_IronPlate_C",
@@ -66270,6 +66270,98 @@
         ],
         "unlocksItems": []
       }
-    }
+    },
+    "projectAssemblyPhases": [
+      {
+        "phase": 1,
+        "lastTierOfPhase": 4,
+        "cost": [
+          {
+            "itemClassName": "Desc_SpaceElevatorPart_1_C",
+            "amount": 50
+          }
+        ]
+      },
+      {
+        "phase": 2,
+        "lastTierOfPhase": 6,
+        "cost": [
+          {
+            "itemClassName": "Desc_SpaceElevatorPart_1_C",
+            "amount": 1000
+          },
+          {
+            "itemClassName": "Desc_SpaceElevatorPart_2_C",
+            "amount": 1000
+          },
+          {
+            "itemClassName": "Desc_SpaceElevatorPart_3_C",
+            "amount": 100
+          }
+        ]
+      },
+      {
+        "phase": 3,
+        "lastTierOfPhase": 8,
+        "cost": [
+          {
+            "itemClassName": "Desc_SpaceElevatorPart_2_C",
+            "amount": 2500
+          },
+          {
+            "itemClassName": "Desc_SpaceElevatorPart_4_C",
+            "amount": 500
+          },
+          {
+            "itemClassName": "Desc_SpaceElevatorPart_5_C",
+            "amount": 100
+          }
+        ]
+      },
+      {
+        "phase": 4,
+        "lastTierOfPhase": 9,
+        "cost": [
+          {
+            "itemClassName": "Desc_SpaceElevatorPart_7_C",
+            "amount": 500
+          },
+          {
+            "itemClassName": "Desc_SpaceElevatorPart_6_C",
+            "amount": 500
+          },
+          {
+            "itemClassName": "Desc_SpaceElevatorPart_8_C",
+            "amount": 250
+          },
+          {
+            "itemClassName": "Desc_SpaceElevatorPart_9_C",
+            "amount": 100
+          }
+        ]
+      },
+      {
+        "phase": 5,
+        "lastTierOfPhase": 9,
+        "cost": [
+          {
+            "itemClassName": "Desc_SpaceElevatorPart_9_C",
+            "amount": 1000
+          },
+          {
+            "itemClassName": "Desc_SpaceElevatorPart_10_C",
+            "amount": 1000
+          },
+          {
+            "itemClassName": "Desc_SpaceElevatorPart_12_C",
+            "amount": 256
+          },
+          {
+            "itemClassName": "Desc_SpaceElevatorPart_11_C",
+            "amount": 200
+          }
+        ]
+      }
+    ]
   }
 }

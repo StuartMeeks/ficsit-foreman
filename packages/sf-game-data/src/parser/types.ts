@@ -134,6 +134,20 @@ export interface Schematic {
   unlocksItems: string[];
 }
 
+/**
+ * A Project Assembly / Space Elevator phase's deliverable cost (#172). Sourced from the
+ * cooked `FGGamePhase` (`GP_Project_Assembly_Phase_N`) assets — not the Docs — so it is
+ * absent from pre-#172 datasets. `phase` matches the save's `assemblyPhase.phase`.
+ */
+export interface ProjectAssemblyPhase {
+  /** Phase number (the N in `GP_Project_Assembly_Phase_N`). */
+  phase: number;
+  /** The last HUB tier this phase unlocks (`mLastTierOfPhase`). */
+  lastTierOfPhase: number;
+  /** Deliverable cost — item class + amount (Space Elevator parts; `perMinute`/unit unused). */
+  cost: Ingredient[];
+}
+
 export interface GameData {
   /** Detected from the install context, or 'unknown'. */
   version: string;
@@ -152,6 +166,11 @@ export interface GameData {
   recipes: Record<string, Recipe>;
   buildings: Record<string, Building>;
   schematics: Record<string, Schematic>;
+  /**
+   * Project Assembly / Space Elevator phase deliverable costs, ascending by phase.
+   * Optional — absent from datasets extracted before #172.
+   */
+  projectAssemblyPhases?: ProjectAssemblyPhase[];
 }
 
 export interface ParseResult {

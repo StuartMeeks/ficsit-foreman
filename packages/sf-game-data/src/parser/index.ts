@@ -18,5 +18,6 @@ export function emptyGameData(version: string, build?: number): GameData {
     recipes: {},
     buildings: {},
     schematics: {},
+    projectAssemblyPhases: [],
   };
 }

@@ -16,6 +16,13 @@ namespace SfGameData.Extraction;
 public sealed record ExtractOptions(string Paks, string Usmap, string GameVersion, int Build);
 
 /// <summary>
+/// The world dataset plus the project-assembly (space-elevator) phase deliverable
+/// costs (#172 slice E). The latter is game data sourced from cooked assets — not the
+/// Docs — so the caller attaches it under the merged file's <c>gameData</c>.
+/// </summary>
+public sealed record ExtractResult(object Dataset, List<object> ProjectAssemblyPhases);
+
+/// <summary>
 /// Reads a local Satisfactory install via CUE4Parse and writes the world-location
 /// dataset — collectibles, resource nodes and loose crash-site parts. This is the
 /// former standalone <c>fg-extract</c> program (#158): the extraction logic is
@@ -31,7 +38,7 @@ public static class WorldExtractor
     /// sf-game-data-extractor tool merges this with the parsed gameData and writes
     /// one file (#160).
     /// </summary>
-    public static object Extract(ExtractOptions options)
+    public static ExtractResult Extract(ExtractOptions options)
     {
         OodleHelper.DownloadOodleDll();
         OodleHelper.Initialize();
@@ -355,6 +362,47 @@ foreach (var pkgPath in levelPkgs)
     catch (Exception ex) { Console.Error.WriteLine($"[lvl] {pkgPath}: {ex.Message}"); }
 }
 
+// --- Project-assembly (space-elevator) phase deliverable costs (#172 slice E) ---------
+// FGGamePhase assets at /GamePhases/GP_Project_Assembly_Phase_N carry `mCosts` (an array
+// of FItemAmount { ItemClass -> Desc_SpaceElevatorPart_*_C, Amount }) and the HUB tier
+// they unlock (`mLastTierOfPhase`). Only the deliverable phases carry costs (the early
+// onboarding phase and the post-launch phases have none) — we emit just those.
+var phases = new List<object>();
+var phaseKeys = provider.Files.Keys
+    .Where(k => k.Contains("/GamePhases/GP_Project_Assembly_Phase_") && k.EndsWith(".uasset"))
+    .OrderBy(k => k, StringComparer.Ordinal)
+    .ToList();
+Console.WriteLine($"extracting {phaseKeys.Count} project-assembly phase asset(s)...");
+foreach (var pk in phaseKeys)
+{
+    try
+    {
+        var e = provider.LoadPackage(pk).GetExports().FirstOrDefault(x => x.ExportType == "FGGamePhase");
+        if (e == null) { continue; }
+        var nm = Regex.Match(e.Name, @"Phase_(\d+)$");
+        if (!nm.Success) { continue; }
+        var phaseNum = int.Parse(nm.Groups[1].Value);
+        var lastTier = e.GetOrDefault<int>("mLastTierOfPhase");
+        var cost = new List<object>();
+        if (e.Properties.FirstOrDefault(p => p.Name.Text == "mCosts")?.Tag?.GenericValue is UScriptArray arr)
+        {
+            foreach (var el in arr.Properties)
+            {
+                var s = Struct(el.GenericValue);
+                if (s == null) { continue; }
+                var ic = (s.Properties.FirstOrDefault(p => p.Name.Text == "ItemClass")?.Tag?.GenericValue as FPackageIndex)?.ResolvedObject?.GetPathName();
+                var itemClass = Trail(ic);
+                var amount = s.Properties.FirstOrDefault(p => p.Name.Text == "Amount")?.Tag?.GenericValue is int a ? a : 0;
+                if (itemClass != null && amount > 0) { cost.Add(new { itemClassName = itemClass, amount }); }
+            }
+        }
+        if (cost.Count > 0) { phases.Add(new { phase = phaseNum, lastTierOfPhase = lastTier, cost }); }
+    }
+    catch (Exception ex) { Console.Error.WriteLine($"[phase] {pk}: {ex.Message}"); }
+}
+phases = phases.OrderBy(p => (int) ((dynamic) p).phase).ToList();
+Console.WriteLine($"project-assembly phases with costs: {phases.Count}");
+
 // Alphabetical so the counts block is stable across re-extractions.
 var counts = new SortedDictionary<string, int>(StringComparer.Ordinal);
 foreach (var kv in collCounts) { counts[kv.Key] = kv.Value; }
@@ -393,6 +441,6 @@ if (lootUnresolved.Count > 0)
     foreach (var (m, c) in lootUnresolved.OrderByDescending(k => k.Value)) { Console.WriteLine($"  {c,4}  {m}"); }
 }
 
-return dataset;
+return new ExtractResult(dataset, phases);
     }
 }

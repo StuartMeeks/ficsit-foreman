@@ -1,4 +1,9 @@
-import { loadGameData, type Building, type Recipe } from '@foreman/sf-game-data';
+import {
+  loadGameData,
+  type Building,
+  type ProjectAssemblyPhase,
+  type Recipe,
+} from '@foreman/sf-game-data';
 import { humaniseClassName } from '@foreman/sf-present';
 
 import { logger } from './logger.js';
@@ -16,6 +21,8 @@ export interface GameDataIndex {
   buildings: Record<string, Building>;
   /** Class names of fluid (liquid/gas) items + resources — seeds the head-lift gate. Optional for test literals. */
   fluids?: Set<string>;
+  /** Project Assembly / Space Elevator phase deliverable costs (#172). Optional for test literals / pre-#172 datasets. */
+  projectAssemblyPhases?: ProjectAssemblyPhase[];
 }
 
 /**
@@ -54,7 +61,13 @@ export function loadGameDataIndex(): GameDataIndex {
     }
   }
   logger.info(`Loaded ${displayNames.size} display names from game data (${gameData.version}).`);
-  return { displayNames, recipes: gameData.recipes, buildings: gameData.buildings, fluids };
+  return {
+    displayNames,
+    recipes: gameData.recipes,
+    buildings: gameData.buildings,
+    fluids,
+    projectAssemblyPhases: gameData.projectAssemblyPhases ?? [],
+  };
 }
 
 /**
