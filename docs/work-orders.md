@@ -676,6 +676,27 @@ trail.
 * **Complete button** — large and prominent, as momentous as a HUB milestone.
 * **Force-complete warning** — summarise what's incomplete, then allow continue.
 
+### Full-schema client views (Phase 3 direction)
+
+The Phase 3 client splits the full schema across **three dedicated views** rather
+than the single panel that ships today. The goal is that the entire `WorkOrder`,
+`WorkOrderRevision`, and `WorkOrderAuditEvent` shape is surfaced somewhere — the
+active panel stays low-cognitive-load, while the richer detail lives in views the
+Pioneer opens deliberately. Tracked as a field-by-field checklist in
+[#206](https://github.com/StuartMeeks/ficsit-foreman/issues/206).
+
+* **Normal view** — the live work order (plan + execution). The active panel
+  above, extended to surface the plan fields currently hidden in the client:
+  strategic significance, success condition, recipe input/output rates,
+  location/resource coordinates + rationale, overclocking and AWESOME-shop
+  opportunities, pioneer feedback, operational timestamps, and parent navigation.
+* **Previous-snapshot view** — renders a `WorkOrderRevision`'s `planSnapshot` as a
+  full, laid-out plan (plan-only, no execution state), not merely the field-level
+  diff table that exists today.
+* **Audit-trail view** — a first-class chronological view of the
+  `WorkOrderAuditEvent[]` log (actor, event type, note, `details`, and the
+  revision it references), beyond today's single completion-proposed banner.
+
 ## Non-goals for this implementation
 
 * No separate MCP server for work orders.
