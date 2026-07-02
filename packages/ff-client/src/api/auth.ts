@@ -134,6 +134,29 @@ export async function disableTwoFactor(password: string): Promise<void> {
   }
 }
 
+/** Updates the signed-in user's display name. */
+export async function updateDisplayName(name: string): Promise<void> {
+  const { error } = await authClient.updateUser({ name });
+  if (error !== null) {
+    throw new Error(messageOf(error, 'Could not update your name.'));
+  }
+}
+
+/**
+ * Changes the account password (requires the current one). Other sessions are
+ * revoked; the current session is re-issued, so the user stays signed in here.
+ */
+export async function changePassword(currentPassword: string, newPassword: string): Promise<void> {
+  const { error } = await authClient.changePassword({
+    currentPassword,
+    newPassword,
+    revokeOtherSessions: true,
+  });
+  if (error !== null) {
+    throw new Error(messageOf(error, 'Could not change your password.'));
+  }
+}
+
 /** Ends the current session. */
 export async function signOut(): Promise<void> {
   await authClient.signOut();

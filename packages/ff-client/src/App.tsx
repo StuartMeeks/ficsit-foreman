@@ -134,7 +134,7 @@ export function App(): React.JSX.Element {
         }
         userName={foreman.user?.name ?? null}
         userEmail={foreman.user?.email ?? null}
-        onOpenAccountSettings={() => setAccountSection('foremen')}
+        onOpenAccountSettings={() => setAccountSection('profile')}
         onSignOut={() => void foreman.signOut()}
       />
 
@@ -217,8 +217,9 @@ export function App(): React.JSX.Element {
         />
       </main>
 
-      {accountSection !== null ? (
+      {accountSection !== null && foreman.user !== null ? (
         <AccountSettingsDialog
+          user={foreman.user}
           foremen={foreman.foremen}
           playthroughs={foreman.playthroughs}
           llm={foreman.llm}
