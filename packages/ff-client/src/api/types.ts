@@ -36,25 +36,37 @@ export interface BuildCostLine {
   amount: number;
 }
 
-export interface Buildable {
+/** The plan-only shape of a buildable, as stored in revision snapshots. */
+export interface BuildableDef {
   id: string;
   name: string;
   buildingClass?: string;
   requiredCount: number;
-  builtCount: number;
   recipeName?: string;
   notes?: string;
   /** Per-unit build cost, resolved server-side; [] when unresolved. */
   buildCost: BuildCostLine[];
 }
 
-export interface WorkOrderStep {
+export interface Buildable extends BuildableDef {
+  /** Execution state owned by the Pioneer (0..requiredCount, uncapped). */
+  builtCount: number;
+}
+
+/** The plan-only shape of a build step, as stored in revision snapshots. */
+export interface WorkOrderStepDef {
   id: string;
   title: string;
   description?: string;
-  checked: boolean;
   order: number;
   /** The buildables this step requires (with per-unit cost). */
+  buildables: BuildableDef[];
+}
+
+export interface WorkOrderStep extends WorkOrderStepDef {
+  /** Execution state owned by the Pioneer. */
+  checked: boolean;
+  /** The step's buildables carrying per-buildable built counts. */
   buildables: Buildable[];
 }
 
@@ -199,11 +211,9 @@ export type WorkOrderAuditEventType =
   | 'completion_proposed'
   | 'child_work_order_created'
   | 'child_work_order_completed'
-  | 'material_checked'
-  | 'material_unchecked'
   | 'step_checked'
   | 'step_unchecked'
-  | 'machine_built_count_changed'
+  | 'buildable_built_count_changed'
   | 'hours_logged'
   | 'recipe_choice_changed'
   | 'build_plan_adapted'
@@ -221,6 +231,34 @@ export interface WorkOrderAuditEvent {
   details?: unknown;
 }
 
+/**
+ * A plan-only snapshot of an order at a revision — no execution state
+ * (no checked flags, built counts, or logged hours). Mirrors the server's
+ * WorkOrderPlanSnapshot.
+ */
+export interface WorkOrderPlanSnapshot {
+  title: string;
+  goal: string;
+  objective?: string;
+  strategicSignificance?: string;
+  successCondition?: string;
+  /** Satisfactory milestone tier (0–9). */
+  tier?: number;
+  /** Foreman build notes — freeform guidance shown alongside the order. */
+  notes?: string[];
+  locationRecommendation?: LocationRecommendation;
+  resourceNodes?: ResourceNodeReference[];
+  recipes: RecipeAssignment[];
+  expectedOutputs: ExpectedOutput[];
+  /** Build steps, each carrying the buildables it requires (with per-unit cost). */
+  buildSteps: WorkOrderStepDef[];
+  opportunities?: WorkOrderOpportunities;
+  blockedReason?: string;
+  blockedResolutionHint?: string;
+  relationshipToParent?: WorkOrderRelationshipType;
+  parentWorkOrderId?: string;
+}
+
 export interface WorkOrderRevision {
   id: string;
   workOrderId: string;
@@ -229,7 +267,7 @@ export interface WorkOrderRevision {
   createdBy: WorkOrderActor;
   reason?: string;
   changeSummary?: string;
-  planSnapshot: unknown;
+  planSnapshot: WorkOrderPlanSnapshot;
 }
 
 export interface WorkOrderFieldChange {

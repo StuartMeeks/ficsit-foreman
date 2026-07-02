@@ -406,6 +406,37 @@ export async function getRevisions(
   return getJson<WorkOrderRevision[]>(`${wo(playthroughId, id)}/revisions`);
 }
 
+/** A single revision with its full plan snapshot (for the snapshot view). */
+export async function getRevision(
+  playthroughId: string,
+  id: string,
+  revisionNumber: number,
+): Promise<WorkOrderRevision> {
+  return getJson<WorkOrderRevision>(`${wo(playthroughId, id)}/revisions/${revisionNumber}`);
+}
+
+export async function getWorkOrderChildren(
+  playthroughId: string,
+  id: string,
+): Promise<WorkOrder[]> {
+  return getJson<WorkOrder[]>(`${wo(playthroughId, id)}/children`);
+}
+
+/** The order's parent, or null when it has none (the server 404s). */
+export async function getWorkOrderParent(
+  playthroughId: string,
+  id: string,
+): Promise<WorkOrder | null> {
+  const response = await fetch(`${wo(playthroughId, id)}/parent`, { credentials: CREDENTIALS });
+  if (response.status === 404) {
+    return null;
+  }
+  if (!response.ok) {
+    throw new Error(await readError(response));
+  }
+  return (await response.json()) as WorkOrder;
+}
+
 export async function getRevisionDiff(
   playthroughId: string,
   id: string,
