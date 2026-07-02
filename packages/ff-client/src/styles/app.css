@@ -646,6 +646,37 @@ textarea {
   resize: vertical;
 }
 
+/* Audit-trail view: filter row + per-actor tags. */
+.audit-filters {
+  display: flex;
+  gap: 8px;
+  margin: 6px 0 10px;
+}
+.audit-filters select {
+  background: var(--surface-inset);
+  border: 1px solid var(--border-hairline);
+  border-radius: var(--radius-sm);
+  color: var(--text-body);
+  padding: 6px 8px;
+  font-size: var(--font-size-sm);
+}
+.audit-actor {
+  font-family: var(--font-numeric);
+  font-size: var(--font-size-2xs);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  margin-right: 2px;
+}
+.audit-actor.actor-pioneer {
+  color: var(--accent);
+}
+.audit-actor.actor-foreman {
+  color: var(--color-success);
+}
+.audit-actor.actor-system {
+  color: var(--text-muted);
+}
+
 /* Inline log-hours control at the end of the lifecycle-control row. */
 .hours-log {
   display: inline-flex;

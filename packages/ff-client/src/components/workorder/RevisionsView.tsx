@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 
 import { getRevisionDiff } from '../../api/client.js';
 import type { WorkOrder, WorkOrderRevision, WorkOrderRevisionDiff } from '../../api/types.js';
-import { woLabel } from '../workOrderLabels.js';
+import { RELATIONSHIP_LABEL, woLabel } from '../workOrderLabels.js';
 import { BuildCostSection, BuildStepsSection } from './BuildStepsSection.js';
 import { Collapsible } from './Collapsible.js';
 import { DiffTable } from './DiffTable.js';
@@ -19,6 +19,8 @@ interface RevisionsViewProps {
   busy: boolean;
   readOnly: boolean;
   onRevert: (revisionNumber: number) => void;
+  /** Externally-requested selection (e.g. a revision link in the audit view). */
+  focus?: number | null;
 }
 
 /**
@@ -35,6 +37,7 @@ export function RevisionsView({
   busy,
   readOnly,
   onRevert,
+  focus,
 }: RevisionsViewProps): React.JSX.Element {
   const [selected, setSelected] = useState<number | null>(null);
   const [diff, setDiff] = useState<WorkOrderRevisionDiff | null>(null);
@@ -43,6 +46,13 @@ export function RevisionsView({
   useEffect(() => {
     setSelected(null);
   }, [order.id]);
+
+  // Follow an external selection request (audit-view revision links).
+  useEffect(() => {
+    if (focus !== undefined && focus !== null) {
+      setSelected(focus);
+    }
+  }, [focus]);
 
   // The field diff of the selected revision against its predecessor.
   useEffect(() => {
@@ -125,6 +135,22 @@ export function RevisionsView({
             plan as of {fmtDate(current.createdAt)} · by {current.createdBy}
             {current.reason !== undefined ? ` · ${current.reason}` : ''}
           </p>
+          {current.planSnapshot.parentWorkOrderId !== undefined ? (
+            <p className="wo-meta">
+              ↳ child of {current.planSnapshot.parentWorkOrderId}
+              {current.planSnapshot.relationshipToParent !== undefined
+                ? ` · ${RELATIONSHIP_LABEL[current.planSnapshot.relationshipToParent]}`
+                : ''}
+            </p>
+          ) : null}
+          {current.planSnapshot.blockedReason !== undefined ? (
+            <p className="wo-objective secondary">
+              <span className="loc-tag">BLOCKER</span> {current.planSnapshot.blockedReason}
+              {current.planSnapshot.blockedResolutionHint !== undefined
+                ? ` — ${current.planSnapshot.blockedResolutionHint}`
+                : ''}
+            </p>
+          ) : null}
 
           {diff !== null && diff.changes.length > 0 ? (
             <Collapsible label={`Changes vs R${diff.fromRevision}`}>
