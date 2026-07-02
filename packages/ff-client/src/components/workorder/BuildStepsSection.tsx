@@ -36,7 +36,7 @@ export function BuildStepsSection({
   return (
     <div className="section">
       <span className="label">Build Steps</span>
-      <ol className="checks">
+      <ol className={execution !== undefined ? 'checks' : 'checks plan'}>
         {[...steps]
           .sort((a, b) => a.order - b.order)
           .map((step, i) => (

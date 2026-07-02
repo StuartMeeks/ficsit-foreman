@@ -19,7 +19,12 @@ import { ExpectedOutputsSection, NotesSection } from './workorder/ExpectedOutput
 import { LocationSection, ResourceNodesSection } from './workorder/LocationSections.js';
 import { OpportunitySections, RecipesSection } from './workorder/OpportunitySections.js';
 import { PlanNarrative } from './workorder/PlanNarrative.js';
-import { fmtDate, fmtDateTime, summarise } from './workorder/format.js';
+import { DiffTable } from './workorder/DiffTable.js';
+import { RevisionsView } from './workorder/RevisionsView.js';
+import { fmtDate, fmtDateTime } from './workorder/format.js';
+
+/** The panel's views: the live order, and the revision-snapshot ledger. */
+type PanelView = 'order' | 'revisions';
 
 interface WorkOrderPanelProps {
   playthroughId: string | null;
@@ -65,12 +70,14 @@ export function WorkOrderPanel({
   const [didNotEnjoyDraft, setDidNotEnjoyDraft] = useState('');
   const [feedbackNotesDraft, setFeedbackNotesDraft] = useState('');
   const [hoursDraft, setHoursDraft] = useState('');
+  const [view, setView] = useState<PanelView>('order');
   const forceWarnRef = useRef<HTMLDivElement>(null);
 
   const id = current?.id ?? null;
 
   // Reset transient UI when the displayed order changes.
   useEffect(() => {
+    setView('order');
     setForceWarn(false);
     setProposeDismissed(false);
     setCloseOutOpen(false);
@@ -259,416 +266,415 @@ export function WorkOrderPanel({
           </button>
         ) : null}
 
-        {/* ══ Briefing — goal, summary and actions ══════════════════ */}
-        <div className="wo-top">
-          <span className="wo-id">{woLabel(o.sequenceNumber)}</span>
-          {o.tier !== undefined ? <span className="wo-tier">Tier {o.tier}</span> : null}
-          <span className="spacer" />
-          <span className={`chip state-${o.state}`}>{STATE_LABEL[o.state] ?? o.state}</span>
-        </div>
-        <h1 className="wo-title">{o.title}</h1>
-        <p className="wo-meta">
-          R{o.currentRevision}
-          {o.lastAcknowledgedRevision !== undefined
-            ? ` (ack R${o.lastAcknowledgedRevision})`
-            : ''}{' '}
-          · game data {o.version} · created {fmtDate(o.createdAt)} · updated {fmtDate(o.updatedAt)}
-        </p>
-        {o.startedAt !== undefined ||
-        o.pausedAt !== undefined ||
-        o.blockedAt !== undefined ||
-        o.completedAt !== undefined ? (
-          <p className="wo-meta">
-            {[
-              o.startedAt !== undefined ? `started ${fmtDateTime(o.startedAt)}` : null,
-              o.pausedAt !== undefined ? `paused ${fmtDateTime(o.pausedAt)}` : null,
-              o.blockedAt !== undefined ? `blocked ${fmtDateTime(o.blockedAt)}` : null,
-              o.completedAt !== undefined ? `completed ${fmtDateTime(o.completedAt)}` : null,
-            ]
-              .filter(Boolean)
-              .join(' · ')}
-          </p>
-        ) : null}
-        {o.parentWorkOrderId !== undefined ? (
-          <p className="wo-meta">
-            ↳ child of{' '}
-            {(() => {
-              const parent = history.find((h) => h.id === o.parentWorkOrderId);
-              const label =
-                parent !== undefined
-                  ? `${woLabel(parent.sequenceNumber)} ${parent.title}`
-                  : 'parent order';
-              return onViewOrder !== undefined ? (
-                <button
-                  type="button"
-                  className="link-button"
-                  onClick={() => onViewOrder(o.parentWorkOrderId ?? '')}
-                >
-                  {label}
-                </button>
-              ) : (
-                label
-              );
-            })()}
-            {o.relationshipToParent !== undefined
-              ? ` · ${RELATIONSHIP_LABEL[o.relationshipToParent]}`
-              : ''}
-          </p>
-        ) : null}
-        {o.state !== 'blocked' && o.blockedReason !== undefined ? (
-          <p className="wo-objective secondary">
-            <span className="loc-tag">BLOCKER</span> {o.blockedReason}
-            {o.blockedResolutionHint !== undefined ? ` — ${o.blockedResolutionHint}` : ''}
-          </p>
-        ) : null}
-
-        {error !== null ? <div className="wo-error">{error}</div> : null}
-
-        {/* Plan revised */}
-        {o.hasUnacknowledgedRevision && !readOnly ? (
-          <div className="banner-card revised">
-            <div className="banner-card-head">
-              <span className="label">Plan revised by Foreman · R{o.currentRevision}</span>
-            </div>
-            {diff !== null && diff.changes.length > 0 ? (
-              <table className="diff">
-                <thead>
-                  <tr>
-                    <th>Field</th>
-                    <th>Before (R{diff.fromRevision})</th>
-                    <th>After (R{diff.toRevision})</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {diff.changes.map((c) => (
-                    <tr key={c.field}>
-                      <td className="diff-field">{c.field}</td>
-                      <td className="diff-before">{summarise(c.before)}</td>
-                      <td className="diff-after">{summarise(c.after)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            ) : (
-              <p className="banner-note">The plan changed. Your progress is preserved.</p>
-            )}
+        <div className="settings-tabs wo-tabs" role="tablist">
+          {(
+            [
+              { key: 'order', label: 'Order' },
+              { key: 'revisions', label: `Revisions (${Math.max(revisions.length, 1)})` },
+            ] as { key: PanelView; label: string }[]
+          ).map((t) => (
             <button
               type="button"
-              className="ghost-btn"
-              disabled={busy}
-              onClick={() => run(() => actions.acknowledge(o.id))}
+              key={t.key}
+              role="tab"
+              aria-selected={view === t.key}
+              className={`settings-tab${view === t.key ? ' selected' : ''}`}
+              onClick={() => setView(t.key)}
             >
-              Acknowledge
+              {t.label}
             </button>
-          </div>
+          ))}
+        </div>
+
+        {view === 'revisions' ? (
+          <RevisionsView
+            playthroughId={playthroughId}
+            order={o}
+            revisions={revisions}
+            busy={busy}
+            readOnly={readOnly}
+            onRevert={(n) => run(() => actions.revert(o.id, n))}
+          />
         ) : null}
 
-        {/* Blocked */}
-        {o.state === 'blocked' ? (
-          <div className="banner-card blocked">
-            <span className="label">Blocked — cannot proceed</span>
-            <p className="banner-note">{o.blockedReason}</p>
-            {o.blockedResolutionHint !== undefined ? (
-              <p className="banner-resolve">
-                <span className="loc-tag">RESOLVE</span> {o.blockedResolutionHint}
+        {view === 'order' ? (
+          <>
+            {/* ══ Briefing — goal, summary and actions ══════════════════ */}
+            <div className="wo-top">
+              <span className="wo-id">{woLabel(o.sequenceNumber)}</span>
+              {o.tier !== undefined ? <span className="wo-tier">Tier {o.tier}</span> : null}
+              <span className="spacer" />
+              <span className={`chip state-${o.state}`}>{STATE_LABEL[o.state] ?? o.state}</span>
+            </div>
+            <h1 className="wo-title">{o.title}</h1>
+            <p className="wo-meta">
+              R{o.currentRevision}
+              {o.lastAcknowledgedRevision !== undefined
+                ? ` (ack R${o.lastAcknowledgedRevision})`
+                : ''}{' '}
+              · game data {o.version} · created {fmtDate(o.createdAt)} · updated{' '}
+              {fmtDate(o.updatedAt)}
+            </p>
+            {o.startedAt !== undefined ||
+            o.pausedAt !== undefined ||
+            o.blockedAt !== undefined ||
+            o.completedAt !== undefined ? (
+              <p className="wo-meta">
+                {[
+                  o.startedAt !== undefined ? `started ${fmtDateTime(o.startedAt)}` : null,
+                  o.pausedAt !== undefined ? `paused ${fmtDateTime(o.pausedAt)}` : null,
+                  o.blockedAt !== undefined ? `blocked ${fmtDateTime(o.blockedAt)}` : null,
+                  o.completedAt !== undefined ? `completed ${fmtDateTime(o.completedAt)}` : null,
+                ]
+                  .filter(Boolean)
+                  .join(' · ')}
               </p>
             ) : null}
-          </div>
-        ) : null}
-
-        {/* Foreman suggests completion */}
-        {proposed ? (
-          <div className="banner-card suggest">
-            <p className="banner-note">
-              Foreman suggests:{' '}
-              {lastEvent?.note ?? 'this looks close to done — ready to close out?'}
-            </p>
-            <button type="button" className="ghost-btn" onClick={() => setProposeDismissed(true)}>
-              Dismiss
-            </button>
-          </div>
-        ) : null}
-
-        <PlanNarrative
-          goal={o.goal}
-          objective={o.objective}
-          strategicSignificance={o.strategicSignificance}
-          successCondition={o.successCondition}
-        />
-
-        <ExpectedOutputsSection outputs={o.expectedOutputs} />
-
-        <NotesSection notes={o.notes} />
-
-        {/* Completion summary + captured feedback (terminal) */}
-        {terminal && o.completionSummary !== undefined ? (
-          <div className="banner-card closed">
-            <span className="label">{STATE_LABEL[o.state]}</span>
-            <p className="banner-note">{o.completionSummary}</p>
-          </div>
-        ) : null}
-        {terminal && o.pioneerFeedback !== undefined ? (
-          <div className="section notes">
-            <span className="label">Pioneer Feedback</span>
-            {o.pioneerFeedback.enjoyedAspects.length > 0 ? (
-              <>
-                <span className="check-note">Enjoyed</span>
-                <ul className="fm-notes">
-                  {o.pioneerFeedback.enjoyedAspects.map((n, i) => (
-                    <li key={i}>{n}</li>
-                  ))}
-                </ul>
-              </>
-            ) : null}
-            {o.pioneerFeedback.didNotEnjoy.length > 0 ? (
-              <>
-                <span className="check-note">Did not enjoy</span>
-                <ul className="fm-notes">
-                  {o.pioneerFeedback.didNotEnjoy.map((n, i) => (
-                    <li key={i}>{n}</li>
-                  ))}
-                </ul>
-              </>
-            ) : null}
-            {o.pioneerFeedback.freeformNotes !== undefined ? (
-              <p className="check-note">{o.pioneerFeedback.freeformNotes}</p>
-            ) : null}
-          </div>
-        ) : null}
-
-        {/* Lifecycle controls */}
-        {!readOnly ? (
-          <div className="controls">
-            {forceWarn ? (
-              <div className="force-warn" ref={forceWarnRef}>
-                <span className="label">Incomplete work order</span>
-                <ul>
-                  {incompleteSteps.length > 0 ? (
-                    <li>{incompleteSteps.length} steps unchecked</li>
-                  ) : null}
-                  {incompleteBuildables.length > 0 ? (
-                    <li>{incompleteBuildables.length} buildables short</li>
-                  ) : null}
-                </ul>
-                <div className="force-actions">
-                  <button type="button" className="ghost-btn" onClick={() => setForceWarn(false)}>
-                    Keep working
-                  </button>
-                  <button
-                    type="button"
-                    className="danger-btn"
-                    disabled={busy}
-                    onClick={onForceComplete}
-                  >
-                    Complete anyway
-                  </button>
-                </div>
-              </div>
-            ) : closeOutOpen ? (
-              <div className="force-warn close-out">
-                <span className="label">Close out {woLabel(o.sequenceNumber)}</span>
-                <div className="field">
-                  <label htmlFor="co-summary">Completion summary (optional)</label>
-                  <input
-                    id="co-summary"
-                    value={summaryDraft}
-                    onChange={(e) => setSummaryDraft(e.target.value)}
-                    placeholder="What got built, in a sentence"
-                    autoComplete="off"
-                  />
-                </div>
-                <div className="field">
-                  <label htmlFor="co-enjoyed">Enjoyed (one per line, optional)</label>
-                  <textarea
-                    id="co-enjoyed"
-                    rows={2}
-                    value={enjoyedDraft}
-                    onChange={(e) => setEnjoyedDraft(e.target.value)}
-                  />
-                </div>
-                <div className="field">
-                  <label htmlFor="co-didnot">Did not enjoy (one per line, optional)</label>
-                  <textarea
-                    id="co-didnot"
-                    rows={2}
-                    value={didNotEnjoyDraft}
-                    onChange={(e) => setDidNotEnjoyDraft(e.target.value)}
-                  />
-                </div>
-                <div className="field">
-                  <label htmlFor="co-notes">Notes for the foreman (optional)</label>
-                  <textarea
-                    id="co-notes"
-                    rows={2}
-                    value={feedbackNotesDraft}
-                    onChange={(e) => setFeedbackNotesDraft(e.target.value)}
-                  />
-                </div>
-                <div className="force-actions">
-                  <button
-                    type="button"
-                    className="ghost-btn"
-                    onClick={() => setCloseOutOpen(false)}
-                  >
-                    Keep working
-                  </button>
-                  <button
-                    type="button"
-                    className="complete-btn"
-                    disabled={busy}
-                    onClick={() => onConfirmComplete(true)}
-                  >
-                    ⚡ Complete
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <div className="control-row">
-                {o.state === 'new' ? (
-                  <button
-                    type="button"
-                    className="primary-btn"
-                    disabled={busy}
-                    onClick={() => run(() => actions.transition(o.id, 'Start'))}
-                  >
-                    Start work order
-                  </button>
-                ) : null}
-                {o.state === 'active' ? (
-                  <button
-                    type="button"
-                    className="ghost-btn"
-                    disabled={busy}
-                    onClick={() => run(() => actions.transition(o.id, 'Pause'))}
-                  >
-                    Pause
-                  </button>
-                ) : null}
-                {o.state === 'paused' ? (
-                  <button
-                    type="button"
-                    className="primary-btn"
-                    disabled={busy}
-                    onClick={() => run(() => actions.transition(o.id, 'Resume'))}
-                  >
-                    Resume
-                  </button>
-                ) : null}
-                {o.state === 'active' ? (
-                  <button
-                    type="button"
-                    className="complete-btn"
-                    disabled={busy}
-                    onClick={onComplete}
-                  >
-                    ⚡ Complete work order
-                  </button>
-                ) : null}
-                {(o.state === 'paused' || o.state === 'blocked') && o.buildSteps.length > 0 ? (
-                  <button
-                    type="button"
-                    className="ghost-btn"
-                    disabled={busy}
-                    onClick={() => setForceWarn(true)}
-                  >
-                    Force complete
-                  </button>
-                ) : null}
-                {o.state === 'active' || o.state === 'paused' ? (
-                  <span className="hours-log">
-                    <input
-                      type="number"
-                      min={0.5}
-                      step={0.5}
-                      value={hoursDraft}
-                      onChange={(e) => setHoursDraft(e.target.value)}
-                      placeholder="h"
-                      aria-label="Hours to log"
-                    />
+            {o.parentWorkOrderId !== undefined ? (
+              <p className="wo-meta">
+                ↳ child of{' '}
+                {(() => {
+                  const parent = history.find((h) => h.id === o.parentWorkOrderId);
+                  const label =
+                    parent !== undefined
+                      ? `${woLabel(parent.sequenceNumber)} ${parent.title}`
+                      : 'parent order';
+                  return onViewOrder !== undefined ? (
                     <button
                       type="button"
-                      className="ghost-btn"
-                      disabled={busy || hoursDraft.trim().length === 0}
-                      onClick={onLogHours}
+                      className="link-button"
+                      onClick={() => onViewOrder(o.parentWorkOrderId ?? '')}
                     >
-                      Log hours
+                      {label}
                     </button>
-                  </span>
+                  ) : (
+                    label
+                  );
+                })()}
+                {o.relationshipToParent !== undefined
+                  ? ` · ${RELATIONSHIP_LABEL[o.relationshipToParent]}`
+                  : ''}
+              </p>
+            ) : null}
+            {o.state !== 'blocked' && o.blockedReason !== undefined ? (
+              <p className="wo-objective secondary">
+                <span className="loc-tag">BLOCKER</span> {o.blockedReason}
+                {o.blockedResolutionHint !== undefined ? ` — ${o.blockedResolutionHint}` : ''}
+              </p>
+            ) : null}
+
+            {error !== null ? <div className="wo-error">{error}</div> : null}
+
+            {/* Plan revised */}
+            {o.hasUnacknowledgedRevision && !readOnly ? (
+              <div className="banner-card revised">
+                <div className="banner-card-head">
+                  <span className="label">Plan revised by Foreman · R{o.currentRevision}</span>
+                </div>
+                {diff !== null && diff.changes.length > 0 ? (
+                  <DiffTable diff={diff} />
+                ) : (
+                  <p className="banner-note">The plan changed. Your progress is preserved.</p>
+                )}
+                <button
+                  type="button"
+                  className="ghost-btn"
+                  disabled={busy}
+                  onClick={() => run(() => actions.acknowledge(o.id))}
+                >
+                  Acknowledge
+                </button>
+              </div>
+            ) : null}
+
+            {/* Blocked */}
+            {o.state === 'blocked' ? (
+              <div className="banner-card blocked">
+                <span className="label">Blocked — cannot proceed</span>
+                <p className="banner-note">{o.blockedReason}</p>
+                {o.blockedResolutionHint !== undefined ? (
+                  <p className="banner-resolve">
+                    <span className="loc-tag">RESOLVE</span> {o.blockedResolutionHint}
+                  </p>
                 ) : null}
               </div>
-            )}
-          </div>
-        ) : null}
+            ) : null}
 
-        {/* ══ Work content — the how ════════════════════════════════ */}
-        <BuildStepsSection steps={o.buildSteps} execution={execution} />
-        <BuildCostSection steps={o.buildSteps} liveSteps={o.buildSteps} />
+            {/* Foreman suggests completion */}
+            {proposed ? (
+              <div className="banner-card suggest">
+                <p className="banner-note">
+                  Foreman suggests:{' '}
+                  {lastEvent?.note ?? 'this looks close to done — ready to close out?'}
+                </p>
+                <button
+                  type="button"
+                  className="ghost-btn"
+                  onClick={() => setProposeDismissed(true)}
+                >
+                  Dismiss
+                </button>
+              </div>
+            ) : null}
 
-        <LocationSection location={o.locationRecommendation} />
-        <ResourceNodesSection nodes={o.resourceNodes} />
-        <RecipesSection recipes={o.recipes} />
-        <OpportunitySections opportunities={o.opportunities} />
+            <PlanNarrative
+              goal={o.goal}
+              objective={o.objective}
+              strategicSignificance={o.strategicSignificance}
+              successCondition={o.successCondition}
+            />
 
-        {o.childWorkOrderIds.length > 0 ? (
-          <Collapsible label={`Child Orders (${o.childWorkOrderIds.length})`}>
-            <div className="ledger">
-              {o.childWorkOrderIds.map((cid) => {
-                const child = history.find((h) => h.id === cid);
-                const title = child !== undefined ? child.title : cid;
-                return (
-                  <div className="row" key={cid}>
-                    <span>
-                      {onViewOrder !== undefined ? (
-                        <button
-                          type="button"
-                          className="link-button"
-                          onClick={() => onViewOrder(cid)}
-                        >
-                          {title}
-                        </button>
-                      ) : (
-                        title
-                      )}
-                      {child?.relationshipToParent !== undefined
-                        ? ` · ${RELATIONSHIP_LABEL[child.relationshipToParent]}`
-                        : ''}
-                    </span>
-                    <span className="qty muted">
-                      {child !== undefined ? (STATE_LABEL[child.state] ?? child.state) : ''}
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
-          </Collapsible>
-        ) : null}
+            <ExpectedOutputsSection outputs={o.expectedOutputs} />
 
-        {revisions.length > 1 ? (
-          <Collapsible label="Revision History">
-            <div className="ledger">
-              {[...revisions]
-                .sort((a, b) => b.revisionNumber - a.revisionNumber)
-                .map((rev) => (
-                  <div className="row revision" key={rev.id}>
-                    <span className="rev-n">R{rev.revisionNumber}</span>
-                    <span className="rev-summary">
-                      {rev.changeSummary ?? rev.reason ?? `Revision ${rev.revisionNumber}`}
-                      <span className="check-note">{rev.createdBy}</span>
-                    </span>
-                    {!readOnly && rev.revisionNumber < o.currentRevision ? (
+            <NotesSection notes={o.notes} />
+
+            {/* Completion summary + captured feedback (terminal) */}
+            {terminal && o.completionSummary !== undefined ? (
+              <div className="banner-card closed">
+                <span className="label">{STATE_LABEL[o.state]}</span>
+                <p className="banner-note">{o.completionSummary}</p>
+              </div>
+            ) : null}
+            {terminal && o.pioneerFeedback !== undefined ? (
+              <div className="section notes">
+                <span className="label">Pioneer Feedback</span>
+                {o.pioneerFeedback.enjoyedAspects.length > 0 ? (
+                  <>
+                    <span className="check-note">Enjoyed</span>
+                    <ul className="fm-notes">
+                      {o.pioneerFeedback.enjoyedAspects.map((n, i) => (
+                        <li key={i}>{n}</li>
+                      ))}
+                    </ul>
+                  </>
+                ) : null}
+                {o.pioneerFeedback.didNotEnjoy.length > 0 ? (
+                  <>
+                    <span className="check-note">Did not enjoy</span>
+                    <ul className="fm-notes">
+                      {o.pioneerFeedback.didNotEnjoy.map((n, i) => (
+                        <li key={i}>{n}</li>
+                      ))}
+                    </ul>
+                  </>
+                ) : null}
+                {o.pioneerFeedback.freeformNotes !== undefined ? (
+                  <p className="check-note">{o.pioneerFeedback.freeformNotes}</p>
+                ) : null}
+              </div>
+            ) : null}
+
+            {/* Lifecycle controls */}
+            {!readOnly ? (
+              <div className="controls">
+                {forceWarn ? (
+                  <div className="force-warn" ref={forceWarnRef}>
+                    <span className="label">Incomplete work order</span>
+                    <ul>
+                      {incompleteSteps.length > 0 ? (
+                        <li>{incompleteSteps.length} steps unchecked</li>
+                      ) : null}
+                      {incompleteBuildables.length > 0 ? (
+                        <li>{incompleteBuildables.length} buildables short</li>
+                      ) : null}
+                    </ul>
+                    <div className="force-actions">
                       <button
                         type="button"
-                        className="ghost-btn tiny"
-                        disabled={busy}
-                        onClick={() => run(() => actions.revert(o.id, rev.revisionNumber))}
+                        className="ghost-btn"
+                        onClick={() => setForceWarn(false)}
                       >
-                        Revert
+                        Keep working
+                      </button>
+                      <button
+                        type="button"
+                        className="danger-btn"
+                        disabled={busy}
+                        onClick={onForceComplete}
+                      >
+                        Complete anyway
+                      </button>
+                    </div>
+                  </div>
+                ) : closeOutOpen ? (
+                  <div className="force-warn close-out">
+                    <span className="label">Close out {woLabel(o.sequenceNumber)}</span>
+                    <div className="field">
+                      <label htmlFor="co-summary">Completion summary (optional)</label>
+                      <input
+                        id="co-summary"
+                        value={summaryDraft}
+                        onChange={(e) => setSummaryDraft(e.target.value)}
+                        placeholder="What got built, in a sentence"
+                        autoComplete="off"
+                      />
+                    </div>
+                    <div className="field">
+                      <label htmlFor="co-enjoyed">Enjoyed (one per line, optional)</label>
+                      <textarea
+                        id="co-enjoyed"
+                        rows={2}
+                        value={enjoyedDraft}
+                        onChange={(e) => setEnjoyedDraft(e.target.value)}
+                      />
+                    </div>
+                    <div className="field">
+                      <label htmlFor="co-didnot">Did not enjoy (one per line, optional)</label>
+                      <textarea
+                        id="co-didnot"
+                        rows={2}
+                        value={didNotEnjoyDraft}
+                        onChange={(e) => setDidNotEnjoyDraft(e.target.value)}
+                      />
+                    </div>
+                    <div className="field">
+                      <label htmlFor="co-notes">Notes for the foreman (optional)</label>
+                      <textarea
+                        id="co-notes"
+                        rows={2}
+                        value={feedbackNotesDraft}
+                        onChange={(e) => setFeedbackNotesDraft(e.target.value)}
+                      />
+                    </div>
+                    <div className="force-actions">
+                      <button
+                        type="button"
+                        className="ghost-btn"
+                        onClick={() => setCloseOutOpen(false)}
+                      >
+                        Keep working
+                      </button>
+                      <button
+                        type="button"
+                        className="complete-btn"
+                        disabled={busy}
+                        onClick={() => onConfirmComplete(true)}
+                      >
+                        ⚡ Complete
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="control-row">
+                    {o.state === 'new' ? (
+                      <button
+                        type="button"
+                        className="primary-btn"
+                        disabled={busy}
+                        onClick={() => run(() => actions.transition(o.id, 'Start'))}
+                      >
+                        Start work order
                       </button>
                     ) : null}
+                    {o.state === 'active' ? (
+                      <button
+                        type="button"
+                        className="ghost-btn"
+                        disabled={busy}
+                        onClick={() => run(() => actions.transition(o.id, 'Pause'))}
+                      >
+                        Pause
+                      </button>
+                    ) : null}
+                    {o.state === 'paused' ? (
+                      <button
+                        type="button"
+                        className="primary-btn"
+                        disabled={busy}
+                        onClick={() => run(() => actions.transition(o.id, 'Resume'))}
+                      >
+                        Resume
+                      </button>
+                    ) : null}
+                    {o.state === 'active' ? (
+                      <button
+                        type="button"
+                        className="complete-btn"
+                        disabled={busy}
+                        onClick={onComplete}
+                      >
+                        ⚡ Complete work order
+                      </button>
+                    ) : null}
+                    {(o.state === 'paused' || o.state === 'blocked') && o.buildSteps.length > 0 ? (
+                      <button
+                        type="button"
+                        className="ghost-btn"
+                        disabled={busy}
+                        onClick={() => setForceWarn(true)}
+                      >
+                        Force complete
+                      </button>
+                    ) : null}
+                    {o.state === 'active' || o.state === 'paused' ? (
+                      <span className="hours-log">
+                        <input
+                          type="number"
+                          min={0.5}
+                          step={0.5}
+                          value={hoursDraft}
+                          onChange={(e) => setHoursDraft(e.target.value)}
+                          placeholder="h"
+                          aria-label="Hours to log"
+                        />
+                        <button
+                          type="button"
+                          className="ghost-btn"
+                          disabled={busy || hoursDraft.trim().length === 0}
+                          onClick={onLogHours}
+                        >
+                          Log hours
+                        </button>
+                      </span>
+                    ) : null}
                   </div>
-                ))}
-            </div>
-          </Collapsible>
+                )}
+              </div>
+            ) : null}
+
+            {/* ══ Work content — the how ════════════════════════════════ */}
+            <BuildStepsSection steps={o.buildSteps} execution={execution} />
+            <BuildCostSection steps={o.buildSteps} liveSteps={o.buildSteps} />
+
+            <LocationSection location={o.locationRecommendation} />
+            <ResourceNodesSection nodes={o.resourceNodes} />
+            <RecipesSection recipes={o.recipes} />
+            <OpportunitySections opportunities={o.opportunities} />
+
+            {o.childWorkOrderIds.length > 0 ? (
+              <Collapsible label={`Child Orders (${o.childWorkOrderIds.length})`}>
+                <div className="ledger">
+                  {o.childWorkOrderIds.map((cid) => {
+                    const child = history.find((h) => h.id === cid);
+                    const title = child !== undefined ? child.title : cid;
+                    return (
+                      <div className="row" key={cid}>
+                        <span>
+                          {onViewOrder !== undefined ? (
+                            <button
+                              type="button"
+                              className="link-button"
+                              onClick={() => onViewOrder(cid)}
+                            >
+                              {title}
+                            </button>
+                          ) : (
+                            title
+                          )}
+                          {child?.relationshipToParent !== undefined
+                            ? ` · ${RELATIONSHIP_LABEL[child.relationshipToParent]}`
+                            : ''}
+                        </span>
+                        <span className="qty muted">
+                          {child !== undefined ? (STATE_LABEL[child.state] ?? child.state) : ''}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </Collapsible>
+            ) : null}
+          </>
         ) : null}
       </div>
     </section>
