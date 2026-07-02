@@ -181,6 +181,7 @@ export function App(): React.JSX.Element {
             foreman.viewingId !== null && foreman.viewingId !== foreman.currentOrder?.id
           }
           onBackToActive={() => foreman.viewOrder(null)}
+          onViewOrder={(id) => foreman.viewOrder(id === foreman.currentOrder?.id ? null : id)}
         />
         <DrawerDock
           drawers={[

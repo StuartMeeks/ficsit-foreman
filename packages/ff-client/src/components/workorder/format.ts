@@ -37,6 +37,16 @@ export function fmtDate(iso: string): string {
   });
 }
 
+/** "2 Jul 18:20" — compact date+time for the operational timestamps strip. */
+export function fmtDateTime(iso: string): string {
+  return new Date(iso).toLocaleString(undefined, {
+    day: 'numeric',
+    month: 'short',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
+
 export const COLLECTIBLE_LABEL: Record<CollectibleKind, string> = {
   mercerSphere: 'Mercer Sphere',
   somersloop: 'Somersloop',
