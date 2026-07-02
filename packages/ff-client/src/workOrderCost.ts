@@ -5,7 +5,7 @@
  * "remaining" uses `requiredCount − builtCount`. Kept tiny + pure (the server owns the
  * authoritative copy; this is for display only).
  */
-import type { BuildCostLine, Buildable, WorkOrderStep } from './api/types.js';
+import type { BuildCostLine, BuildableDef, WorkOrderStep, WorkOrderStepDef } from './api/types.js';
 
 export interface CostLine {
   itemName: string;
@@ -32,12 +32,12 @@ function aggregate(lines: CostLine[]): CostLine[] {
 }
 
 /** A step's total build cost (per-unit × requiredCount, aggregated by item). */
-export function stepCost(step: { buildables: Buildable[] }): CostLine[] {
+export function stepCost(step: { buildables: BuildableDef[] }): CostLine[] {
   return aggregate(step.buildables.flatMap((b) => scale(b.buildCost, b.requiredCount)));
 }
 
-/** The whole order's build cost. */
-export function totalCost(steps: WorkOrderStep[]): CostLine[] {
+/** The whole order's build cost (plan-only — works on snapshots too). */
+export function totalCost(steps: WorkOrderStepDef[]): CostLine[] {
   return aggregate(
     steps.flatMap((s) => s.buildables.flatMap((b) => scale(b.buildCost, b.requiredCount))),
   );

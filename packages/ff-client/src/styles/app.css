@@ -581,6 +581,38 @@ textarea {
   margin-bottom: 18px;
 }
 
+/* Header metadata line: revision, game-data version, created/updated. */
+.wo-meta {
+  font-family: var(--font-numeric);
+  font-size: var(--font-size-2xs);
+  letter-spacing: var(--tracking-tight);
+  color: var(--text-muted);
+  margin: -6px 0 14px;
+}
+
+/* The briefing narrative: the objective leads; goal/why/done sit tighter. */
+.wo-narrative {
+  margin-bottom: 18px;
+}
+.wo-narrative .wo-objective {
+  margin-bottom: 8px;
+}
+.wo-loc.secondary,
+.wo-objective.secondary {
+  color: var(--text-muted);
+  font-size: var(--font-size-sm);
+}
+
+.mono {
+  font-family: var(--font-numeric);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Ledger rows whose left cell stacks multiple note lines. */
+.ledger .row.tall .qty {
+  align-self: start;
+}
+
 .wo-error {
   margin: 12px 0;
   padding: 8px 11px;
