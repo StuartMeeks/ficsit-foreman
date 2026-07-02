@@ -19,12 +19,13 @@ import { ExpectedOutputsSection, NotesSection } from './workorder/ExpectedOutput
 import { LocationSection, ResourceNodesSection } from './workorder/LocationSections.js';
 import { OpportunitySections, RecipesSection } from './workorder/OpportunitySections.js';
 import { PlanNarrative } from './workorder/PlanNarrative.js';
+import { AuditView } from './workorder/AuditView.js';
 import { DiffTable } from './workorder/DiffTable.js';
 import { RevisionsView } from './workorder/RevisionsView.js';
 import { fmtDate, fmtDateTime } from './workorder/format.js';
 
-/** The panel's views: the live order, and the revision-snapshot ledger. */
-type PanelView = 'order' | 'revisions';
+/** The panel's views: the live order, the revision snapshots, the audit log. */
+type PanelView = 'order' | 'revisions' | 'audit';
 
 interface WorkOrderPanelProps {
   playthroughId: string | null;
@@ -71,6 +72,8 @@ export function WorkOrderPanel({
   const [feedbackNotesDraft, setFeedbackNotesDraft] = useState('');
   const [hoursDraft, setHoursDraft] = useState('');
   const [view, setView] = useState<PanelView>('order');
+  // A revision the audit view asked to open in the Revisions tab.
+  const [revisionFocus, setRevisionFocus] = useState<number | null>(null);
   const forceWarnRef = useRef<HTMLDivElement>(null);
 
   const id = current?.id ?? null;
@@ -78,6 +81,7 @@ export function WorkOrderPanel({
   // Reset transient UI when the displayed order changes.
   useEffect(() => {
     setView('order');
+    setRevisionFocus(null);
     setForceWarn(false);
     setProposeDismissed(false);
     setCloseOutOpen(false);
@@ -271,6 +275,7 @@ export function WorkOrderPanel({
             [
               { key: 'order', label: 'Order' },
               { key: 'revisions', label: `Revisions (${Math.max(revisions.length, 1)})` },
+              { key: 'audit', label: `Audit (${audit.length})` },
             ] as { key: PanelView; label: string }[]
           ).map((t) => (
             <button
@@ -294,6 +299,17 @@ export function WorkOrderPanel({
             busy={busy}
             readOnly={readOnly}
             onRevert={(n) => run(() => actions.revert(o.id, n))}
+            focus={revisionFocus}
+          />
+        ) : null}
+
+        {view === 'audit' ? (
+          <AuditView
+            events={audit}
+            onOpenRevision={(n) => {
+              setRevisionFocus(n);
+              setView('revisions');
+            }}
           />
         ) : null}
 
