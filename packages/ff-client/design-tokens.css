@@ -25,10 +25,10 @@
   --color-surface-raised-strong: #1e1a12; /* further-raised / active panel */
   --color-surface-hover: #201c14; /* hover / pressed surface */
 
-  /* ── Borders ──────────────────────────────────────────────────────────── */
-  --color-border: #1a1612; /* default border (core) */
-  --color-border-subtle: #161410; /* faint divider */
-  --color-border-strong: #1e1a12; /* emphasised border */
+  /* ── Borders (subtle < default < strong; visible at 4K, still hairline) ── */
+  --color-border: #262019; /* default border (core) */
+  --color-border-subtle: #1e1a14; /* faint divider */
+  --color-border-strong: #302a20; /* emphasised border */
 
   /* ── Amber accent ─────────────────────────────────────────────────────── */
   --color-accent: #c87830; /* primary amber (core) */
@@ -40,13 +40,17 @@
   --color-accent-tint-soft: rgba(200, 120, 48, 0.08); /* faint tinted fill */
   --color-on-accent: #0d0c09; /* text/icon on an amber fill */
 
-  /* ── Text (warm grey scale, dim → bright) ─────────────────────────────── */
-  --color-text-dim: #60584e; /* disabled / faintest */
-  --color-text-muted: #706860; /* tertiary, captions */
-  --color-text-secondary: #908880; /* secondary text */
-  --color-text: #a8a090; /* default body text */
-  --color-text-strong: #c4bca4; /* emphasised text */
-  --color-text-bright: #cac2aa; /* headings */
+  /* ── Text (warm grey scale, dim → bright) ─────────────────────────────────
+   * Every reading-text step meets WCAG AA (≥4.5:1) on every surface up to
+   * --color-surface-hover; --color-text-dim is reserved for disabled/decoration
+   * (≥3:1). Keep that property when adjusting — verify with a contrast check
+   * before committing new values. */
+  --color-text-dim: #7d756a; /* disabled / faintest (~4.3:1 on bg) */
+  --color-text-muted: #948b7e; /* tertiary, captions (~5.8:1 on bg) */
+  --color-text-secondary: #aaa295; /* secondary text (~7.7:1 on bg) */
+  --color-text: #bab2a2; /* default body text (~9.3:1 on bg) */
+  --color-text-strong: #d0c8b0; /* emphasised text */
+  --color-text-bright: #d8d0b8; /* headings */
   --color-text-brightest: #ede5cd; /* warm near-white, top emphasis */
 
   /* ── Semantic status ──────────────────────────────────────────────────── */
@@ -68,6 +72,22 @@
   --font-weight-semibold: 600;
   --font-weight-bold: 700;
   --font-weight-extrabold: 800;
+
+  /* Type scale — rem-based so the browser's font-size preference scales the
+   * whole app (important on high-DPI monitors). Components must consume these
+   * tokens, never literal px font sizes. px values assume the 16px root. */
+  --font-size-2xs: 0.75rem; /* 12px — chips, badges, tick labels */
+  --font-size-xs: 0.8125rem; /* 13px — mono section labels, captions */
+  --font-size-sm: 0.875rem; /* 14px — hints, secondary UI text */
+  --font-size-md: 0.9375rem; /* 15px — controls, dense body */
+  --font-size-lg: 1rem; /* 16px — inputs, prominent UI text */
+  --font-size-xl: 1.0625rem; /* 17px — default body (chat) */
+  --font-size-2xl: 1.125rem; /* 18px — dialog headings, leads */
+  --font-size-display-sm: 1.25rem; /* 20px */
+  --font-size-display-md: 1.75rem; /* 28px */
+  --font-size-display-lg: 1.875rem; /* 30px */
+  --font-size-display-xl: 2.5rem; /* 40px */
+  --font-size-display-2xl: 3.5rem; /* 56px — hero numerals */
 
   /* Wide tracking is used heavily on mono labels/numbers. */
   --tracking-tight: 0.08em;
