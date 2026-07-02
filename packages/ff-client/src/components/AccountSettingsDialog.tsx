@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 
+import { updateDisplayName, type AuthUser } from '../api/auth.js';
 import type { Foreman, Playthrough } from '../api/types.js';
 import type { LlmSettings } from '../useForeman.js';
 import {
@@ -9,11 +10,13 @@ import {
   parseHistoryWindow,
 } from '../llmSettings.js';
 import { ForemanLibrary } from './ForemanLibrary.js';
+import { ProfileSettings } from './ProfileSettings.js';
 import { SecurityDialog } from './SecurityDialog.js';
 
-export type AccountSection = 'foremen' | 'llm' | 'security' | 'billing';
+export type AccountSection = 'profile' | 'foremen' | 'llm' | 'security' | 'billing';
 
 const SECTIONS: { key: AccountSection; label: string }[] = [
+  { key: 'profile', label: 'Profile' },
   { key: 'foremen', label: 'Foremen' },
   { key: 'llm', label: 'LLM' },
   { key: 'security', label: 'Security' },
@@ -21,6 +24,7 @@ const SECTIONS: { key: AccountSection; label: string }[] = [
 ];
 
 interface AccountSettingsDialogProps {
+  user: AuthUser;
   foremen: Foreman[];
   /** All playthroughs, to badge which foremen are attached somewhere. */
   playthroughs: Playthrough[];
@@ -35,19 +39,22 @@ interface AccountSettingsDialogProps {
   onAddForeman: (input: { name: string; personality?: string }) => Promise<Foreman>;
   onEditForeman: (id: string, patch: { name?: string; personality?: string }) => Promise<void>;
   onRemoveForeman: (id: string) => Promise<void>;
-  /** Re-reads the user after MFA is enabled/disabled in the Security section. */
+  /** Re-reads the user after MFA or profile changes (header name, 2FA badge). */
   onRefreshUser: () => Promise<void> | void;
 }
 
 /**
  * Account-level settings reached from the user menu — everything global to the
- * user, independent of any one playthrough. Foremen holds the reusable persona
- * library (edits apply immediately); LLM holds the provider/model/key (kept
- * only in this browser, saved via the footer); Security manages two-factor
- * (its setup opens a second-level dialog); Billing is a placeholder. The
- * per-playthrough counterpart is the playthrough-settings dialog.
+ * user, independent of any one playthrough. Profile holds the display name
+ * (saved via the footer) and password change (applies immediately); Foremen
+ * holds the reusable persona library (edits apply immediately); LLM holds the
+ * provider/model/key (kept only in this browser, saved via the footer);
+ * Security manages two-factor (its setup opens a second-level dialog); Billing
+ * is a placeholder. The per-playthrough counterpart is the
+ * playthrough-settings dialog.
  */
 export function AccountSettingsDialog({
+  user,
   foremen,
   playthroughs,
   llm,
@@ -60,7 +67,8 @@ export function AccountSettingsDialog({
   onRemoveForeman,
   onRefreshUser,
 }: AccountSettingsDialogProps): React.JSX.Element {
-  const [section, setSection] = useState<AccountSection>(initialSection ?? 'foremen');
+  const [section, setSection] = useState<AccountSection>(initialSection ?? 'profile');
+  const [displayName, setDisplayName] = useState(user.name);
   const [securityOpen, setSecurityOpen] = useState(false);
   const [provider, setProvider] = useState(llm.provider);
   const [model, setModel] = useState(llm.model);
@@ -71,6 +79,7 @@ export function AccountSettingsDialog({
   const [historyWindow, setHistoryWindow] = useState(
     llm.historyWindow > 0 ? String(llm.historyWindow) : '',
   );
+  const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   // Foremen attached to any playthrough are badged "in use" with delete
@@ -84,15 +93,28 @@ export function AccountSettingsDialog({
         ? 'claude-sonnet-4-6'
         : 'server default';
 
-  const save = (): void => {
-    onSaveLlm({
-      apiKey,
-      provider,
-      model,
-      baseUrl,
-      historyWindow: parseHistoryWindow(historyWindow),
-    });
-    onClose();
+  const save = async (): Promise<void> => {
+    setSaving(true);
+    setError(null);
+    try {
+      onSaveLlm({
+        apiKey,
+        provider,
+        model,
+        baseUrl,
+        historyWindow: parseHistoryWindow(historyWindow),
+      });
+      const trimmedName = displayName.trim();
+      if (trimmedName.length > 0 && trimmedName !== user.name) {
+        await updateDisplayName(trimmedName);
+        await onRefreshUser();
+      }
+      onClose();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not save settings.');
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -119,6 +141,16 @@ export function AccountSettingsDialog({
             </button>
           ))}
         </div>
+
+        {section === 'profile' ? (
+          <div className="settings-section">
+            <ProfileSettings
+              email={user.email}
+              displayName={displayName}
+              onDisplayNameChange={setDisplayName}
+            />
+          </div>
+        ) : null}
 
         {section === 'foremen' ? (
           <div className="settings-section">
@@ -240,8 +272,8 @@ export function AccountSettingsDialog({
           <button type="button" className="icon-button" onClick={onClose}>
             Close
           </button>
-          <button type="button" className="send" onClick={save}>
-            Save
+          <button type="button" className="send" onClick={() => void save()} disabled={saving}>
+            {saving ? 'Saving' : 'Save'}
           </button>
         </div>
       </div>
