@@ -613,6 +613,56 @@ textarea {
   align-self: start;
 }
 
+/* The completion close-out form (summary + pioneer-feedback capture) reuses
+   the dialog field idiom inside the panel, where those rules don't reach.
+   It shares .force-warn's card layout but swaps the danger red for a calm
+   amber — closing out is a milestone, not a warning. */
+.force-warn.close-out {
+  background: var(--color-accent-tint-soft);
+  border-color: var(--border-emphasis);
+}
+.close-out .field {
+  margin-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.close-out label {
+  font-family: var(--font-numeric);
+  font-size: var(--font-size-xs);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.close-out input,
+.close-out textarea {
+  background: var(--surface-inset);
+  border: 1px solid var(--border-hairline);
+  border-radius: var(--radius-sm);
+  color: var(--text-body);
+  padding: 9px 11px;
+}
+.close-out textarea {
+  resize: vertical;
+}
+
+/* Inline log-hours control at the end of the lifecycle-control row. */
+.hours-log {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+}
+.hours-log input {
+  width: 64px;
+  background: var(--surface-inset);
+  border: 1px solid var(--border-hairline);
+  border-radius: var(--radius-sm);
+  color: var(--text-body);
+  padding: 6px 8px;
+  font-family: var(--font-numeric);
+}
+
 .wo-error {
   margin: 12px 0;
   padding: 8px 11px;

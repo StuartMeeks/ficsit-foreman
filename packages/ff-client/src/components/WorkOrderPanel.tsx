@@ -8,7 +8,7 @@ import type {
   WorkOrderRevisionDiff,
 } from '../api/types.js';
 import type { WorkOrderActions } from '../useForeman.js';
-import { STATE_LABEL, woLabel } from './workOrderLabels.js';
+import { RELATIONSHIP_LABEL, STATE_LABEL, woLabel } from './workOrderLabels.js';
 import { Collapsible } from './workorder/Collapsible.js';
 import {
   BuildCostSection,
@@ -19,7 +19,7 @@ import { ExpectedOutputsSection, NotesSection } from './workorder/ExpectedOutput
 import { LocationSection, ResourceNodesSection } from './workorder/LocationSections.js';
 import { OpportunitySections, RecipesSection } from './workorder/OpportunitySections.js';
 import { PlanNarrative } from './workorder/PlanNarrative.js';
-import { fmtDate, summarise } from './workorder/format.js';
+import { fmtDate, fmtDateTime, summarise } from './workorder/format.js';
 
 interface WorkOrderPanelProps {
   playthroughId: string | null;
@@ -30,6 +30,8 @@ interface WorkOrderPanelProps {
   isViewingHistory: boolean;
   /** Return to the live active order. */
   onBackToActive: () => void;
+  /** Open another order read-only (parent/child navigation). */
+  onViewOrder?: (id: string) => void;
 }
 
 /**
@@ -47,6 +49,7 @@ export function WorkOrderPanel({
   actions,
   isViewingHistory,
   onBackToActive,
+  onViewOrder,
 }: WorkOrderPanelProps): React.JSX.Element {
   const [revisions, setRevisions] = useState<WorkOrderRevision[]>([]);
   const [audit, setAudit] = useState<WorkOrderAuditEvent[]>([]);
@@ -55,6 +58,13 @@ export function WorkOrderPanel({
   const [error, setError] = useState<string | null>(null);
   const [forceWarn, setForceWarn] = useState(false);
   const [proposeDismissed, setProposeDismissed] = useState(false);
+  // The completion close-out form (summary + pioneer feedback capture).
+  const [closeOutOpen, setCloseOutOpen] = useState(false);
+  const [summaryDraft, setSummaryDraft] = useState('');
+  const [enjoyedDraft, setEnjoyedDraft] = useState('');
+  const [didNotEnjoyDraft, setDidNotEnjoyDraft] = useState('');
+  const [feedbackNotesDraft, setFeedbackNotesDraft] = useState('');
+  const [hoursDraft, setHoursDraft] = useState('');
   const forceWarnRef = useRef<HTMLDivElement>(null);
 
   const id = current?.id ?? null;
@@ -63,6 +73,12 @@ export function WorkOrderPanel({
   useEffect(() => {
     setForceWarn(false);
     setProposeDismissed(false);
+    setCloseOutOpen(false);
+    setSummaryDraft('');
+    setEnjoyedDraft('');
+    setDidNotEnjoyDraft('');
+    setFeedbackNotesDraft('');
+    setHoursDraft('');
     setError(null);
   }, [id]);
 
@@ -168,10 +184,47 @@ export function WorkOrderPanel({
 
   const onComplete = (): void => {
     if (isComplete) {
-      run(() => actions.transition(o.id, 'Complete', { completionSummary: undefined }));
+      setCloseOutOpen(true);
     } else {
       setForceWarn(true);
     }
+  };
+
+  /** Textarea → list: one entry per non-empty line. */
+  const toList = (raw: string): string[] =>
+    raw
+      .split('\n')
+      .map((l) => l.trim())
+      .filter((l) => l.length > 0);
+
+  const onConfirmComplete = (withFeedback: boolean): void => {
+    const enjoyed = toList(enjoyedDraft);
+    const didNot = toList(didNotEnjoyDraft);
+    const freeform = feedbackNotesDraft.trim();
+    const summary = summaryDraft.trim();
+    const feedback =
+      withFeedback && (enjoyed.length > 0 || didNot.length > 0 || freeform.length > 0)
+        ? {
+            enjoyedAspects: enjoyed,
+            didNotEnjoy: didNot,
+            freeformNotes: freeform.length > 0 ? freeform : undefined,
+          }
+        : undefined;
+    run(() =>
+      actions.transition(o.id, 'Complete', {
+        completionSummary: summary.length > 0 ? summary : undefined,
+        pioneerFeedback: feedback,
+      }),
+    );
+  };
+
+  const onLogHours = (): void => {
+    const hours = Number.parseFloat(hoursDraft);
+    if (!Number.isFinite(hours) || hours <= 0) {
+      return;
+    }
+    setHoursDraft('');
+    run(() => actions.logHours(o.id, hours));
   };
 
   const onForceComplete = (): void => {
@@ -215,9 +268,59 @@ export function WorkOrderPanel({
         </div>
         <h1 className="wo-title">{o.title}</h1>
         <p className="wo-meta">
-          R{o.currentRevision} · game data {o.version} · created {fmtDate(o.createdAt)} · updated{' '}
-          {fmtDate(o.updatedAt)}
+          R{o.currentRevision}
+          {o.lastAcknowledgedRevision !== undefined
+            ? ` (ack R${o.lastAcknowledgedRevision})`
+            : ''}{' '}
+          · game data {o.version} · created {fmtDate(o.createdAt)} · updated {fmtDate(o.updatedAt)}
         </p>
+        {o.startedAt !== undefined ||
+        o.pausedAt !== undefined ||
+        o.blockedAt !== undefined ||
+        o.completedAt !== undefined ? (
+          <p className="wo-meta">
+            {[
+              o.startedAt !== undefined ? `started ${fmtDateTime(o.startedAt)}` : null,
+              o.pausedAt !== undefined ? `paused ${fmtDateTime(o.pausedAt)}` : null,
+              o.blockedAt !== undefined ? `blocked ${fmtDateTime(o.blockedAt)}` : null,
+              o.completedAt !== undefined ? `completed ${fmtDateTime(o.completedAt)}` : null,
+            ]
+              .filter(Boolean)
+              .join(' · ')}
+          </p>
+        ) : null}
+        {o.parentWorkOrderId !== undefined ? (
+          <p className="wo-meta">
+            ↳ child of{' '}
+            {(() => {
+              const parent = history.find((h) => h.id === o.parentWorkOrderId);
+              const label =
+                parent !== undefined
+                  ? `${woLabel(parent.sequenceNumber)} ${parent.title}`
+                  : 'parent order';
+              return onViewOrder !== undefined ? (
+                <button
+                  type="button"
+                  className="link-button"
+                  onClick={() => onViewOrder(o.parentWorkOrderId ?? '')}
+                >
+                  {label}
+                </button>
+              ) : (
+                label
+              );
+            })()}
+            {o.relationshipToParent !== undefined
+              ? ` · ${RELATIONSHIP_LABEL[o.relationshipToParent]}`
+              : ''}
+          </p>
+        ) : null}
+        {o.state !== 'blocked' && o.blockedReason !== undefined ? (
+          <p className="wo-objective secondary">
+            <span className="loc-tag">BLOCKER</span> {o.blockedReason}
+            {o.blockedResolutionHint !== undefined ? ` — ${o.blockedResolutionHint}` : ''}
+          </p>
+        ) : null}
 
         {error !== null ? <div className="wo-error">{error}</div> : null}
 
@@ -297,11 +400,39 @@ export function WorkOrderPanel({
 
         <NotesSection notes={o.notes} />
 
-        {/* Completion summary (terminal) */}
+        {/* Completion summary + captured feedback (terminal) */}
         {terminal && o.completionSummary !== undefined ? (
           <div className="banner-card closed">
             <span className="label">{STATE_LABEL[o.state]}</span>
             <p className="banner-note">{o.completionSummary}</p>
+          </div>
+        ) : null}
+        {terminal && o.pioneerFeedback !== undefined ? (
+          <div className="section notes">
+            <span className="label">Pioneer Feedback</span>
+            {o.pioneerFeedback.enjoyedAspects.length > 0 ? (
+              <>
+                <span className="check-note">Enjoyed</span>
+                <ul className="fm-notes">
+                  {o.pioneerFeedback.enjoyedAspects.map((n, i) => (
+                    <li key={i}>{n}</li>
+                  ))}
+                </ul>
+              </>
+            ) : null}
+            {o.pioneerFeedback.didNotEnjoy.length > 0 ? (
+              <>
+                <span className="check-note">Did not enjoy</span>
+                <ul className="fm-notes">
+                  {o.pioneerFeedback.didNotEnjoy.map((n, i) => (
+                    <li key={i}>{n}</li>
+                  ))}
+                </ul>
+              </>
+            ) : null}
+            {o.pioneerFeedback.freeformNotes !== undefined ? (
+              <p className="check-note">{o.pioneerFeedback.freeformNotes}</p>
+            ) : null}
           </div>
         ) : null}
 
@@ -330,6 +461,64 @@ export function WorkOrderPanel({
                     onClick={onForceComplete}
                   >
                     Complete anyway
+                  </button>
+                </div>
+              </div>
+            ) : closeOutOpen ? (
+              <div className="force-warn close-out">
+                <span className="label">Close out {woLabel(o.sequenceNumber)}</span>
+                <div className="field">
+                  <label htmlFor="co-summary">Completion summary (optional)</label>
+                  <input
+                    id="co-summary"
+                    value={summaryDraft}
+                    onChange={(e) => setSummaryDraft(e.target.value)}
+                    placeholder="What got built, in a sentence"
+                    autoComplete="off"
+                  />
+                </div>
+                <div className="field">
+                  <label htmlFor="co-enjoyed">Enjoyed (one per line, optional)</label>
+                  <textarea
+                    id="co-enjoyed"
+                    rows={2}
+                    value={enjoyedDraft}
+                    onChange={(e) => setEnjoyedDraft(e.target.value)}
+                  />
+                </div>
+                <div className="field">
+                  <label htmlFor="co-didnot">Did not enjoy (one per line, optional)</label>
+                  <textarea
+                    id="co-didnot"
+                    rows={2}
+                    value={didNotEnjoyDraft}
+                    onChange={(e) => setDidNotEnjoyDraft(e.target.value)}
+                  />
+                </div>
+                <div className="field">
+                  <label htmlFor="co-notes">Notes for the foreman (optional)</label>
+                  <textarea
+                    id="co-notes"
+                    rows={2}
+                    value={feedbackNotesDraft}
+                    onChange={(e) => setFeedbackNotesDraft(e.target.value)}
+                  />
+                </div>
+                <div className="force-actions">
+                  <button
+                    type="button"
+                    className="ghost-btn"
+                    onClick={() => setCloseOutOpen(false)}
+                  >
+                    Keep working
+                  </button>
+                  <button
+                    type="button"
+                    className="complete-btn"
+                    disabled={busy}
+                    onClick={() => onConfirmComplete(true)}
+                  >
+                    ⚡ Complete
                   </button>
                 </div>
               </div>
@@ -385,6 +574,27 @@ export function WorkOrderPanel({
                     Force complete
                   </button>
                 ) : null}
+                {o.state === 'active' || o.state === 'paused' ? (
+                  <span className="hours-log">
+                    <input
+                      type="number"
+                      min={0.5}
+                      step={0.5}
+                      value={hoursDraft}
+                      onChange={(e) => setHoursDraft(e.target.value)}
+                      placeholder="h"
+                      aria-label="Hours to log"
+                    />
+                    <button
+                      type="button"
+                      className="ghost-btn"
+                      disabled={busy || hoursDraft.trim().length === 0}
+                      onClick={onLogHours}
+                    >
+                      Log hours
+                    </button>
+                  </span>
+                ) : null}
               </div>
             )}
           </div>
@@ -404,9 +614,25 @@ export function WorkOrderPanel({
             <div className="ledger">
               {o.childWorkOrderIds.map((cid) => {
                 const child = history.find((h) => h.id === cid);
+                const title = child !== undefined ? child.title : cid;
                 return (
                   <div className="row" key={cid}>
-                    <span>{child !== undefined ? child.title : cid}</span>
+                    <span>
+                      {onViewOrder !== undefined ? (
+                        <button
+                          type="button"
+                          className="link-button"
+                          onClick={() => onViewOrder(cid)}
+                        >
+                          {title}
+                        </button>
+                      ) : (
+                        title
+                      )}
+                      {child?.relationshipToParent !== undefined
+                        ? ` · ${RELATIONSHIP_LABEL[child.relationshipToParent]}`
+                        : ''}
+                    </span>
                     <span className="qty muted">
                       {child !== undefined ? (STATE_LABEL[child.state] ?? child.state) : ''}
                     </span>

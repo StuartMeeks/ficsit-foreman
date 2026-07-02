@@ -5,6 +5,7 @@
 import { parseSseStream } from './sse.js';
 import type {
   Foreman,
+  PioneerFeedback,
   Playthrough,
   Save,
   SavePreviewResult,
@@ -330,6 +331,8 @@ export interface TransitionOptions {
   forceCompletionReason?: string;
   incompleteItemSummary?: string;
   completionSummary?: string;
+  /** Captured on Complete/ForceComplete; stored on the order. */
+  pioneerFeedback?: PioneerFeedback;
 }
 
 export async function transitionWorkOrder(
