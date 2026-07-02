@@ -4,20 +4,20 @@ interface UserMenuProps {
   /** The signed-in user's display name (falls back to their email). */
   name: string | null;
   email: string | null;
-  onOpenSettings: () => void;
+  onOpenAccountSettings: () => void;
   onSignOut: () => void;
 }
 
 /**
  * Header account menu: the user's name as a dropdown trigger, opening their
- * email (display only), Settings, and Sign out. Mirrors the playthrough
+ * email (display only), Account settings, and Sign out. Mirrors the playthrough
  * switcher's dropdown so the two header controls read as siblings; the menu is
  * right-aligned since it sits at the far end of the header.
  */
 export function UserMenu({
   name,
   email,
-  onOpenSettings,
+  onOpenAccountSettings,
   onSignOut,
 }: UserMenuProps): React.JSX.Element {
   const [open, setOpen] = useState(false);
@@ -50,11 +50,11 @@ export function UserMenu({
               className="switcher-action"
               role="menuitem"
               onClick={() => {
-                onOpenSettings();
+                onOpenAccountSettings();
                 close();
               }}
             >
-              Settings
+              Account settings
             </button>
             <button
               type="button"

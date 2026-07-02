@@ -2055,21 +2055,6 @@ button:disabled {
   margin: 4px 0;
 }
 
-.switcher-rename {
-  display: flex;
-  gap: 6px;
-  padding: 4px;
-}
-
-.switcher-rename input {
-  flex: 1;
-  background: var(--surface-inset);
-  border: 1px solid var(--border-hairline);
-  border-radius: var(--radius-sm);
-  color: var(--text-body);
-  padding: 6px 9px;
-}
-
 /* ── Save drop-zone (new-playthrough modal) ────────────────────────────── */
 .dropzone {
   display: flex;

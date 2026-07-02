@@ -7,7 +7,7 @@ interface HeaderProps {
   saveDrop?: React.ReactNode;
   userName: string | null;
   userEmail: string | null;
-  onOpenSettings: () => void;
+  onOpenAccountSettings: () => void;
   onSignOut: () => void;
 }
 
@@ -17,7 +17,7 @@ export function Header({
   saveDrop,
   userName,
   userEmail,
-  onOpenSettings,
+  onOpenAccountSettings,
   onSignOut,
 }: HeaderProps): React.JSX.Element {
   return (
@@ -36,7 +36,7 @@ export function Header({
       <UserMenu
         name={userName}
         email={userEmail}
-        onOpenSettings={onOpenSettings}
+        onOpenAccountSettings={onOpenAccountSettings}
         onSignOut={onSignOut}
       />
     </header>

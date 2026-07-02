@@ -7,8 +7,8 @@ interface PlaythroughSwitcherProps {
   current: Playthrough | null;
   onSwitch: (id: string) => void;
   onNew: () => void;
-  onRename: (id: string, name: string) => void;
-  onDelete: (id: string) => void;
+  /** Open the active playthrough's settings (name, foreman, pioneer profile, delete). */
+  onOpenSettings: () => void;
 }
 
 /** A playthrough's display name: its set name, else a short id fallback. */
@@ -23,57 +23,25 @@ export function playthroughLabel(playthrough: Playthrough | null): string {
 
 /**
  * Header dropdown to switch between playthroughs and reach the lifecycle actions
- * (new / rename / delete). The current playthrough's chat history and work
- * orders are resumed by the parent when {@link onSwitch} fires.
+ * (new / settings). Renaming and deletion live in the playthrough-settings
+ * dialog. The current playthrough's chat history and work orders are resumed by
+ * the parent when {@link onSwitch} fires.
  */
 export function PlaythroughSwitcher({
   playthroughs,
   current,
   onSwitch,
   onNew,
-  onRename,
-  onDelete,
+  onOpenSettings,
 }: PlaythroughSwitcherProps): React.JSX.Element {
   const [open, setOpen] = useState(false);
-  const [renaming, setRenaming] = useState(false);
-  const [draft, setDraft] = useState('');
 
-  // Close the menu (and any rename) whenever the active playthrough changes.
+  // Close the menu whenever the active playthrough changes.
   useEffect(() => {
     setOpen(false);
-    setRenaming(false);
   }, [current?.id]);
 
-  const close = (): void => {
-    setOpen(false);
-    setRenaming(false);
-  };
-
-  const beginRename = (): void => {
-    setDraft(current?.name ?? '');
-    setRenaming(true);
-  };
-
-  const commitRename = (): void => {
-    const name = draft.trim();
-    if (current !== null && name.length > 0) {
-      onRename(current.id, name);
-    }
-    close();
-  };
-
-  const confirmDelete = (): void => {
-    if (current === null) {
-      return;
-    }
-    const ok = window.confirm(
-      `Delete "${playthroughLabel(current)}"? This removes its chat and work orders.`,
-    );
-    if (ok) {
-      onDelete(current.id);
-    }
-    close();
-  };
+  const close = (): void => setOpen(false);
 
   return (
     <div className="switcher">
@@ -128,36 +96,16 @@ export function PlaythroughSwitcher({
               + New playthrough
             </button>
 
-            {current !== null && !renaming ? (
-              <button type="button" className="switcher-action" onClick={beginRename}>
-                ✎ Rename
-              </button>
-            ) : null}
-
-            {renaming ? (
-              <div className="switcher-rename">
-                <input
-                  value={draft}
-                  onChange={(e) => setDraft(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      commitRename();
-                    } else if (e.key === 'Escape') {
-                      setRenaming(false);
-                    }
-                  }}
-                  placeholder="Playthrough name"
-                  autoFocus
-                />
-                <button type="button" className="icon-button" onClick={commitRename}>
-                  Save
-                </button>
-              </div>
-            ) : null}
-
             {current !== null ? (
-              <button type="button" className="switcher-action danger" onClick={confirmDelete}>
-                🗑 Delete
+              <button
+                type="button"
+                className="switcher-action"
+                onClick={() => {
+                  onOpenSettings();
+                  close();
+                }}
+              >
+                ⚙ Playthrough settings
               </button>
             ) : null}
           </div>
