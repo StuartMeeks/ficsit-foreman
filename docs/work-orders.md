@@ -685,6 +685,14 @@ active panel stays low-cognitive-load, while the richer detail lives in views th
 Pioneer opens deliberately. Tracked as a field-by-field checklist in
 [#206](https://github.com/StuartMeeks/ficsit-foreman/issues/206).
 
+**Layout principle — briefing first.** Every view leads with the goal/summary/
+action material: header + state, attention banners, the narrative (objective,
+goal, strategic significance, success condition), **expected output** (it *is*
+the goal), FM notes, and the lifecycle controls. The work content follows —
+build steps → buildables → cost, then location, resource nodes, recipes,
+opportunities, relationships, and history. Actions and outcomes must never sit
+below the fold under the step ledger.
+
 * **Normal view** — the live work order (plan + execution). The active panel
   above, extended to surface the plan fields currently hidden in the client:
   strategic significance, success condition, recipe input/output rates,

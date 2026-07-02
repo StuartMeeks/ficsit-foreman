@@ -2,28 +2,24 @@ import { useEffect, useRef, useState } from 'react';
 
 import { getAuditTrail, getRevisionDiff, getRevisions } from '../api/client.js';
 import type {
-  Buildable,
-  CollectibleKind,
-  CollectibleOpportunity,
-  ExpectedOutput,
   WorkOrder,
   WorkOrderAuditEvent,
   WorkOrderRevision,
   WorkOrderRevisionDiff,
 } from '../api/types.js';
 import type { WorkOrderActions } from '../useForeman.js';
-import { remainingCost, totalCost, type CostLine } from '../workOrderCost.js';
 import { STATE_LABEL, woLabel } from './workOrderLabels.js';
-
-/** "12 Iron Plate, 4 Cable" — compact cost summary for display. */
-function fmtCost(lines: CostLine[]): string {
-  return lines.map((l) => `${l.amount} ${l.itemName}`).join(', ');
-}
-
-/** A single buildable's extended build cost (per-unit × requiredCount). */
-function buildableCostLines(b: Buildable): CostLine[] {
-  return b.buildCost.map((c) => ({ ...c, amount: c.amount * b.requiredCount }));
-}
+import { Collapsible } from './workorder/Collapsible.js';
+import {
+  BuildCostSection,
+  BuildStepsSection,
+  type BuildStepsExecution,
+} from './workorder/BuildStepsSection.js';
+import { ExpectedOutputsSection, NotesSection } from './workorder/ExpectedOutputsSection.js';
+import { LocationSection, ResourceNodesSection } from './workorder/LocationSections.js';
+import { OpportunitySections, RecipesSection } from './workorder/OpportunitySections.js';
+import { PlanNarrative } from './workorder/PlanNarrative.js';
+import { fmtDate, summarise } from './workorder/format.js';
 
 interface WorkOrderPanelProps {
   playthroughId: string | null;
@@ -36,37 +32,13 @@ interface WorkOrderPanelProps {
   onBackToActive: () => void;
 }
 
-const metres = (cm: number): string => `${Math.round(cm / 100)}m`;
-
-const COLLECTIBLE_LABEL: Record<CollectibleKind, string> = {
-  mercerSphere: 'Mercer Sphere',
-  somersloop: 'Somersloop',
-  powerSlugBlue: 'Power Slug (Blue)',
-  powerSlugYellow: 'Power Slug (Yellow)',
-  powerSlugPurple: 'Power Slug (Purple)',
-  hardDrive: 'Hard Drive',
-};
-
-function outputLine(out: ExpectedOutput): { label: string; value: string } {
-  switch (out.kind) {
-    case 'item':
-      return { label: out.item, value: `${out.perMinute} ${out.unit ?? '/min'}` };
-    case 'power':
-      return { label: 'Power', value: `${out.megawatts} MW` };
-    case 'unlock':
-      return { label: 'Unlock', value: out.schematic };
-    case 'infrastructure':
-      return { label: 'Infrastructure', value: out.description };
-    default:
-      return { label: '', value: '' };
-  }
-}
-
 /**
- * The active work-order cockpit (Work Orders v2). Renders the order the foreman
- * has the pioneer focused on — its plan, the pioneer's execution checklists, and
- * the lifecycle controls — faithful to the design mockup. Plan revisions,
- * blocking, opportunities, and completion all flow through here.
+ * The active work-order cockpit (Work Orders v2). Laid out briefing-first:
+ * goal/summary/action material at the top (header, banners, narrative,
+ * expected output, FM notes, lifecycle controls), the work content after
+ * (build steps → cost, location, recipes, opportunities, relations, history).
+ * Plan sections are shared, plan-only components (components/workorder/) so
+ * the revision-snapshot view can reuse them.
  */
 export function WorkOrderPanel({
   playthroughId,
@@ -94,9 +66,7 @@ export function WorkOrderPanel({
     setError(null);
   }, [id]);
 
-  // The force-complete confirmation lives at the bottom of the controls, often
-  // below the fold — bring it into view when it opens so "Complete anyway" is
-  // visible without manual scrolling.
+  // Bring the force-complete confirmation into view when it opens.
   useEffect(() => {
     if (forceWarn) {
       forceWarnRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
@@ -172,8 +142,6 @@ export function WorkOrderPanel({
   // Viewing a past order from history is read-only too, even when it is not
   // terminal (e.g. a paused sibling) — only the live active order is editable.
   const readOnly = terminal || isViewingHistory;
-  const power = o.expectedOutputs.find((out) => out.kind === 'power');
-  const otherOutputs = o.expectedOutputs.filter((out) => out.kind !== 'power');
 
   const incompleteSteps = o.buildSteps.filter((s) => !s.checked);
   const incompleteBuildables = o.buildSteps.flatMap((s) =>
@@ -184,6 +152,19 @@ export function WorkOrderPanel({
   const lastEvent = audit[audit.length - 1];
   const proposed =
     o.state === 'active' && !proposeDismissed && lastEvent?.eventType === 'completion_proposed';
+
+  // Live execution wiring for the shared (plan-only) build-steps renderer.
+  const stepById = new Map(o.buildSteps.map((s) => [s.id, s]));
+  const execution: BuildStepsExecution = {
+    busy,
+    readOnly,
+    stepChecked: (stepId) => stepById.get(stepId)?.checked ?? false,
+    builtCount: (stepId, buildableId) =>
+      stepById.get(stepId)?.buildables.find((b) => b.id === buildableId)?.builtCount ?? 0,
+    onToggleStep: (stepId, checked) => run(() => actions.setStep(o.id, stepId, checked)),
+    onSetBuilt: (stepId, buildableId, count) =>
+      run(() => actions.setBuildable(o.id, stepId, buildableId, count)),
+  };
 
   const onComplete = (): void => {
     if (isComplete) {
@@ -225,7 +206,7 @@ export function WorkOrderPanel({
           </button>
         ) : null}
 
-        {/* ── Header ───────────────────────────────────────────────── */}
+        {/* ══ Briefing — goal, summary and actions ══════════════════ */}
         <div className="wo-top">
           <span className="wo-id">{woLabel(o.sequenceNumber)}</span>
           {o.tier !== undefined ? <span className="wo-tier">Tier {o.tier}</span> : null}
@@ -233,22 +214,14 @@ export function WorkOrderPanel({
           <span className={`chip state-${o.state}`}>{STATE_LABEL[o.state] ?? o.state}</span>
         </div>
         <h1 className="wo-title">{o.title}</h1>
-
-        {o.locationRecommendation !== undefined ? (
-          <p className="wo-loc">
-            <span className="loc-tag">LOC</span> {o.locationRecommendation.summary}
-            {o.locationRecommendation.relativeToPlayer !== undefined
-              ? ` — ${o.locationRecommendation.relativeToPlayer}`
-              : ''}
-          </p>
-        ) : null}
-        <p className="wo-objective">
-          <span className="loc-tag">OBJ</span> {o.objective ?? o.goal}
+        <p className="wo-meta">
+          R{o.currentRevision} · game data {o.version} · created {fmtDate(o.createdAt)} · updated{' '}
+          {fmtDate(o.updatedAt)}
         </p>
 
         {error !== null ? <div className="wo-error">{error}</div> : null}
 
-        {/* ── Plan revised ─────────────────────────────────────────── */}
+        {/* Plan revised */}
         {o.hasUnacknowledgedRevision && !readOnly ? (
           <div className="banner-card revised">
             <div className="banner-card-head">
@@ -287,7 +260,7 @@ export function WorkOrderPanel({
           </div>
         ) : null}
 
-        {/* ── Blocked ──────────────────────────────────────────────── */}
+        {/* Blocked */}
         {o.state === 'blocked' ? (
           <div className="banner-card blocked">
             <span className="label">Blocked — cannot proceed</span>
@@ -300,7 +273,7 @@ export function WorkOrderPanel({
           </div>
         ) : null}
 
-        {/* ── Foreman suggests completion ──────────────────────────── */}
+        {/* Foreman suggests completion */}
         {proposed ? (
           <div className="banner-card suggest">
             <p className="banner-note">
@@ -313,248 +286,18 @@ export function WorkOrderPanel({
           </div>
         ) : null}
 
-        {/* ── Build steps & their buildables ───────────────────────── */}
-        {o.buildSteps.length > 0 ? (
-          <div className="section">
-            <span className="label">Build Steps</span>
-            <ol className="checks">
-              {[...o.buildSteps]
-                .sort((a, b) => a.order - b.order)
-                .map((step, i) => (
-                  <li key={step.id} className={step.checked ? 'done' : ''}>
-                    <input
-                      type="checkbox"
-                      checked={step.checked}
-                      disabled={busy || readOnly}
-                      onChange={(e) => run(() => actions.setStep(o.id, step.id, e.target.checked))}
-                    />
-                    <span className="step-n">{String(i + 1).padStart(2, '0')}</span>
-                    <span className="check-body">
-                      {step.title}
-                      {step.description !== undefined ? (
-                        <span className="check-note">{step.description}</span>
-                      ) : null}
-                    </span>
-                    {step.buildables.length > 0 ? (
-                      <div className="machines step-buildables">
-                        {step.buildables.map((b) => (
-                          <div key={b.id} className="machine">
-                            <span className="check-body">
-                              {b.name}
-                              {b.recipeName !== undefined ? (
-                                <span className="check-note">{b.recipeName}</span>
-                              ) : null}
-                              {b.buildCost.length > 0 ? (
-                                <span className="check-note">{fmtCost(buildableCostLines(b))}</span>
-                              ) : null}
-                            </span>
-                            <div className="stepper">
-                              <button
-                                type="button"
-                                disabled={busy || readOnly || b.builtCount <= 0}
-                                onClick={() =>
-                                  run(() =>
-                                    actions.setBuildable(
-                                      o.id,
-                                      step.id,
-                                      b.id,
-                                      Math.max(0, b.builtCount - 1),
-                                    ),
-                                  )
-                                }
-                              >
-                                −
-                              </button>
-                              <span
-                                className={`count ${b.builtCount >= b.requiredCount ? 'met' : ''}`}
-                              >
-                                {b.builtCount}
-                              </span>
-                              <button
-                                type="button"
-                                disabled={busy || readOnly || b.builtCount >= b.requiredCount}
-                                onClick={() =>
-                                  run(() =>
-                                    actions.setBuildable(
-                                      o.id,
-                                      step.id,
-                                      b.id,
-                                      Math.min(b.requiredCount, b.builtCount + 1),
-                                    ),
-                                  )
-                                }
-                              >
-                                +
-                              </button>
-                              <span className="req">/ {b.requiredCount}</span>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    ) : null}
-                  </li>
-                ))}
-            </ol>
-          </div>
-        ) : null}
+        <PlanNarrative
+          goal={o.goal}
+          objective={o.objective}
+          strategicSignificance={o.strategicSignificance}
+          successCondition={o.successCondition}
+        />
 
-        {/* ── Build cost (derived from buildables) ─────────────────── */}
-        {(() => {
-          const total = totalCost(o.buildSteps);
-          if (total.length === 0) {
-            return null;
-          }
-          const remaining = remainingCost(o.buildSteps);
-          const partlyBuilt = fmtCost(remaining) !== fmtCost(total);
-          return (
-            <div className="section">
-              <span className="label">Build Cost</span>
-              <div className="checks materials">
-                <span className="check-body">Total: {fmtCost(total)}</span>
-                {partlyBuilt ? (
-                  <span className="check-note">
-                    {remaining.length > 0
-                      ? `Remaining: ${fmtCost(remaining)}`
-                      : 'All buildables built.'}
-                  </span>
-                ) : null}
-              </div>
-            </div>
-          );
-        })()}
+        <ExpectedOutputsSection outputs={o.expectedOutputs} />
 
-        {/* ── Expected output (power hero) ─────────────────────────── */}
-        {o.expectedOutputs.length > 0 ? (
-          <div className="section output">
-            <span className="label">Expected Output</span>
-            {power !== undefined && power.kind === 'power' ? (
-              <div className="power-hero">
-                <span className="power-num">{power.megawatts}</span>
-                <span className="power-unit">MW</span>
-                <span className="power-tag">⚡ NET</span>
-              </div>
-            ) : null}
-            {otherOutputs.length > 0 ? (
-              <div className="ledger">
-                {otherOutputs.map((out, i) => {
-                  const line = outputLine(out);
-                  return (
-                    <div className="row" key={i}>
-                      <span>{line.label}</span>
-                      <span className="qty">{line.value}</span>
-                    </div>
-                  );
-                })}
-              </div>
-            ) : null}
-          </div>
-        ) : null}
+        <NotesSection notes={o.notes} />
 
-        {/* ── Collapsible secondary sections ───────────────────────── */}
-        {o.recipes.length > 0 ? (
-          <Collapsible label="Recipes">
-            <div className="ledger">
-              {o.recipes.map((r, i) => (
-                <div className="row" key={r.id ?? i}>
-                  <span>{r.machineName}</span>
-                  <span className="qty muted">{r.recipeName}</span>
-                </div>
-              ))}
-            </div>
-          </Collapsible>
-        ) : null}
-
-        {o.resourceNodes !== undefined && o.resourceNodes.length > 0 ? (
-          <Collapsible label="Resource Nodes">
-            <div className="ledger">
-              {o.resourceNodes.map((n, i) => (
-                <div className="row" key={n.id ?? i}>
-                  <span>
-                    {n.resourceName}
-                    {n.purity !== undefined ? <span className="purity"> {n.purity}</span> : null}
-                  </span>
-                  <span className="qty muted">
-                    {n.distanceFromWorkOrderLocation !== undefined
-                      ? metres(n.distanceFromWorkOrderLocation)
-                      : ''}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </Collapsible>
-        ) : null}
-
-        {hasCollectibles(o) ? (
-          <Collapsible label="Nearby Collectibles">
-            <CollectibleGroup
-              title="Near you"
-              items={o.opportunities?.nearbyCollectiblesFromPlayer ?? []}
-            />
-            <CollectibleGroup
-              title="Near work-order site"
-              items={o.opportunities?.nearbyCollectiblesFromWorkOrderLocation ?? []}
-            />
-          </Collapsible>
-        ) : null}
-
-        {o.childWorkOrderIds.length > 0 ? (
-          <Collapsible label={`Child Orders (${o.childWorkOrderIds.length})`}>
-            <div className="ledger">
-              {o.childWorkOrderIds.map((cid) => {
-                const child = history.find((h) => h.id === cid);
-                return (
-                  <div className="row" key={cid}>
-                    <span>{child !== undefined ? child.title : cid}</span>
-                    <span className="qty muted">
-                      {child !== undefined ? (STATE_LABEL[child.state] ?? child.state) : ''}
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
-          </Collapsible>
-        ) : null}
-
-        {revisions.length > 1 ? (
-          <Collapsible label="Revision History">
-            <div className="ledger">
-              {[...revisions]
-                .sort((a, b) => b.revisionNumber - a.revisionNumber)
-                .map((rev) => (
-                  <div className="row revision" key={rev.id}>
-                    <span className="rev-n">R{rev.revisionNumber}</span>
-                    <span className="rev-summary">
-                      {rev.changeSummary ?? rev.reason ?? `Revision ${rev.revisionNumber}`}
-                      <span className="check-note">{rev.createdBy}</span>
-                    </span>
-                    {!readOnly && rev.revisionNumber < o.currentRevision ? (
-                      <button
-                        type="button"
-                        className="ghost-btn tiny"
-                        disabled={busy}
-                        onClick={() => run(() => actions.revert(o.id, rev.revisionNumber))}
-                      >
-                        Revert
-                      </button>
-                    ) : null}
-                  </div>
-                ))}
-            </div>
-          </Collapsible>
-        ) : null}
-
-        {o.notes !== undefined && o.notes.length > 0 ? (
-          <div className="section notes">
-            <span className="label">FM Notes</span>
-            <ul className="fm-notes">
-              {o.notes.map((n, i) => (
-                <li key={i}>{n}</li>
-              ))}
-            </ul>
-          </div>
-        ) : null}
-
-        {/* ── Completion summary (terminal) ────────────────────────── */}
+        {/* Completion summary (terminal) */}
         {terminal && o.completionSummary !== undefined ? (
           <div className="banner-card closed">
             <span className="label">{STATE_LABEL[o.state]}</span>
@@ -562,7 +305,7 @@ export function WorkOrderPanel({
           </div>
         ) : null}
 
-        {/* ── Controls ─────────────────────────────────────────────── */}
+        {/* Lifecycle controls */}
         {!readOnly ? (
           <div className="controls">
             {forceWarn ? (
@@ -646,77 +389,62 @@ export function WorkOrderPanel({
             )}
           </div>
         ) : null}
+
+        {/* ══ Work content — the how ════════════════════════════════ */}
+        <BuildStepsSection steps={o.buildSteps} execution={execution} />
+        <BuildCostSection steps={o.buildSteps} liveSteps={o.buildSteps} />
+
+        <LocationSection location={o.locationRecommendation} />
+        <ResourceNodesSection nodes={o.resourceNodes} />
+        <RecipesSection recipes={o.recipes} />
+        <OpportunitySections opportunities={o.opportunities} />
+
+        {o.childWorkOrderIds.length > 0 ? (
+          <Collapsible label={`Child Orders (${o.childWorkOrderIds.length})`}>
+            <div className="ledger">
+              {o.childWorkOrderIds.map((cid) => {
+                const child = history.find((h) => h.id === cid);
+                return (
+                  <div className="row" key={cid}>
+                    <span>{child !== undefined ? child.title : cid}</span>
+                    <span className="qty muted">
+                      {child !== undefined ? (STATE_LABEL[child.state] ?? child.state) : ''}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </Collapsible>
+        ) : null}
+
+        {revisions.length > 1 ? (
+          <Collapsible label="Revision History">
+            <div className="ledger">
+              {[...revisions]
+                .sort((a, b) => b.revisionNumber - a.revisionNumber)
+                .map((rev) => (
+                  <div className="row revision" key={rev.id}>
+                    <span className="rev-n">R{rev.revisionNumber}</span>
+                    <span className="rev-summary">
+                      {rev.changeSummary ?? rev.reason ?? `Revision ${rev.revisionNumber}`}
+                      <span className="check-note">{rev.createdBy}</span>
+                    </span>
+                    {!readOnly && rev.revisionNumber < o.currentRevision ? (
+                      <button
+                        type="button"
+                        className="ghost-btn tiny"
+                        disabled={busy}
+                        onClick={() => run(() => actions.revert(o.id, rev.revisionNumber))}
+                      >
+                        Revert
+                      </button>
+                    ) : null}
+                  </div>
+                ))}
+            </div>
+          </Collapsible>
+        ) : null}
       </div>
     </section>
   );
-}
-
-function Collapsible({
-  label,
-  children,
-}: {
-  label: string;
-  children: React.ReactNode;
-}): React.JSX.Element {
-  return (
-    <details className="collapsible">
-      <summary>
-        <span className="label">{label}</span>
-        <span className="chevron">▸</span>
-      </summary>
-      <div className="collapsible-body">{children}</div>
-    </details>
-  );
-}
-
-function CollectibleGroup({
-  title,
-  items,
-}: {
-  title: string;
-  items: CollectibleOpportunity[];
-}): React.JSX.Element | null {
-  if (items.length === 0) {
-    return null;
-  }
-  return (
-    <div className="collectible-group">
-      <span className="label sub">{title}</span>
-      {items.map((c, i) => (
-        <div className="collectible" key={c.id ?? i}>
-          <span className="check-body">
-            {COLLECTIBLE_LABEL[c.kind]}
-            {c.reason !== undefined ? <span className="check-note">{c.reason}</span> : null}
-          </span>
-          <span className="qty muted">
-            {c.distance !== undefined ? metres(c.distance) : ''}
-            {c.optional ? <span className="optional"> optional</span> : null}
-          </span>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function hasCollectibles(o: WorkOrder): boolean {
-  const opp = o.opportunities;
-  return (
-    opp !== undefined &&
-    ((opp.nearbyCollectiblesFromPlayer?.length ?? 0) > 0 ||
-      (opp.nearbyCollectiblesFromWorkOrderLocation?.length ?? 0) > 0)
-  );
-}
-
-/** Renders a diff value compactly: scalars as-is, arrays/objects as a count/blurb. */
-function summarise(value: unknown): string {
-  if (value === null || value === undefined) {
-    return '—';
-  }
-  if (Array.isArray(value)) {
-    return `${value.length} item${value.length === 1 ? '' : 's'}`;
-  }
-  if (typeof value === 'object') {
-    return 'changed';
-  }
-  return String(value);
 }
