@@ -154,17 +154,21 @@ export interface ForemanState {
   keyNeeded: boolean;
   send(text: string): void;
   completeOnboarding(input: { personality: string; pioneerProfile: string }): Promise<void>;
-  saveSettings(input: { pioneerProfile: string; llm: LlmSettings }): Promise<void>;
+  /** Persist the browser-held LLM settings (account settings; localStorage only). */
+  saveLlm(llm: LlmSettings): void;
+  /** Save the active playthrough's settings: name, pioneer profile and attached foreman. */
+  savePlaythroughSettings(input: {
+    name: string;
+    pioneerProfile: string;
+    foremanId: string;
+  }): Promise<void>;
   // Playthrough management (switcher + new-playthrough modal).
   switchPlaythrough(id: string): Promise<void>;
   newPlaythrough(input: NewPlaythroughInput): Promise<void>;
   /** Upload (replace) the active playthrough's save, then refresh it. */
   uploadCurrentSave(file: File): Promise<void>;
-  renamePlaythrough(id: string, name: string): Promise<void>;
   removePlaythrough(id: string): Promise<void>;
-  /** Swap the foreman attached to the active playthrough. */
-  setPlaythroughForeman(foremanId: string): Promise<void>;
-  // Foreman library (sectioned Settings).
+  // Foreman library (account settings).
   addForeman(input: { name: string; personality?: string }): Promise<Foreman>;
   editForeman(id: string, patch: { name?: string; personality?: string }): Promise<void>;
   removeForeman(id: string): Promise<void>;
@@ -598,29 +602,33 @@ export function useForeman(): ForemanState {
     [loadOrders, playthrough, foreman, upsertPlaythrough],
   );
 
-  const saveSettings = useCallback(
-    async (input: { pioneerProfile: string; llm: LlmSettings }) => {
-      // The user's own provider key, held only in their browser so they need not
-      // re-enter it each visit. It is sent solely as the request header they
-      // authorised and never persisted server-side.
-      writeStorage(API_KEY, input.llm.apiKey);
-      writeStorage(PROVIDER_KEY, input.llm.provider);
-      writeStorage(MODEL_KEY, input.llm.model);
-      writeStorage(BASE_URL_KEY, input.llm.baseUrl);
-      writeStorage(
-        HISTORY_WINDOW_KEY,
-        input.llm.historyWindow > 0 ? String(input.llm.historyWindow) : '',
-      );
-      setLlm(input.llm);
-      if (playthrough !== null) {
-        const updated = await patchPlaythrough(playthrough.id, {
-          pioneerProfile: input.pioneerProfile,
-        });
-        setPlaythrough(updated);
-        upsertPlaythrough(updated);
+  const saveLlm = useCallback((next: LlmSettings) => {
+    // The user's own provider key, held only in their browser so they need not
+    // re-enter it each visit. It is sent solely as the request header they
+    // authorised and never persisted server-side.
+    writeStorage(API_KEY, next.apiKey);
+    writeStorage(PROVIDER_KEY, next.provider);
+    writeStorage(MODEL_KEY, next.model);
+    writeStorage(BASE_URL_KEY, next.baseUrl);
+    writeStorage(HISTORY_WINDOW_KEY, next.historyWindow > 0 ? String(next.historyWindow) : '');
+    setLlm(next);
+  }, []);
+
+  const savePlaythroughSettings = useCallback(
+    async (input: { name: string; pioneerProfile: string; foremanId: string }) => {
+      if (playthrough === null) {
+        return;
+      }
+      const updated = await patchPlaythrough(playthrough.id, input);
+      setPlaythrough(updated);
+      upsertPlaythrough(updated);
+      if (input.foremanId !== playthrough.foremanId) {
+        setForeman(
+          foremen.find((f) => f.id === input.foremanId) ?? (await getForeman(input.foremanId)),
+        );
       }
     },
-    [playthrough, upsertPlaythrough],
+    [foremen, playthrough, upsertPlaythrough],
   );
 
   const switchPlaythrough = useCallback(
@@ -735,17 +743,6 @@ export function useForeman(): ForemanState {
     [playthrough, refreshAfterSaveChange],
   );
 
-  const renamePlaythrough = useCallback(
-    async (id: string, name: string) => {
-      const updated = await patchPlaythrough(id, { name });
-      upsertPlaythrough(updated);
-      if (playthrough?.id === id) {
-        setPlaythrough(updated);
-      }
-    },
-    [playthrough, upsertPlaythrough],
-  );
-
   const removePlaythrough = useCallback(
     async (id: string) => {
       await deletePlaythrough(id);
@@ -766,19 +763,6 @@ export function useForeman(): ForemanState {
       }
     },
     [activate, foremen, playthrough, playthroughs],
-  );
-
-  const setPlaythroughForeman = useCallback(
-    async (foremanId: string) => {
-      if (playthrough === null) {
-        return;
-      }
-      const updated = await patchPlaythrough(playthrough.id, { foremanId });
-      setPlaythrough(updated);
-      upsertPlaythrough(updated);
-      setForeman(foremen.find((f) => f.id === foremanId) ?? (await getForeman(foremanId)));
-    },
-    [foremen, playthrough, upsertPlaythrough],
   );
 
   const addForeman = useCallback(async (input: { name: string; personality?: string }) => {
@@ -839,13 +823,12 @@ export function useForeman(): ForemanState {
     keyNeeded,
     send,
     completeOnboarding,
-    saveSettings,
+    saveLlm,
+    savePlaythroughSettings,
     switchPlaythrough,
     newPlaythrough,
     uploadCurrentSave,
-    renamePlaythrough,
     removePlaythrough,
-    setPlaythroughForeman,
     addForeman,
     editForeman,
     removeForeman,

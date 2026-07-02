@@ -10,7 +10,8 @@ import { SaveDropZone } from './components/SaveDropZone.js';
 import { SaveHistory } from './components/SaveHistory.js';
 import { SaveWarningBanner } from './components/SaveWarningBanner.js';
 import { DrawerDock } from './components/DrawerDock.js';
-import { SettingsDialog } from './components/SettingsDialog.js';
+import { AccountSettingsDialog, type AccountSection } from './components/AccountSettingsDialog.js';
+import { PlaythroughSettingsDialog } from './components/PlaythroughSettingsDialog.js';
 import { WorkHistoryDrawerBody } from './components/WorkHistoryDrawer.js';
 import { WorkOrderPanel } from './components/WorkOrderPanel.js';
 import { useForeman } from './useForeman.js';
@@ -37,7 +38,10 @@ function initialSplit(): number {
 
 export function App(): React.JSX.Element {
   const foreman = useForeman();
-  const [settingsOpen, setSettingsOpen] = useState(false);
+  // Which account-settings tab the dialog is open on (null = closed): the user
+  // menu opens the first tab, the add-a-key banner jumps straight to LLM.
+  const [accountSection, setAccountSection] = useState<AccountSection | null>(null);
+  const [playthroughSettingsOpen, setPlaythroughSettingsOpen] = useState(false);
   const [newOpen, setNewOpen] = useState(false);
   const [chatPct, setChatPct] = useState(initialSplit);
   const mainRef = useRef<HTMLElement>(null);
@@ -119,8 +123,7 @@ export function App(): React.JSX.Element {
             current={foreman.playthrough}
             onSwitch={(id) => void foreman.switchPlaythrough(id)}
             onNew={() => setNewOpen(true)}
-            onRename={(id, name) => void foreman.renamePlaythrough(id, name)}
-            onDelete={(id) => void foreman.removePlaythrough(id)}
+            onOpenSettings={() => setPlaythroughSettingsOpen(true)}
           />
         }
         saveDrop={
@@ -131,14 +134,14 @@ export function App(): React.JSX.Element {
         }
         userName={foreman.user?.name ?? null}
         userEmail={foreman.user?.email ?? null}
-        onOpenSettings={() => setSettingsOpen(true)}
+        onOpenAccountSettings={() => setAccountSection('foremen')}
         onSignOut={() => void foreman.signOut()}
       />
 
       {foreman.keyNeeded ? (
         <div className="banner">
           <span>An API key is required to talk to the foreman.</span>
-          <button type="button" onClick={() => setSettingsOpen(true)}>
+          <button type="button" onClick={() => setAccountSection('llm')}>
             Add a key
           </button>
         </div>
@@ -214,19 +217,37 @@ export function App(): React.JSX.Element {
         />
       </main>
 
-      {settingsOpen ? (
-        <SettingsDialog
-          playthrough={foreman.playthrough}
+      {accountSection !== null ? (
+        <AccountSettingsDialog
           foremen={foreman.foremen}
+          playthroughs={foreman.playthroughs}
           llm={foreman.llm}
           twoFactorEnabled={foreman.user?.twoFactorEnabled ?? false}
-          onClose={() => setSettingsOpen(false)}
-          onSave={foreman.saveSettings}
+          initialSection={accountSection}
+          onClose={() => setAccountSection(null)}
+          onSaveLlm={foreman.saveLlm}
           onAddForeman={foreman.addForeman}
           onEditForeman={foreman.editForeman}
           onRemoveForeman={foreman.removeForeman}
-          onUseForeman={foreman.setPlaythroughForeman}
           onRefreshUser={foreman.refreshUser}
+        />
+      ) : null}
+
+      {playthroughSettingsOpen && foreman.playthrough !== null ? (
+        <PlaythroughSettingsDialog
+          playthrough={foreman.playthrough}
+          foremen={foreman.foremen}
+          onClose={() => setPlaythroughSettingsOpen(false)}
+          onSave={foreman.savePlaythroughSettings}
+          onManageForemen={() => {
+            setPlaythroughSettingsOpen(false);
+            setAccountSection('foremen');
+          }}
+          onDelete={async () => {
+            if (foreman.playthrough !== null) {
+              await foreman.removePlaythrough(foreman.playthrough.id);
+            }
+          }}
         />
       ) : null}
 
