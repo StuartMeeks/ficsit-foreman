@@ -21,7 +21,7 @@ body {
   background: var(--surface-page);
   color: var(--text-body);
   font-family: var(--font-body);
-  font-size: 15px;
+  font-size: var(--font-size-xl);
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
 }
@@ -77,7 +77,7 @@ textarea {
   font-family: var(--font-numeric);
   text-transform: uppercase;
   letter-spacing: var(--tracking-label);
-  font-size: 11px;
+  font-size: var(--font-size-xs);
   color: var(--text-muted);
 }
 
@@ -109,7 +109,7 @@ textarea {
   gap: 9px;
   font-family: var(--font-numeric);
   letter-spacing: var(--tracking-label-loose);
-  font-size: 13px;
+  font-size: var(--font-size-md);
   font-weight: var(--font-weight-bold);
   color: var(--text-primary);
 }
@@ -157,7 +157,7 @@ textarea {
   padding: 5px 10px;
   cursor: pointer;
   font-family: var(--font-numeric);
-  font-size: 11px;
+  font-size: var(--font-size-xs);
   letter-spacing: var(--tracking-label);
   text-transform: uppercase;
 }
@@ -393,7 +393,7 @@ textarea {
 
 .tool-chip {
   font-family: var(--font-numeric);
-  font-size: 10px;
+  font-size: var(--font-size-2xs);
   letter-spacing: var(--tracking-tight);
   text-transform: uppercase;
   color: var(--accent);
@@ -405,7 +405,7 @@ textarea {
 
 .msg .err {
   color: var(--status-shortfall);
-  font-size: 13px;
+  font-size: var(--font-size-md);
   margin-top: 4px;
 }
 
@@ -453,7 +453,7 @@ textarea {
   height: 42px;
   cursor: pointer;
   font-family: var(--font-numeric);
-  font-size: 12px;
+  font-size: var(--font-size-sm);
   letter-spacing: var(--tracking-label);
   text-transform: uppercase;
   font-weight: var(--font-weight-semibold);
@@ -466,7 +466,7 @@ textarea {
 
 .empty {
   color: var(--text-muted);
-  font-size: 14px;
+  font-size: var(--font-size-lg);
   padding: 8px 0;
 }
 
@@ -499,14 +499,14 @@ textarea {
 .wo-id {
   font-family: var(--font-numeric);
   color: var(--accent);
-  font-size: 12px;
+  font-size: var(--font-size-sm);
   letter-spacing: var(--tracking-wider);
 }
 
 .wo-tier {
   font-family: var(--font-numeric);
   color: var(--text-muted);
-  font-size: 11px;
+  font-size: var(--font-size-xs);
   letter-spacing: var(--tracking-label);
   text-transform: uppercase;
 }
@@ -514,7 +514,7 @@ textarea {
 /* Status chips — coloured per state. */
 .chip {
   font-family: var(--font-numeric);
-  font-size: 10px;
+  font-size: var(--font-size-2xs);
   letter-spacing: var(--tracking-label);
   text-transform: uppercase;
   padding: 3px 8px;
@@ -553,7 +553,7 @@ textarea {
 .wo-title {
   font-family: var(--font-heading);
   font-weight: var(--font-weight-extrabold);
-  font-size: 30px;
+  font-size: var(--font-size-display-lg);
   line-height: 1.05;
   color: var(--text-title);
   margin: 4px 0 12px;
@@ -563,7 +563,7 @@ textarea {
 
 .loc-tag {
   font-family: var(--font-numeric);
-  font-size: 10px;
+  font-size: var(--font-size-2xs);
   letter-spacing: var(--tracking-label);
   color: var(--accent);
   margin-right: 6px;
@@ -572,7 +572,7 @@ textarea {
 .wo-loc,
 .wo-objective {
   color: var(--text-secondary);
-  font-size: 13.5px;
+  font-size: var(--font-size-md);
   line-height: 1.5;
   margin: 0 0 8px;
 }
@@ -588,7 +588,7 @@ textarea {
   border: 1px solid var(--color-danger-deep);
   border-radius: var(--radius-sm);
   color: var(--color-danger-bright);
-  font-size: 13px;
+  font-size: var(--font-size-md);
 }
 
 /* ── Banner cards (revised / blocked / suggest / closed) ────────────────── */
@@ -620,13 +620,13 @@ textarea {
 
 .banner-note {
   color: var(--text-strong);
-  font-size: 13.5px;
+  font-size: var(--font-size-md);
   line-height: 1.5;
   margin: 6px 0;
 }
 
 .banner-resolve {
-  font-size: 13px;
+  font-size: var(--font-size-md);
   color: var(--text-secondary);
   margin: 6px 0 0;
 }
@@ -640,13 +640,13 @@ textarea {
   width: 100%;
   border-collapse: collapse;
   margin: 8px 0;
-  font-size: 12.5px;
+  font-size: var(--font-size-sm);
 }
 
 .diff th {
   text-align: left;
   font-family: var(--font-numeric);
-  font-size: 10px;
+  font-size: var(--font-size-2xs);
   letter-spacing: var(--tracking-label);
   text-transform: uppercase;
   color: var(--text-muted);
@@ -682,7 +682,7 @@ textarea {
   text-transform: uppercase;
   border-radius: var(--radius-sm);
   cursor: pointer;
-  font-size: 12px;
+  font-size: var(--font-size-sm);
 }
 
 .ghost-btn {
@@ -698,7 +698,7 @@ textarea {
 }
 .ghost-btn.tiny {
   padding: 3px 8px;
-  font-size: 10px;
+  font-size: var(--font-size-2xs);
   margin-top: 0;
 }
 
@@ -725,7 +725,7 @@ textarea {
   border: 1px solid var(--color-success-bright);
   color: var(--color-bg);
   padding: 14px 18px;
-  font-size: 14px;
+  font-size: var(--font-size-lg);
   font-weight: var(--font-weight-bold);
   letter-spacing: var(--tracking-wide);
 }
@@ -801,7 +801,7 @@ button:disabled {
   position: absolute;
   inset: -2px 0 0 1px;
   color: var(--color-bg);
-  font-size: 11px;
+  font-size: var(--font-size-xs);
   font-weight: 700;
 }
 
@@ -814,7 +814,7 @@ button:disabled {
 .checks li .step-n {
   font-family: var(--font-numeric);
   color: var(--text-muted);
-  font-size: 12px;
+  font-size: var(--font-size-sm);
   padding-top: 1px;
 }
 
@@ -823,12 +823,12 @@ button:disabled {
   flex-direction: column;
   gap: 2px;
   color: var(--text-strong);
-  font-size: 14px;
+  font-size: var(--font-size-lg);
 }
 
 .check-note {
   color: var(--text-muted);
-  font-size: 12px;
+  font-size: var(--font-size-sm);
 }
 
 .material .qty {
@@ -880,7 +880,7 @@ button:disabled {
   color: var(--text-primary);
   border-radius: var(--radius-sm);
   cursor: pointer;
-  font-size: 16px;
+  font-size: var(--font-size-2xl);
   line-height: 1;
 }
 .stepper button:hover:not(:disabled) {
@@ -890,7 +890,7 @@ button:disabled {
 .stepper .count {
   font-family: var(--font-numeric);
   font-variant-numeric: tabular-nums;
-  font-size: 16px;
+  font-size: var(--font-size-2xl);
   min-width: 22px;
   text-align: center;
   color: var(--text-bright);
@@ -901,7 +901,7 @@ button:disabled {
 .stepper .req {
   font-family: var(--font-numeric);
   color: var(--text-muted);
-  font-size: 12px;
+  font-size: var(--font-size-sm);
 }
 
 /* ── Expected output / power hero ───────────────────────────────────────── */
@@ -915,7 +915,7 @@ button:disabled {
 .power-num {
   font-family: var(--font-numeric);
   font-weight: var(--font-weight-extrabold);
-  font-size: 56px;
+  font-size: var(--font-size-display-2xl);
   line-height: 1;
   color: var(--accent);
   letter-spacing: 0.01em;
@@ -923,13 +923,13 @@ button:disabled {
 
 .power-unit {
   font-family: var(--font-numeric);
-  font-size: 20px;
+  font-size: var(--font-size-display-sm);
   color: var(--accent);
 }
 
 .power-tag {
   font-family: var(--font-numeric);
-  font-size: 10px;
+  font-size: var(--font-size-2xs);
   letter-spacing: var(--tracking-wider);
   color: var(--accent-deep);
   align-self: flex-end;
@@ -948,7 +948,7 @@ button:disabled {
   gap: 12px;
   padding: 7px 0;
   border-bottom: 1px solid var(--border-hairline);
-  font-size: 13.5px;
+  font-size: var(--font-size-md);
 }
 
 .ledger .row .qty {
@@ -962,7 +962,7 @@ button:disabled {
 
 .purity {
   font-family: var(--font-numeric);
-  font-size: 10px;
+  font-size: var(--font-size-2xs);
   letter-spacing: var(--tracking-label);
   text-transform: uppercase;
   color: var(--accent-muted);
@@ -971,7 +971,7 @@ button:disabled {
 .optional {
   color: var(--text-dim);
   text-transform: uppercase;
-  font-size: 10px;
+  font-size: var(--font-size-2xs);
   letter-spacing: var(--tracking-tight);
 }
 
@@ -1020,7 +1020,7 @@ button:disabled {
   gap: 12px;
   padding: 6px 0;
   border-bottom: 1px solid var(--border-subtle);
-  font-size: 13.5px;
+  font-size: var(--font-size-md);
 }
 
 .row.revision {
@@ -1030,14 +1030,14 @@ button:disabled {
 .rev-n {
   font-family: var(--font-numeric);
   color: var(--accent);
-  font-size: 12px;
+  font-size: var(--font-size-sm);
 }
 .rev-summary {
   display: flex;
   flex-direction: column;
   gap: 2px;
   color: var(--text-secondary);
-  font-size: 13px;
+  font-size: var(--font-size-md);
 }
 
 /* ── FM notes ───────────────────────────────────────────────────────────── */
@@ -1050,7 +1050,7 @@ button:disabled {
   margin: 0;
   padding-left: 18px;
   color: var(--text-secondary);
-  font-size: 13.5px;
+  font-size: var(--font-size-md);
   line-height: 1.6;
 }
 
@@ -1077,7 +1077,7 @@ button:disabled {
   margin: 8px 0;
   padding-left: 18px;
   color: var(--color-danger-bright);
-  font-size: 13px;
+  font-size: var(--font-size-md);
 }
 .force-actions {
   display: flex;
@@ -1104,13 +1104,13 @@ button:disabled {
   align-items: center;
   padding: 7px 0;
   border-bottom: 1px solid var(--border-hairline);
-  font-size: 13px;
+  font-size: var(--font-size-md);
 }
 
 .history .row .wo-n {
   font-family: var(--font-numeric);
   color: var(--text-muted);
-  font-size: 11px;
+  font-size: var(--font-size-xs);
 }
 
 /* ── Drawer dock (right-edge tool windows) ──────────────────────────────── */
@@ -1143,7 +1143,7 @@ button:disabled {
   border-radius: var(--radius-sm);
   color: var(--text-secondary);
   font-family: var(--font-numeric);
-  font-size: 11px;
+  font-size: var(--font-size-xs);
   letter-spacing: var(--tracking-label);
   text-transform: uppercase;
   padding: 10px 4px;
@@ -1218,7 +1218,7 @@ button:disabled {
   border-radius: var(--radius-sm);
   color: var(--text-muted);
   cursor: pointer;
-  font-size: 12px;
+  font-size: var(--font-size-sm);
   line-height: 1;
   padding: 3px 6px;
 }
@@ -1281,7 +1281,7 @@ button:disabled {
 
 .save-name {
   color: var(--text-strong);
-  font-size: 13px;
+  font-size: var(--font-size-md);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1289,7 +1289,7 @@ button:disabled {
 
 .save-meta {
   font-family: var(--font-numeric);
-  font-size: 11px;
+  font-size: var(--font-size-xs);
   color: var(--text-muted);
 }
 
@@ -1318,7 +1318,7 @@ button:disabled {
   border-left: 2px solid transparent;
   background: none;
   text-align: left;
-  font-size: 13px;
+  font-size: var(--font-size-md);
   color: var(--text-body);
   cursor: pointer;
 }
@@ -1335,7 +1335,7 @@ button:disabled {
 .history-row .wo-n {
   font-family: var(--font-numeric);
   color: var(--text-muted);
-  font-size: 11px;
+  font-size: var(--font-size-xs);
 }
 
 .history-title {
@@ -1459,7 +1459,7 @@ button:disabled {
 
 .user-menu-email {
   padding: 7px 9px;
-  font-size: 12px;
+  font-size: var(--font-size-sm);
   color: var(--text-muted);
   word-break: break-all;
 }
@@ -1498,7 +1498,7 @@ button:disabled {
 
 .dialog label {
   font-family: var(--font-numeric);
-  font-size: 11px;
+  font-size: var(--font-size-xs);
   letter-spacing: var(--tracking-label);
   text-transform: uppercase;
   color: var(--text-muted);
@@ -1520,7 +1520,7 @@ button:disabled {
 }
 
 .dialog .hint {
-  font-size: 12px;
+  font-size: var(--font-size-sm);
   color: var(--text-muted);
 }
 
@@ -1536,7 +1536,7 @@ button:disabled {
   border-bottom: 1px solid var(--border-emphasis);
   color: var(--text-primary);
   padding: 9px 16px;
-  font-size: 13px;
+  font-size: var(--font-size-md);
   display: flex;
   gap: 10px;
   align-items: center;
@@ -1549,7 +1549,7 @@ button:disabled {
   border-radius: var(--radius-sm);
   padding: 3px 10px;
   cursor: pointer;
-  font-size: 12px;
+  font-size: var(--font-size-sm);
 }
 
 /* Build-version mismatch is advisory, not an error — keep the amber banner but
@@ -1610,7 +1610,7 @@ button:disabled {
   font-weight: var(--font-weight-extrabold);
   text-transform: uppercase;
   letter-spacing: 0.01em;
-  font-size: 40px;
+  font-size: var(--font-size-display-xl);
   line-height: 1.05;
   color: var(--text-title);
   margin: 0 0 18px;
@@ -1621,7 +1621,7 @@ button:disabled {
   font-weight: var(--font-weight-extrabold);
   text-transform: uppercase;
   letter-spacing: 0.01em;
-  font-size: 28px;
+  font-size: var(--font-size-display-md);
   line-height: 1.1;
   color: var(--text-title);
   margin: 0 0 12px;
@@ -1629,7 +1629,7 @@ button:disabled {
 
 .onboarding-lede {
   color: var(--text-secondary);
-  font-size: 15px;
+  font-size: var(--font-size-xl);
   line-height: 1.6;
   margin: 0 0 16px;
   max-width: 56ch;
@@ -1678,7 +1678,7 @@ button:disabled {
 
 .preset-name {
   font-family: var(--font-numeric);
-  font-size: 13px;
+  font-size: var(--font-size-md);
   letter-spacing: var(--tracking-tight);
   text-transform: uppercase;
   color: var(--text-primary);
@@ -1689,7 +1689,7 @@ button:disabled {
 }
 
 .preset-tagline {
-  font-size: 13px;
+  font-size: var(--font-size-md);
   color: var(--text-muted);
 }
 
@@ -1703,7 +1703,7 @@ button:disabled {
 
 .onboarding label {
   font-family: var(--font-numeric);
-  font-size: 11px;
+  font-size: var(--font-size-xs);
   letter-spacing: var(--tracking-label);
   text-transform: uppercase;
   color: var(--text-muted);
@@ -1725,7 +1725,7 @@ button:disabled {
   border-radius: var(--radius-sm);
   color: var(--text-body);
   padding: 9px 11px;
-  font-size: 14px;
+  font-size: var(--font-size-lg);
 }
 
 .onboarding textarea:focus,
@@ -1736,14 +1736,14 @@ button:disabled {
 
 .onboarding .err {
   color: var(--status-shortfall);
-  font-size: 13px;
+  font-size: var(--font-size-md);
   margin: 12px 0 0;
 }
 
 /* Sign-in / sign-up mode toggle beneath the auth form. */
 .auth-switch {
   margin: 18px 0 0;
-  font-size: 13px;
+  font-size: var(--font-size-md);
   color: var(--text-muted);
 }
 
@@ -1753,7 +1753,7 @@ button:disabled {
   padding: 0;
   cursor: pointer;
   color: var(--accent);
-  font-size: 13px;
+  font-size: var(--font-size-md);
   text-decoration: underline;
 }
 
@@ -1761,7 +1761,7 @@ button:disabled {
 .secret-block {
   display: block;
   font-family: var(--font-numeric);
-  font-size: 13px;
+  font-size: var(--font-size-md);
   line-height: 1.7;
   letter-spacing: 0.04em;
   white-space: pre-wrap;
@@ -1790,7 +1790,7 @@ button:disabled {
   align-items: center;
   gap: 8px;
   margin-top: 12px;
-  font-size: 13px;
+  font-size: var(--font-size-md);
   color: var(--text-secondary);
   cursor: pointer;
 }
@@ -1825,7 +1825,7 @@ button:disabled {
   border: 1px solid var(--border-hairline);
   border-radius: var(--radius-sm);
   color: var(--text-secondary);
-  font-size: 14px;
+  font-size: var(--font-size-lg);
   transition:
     border-color 0.15s ease,
     color 0.15s ease,
@@ -1907,7 +1907,7 @@ button:disabled {
   background: var(--surface-inset);
   color: var(--text-muted);
   font-family: var(--font-numeric);
-  font-size: 12px;
+  font-size: var(--font-size-sm);
   letter-spacing: var(--tracking-label);
   cursor: pointer;
   white-space: nowrap;
@@ -1955,7 +1955,7 @@ button:disabled {
   border-radius: var(--radius-sm);
   color: var(--text-strong);
   font-family: var(--font-numeric);
-  font-size: 12px;
+  font-size: var(--font-size-sm);
   letter-spacing: var(--tracking-label);
   padding: 6px 10px;
   cursor: pointer;
@@ -2018,7 +2018,7 @@ button:disabled {
   border-radius: var(--radius-sm);
   color: var(--text-body);
   font-family: var(--font-body);
-  font-size: 13px;
+  font-size: var(--font-size-md);
   padding: 7px 9px;
   cursor: pointer;
 }
@@ -2039,7 +2039,7 @@ button:disabled {
 
 .switcher-action {
   font-family: var(--font-numeric);
-  font-size: 12px;
+  font-size: var(--font-size-sm);
   letter-spacing: var(--tracking-label);
   text-transform: uppercase;
   color: var(--text-secondary);
@@ -2066,7 +2066,7 @@ button:disabled {
   border-radius: var(--radius-sm);
   background: var(--surface-inset);
   color: var(--text-muted);
-  font-size: 13px;
+  font-size: var(--font-size-md);
   text-align: center;
   cursor: pointer;
 }
@@ -2080,7 +2080,7 @@ button:disabled {
 .dropzone-file {
   color: var(--text-strong);
   font-family: var(--font-numeric);
-  font-size: 12px;
+  font-size: var(--font-size-sm);
 }
 
 /* ── Sectioned settings + foreman library (#61) ────────────────────────── */
@@ -2101,7 +2101,7 @@ button:disabled {
   border-bottom: 2px solid transparent;
   color: var(--text-muted);
   font-family: var(--font-numeric);
-  font-size: 12px;
+  font-size: var(--font-size-sm);
   letter-spacing: var(--tracking-label);
   text-transform: uppercase;
   padding: 8px 12px;
@@ -2159,7 +2159,7 @@ button:disabled {
 
 .foreman-badge {
   font-family: var(--font-numeric);
-  font-size: 10px;
+  font-size: var(--font-size-2xs);
   letter-spacing: var(--tracking-label);
   text-transform: uppercase;
   color: var(--color-accent);
@@ -2170,7 +2170,7 @@ button:disabled {
 
 .foreman-persona {
   color: var(--text-secondary);
-  font-size: 13px;
+  font-size: var(--font-size-md);
   overflow: hidden;
   display: -webkit-box;
   -webkit-line-clamp: 2;
