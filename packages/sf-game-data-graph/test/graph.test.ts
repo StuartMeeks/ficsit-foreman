@@ -168,6 +168,61 @@ describe('cypher_query guard', () => {
   });
 });
 
+describe('listItems', () => {
+  it('lists every item and resource, sorted by display name', () => {
+    const items = graph.listItems();
+    const names = items.map((i) => i.displayName);
+    // 7 items + 3 resources in the fixture.
+    expect(items).toHaveLength(10);
+    expect(names).toContain('Iron Plate');
+    expect(names).toContain('Iron Ore'); // resource, folded into the item set
+    expect(names).toContain('Crude Oil');
+    expect([...names]).toEqual([...names].sort((a, b) => a.localeCompare(b)));
+  });
+
+  it('narrows by a case-insensitive search over display and class name', () => {
+    const names = graph.listItems({ search: 'IRON' }).map((i) => i.displayName);
+    expect(names).toContain('Iron Plate');
+    expect(names).toContain('Iron Ore');
+    expect(names).toContain('Screw'); // matches via class name Desc_IronScrew_C
+    expect(names).not.toContain('Plastic');
+  });
+
+  it('returns [] when nothing matches', () => {
+    expect(graph.listItems({ search: 'zzznope' })).toEqual([]);
+  });
+});
+
+describe('listRecipes', () => {
+  it('lists every recipe with its alternate flag', () => {
+    const recipes = graph.listRecipes();
+    expect(recipes).toHaveLength(9);
+    const alt = recipes.find((r) => r.displayName === 'Alternate: Bolted Iron Plate');
+    expect(alt?.isAlternate).toBe(true);
+    const standard = recipes.find((r) => r.className === 'Recipe_IronPlate_C');
+    expect(standard?.isAlternate).toBe(false);
+  });
+
+  it('narrows by search term', () => {
+    const names = graph.listRecipes({ search: 'plate' }).map((r) => r.displayName);
+    expect(names).toEqual(
+      expect.arrayContaining(['Iron Plate', 'Reinforced Iron Plate', 'Alternate: Bolted Iron Plate']),
+    );
+    expect(names).not.toContain('Screw');
+  });
+});
+
+describe('listSchematics search', () => {
+  it('narrows by search term alongside the tier filter', () => {
+    expect(graph.listSchematics({ search: 'plate' }).map((s) => s.displayName)).toEqual([
+      'Plate Production',
+    ]);
+    expect(graph.listSchematics({ search: 'zzznope' })).toEqual([]);
+    expect(graph.listSchematics({ tier: 0 })).toHaveLength(1);
+    expect(graph.listSchematics({ tier: 5 })).toEqual([]);
+  });
+});
+
 describe('version tagging', () => {
   it('exposes the parsed game version', () => {
     expect(graph.version).toBe('test-1.0');

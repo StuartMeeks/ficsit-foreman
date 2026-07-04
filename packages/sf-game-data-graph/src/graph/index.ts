@@ -5,11 +5,19 @@ import type { GameData, Item, Schematic } from '@foreman/sf-game-data';
 import type { QueryContext } from './context.js';
 import { loadGameData } from './loader.js';
 import { Resolver } from './resolve.js';
-import { getItem, whatConsumes, type WhatConsumesResult } from './queries/items.js';
+import {
+  getItem,
+  listItems,
+  whatConsumes,
+  type ItemSummary,
+  type WhatConsumesResult,
+} from './queries/items.js';
 import {
   compareAlternates,
   getRecipe,
+  listRecipes,
   recipesFor,
+  type RecipeSummary,
   type RecipesForResult,
 } from './queries/recipes.js';
 import {
@@ -67,12 +75,20 @@ export class GraphDB implements QueryContext {
     return getItem(this, name);
   }
 
+  public listItems(opts?: { search?: string }): ItemSummary[] {
+    return listItems(this, opts);
+  }
+
   public whatConsumes(name: string): Promise<WhatConsumesResult | undefined> {
     return whatConsumes(this, name);
   }
 
   public getRecipe(name: string): RecipeView | undefined {
     return getRecipe(this, name);
+  }
+
+  public listRecipes(opts?: { search?: string }): RecipeSummary[] {
+    return listRecipes(this, opts);
   }
 
   public recipesFor(name: string): Promise<RecipesForResult | undefined> {
@@ -111,8 +127,8 @@ export class GraphDB implements QueryContext {
     return buildableWith(this, resources);
   }
 
-  public listSchematics(tier?: number): SchematicSummary[] {
-    return listSchematics(this, tier);
+  public listSchematics(opts?: { tier?: number; search?: string }): SchematicSummary[] {
+    return listSchematics(this, opts);
   }
 
   public getSchematic(name: string): Schematic | undefined {

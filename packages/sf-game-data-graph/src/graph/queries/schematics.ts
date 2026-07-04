@@ -23,10 +23,23 @@ function summarise(schematic: Schematic): SchematicSummary {
   };
 }
 
-/** All milestones/MAM nodes etc., optionally filtered to a single tier. */
-export function listSchematics(ctx: QueryContext, tier?: number): SchematicSummary[] {
+/**
+ * All milestones/MAM nodes etc., optionally filtered to a single `tier` and/or a
+ * case-insensitive `search` substring matched against display name and class name.
+ */
+export function listSchematics(
+  ctx: QueryContext,
+  opts?: { tier?: number; search?: string },
+): SchematicSummary[] {
+  const search = opts?.search?.trim().toLowerCase();
   return Object.values(ctx.gameData.schematics)
-    .filter((schematic) => tier === undefined || schematic.tier === tier)
+    .filter((schematic) => opts?.tier === undefined || schematic.tier === opts.tier)
+    .filter((schematic) => {
+      if (search === undefined || search === '') {
+        return true;
+      }
+      return `${schematic.displayName} ${schematic.className}`.toLowerCase().includes(search);
+    })
     .map(summarise)
     .sort((a, b) => a.tier - b.tier || a.displayName.localeCompare(b.displayName));
 }
