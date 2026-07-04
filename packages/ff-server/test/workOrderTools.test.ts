@@ -273,6 +273,15 @@ describe('work-order tool registry', () => {
       expect(def.description.length).toBeGreaterThan(0);
     }
   });
+
+  it('exposes resourceNodes and opportunities in the create/revise schemas (#232)', () => {
+    for (const name of [CREATE_WORK_ORDER, REVISE_WORK_ORDER]) {
+      const def = workOrderToolDefinitions().find((d) => d.name === name);
+      const props = (def?.inputSchema as { properties?: Record<string, unknown> }).properties ?? {};
+      expect(props['resourceNodes']).toBeDefined();
+      expect(props['opportunities']).toBeDefined();
+    }
+  });
 });
 
 describe('handleWorkOrderTool', () => {
@@ -295,6 +304,35 @@ describe('handleWorkOrderTool', () => {
     expect(buildable?.buildCost).toEqual([
       { itemName: 'Iron Rod', itemClass: 'Desc_IronRod_C', amount: 5 },
     ]);
+  });
+
+  it('carries model-authored resourceNodes + opportunities on a created order (#232)', async () => {
+    const playthrough = await seedPlaythrough();
+    const outcome = await handleWorkOrderTool(
+      playthrough,
+      CREATE_WORK_ORDER,
+      {
+        ...validFullCreateInput,
+        resourceNodes: [
+          { resourceName: 'Iron Ore', purity: 'normal', coordinates: { x: 1, y: 2, z: 0 } },
+        ],
+        opportunities: {
+          nearbyCollectiblesFromPlayer: [
+            { kind: 'somersloop', optional: true, reason: 'On the way' },
+          ],
+          notes: ['Grab the slug while you are here.'],
+        },
+      },
+      deps,
+    );
+    expect(outcome.isError).toBe(false);
+    expect(outcome.workOrder?.resourceNodes?.[0]).toMatchObject({
+      resourceName: 'Iron Ore',
+      purity: 'normal',
+    });
+    expect(outcome.workOrder?.opportunities?.nearbyCollectiblesFromPlayer?.[0]?.kind).toBe(
+      'somersloop',
+    );
   });
 
   it('does not supersede the previous order on a second create', async () => {
