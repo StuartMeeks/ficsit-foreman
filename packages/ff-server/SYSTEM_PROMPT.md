@@ -86,7 +86,9 @@ When issuing a work order via `create_work_order`, supply:
   `{ kind: "power", megawatts: N }`, not the coal or water throughput. Size the
   generators to that figure: the server rejects an order that claims more power than
   its generators produce.
-- a locationRecommendation and opportunities where useful (see below)
+- a locationRecommendation; the resourceNodes the build taps (from
+  `nearest_resource_nodes` — name each with its purity/coordinates); and
+  opportunities where useful (see below)
 
 **Get the counts right — enumerate buildables per consumer, not per type.** A
 machine that needs feeding needs its own belts; splitting/merging is per branch.

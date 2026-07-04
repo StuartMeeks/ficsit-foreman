@@ -123,6 +123,98 @@ const stepsSchema = {
   },
 };
 
+const coordProps = {
+  type: 'object',
+  properties: { x: { type: 'number' }, y: { type: 'number' }, z: { type: 'number' } },
+  required: ['x', 'y'],
+};
+
+const resourceNodesToolSchema = {
+  type: 'array',
+  description:
+    'Resource nodes this order should tap — look them up with nearest_resource_nodes. Name the resource and, where known, its purity and coordinates, so the pioneer knows exactly where to mine.',
+  items: {
+    type: 'object',
+    properties: {
+      resourceName: {
+        type: 'string',
+        description: 'Exact item/resource display name, e.g. "Iron Ore".',
+      },
+      purity: { type: 'string', enum: ['impure', 'normal', 'pure'] },
+      coordinates: coordProps,
+      notes: { type: 'string' },
+    },
+    required: ['resourceName'],
+  },
+};
+
+const collectibleOpportunityToolSchema = {
+  type: 'object',
+  properties: {
+    kind: {
+      type: 'string',
+      enum: [
+        'mercerSphere',
+        'somersloop',
+        'powerSlugBlue',
+        'powerSlugYellow',
+        'powerSlugPurple',
+        'hardDrive',
+      ],
+    },
+    coordinates: coordProps,
+    distance: { type: 'number', description: 'Metres from the reference point.' },
+    reason: { type: 'string' },
+    optional: { type: 'boolean', description: 'Nice-to-grab vs on the critical path.' },
+  },
+  required: ['kind', 'optional'],
+};
+
+const opportunitiesToolSchema = {
+  type: 'object',
+  description:
+    'Optional side-quests surfaced from the world + save tools (get_nearby / nearest_collectibles — already-collected ones are removed). Omit any group you have no data for; never guess coordinates.',
+  properties: {
+    nearbyCollectiblesFromPlayer: {
+      type: 'array',
+      description: 'Un-collected collectibles near the pioneer (needs a loaded save).',
+      items: collectibleOpportunityToolSchema,
+    },
+    nearbyCollectiblesFromWorkOrderLocation: {
+      type: 'array',
+      description: 'Un-collected collectibles near this order build site.',
+      items: collectibleOpportunityToolSchema,
+    },
+    overclockingOptions: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          target: { type: 'string' },
+          recommendation: { type: 'string' },
+          powerShardCount: { type: 'integer' },
+          expectedEffect: { type: 'string' },
+          notes: { type: 'string' },
+        },
+        required: ['target', 'recommendation'],
+      },
+    },
+    awesomeShopSuggestions: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          itemName: { type: 'string' },
+          reason: { type: 'string' },
+          priority: { type: 'string', enum: ['low', 'medium', 'high'] },
+        },
+        required: ['itemName', 'reason'],
+      },
+    },
+    notes: { type: 'array', items: { type: 'string' } },
+  },
+};
+
 const planProperties: Record<string, unknown> = {
   title: { type: 'string', description: 'Short, memorable title.' },
   goal: { type: 'string', description: 'One concise sentence — the purpose of the order.' },
@@ -144,6 +236,7 @@ const planProperties: Record<string, unknown> = {
     },
     required: ['summary'],
   },
+  resourceNodes: resourceNodesToolSchema,
   buildSteps: stepsSchema,
   expectedOutputs: {
     type: 'array',
@@ -151,6 +244,7 @@ const planProperties: Record<string, unknown> = {
       'What the order produces. Use kind=power (MW) as the hero output for power plants.',
     items: expectedOutputItemSchema,
   },
+  opportunities: opportunitiesToolSchema,
   notes: {
     type: 'array',
     description: 'Freeform foreman build notes / guidance shown alongside the order.',
