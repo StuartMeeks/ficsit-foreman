@@ -20,7 +20,8 @@ export interface WorkOrderToolDeps {
   workOrders: WorkOrderService;
   /** Current game data version, stamped onto newly-issued orders. */
   gameVersion: () => string;
-  /** MCP gateway — used to resolve each buildable's build cost via `get_building`. */
+  /** MCP gateway — resolves every game-data name in a plan (buildings, recipes, items,
+   * schematics) and enriches buildable build costs, rejecting the order on any miss. */
   mcp: McpGateway;
 }
 
@@ -305,7 +306,7 @@ async function handleCreate(
   if (!parsed.success) {
     return { text: `Invalid create_work_order arguments: ${parsed.error.message}`, isError: true };
   }
-  const enrich = await enrichBuildCosts(parsed.data, deps.mcp);
+  const enrich = await resolvePlanReferences(parsed.data, deps.mcp);
   if (!enrich.ok) {
     return { text: enrich.message, isError: true };
   }
@@ -357,7 +358,7 @@ async function handleRevise(
   }
   const { workOrderId: _id, changeSummary, ...patch } = parsed.data;
   void _id;
-  const enrich = await enrichBuildCosts(patch, deps.mcp);
+  const enrich = await resolvePlanReferences(patch, deps.mcp);
   if (!enrich.ok) {
     return { text: enrich.message, isError: true };
   }
@@ -478,7 +479,7 @@ async function handleCreateChild(
     }
     parentId = current.id;
   }
-  const enrich = await enrichBuildCosts(parsed.data, deps.mcp);
+  const enrich = await resolvePlanReferences(parsed.data, deps.mcp);
   if (!enrich.ok) {
     return { text: enrich.message, isError: true };
   }
@@ -509,21 +510,156 @@ interface StepInput {
   buildables?: BuildableInput[];
 }
 
-/** Outcome of build-cost enrichment: ok, or a rejection naming the buildables that failed. */
+/** Outcome of plan-reference resolution: ok, or a rejection naming what failed. */
 export type EnrichResult = { ok: true } | { ok: false; unresolved: string[]; message: string };
 
+/** The kinds of game-data name a plan carries, each resolved against its own MCP tools. */
+type RefKind = 'building' | 'recipe' | 'item' | 'schematic';
+
+interface KindConfig {
+  /** Exact-match resolver tool (returns `isError` on a miss). */
+  getTool: string;
+  /** Key the resolver wraps its entity under on success. */
+  responseKey: string;
+  /** Discovery tool backing best-match suggestions. */
+  listTool: string;
+  /** Key the discovery tool wraps its list under. */
+  listKey: string;
+  /** Human label for the rejection message (singular). */
+  label: string;
+}
+
 /**
- * Resolves every DISTINCT buildable name to its class + per-unit `buildCost` via the
- * `get_building` MCP tool (exact display- or class-name match), mutating the plan's
- * `buildSteps` in place. If ANY name fails to resolve, returns a rejection whose message
- * names each bad name with best-match suggestions (from `list_buildings`). The caller
- * must NOT persist the order on a rejection — so a wrong name is corrected up front
- * rather than silently shipping a zero-cost buildable.
+ * How each name kind resolves. `building` covers both buildables and recipe
+ * `machineName`s (a machine is a building); resources fold into items, so
+ * `resourceName` resolves via `get_item`. Slice 1 (#222) added `list_items` /
+ * `list_recipes` and `search` on `list_schematics` to source suggestions here.
  */
-export async function enrichBuildCosts(
-  plan: { buildSteps?: StepInput[] },
+const KIND: Record<RefKind, KindConfig> = {
+  building: {
+    getTool: 'get_building',
+    responseKey: 'building',
+    listTool: 'list_buildings',
+    listKey: 'buildings',
+    label: 'building',
+  },
+  recipe: {
+    getTool: 'get_recipe',
+    responseKey: 'recipe',
+    listTool: 'list_recipes',
+    listKey: 'recipes',
+    label: 'recipe',
+  },
+  item: {
+    getTool: 'get_item',
+    responseKey: 'item',
+    listTool: 'list_items',
+    listKey: 'items',
+    label: 'item',
+  },
+  schematic: {
+    getTool: 'get_schematic',
+    responseKey: 'schematic',
+    listTool: 'list_schematics',
+    listKey: 'schematics',
+    label: 'schematic',
+  },
+};
+
+const KIND_ORDER: RefKind[] = ['building', 'recipe', 'item', 'schematic'];
+
+/** The name-bearing plan fields resolution walks. All optional (revise sends a partial plan). */
+interface PlanInput {
+  buildSteps?: StepInput[];
+  recipes?: {
+    machineName?: string;
+    recipeName?: string;
+    inputItems?: { itemName?: string }[];
+    outputItems?: { itemName?: string }[];
+  }[];
+  expectedOutputs?: { kind: string; item?: string; schematic?: string }[];
+  resourceNodes?: { resourceName?: string }[];
+}
+
+/**
+ * Resolves every game-data name a plan carries — buildables, recipe machine/recipe/item
+ * names, expected-output items and unlock schematics, and resource-node names — against
+ * the sf-mcp resolver tools. Buildables are additionally enriched with their per-unit
+ * `buildCost` + class in place. If ANY name fails to resolve, returns a rejection whose
+ * message groups each bad name by kind with best-match suggestions and a pointer to the
+ * relevant `list_*` tool. The caller must NOT persist on a rejection, so a wrong name is
+ * corrected up front rather than silently degrading the plan (#220 for buildables, #222
+ * for the rest).
+ */
+export async function resolvePlanReferences(
+  plan: PlanInput,
   mcp: McpGateway,
 ): Promise<EnrichResult> {
+  const misses: Record<RefKind, Set<string>> = {
+    building: new Set(),
+    recipe: new Set(),
+    item: new Set(),
+    schematic: new Set(),
+  };
+
+  // Buildables: enrich buildCost/class in place, collecting misses under `building`.
+  await enrichBuildables(plan, mcp, (name) => misses.building.add(name));
+
+  // Every other name field, existence-only, deduplicated per kind.
+  const toResolve: Record<RefKind, Set<string>> = {
+    building: new Set(),
+    recipe: new Set(),
+    item: new Set(),
+    schematic: new Set(),
+  };
+  for (const recipe of plan.recipes ?? []) {
+    if (recipe.machineName !== undefined) {
+      toResolve.building.add(recipe.machineName);
+    }
+    if (recipe.recipeName !== undefined) {
+      toResolve.recipe.add(recipe.recipeName);
+    }
+    for (const line of [...(recipe.inputItems ?? []), ...(recipe.outputItems ?? [])]) {
+      if (line.itemName !== undefined) {
+        toResolve.item.add(line.itemName);
+      }
+    }
+  }
+  for (const output of plan.expectedOutputs ?? []) {
+    if (output.kind === 'item' && output.item !== undefined) {
+      toResolve.item.add(output.item);
+    }
+    if (output.kind === 'unlock' && output.schematic !== undefined) {
+      toResolve.schematic.add(output.schematic);
+    }
+  }
+  for (const node of plan.resourceNodes ?? []) {
+    if (node.resourceName !== undefined) {
+      toResolve.item.add(node.resourceName);
+    }
+  }
+
+  for (const kind of KIND_ORDER) {
+    for (const name of toResolve[kind]) {
+      if (!(await nameResolves(name, KIND[kind], mcp))) {
+        misses[kind].add(name);
+      }
+    }
+  }
+
+  return buildEnrichResult(misses, mcp);
+}
+
+/**
+ * Resolves every DISTINCT buildable name to its class + per-unit `buildCost` via
+ * `get_building`, mutating `buildSteps` in place, and reports each unresolved name via
+ * `onMiss` (its buildCost is cleared so a wrong name never ships a stale cost).
+ */
+async function enrichBuildables(
+  plan: { buildSteps?: StepInput[] },
+  mcp: McpGateway,
+  onMiss: (name: string) => void,
+): Promise<void> {
   const steps = plan.buildSteps ?? [];
   const names = new Set<string>();
   for (const step of steps) {
@@ -532,7 +668,7 @@ export async function enrichBuildCosts(
     }
   }
   if (names.size === 0) {
-    return { ok: true };
+    return;
   }
 
   const resolved = new Map<string, ResolvedBuild | null>();
@@ -540,15 +676,12 @@ export async function enrichBuildCosts(
     resolved.set(name, await resolveBuild(name, mcp));
   }
 
-  const unresolved: string[] = [];
   for (const step of steps) {
     for (const b of step.buildables ?? []) {
       const r = resolved.get(b.name);
       if (r === null || r === undefined) {
         b.buildCost = [];
-        if (!unresolved.includes(b.name)) {
-          unresolved.push(b.name);
-        }
+        onMiss(b.name);
       } else {
         b.buildCost = r.buildCost;
         if (r.buildingClass !== undefined) {
@@ -557,28 +690,37 @@ export async function enrichBuildCosts(
       }
     }
   }
-  if (unresolved.length === 0) {
-    return { ok: true };
-  }
-  return { ok: false, unresolved, message: await buildRejection(unresolved, mcp) };
 }
 
-/** A compact building entry as returned by the `list_buildings` MCP tool. */
-interface BuildingListEntry {
+/** Whether a name resolves exactly via its kind's `get_*` tool (non-error, entity present). */
+async function nameResolves(name: string, cfg: KindConfig, mcp: McpGateway): Promise<boolean> {
+  try {
+    const res = await mcp.callTool(cfg.getTool, { name });
+    if (res.isError) {
+      return false;
+    }
+    const parsed = JSON.parse(res.text) as Record<string, unknown>;
+    return parsed[cfg.responseKey] !== undefined;
+  } catch {
+    return false;
+  }
+}
+
+/** A compact `{ className, displayName }` entry as returned by a `list_*` discovery tool. */
+interface NameEntry {
   className: string;
   displayName: string;
-  category: string;
 }
 
-/** Fetches the full building list once (for suggestions); [] if the tool is unavailable. */
-async function fetchBuildingList(mcp: McpGateway): Promise<BuildingListEntry[]> {
+/** Fetches a kind's full name list once (for suggestions); [] if the tool is unavailable. */
+async function fetchNames(cfg: KindConfig, mcp: McpGateway): Promise<NameEntry[]> {
   try {
-    const res = await mcp.callTool('list_buildings', {});
+    const res = await mcp.callTool(cfg.listTool, {});
     if (res.isError) {
       return [];
     }
-    const parsed = JSON.parse(res.text) as { buildings?: BuildingListEntry[] };
-    return parsed.buildings ?? [];
+    const parsed = JSON.parse(res.text) as Record<string, NameEntry[] | undefined>;
+    return parsed[cfg.listKey] ?? [];
   } catch {
     return [];
   }
@@ -594,20 +736,20 @@ function tokenise(name: string): string[] {
 
 /**
  * Up to five best-match display names for a miss: the highest token-overlap tier against
- * the building list. Advisory only — the model must re-issue with an exact name, so this
+ * a kind's name list. Advisory only — the model must re-issue with an exact name, so this
  * surfaces candidates without ever resolving on the model's behalf.
  */
-function suggestFor(name: string, buildings: BuildingListEntry[]): string[] {
+function suggestFor(name: string, candidates: NameEntry[]): string[] {
   const tokens = tokenise(name);
-  if (tokens.length === 0 || buildings.length === 0) {
+  if (tokens.length === 0 || candidates.length === 0) {
     return [];
   }
   let best = 0;
-  const scored = buildings.map((b) => {
-    const haystack = `${b.displayName} ${b.className}`.toLowerCase();
+  const scored = candidates.map((c) => {
+    const haystack = `${c.displayName} ${c.className}`.toLowerCase();
     const score = tokens.reduce((n, t) => (haystack.includes(t) ? n + 1 : n), 0);
     best = Math.max(best, score);
-    return { displayName: b.displayName, score };
+    return { displayName: c.displayName, score };
   });
   if (best === 0) {
     return [];
@@ -619,20 +761,44 @@ function suggestFor(name: string, buildings: BuildingListEntry[]): string[] {
     .slice(0, 5);
 }
 
-/** The rejection message: each bad name with suggestions plus a pointer to `list_buildings`. */
-async function buildRejection(unresolved: string[], mcp: McpGateway): Promise<string> {
-  const buildings = await fetchBuildingList(mcp);
-  const lines = unresolved.map((name) => {
-    const suggestions = suggestFor(name, buildings);
-    return suggestions.length > 0
-      ? `  • "${name}" → did you mean: ${suggestions.join(', ')}?`
-      : `  • "${name}" → no close match found.`;
-  });
-  return (
-    `Work order not created: these buildable names don't match any building in the game data ` +
-    `— correct them and retry with the exact in-game display name.\n${lines.join('\n')}\n` +
-    `Call list_buildings (optionally with a search term) to confirm exact names.`
-  );
+/**
+ * Turns per-kind misses into an `EnrichResult`: ok if none, otherwise a rejection whose
+ * message groups bad names by kind (each with suggestions + a pointer to the kind's
+ * `list_*` tool) and whose `unresolved` is the flat list of bad names.
+ */
+async function buildEnrichResult(
+  misses: Record<RefKind, Set<string>>,
+  mcp: McpGateway,
+): Promise<EnrichResult> {
+  const unresolved: string[] = [];
+  const sections: string[] = [];
+  for (const kind of KIND_ORDER) {
+    const names = misses[kind];
+    if (names.size === 0) {
+      continue;
+    }
+    const cfg = KIND[kind];
+    const candidates = await fetchNames(cfg, mcp);
+    const lines = [...names].map((name) => {
+      unresolved.push(name);
+      const suggestions = suggestFor(name, candidates);
+      return suggestions.length > 0
+        ? `  • "${name}" → did you mean: ${suggestions.join(', ')}?`
+        : `  • "${name}" → no close match found.`;
+    });
+    const heading = `${cfg.label[0]!.toUpperCase()}${cfg.label.slice(1)} names (confirm with ${cfg.listTool}):`;
+    sections.push(`${heading}\n${lines.join('\n')}`);
+  }
+  if (unresolved.length === 0) {
+    return { ok: true };
+  }
+  return {
+    ok: false,
+    unresolved,
+    message:
+      `Work order not created: these names don't match the game data — correct them and ` +
+      `retry with the exact in-game display names.\n${sections.join('\n')}`,
+  };
 }
 
 /** Resolves one buildable name to its class + per-unit build cost via `get_building`. */
