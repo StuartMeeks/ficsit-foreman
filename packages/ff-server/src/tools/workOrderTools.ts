@@ -310,6 +310,10 @@ async function handleCreate(
   if (!enrich.ok) {
     return { text: enrich.message, isError: true };
   }
+  const power = await verifyPlanPower(parsed.data, deps.mcp);
+  if (!power.ok) {
+    return { text: power.message, isError: true };
+  }
   const order = await deps.workOrders.create(playthroughId, parsed.data, deps.gameVersion());
   const label = formatWorkOrderLabel(order.sequenceNumber);
   return {
@@ -361,6 +365,10 @@ async function handleRevise(
   const enrich = await resolvePlanReferences(patch, deps.mcp);
   if (!enrich.ok) {
     return { text: enrich.message, isError: true };
+  }
+  const power = await verifyPlanPower(patch, deps.mcp);
+  if (!power.ok) {
+    return { text: power.message, isError: true };
   }
   const meta = changeSummary !== undefined ? { changeSummary } : {};
   const outcome = await deps.workOrders.updatePlan(
@@ -483,6 +491,10 @@ async function handleCreateChild(
   if (!enrich.ok) {
     return { text: enrich.message, isError: true };
   }
+  const power = await verifyPlanPower(parsed.data, deps.mcp);
+  if (!power.ok) {
+    return { text: power.message, isError: true };
+  }
   const order = await deps.workOrders.create(
     playthroughId,
     { ...parsed.data, parentWorkOrderId: parentId },
@@ -505,6 +517,7 @@ interface BuildableInput {
   name: string;
   buildingClass?: string;
   buildCost?: BuildCostLine[];
+  requiredCount?: number;
 }
 interface StepInput {
   buildables?: BuildableInput[];
@@ -577,7 +590,7 @@ interface PlanInput {
     inputItems?: { itemName?: string }[];
     outputItems?: { itemName?: string }[];
   }[];
-  expectedOutputs?: { kind: string; item?: string; schematic?: string }[];
+  expectedOutputs?: { kind: string; item?: string; schematic?: string; megawatts?: number }[];
   resourceNodes?: { resourceName?: string }[];
 }
 
@@ -830,6 +843,134 @@ async function resolveBuild(name: string, mcp: McpGateway): Promise<ResolvedBuil
   } catch {
     return null;
   }
+}
+
+// --- Quantity verification: power output (#223) ----------------------------
+
+/** Outcome of a quantity check: ok, or a rejection explaining the mismatch. */
+export type PowerCheckResult = { ok: true } | { ok: false; message: string };
+
+/** A fixed-output power generator: class → display name + per-unit MW. */
+interface FixedGenerator {
+  displayName: string;
+  powerProduction: number;
+}
+
+/**
+ * Fetches the fixed-output power generators keyed by class name via
+ * `list_power_generators`. Excludes variable-output generators (Geothermal), whose
+ * output is geyser-dependent and so can't be verified from a count. [] if unavailable.
+ */
+async function fetchPowerGenerators(mcp: McpGateway): Promise<Map<string, FixedGenerator>> {
+  const map = new Map<string, FixedGenerator>();
+  try {
+    const res = await mcp.callTool('list_power_generators', {});
+    if (res.isError) {
+      return map;
+    }
+    const parsed = JSON.parse(res.text) as {
+      generators?: {
+        className?: string;
+        displayName?: string;
+        powerProduction?: number;
+        variablePowerProduction?: boolean;
+      }[];
+    };
+    for (const g of parsed.generators ?? []) {
+      if (
+        g.className !== undefined &&
+        typeof g.powerProduction === 'number' &&
+        g.variablePowerProduction !== true
+      ) {
+        map.set(g.className, {
+          displayName: g.displayName ?? g.className,
+          powerProduction: g.powerProduction,
+        });
+      }
+    }
+  } catch {
+    return map;
+  }
+  return map;
+}
+
+/** Formats an MW figure without noisy trailing decimals. */
+function fmtMW(mw: number): string {
+  return Number.isInteger(mw) ? String(mw) : mw.toFixed(2);
+}
+
+/**
+ * Verifies a plan's declared power output against what its generator buildables actually
+ * produce. Power is deterministic — generators can't be overclocked, so `powerProduction`
+ * is fixed — making this the one quantitative check safe to hard-reject (#223). Rejects
+ * only UNDER-provision (the plant can't produce its claimed MW); over-provisioning is
+ * legitimate headroom. Skips (ok) whenever it can't see BOTH a power output and generator
+ * buildables in the plan — so partial revises are never falsely rejected.
+ */
+export async function verifyPlanPower(plan: PlanInput, mcp: McpGateway): Promise<PowerCheckResult> {
+  let declaredMW = 0;
+  let hasPowerOutput = false;
+  for (const output of plan.expectedOutputs ?? []) {
+    if (output.kind === 'power' && typeof output.megawatts === 'number') {
+      declaredMW += output.megawatts;
+      hasPowerOutput = true;
+    }
+  }
+  if (!hasPowerOutput || declaredMW <= 0) {
+    return { ok: true };
+  }
+
+  const generators = await fetchPowerGenerators(mcp);
+  if (generators.size === 0) {
+    return { ok: true };
+  }
+
+  // Aggregate generator buildables by type (a generator may appear across several steps).
+  const byType = new Map<string, { displayName: string; powerProduction: number; count: number }>();
+  for (const step of plan.buildSteps ?? []) {
+    for (const b of step.buildables ?? []) {
+      if (b.buildingClass === undefined) {
+        continue;
+      }
+      const gen = generators.get(b.buildingClass);
+      if (gen === undefined) {
+        continue;
+      }
+      const entry = byType.get(b.buildingClass) ?? { ...gen, count: 0 };
+      entry.count += b.requiredCount ?? 0;
+      byType.set(b.buildingClass, entry);
+    }
+  }
+  const types = [...byType.values()];
+  if (types.length === 0) {
+    return { ok: true };
+  }
+
+  const actualMW = types.reduce((sum, t) => sum + t.count * t.powerProduction, 0);
+  if (actualMW + 1e-6 >= declaredMW) {
+    return { ok: true };
+  }
+
+  const built = types.map((t) => `${t.count}× ${t.displayName}`).join(' + ');
+  const base =
+    `Work order not created: it claims ${fmtMW(declaredMW)} MW but its ${built} ` +
+    `produce ${fmtMW(actualMW)} MW`;
+  if (types.length === 1) {
+    const t = types[0]!;
+    const needed = Math.ceil(declaredMW / t.powerProduction);
+    return {
+      ok: false,
+      message:
+        `${base} (${fmtMW(t.powerProduction)} MW each). For ${fmtMW(declaredMW)} MW you need ` +
+        `${needed}× ${t.displayName}. Adjust the count or the target and retry.`,
+    };
+  }
+  return {
+    ok: false,
+    message:
+      `${base}. Increase generator counts (or lower the target) so total output is at ` +
+      `least ${fmtMW(declaredMW)} MW, then retry.`,
+  };
 }
 
 /** Resolves the target order id (explicit, or the playthrough's current order). */

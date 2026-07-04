@@ -41,6 +41,18 @@ function stubMcp(): McpGateway {
       className: 'Build_ConveyorAttachmentSplitter_C',
       buildCost: [{ item: 'Iron Plate', itemClassName: 'Desc_IronPlate_C', amount: 2 }],
     },
+    'Coal-Powered Generator': {
+      className: 'Build_GeneratorCoal_C',
+      buildCost: [{ item: 'Rotor', itemClassName: 'Desc_Rotor_C', amount: 10 }],
+    },
+    'Fuel-Powered Generator': {
+      className: 'Build_GeneratorFuel_C',
+      buildCost: [{ item: 'Motor', itemClassName: 'Desc_Motor_C', amount: 5 }],
+    },
+    'Geothermal Generator': {
+      className: 'Build_GeneratorGeoThermal_C',
+      buildCost: [{ item: 'Copper Sheet', itemClassName: 'Desc_CopperSheet_C', amount: 20 }],
+    },
   };
   // Exact-match resolver tables for the non-buildable kinds (name → class).
   const recipes: Record<string, string> = { 'Iron Ingot': 'Recipe_IngotIron_C' };
@@ -75,6 +87,24 @@ function stubMcp(): McpGateway {
   ];
   const schematicList = [
     { className: 'Schematic_Tier0_Plates_C', displayName: 'Plate Production' },
+  ];
+  // Backs list_power_generators: two fixed-output types + one variable (Geothermal).
+  const powerGenerators = [
+    {
+      className: 'Build_GeneratorCoal_C',
+      displayName: 'Coal-Powered Generator',
+      powerProduction: 75,
+    },
+    {
+      className: 'Build_GeneratorFuel_C',
+      displayName: 'Fuel-Powered Generator',
+      powerProduction: 250,
+    },
+    {
+      className: 'Build_GeneratorGeoThermal_C',
+      displayName: 'Geothermal Generator',
+      variablePowerProduction: true,
+    },
   ];
 
   /** A get_* result: the entity under `key` on a hit, isError on a miss. */
@@ -113,6 +143,8 @@ function stubMcp(): McpGateway {
           return { text: JSON.stringify({ items: itemList }), isError: false };
         case 'list_schematics':
           return { text: JSON.stringify({ schematics: schematicList }), isError: false };
+        case 'list_power_generators':
+          return { text: JSON.stringify({ generators: powerGenerators }), isError: false };
         default:
           return { text: '', isError: true };
       }
@@ -453,6 +485,124 @@ describe('ingest-time name resolution (#222)', () => {
     expect(outcome.isError).toBe(true);
     expect(outcome.text).toContain('Iron Ingot'); // suggestion
     expect(await deps.workOrders.list(playthrough)).toHaveLength(1); // only the parent
+  });
+});
+
+describe('power output verification (#223)', () => {
+  const powerPlant = (
+    megawatts: number,
+    buildables: { name: string; requiredCount: number }[],
+  ): Record<string, unknown> => ({
+    title: 'Coal Stack',
+    goal: 'Supply power.',
+    buildSteps: [{ title: 'Generators', buildables }],
+    expectedOutputs: [{ kind: 'power', megawatts }],
+  });
+
+  it('rejects an under-provisioned plant (12 generators claim 1200 MW) without persisting', async () => {
+    const playthrough = await seedPlaythrough();
+    const outcome = await handleWorkOrderTool(
+      playthrough,
+      CREATE_WORK_ORDER,
+      powerPlant(1200, [{ name: 'Coal-Powered Generator', requiredCount: 12 }]),
+      deps,
+    );
+    expect(outcome.isError).toBe(true);
+    expect(outcome.workOrder).toBeUndefined();
+    expect(outcome.text).toContain('1200');
+    expect(outcome.text).toContain('900'); // 12 × 75
+    expect(outcome.text).toContain('16'); // ceil(1200 / 75)
+    expect(outcome.text).toContain('Coal-Powered Generator');
+    expect(await deps.workOrders.list(playthrough)).toHaveLength(0);
+  });
+
+  it('accepts a plant that meets its target (16 × 75 = 1200 MW)', async () => {
+    const playthrough = await seedPlaythrough();
+    const outcome = await handleWorkOrderTool(
+      playthrough,
+      CREATE_WORK_ORDER,
+      powerPlant(1200, [{ name: 'Coal-Powered Generator', requiredCount: 16 }]),
+      deps,
+    );
+    expect(outcome.isError).toBe(false);
+    expect(await deps.workOrders.list(playthrough)).toHaveLength(1);
+  });
+
+  it('accepts over-provisioning (1200 MW built for a 1000 MW target)', async () => {
+    const playthrough = await seedPlaythrough();
+    const outcome = await handleWorkOrderTool(
+      playthrough,
+      CREATE_WORK_ORDER,
+      powerPlant(1000, [{ name: 'Coal-Powered Generator', requiredCount: 16 }]),
+      deps,
+    );
+    expect(outcome.isError).toBe(false);
+  });
+
+  it('skips when there is no power output to check', async () => {
+    const playthrough = await seedPlaythrough();
+    const outcome = await handleWorkOrderTool(
+      playthrough,
+      CREATE_WORK_ORDER,
+      {
+        title: 'Generators only',
+        goal: 'Place generators.',
+        buildSteps: [
+          { title: 'Gens', buildables: [{ name: 'Coal-Powered Generator', requiredCount: 4 }] },
+        ],
+      },
+      deps,
+    );
+    expect(outcome.isError).toBe(false);
+  });
+
+  it('skips when the only generators are variable-output (Geothermal)', async () => {
+    const playthrough = await seedPlaythrough();
+    const outcome = await handleWorkOrderTool(
+      playthrough,
+      CREATE_WORK_ORDER,
+      powerPlant(1000, [{ name: 'Geothermal Generator', requiredCount: 3 }]),
+      deps,
+    );
+    // Geothermal has no fixed powerProduction → can't verify from a count → not rejected.
+    expect(outcome.isError).toBe(false);
+  });
+
+  it('rejects an under-provisioned mixed-generator plant, naming both types', async () => {
+    const playthrough = await seedPlaythrough();
+    // 2 × 75 + 4 × 250 = 1150 MW < 1200 MW target.
+    const outcome = await handleWorkOrderTool(
+      playthrough,
+      CREATE_WORK_ORDER,
+      powerPlant(1200, [
+        { name: 'Coal-Powered Generator', requiredCount: 2 },
+        { name: 'Fuel-Powered Generator', requiredCount: 4 },
+      ]),
+      deps,
+    );
+    expect(outcome.isError).toBe(true);
+    expect(outcome.text).toContain('Coal-Powered Generator');
+    expect(outcome.text).toContain('Fuel-Powered Generator');
+    expect(outcome.text).toContain('1150');
+    expect(await deps.workOrders.list(playthrough)).toHaveLength(0);
+  });
+
+  it('does not falsely reject a revise that changes only the power target', async () => {
+    const playthrough = await seedPlaythrough();
+    await handleWorkOrderTool(
+      playthrough,
+      CREATE_WORK_ORDER,
+      powerPlant(1200, [{ name: 'Coal-Powered Generator', requiredCount: 16 }]),
+      deps,
+    );
+    // Patch touches only the target — no buildSteps to check against → skip, not reject.
+    const outcome = await handleWorkOrderTool(
+      playthrough,
+      REVISE_WORK_ORDER,
+      { expectedOutputs: [{ kind: 'power', megawatts: 2000 }], changeSummary: 'Bump target.' },
+      deps,
+    );
+    expect(outcome.isError).toBe(false);
   });
 });
 
