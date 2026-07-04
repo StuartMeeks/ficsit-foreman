@@ -275,6 +275,22 @@ export function registerGameDataTools(
   );
 
   server.registerTool(
+    'list_buildings',
+    {
+      title: 'List buildings',
+      description:
+        'Discover canonical buildable names before naming one in a work order. Returns compact entries (display name, class name, category) for every real buildable. Pass a search term to narrow by name (e.g. "splitter" → Conveyor Splitter, Smart Splitter, Programmable Splitter; "pipeline pump" → Pipeline Pump Mk.1/Mk.2), or a category to list one group. Use this whenever you are unsure of a building\'s exact name — get_building and work-order costs resolve by exact display or class name, so a near-miss name silently drops its build cost.',
+      inputSchema: {
+        search: z.string().optional(),
+        category: z.string().optional(),
+      },
+    },
+    async ({ search, category }): Promise<ToolResult> => {
+      return ok({ buildings: graph.listBuildings({ search, category }) });
+    },
+  );
+
+  server.registerTool(
     'cypher_query',
     {
       title: 'Cypher query (read-only)',

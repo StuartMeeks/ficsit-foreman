@@ -177,6 +177,8 @@ Match the intent to the tool:
 - Full production breakdown with machine counts → `ingredient_tree`
 - Which recipe to use, or comparing alternates → `recipes_for` / `compare_alternates`
 - A single item, recipe, or building → `get_item` / `get_recipe` / `get_building`
+- The exact name of a building (before you name it in an order) → `list_buildings`
+  (optionally with a search term, e.g. "splitter", "pipeline pump")
 - What a milestone or MAM node unlocks → `list_schematics` / `get_schematic`
 - Where things are in the world → `nearest_resource_nodes`, `nearest_collectibles`,
   `list_collectibles` (resource nodes, Mercer Spheres, Somersloops, slugs, hard drives)
@@ -191,6 +193,15 @@ You do **not** need to look up build costs to fill in the order — name each
 buildable and its count, and the server resolves its build cost from game data
 and totals it. (If you want to discuss a building's cost in chat, `get_building`
 still returns it.)
+
+Name every buildable by its **exact in-game display name** — the server resolves
+by exact name, so a near-miss is rejected, not guessed at. The colloquial names
+are often wrong: a splitter is "Conveyor Splitter", a pump is "Pipeline Pump
+Mk.1", the cross junction is "Pipeline Junction". If you are not certain of a
+name, call `list_buildings` first. If `create_work_order` comes back rejected
+with "could not resolve" names, it lists the offending names and suggests the
+canonical ones — fix them and call `create_work_order` again; the order is not
+created until every buildable resolves.
 
 ## Save State & Opportunities
 

@@ -81,6 +81,53 @@ describe('get_building — machine power draw', () => {
   });
 });
 
+describe('list_buildings', () => {
+  it('lists real named buildables and excludes dataless Desc_* descriptors', () => {
+    const buildings = graph.listBuildings();
+    expect(buildings.length).toBeGreaterThan(0);
+    // Every entry has a non-empty display name...
+    expect(buildings.every((b) => b.displayName !== '')).toBe(true);
+    // ...and the dataless descriptor twins are excluded.
+    expect(buildings.some((b) => b.className.startsWith('Desc_'))).toBe(false);
+    // Sorted by display name.
+    const names = buildings.map((b) => b.displayName);
+    expect([...names].sort((a, b) => a.localeCompare(b))).toEqual(names);
+  });
+
+  it('surfaces the canonical names the foreman kept guessing wrong (#220)', () => {
+    const byName = (search: string): string[] =>
+      graph.listBuildings({ search }).map((b) => b.displayName);
+    // "Splitter" → the three splitter variants, none of them bare "Splitter".
+    expect(byName('splitter')).toEqual(
+      expect.arrayContaining(['Conveyor Splitter', 'Smart Splitter', 'Programmable Splitter']),
+    );
+    // "Pipeline Pump" → mark-suffixed, not the bare name.
+    expect(byName('pipeline pump')).toEqual(
+      expect.arrayContaining(['Pipeline Pump Mk.1', 'Pipeline Pump Mk.2']),
+    );
+    // The junctions the foreman named "…Cross" / "…T-Intersection".
+    expect(byName('junction')).toEqual(
+      expect.arrayContaining(['Pipeline Junction', 'Pipeline T-Junction']),
+    );
+  });
+
+  it('search matches class name and is case-insensitive', () => {
+    const hits = graph.listBuildings({ search: 'CONVEYORATTACHMENTSPLITTER' });
+    expect(hits.map((b) => b.className)).toContain('Build_ConveyorAttachmentSplitter_C');
+  });
+
+  it('filters by exact (case-insensitive) category', () => {
+    const belts = graph.listBuildings({ category: 'conveyorbelt' });
+    expect(belts.length).toBeGreaterThan(0);
+    expect(belts.every((b) => b.category.toLowerCase() === 'conveyorbelt')).toBe(true);
+    expect(belts.map((b) => b.displayName)).toContain('Conveyor Belt Mk.1');
+  });
+
+  it('returns an empty list for a search that matches nothing', () => {
+    expect(graph.listBuildings({ search: 'dyson sphere' })).toEqual([]);
+  });
+});
+
 describe('list_power_generators', () => {
   it('lists every generator with output and fuels', () => {
     const generators = graph.listPowerGenerators();

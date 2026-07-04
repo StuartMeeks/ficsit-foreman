@@ -24,7 +24,9 @@ import {
 import { getSchematic, listSchematics, type SchematicSummary } from './queries/schematics.js';
 import {
   getBuilding,
+  listBuildings,
   listPowerGenerators,
+  type BuildingSummary,
   type BuildingView,
   type GeneratorSummary,
 } from './queries/buildings.js';
@@ -119,6 +121,10 @@ export class GraphDB implements QueryContext {
 
   public getBuilding(name: string): BuildingView | undefined {
     return getBuilding(this, name);
+  }
+
+  public listBuildings(opts?: { search?: string; category?: string }): BuildingSummary[] {
+    return listBuildings(this, opts);
   }
 
   public listPowerGenerators(): GeneratorSummary[] {
