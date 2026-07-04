@@ -840,6 +840,72 @@ describe('recipe derivation (#228)', () => {
   });
 });
 
+describe('revise buildSteps drop safeguard (#16)', () => {
+  const twoStepPlan = {
+    title: 'Two lines',
+    goal: 'Plates and screws.',
+    buildSteps: [
+      {
+        title: 'Plates',
+        buildables: [{ name: 'Constructor', requiredCount: 3, recipeName: 'Iron Plate' }],
+      },
+      {
+        title: 'Screws',
+        buildables: [{ name: 'Constructor', requiredCount: 2, recipeName: 'Screw' }],
+      },
+    ],
+  };
+
+  it('warns (non-blocking) when a revise shrinks the build plan', async () => {
+    const playthrough = await seedPlaythrough();
+    await handleWorkOrderTool(playthrough, CREATE_WORK_ORDER, twoStepPlan, deps);
+    // Revise sends only ONE of the two steps — the classic accidental-delta.
+    const outcome = await handleWorkOrderTool(
+      playthrough,
+      REVISE_WORK_ORDER,
+      {
+        buildSteps: [
+          {
+            title: 'Plates',
+            buildables: [{ name: 'Constructor', requiredCount: 3, recipeName: 'Iron Plate' }],
+          },
+        ],
+        changeSummary: 'Tweak plates.',
+      },
+      deps,
+    );
+    expect(outcome.isError).toBe(false); // non-blocking
+    expect(outcome.text).toContain('fewer parts');
+    expect(outcome.text).toContain('resend');
+    // The revise still applied (replace semantics) — this is a warning, not a block.
+    const orders = await deps.workOrders.list(playthrough);
+    expect(orders[0]?.currentRevision).toBe(2);
+  });
+
+  it('does not warn when a revise keeps or grows the plan', async () => {
+    const playthrough = await seedPlaythrough();
+    await handleWorkOrderTool(playthrough, CREATE_WORK_ORDER, twoStepPlan, deps);
+    // Resend both steps plus a third.
+    const outcome = await handleWorkOrderTool(
+      playthrough,
+      REVISE_WORK_ORDER,
+      {
+        buildSteps: [
+          ...twoStepPlan.buildSteps,
+          {
+            title: 'More plates',
+            buildables: [{ name: 'Constructor', requiredCount: 1, recipeName: 'Iron Plate' }],
+          },
+        ],
+        changeSummary: 'Add a line.',
+      },
+      deps,
+    );
+    expect(outcome.isError).toBe(false);
+    expect(outcome.text).not.toContain('fewer parts');
+  });
+});
+
 describe('resolvePlanReferences', () => {
   it('attaches per-unit cost + class for resolved buildables', async () => {
     const plan = {
