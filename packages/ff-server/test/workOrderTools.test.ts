@@ -37,6 +37,20 @@ function stubMcp(): McpGateway {
       buildCost: [{ item: 'Iron Plate', itemClassName: 'Desc_IronPlate_C', amount: 2 }],
     },
   };
+  // The building list backing list_buildings (used to suggest names on a miss).
+  const buildings = [
+    { className: 'Build_SmelterMk1_C', displayName: 'Smelter', category: 'Manufacturer' },
+    {
+      className: 'Build_ConveyorAttachmentSplitter_C',
+      displayName: 'Conveyor Splitter',
+      category: 'AttachmentSplitter',
+    },
+    {
+      className: 'Build_ConveyorAttachmentSplitterSmart_C',
+      displayName: 'Smart Splitter',
+      category: 'SplitterSmart',
+    },
+  ];
   return {
     gameVersion: '1.2.3.0',
     listTools: async (): Promise<ToolDefinition[]> => [],
@@ -46,6 +60,9 @@ function stubMcp(): McpGateway {
         return building === undefined
           ? { text: 'Not found: building.', isError: true }
           : { text: JSON.stringify({ building }), isError: false };
+      }
+      if (name === 'list_buildings') {
+        return { text: JSON.stringify({ buildings }), isError: false };
       }
       return { text: '', isError: true };
     },
@@ -135,6 +152,24 @@ describe('handleWorkOrderTool', () => {
     expect(await deps.workOrders.list(playthrough)).toHaveLength(0);
   });
 
+  it('rejects (and does not persist) an order naming an unresolvable buildable', async () => {
+    const playthrough = await seedPlaythrough();
+    const outcome = await handleWorkOrderTool(
+      playthrough,
+      CREATE_WORK_ORDER,
+      {
+        ...validCreateInput,
+        buildSteps: [{ title: 'Belts', buildables: [{ name: 'Splitter', requiredCount: 15 }] }],
+      },
+      deps,
+    );
+    expect(outcome.isError).toBe(true);
+    expect(outcome.workOrder).toBeUndefined();
+    expect(outcome.text).toContain('Conveyor Splitter'); // suggestion in the rejection
+    // Nothing was written — the foreman must fix the name and retry.
+    expect(await deps.workOrders.list(playthrough)).toHaveLength(0);
+  });
+
   it('revises the current order in place rather than creating a new one', async () => {
     const playthrough = await seedPlaythrough();
     const created = await handleWorkOrderTool(
@@ -218,8 +253,8 @@ describe('enrichBuildCosts', () => {
         { title: 'b', buildables: [{ name: 'Conveyor Splitter', requiredCount: 4 }] },
       ],
     };
-    const note = await enrichBuildCosts(plan, stubMcp());
-    expect(note).toBeUndefined();
+    const result = await enrichBuildCosts(plan, stubMcp());
+    expect(result.ok).toBe(true);
     expect(plan.buildSteps[0]!.buildables[0]).toMatchObject({
       buildingClass: 'Build_SmelterMk1_C',
       buildCost: [{ itemName: 'Iron Rod', itemClass: 'Desc_IronRod_C', amount: 5 }],
@@ -229,12 +264,38 @@ describe('enrichBuildCosts', () => {
     );
   });
 
-  it('leaves cost empty and returns a note for an unresolved buildable', async () => {
+  it('is ok when there are no buildables to resolve', async () => {
+    const result = await enrichBuildCosts({}, stubMcp());
+    expect(result.ok).toBe(true);
+  });
+
+  it('rejects an unresolved buildable and suggests the canonical name', async () => {
+    const plan = {
+      buildSteps: [{ title: 'a', buildables: [{ name: 'Splitter', requiredCount: 15 }] }],
+    };
+    const result = await enrichBuildCosts(plan, stubMcp());
+    expect(result.ok).toBe(false);
+    if (result.ok) {
+      return; // narrow for the type-checker
+    }
+    expect(result.unresolved).toEqual(['Splitter']);
+    // The rejection surfaces the two splitter variants, not the bare guess.
+    expect(result.message).toContain('"Splitter"');
+    expect(result.message).toContain('Conveyor Splitter');
+    expect(result.message).toContain('Smart Splitter');
+    expect(result.message).toContain('list_buildings');
+  });
+
+  it('reports no close match when nothing overlaps', async () => {
     const plan = {
       buildSteps: [{ title: 'a', buildables: [{ name: 'Nonexistent Machine', requiredCount: 1 }] }],
     };
-    const note = await enrichBuildCosts(plan, stubMcp());
-    expect(plan.buildSteps[0]!.buildables[0]!.buildCost).toEqual([]);
-    expect(note).toContain('Nonexistent Machine');
+    const result = await enrichBuildCosts(plan, stubMcp());
+    expect(result.ok).toBe(false);
+    if (result.ok) {
+      return;
+    }
+    expect(result.message).toContain('Nonexistent Machine');
+    expect(result.message).toContain('no close match');
   });
 });

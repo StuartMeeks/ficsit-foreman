@@ -83,6 +83,12 @@ async function run(): Promise<void> {
     case 'get_building':
       result = graph.getBuilding(str('name'));
       break;
+    case 'list_buildings':
+      result = graph.listBuildings({
+        search: args['search'] === undefined ? undefined : str('search'),
+        category: args['category'] === undefined ? undefined : str('category'),
+      });
+      break;
     case 'list_power_generators':
       result = graph.listPowerGenerators();
       break;
@@ -132,6 +138,7 @@ async function run(): Promise<void> {
           'list_schematics',
           'get_schematic',
           'get_building',
+          'list_buildings',
           'list_power_generators',
           'cypher_query',
           'list_collectibles',

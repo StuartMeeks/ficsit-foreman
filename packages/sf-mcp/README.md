@@ -169,6 +169,7 @@ response is tagged with the detected game version.
 | `buildable_with(resources)` | Items producible from a set of raw resources (transitive closure). |
 | `list_schematics(tier?)` / `get_schematic(name)` | Milestones/MAM/shop/hard-drive schematics. |
 | `get_building(name)` / `list_power_generators()` | Building power/cost; full generator fuel breakdowns. |
+| `list_buildings(search?, category?)` | Discover canonical buildable names (display + class + category); search by name or list a category. |
 | `cypher_query(query)` | Guarded read-only Cypher escape hatch (rejects mutating keywords). |
 | `list_collectibles(type?)` / `nearest_collectibles(coord, type?, n?)` | Static world collectible totals + nearest-to-a-location. |
 | `nearest_resource_nodes(coord, resource?, purity?, n?)` | Resource nodes nearest a location, with resource type and purity. |

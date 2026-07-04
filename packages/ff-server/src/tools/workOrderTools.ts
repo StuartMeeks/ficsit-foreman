@@ -305,11 +305,14 @@ async function handleCreate(
   if (!parsed.success) {
     return { text: `Invalid create_work_order arguments: ${parsed.error.message}`, isError: true };
   }
-  const costNote = await enrichBuildCosts(parsed.data, deps.mcp);
+  const enrich = await enrichBuildCosts(parsed.data, deps.mcp);
+  if (!enrich.ok) {
+    return { text: enrich.message, isError: true };
+  }
   const order = await deps.workOrders.create(playthroughId, parsed.data, deps.gameVersion());
   const label = formatWorkOrderLabel(order.sequenceNumber);
   return {
-    text: `Issued ${label}: "${order.title}" (state: new). Tell the pioneer it is ready to start.${costNote ?? ''}`,
+    text: `Issued ${label}: "${order.title}" (state: new). Tell the pioneer it is ready to start.`,
     isError: false,
     workOrder: order,
   };
@@ -354,7 +357,10 @@ async function handleRevise(
   }
   const { workOrderId: _id, changeSummary, ...patch } = parsed.data;
   void _id;
-  const costNote = await enrichBuildCosts(patch, deps.mcp);
+  const enrich = await enrichBuildCosts(patch, deps.mcp);
+  if (!enrich.ok) {
+    return { text: enrich.message, isError: true };
+  }
   const meta = changeSummary !== undefined ? { changeSummary } : {};
   const outcome = await deps.workOrders.updatePlan(
     playthroughId,
@@ -364,7 +370,7 @@ async function handleRevise(
     meta,
   );
   return mapOutcome(outcome, (order) => ({
-    text: `Revised ${formatWorkOrderLabel(order.sequenceNumber)} (now revision ${order.currentRevision}). The pioneer will see a plan-changed notice to acknowledge.${costNote ?? ''}`,
+    text: `Revised ${formatWorkOrderLabel(order.sequenceNumber)} (now revision ${order.currentRevision}). The pioneer will see a plan-changed notice to acknowledge.`,
     workOrder: order,
   }));
 }
@@ -472,14 +478,17 @@ async function handleCreateChild(
     }
     parentId = current.id;
   }
-  const costNote = await enrichBuildCosts(parsed.data, deps.mcp);
+  const enrich = await enrichBuildCosts(parsed.data, deps.mcp);
+  if (!enrich.ok) {
+    return { text: enrich.message, isError: true };
+  }
   const order = await deps.workOrders.create(
     playthroughId,
     { ...parsed.data, parentWorkOrderId: parentId },
     deps.gameVersion(),
   );
   return {
-    text: `Issued child ${formatWorkOrderLabel(order.sequenceNumber)}: "${order.title}" under the parent. Completing it will auto-unblock a blocked parent.${costNote ?? ''}`,
+    text: `Issued child ${formatWorkOrderLabel(order.sequenceNumber)}: "${order.title}" under the parent. Completing it will auto-unblock a blocked parent.`,
     isError: false,
     workOrder: order,
   };
@@ -500,16 +509,21 @@ interface StepInput {
   buildables?: BuildableInput[];
 }
 
+/** Outcome of build-cost enrichment: ok, or a rejection naming the buildables that failed. */
+export type EnrichResult = { ok: true } | { ok: false; unresolved: string[]; message: string };
+
 /**
- * Fills each buildable's per-unit `buildCost` (+ resolved `buildingClass`) from game
- * data via the `get_building` MCP tool, resolving each DISTINCT name once. Mutates the
- * plan's `buildSteps` in place; returns a note naming any buildables whose cost could
- * not be resolved (so the foreman/pioneer sees the gap), or undefined when all resolve.
+ * Resolves every DISTINCT buildable name to its class + per-unit `buildCost` via the
+ * `get_building` MCP tool (exact display- or class-name match), mutating the plan's
+ * `buildSteps` in place. If ANY name fails to resolve, returns a rejection whose message
+ * names each bad name with best-match suggestions (from `list_buildings`). The caller
+ * must NOT persist the order on a rejection — so a wrong name is corrected up front
+ * rather than silently shipping a zero-cost buildable.
  */
 export async function enrichBuildCosts(
   plan: { buildSteps?: StepInput[] },
   mcp: McpGateway,
-): Promise<string | undefined> {
+): Promise<EnrichResult> {
   const steps = plan.buildSteps ?? [];
   const names = new Set<string>();
   for (const step of steps) {
@@ -518,7 +532,7 @@ export async function enrichBuildCosts(
     }
   }
   if (names.size === 0) {
-    return undefined;
+    return { ok: true };
   }
 
   const resolved = new Map<string, ResolvedBuild | null>();
@@ -532,7 +546,9 @@ export async function enrichBuildCosts(
       const r = resolved.get(b.name);
       if (r === null || r === undefined) {
         b.buildCost = [];
-        unresolved.push(b.name);
+        if (!unresolved.includes(b.name)) {
+          unresolved.push(b.name);
+        }
       } else {
         b.buildCost = r.buildCost;
         if (r.buildingClass !== undefined) {
@@ -542,10 +558,81 @@ export async function enrichBuildCosts(
     }
   }
   if (unresolved.length === 0) {
-    return undefined;
+    return { ok: true };
   }
-  const names2 = [...new Set(unresolved)].map((n) => `"${n}"`).join(', ');
-  return ` Note: could not resolve build cost for ${names2} — verify the buildable name(s).`;
+  return { ok: false, unresolved, message: await buildRejection(unresolved, mcp) };
+}
+
+/** A compact building entry as returned by the `list_buildings` MCP tool. */
+interface BuildingListEntry {
+  className: string;
+  displayName: string;
+  category: string;
+}
+
+/** Fetches the full building list once (for suggestions); [] if the tool is unavailable. */
+async function fetchBuildingList(mcp: McpGateway): Promise<BuildingListEntry[]> {
+  try {
+    const res = await mcp.callTool('list_buildings', {});
+    if (res.isError) {
+      return [];
+    }
+    const parsed = JSON.parse(res.text) as { buildings?: BuildingListEntry[] };
+    return parsed.buildings ?? [];
+  } catch {
+    return [];
+  }
+}
+
+/** Significant lower-case tokens of a name (drops single-character noise like "T"). */
+function tokenise(name: string): string[] {
+  return name
+    .toLowerCase()
+    .split(/[^a-z0-9]+/)
+    .filter((t) => t.length >= 2);
+}
+
+/**
+ * Up to five best-match display names for a miss: the highest token-overlap tier against
+ * the building list. Advisory only — the model must re-issue with an exact name, so this
+ * surfaces candidates without ever resolving on the model's behalf.
+ */
+function suggestFor(name: string, buildings: BuildingListEntry[]): string[] {
+  const tokens = tokenise(name);
+  if (tokens.length === 0 || buildings.length === 0) {
+    return [];
+  }
+  let best = 0;
+  const scored = buildings.map((b) => {
+    const haystack = `${b.displayName} ${b.className}`.toLowerCase();
+    const score = tokens.reduce((n, t) => (haystack.includes(t) ? n + 1 : n), 0);
+    best = Math.max(best, score);
+    return { displayName: b.displayName, score };
+  });
+  if (best === 0) {
+    return [];
+  }
+  return scored
+    .filter((s) => s.score === best)
+    .map((s) => s.displayName)
+    .sort((a, b) => a.localeCompare(b))
+    .slice(0, 5);
+}
+
+/** The rejection message: each bad name with suggestions plus a pointer to `list_buildings`. */
+async function buildRejection(unresolved: string[], mcp: McpGateway): Promise<string> {
+  const buildings = await fetchBuildingList(mcp);
+  const lines = unresolved.map((name) => {
+    const suggestions = suggestFor(name, buildings);
+    return suggestions.length > 0
+      ? `  • "${name}" → did you mean: ${suggestions.join(', ')}?`
+      : `  • "${name}" → no close match found.`;
+  });
+  return (
+    `Work order not created: these buildable names don't match any building in the game data ` +
+    `— correct them and retry with the exact in-game display name.\n${lines.join('\n')}\n` +
+    `Call list_buildings (optionally with a search term) to confirm exact names.`
+  );
 }
 
 /** Resolves one buildable name to its class + per-unit build cost via `get_building`. */

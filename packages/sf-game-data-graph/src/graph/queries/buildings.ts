@@ -28,6 +28,13 @@ export interface BuildingView {
   buildCost: BuildCostView[];
 }
 
+/** A compact building entry for name discovery (no power/cost detail). */
+export interface BuildingSummary {
+  className: string;
+  displayName: string;
+  category: string;
+}
+
 /** A power generator with its output and fuel/water/byproduct rates. */
 export interface GeneratorSummary {
   className: string;
@@ -73,6 +80,44 @@ export function getBuilding(ctx: QueryContext, name: string): BuildingView | und
   }
   const building = ctx.gameData.buildings[className];
   return building === undefined ? undefined : toView(ctx, building);
+}
+
+/**
+ * Every real, named buildable as a compact `{ className, displayName, category }`
+ * entry — the foreman's way to discover canonical building names before naming a
+ * buildable in a work order. Excludes the dataless `Desc_*` descriptors (empty
+ * display name). Optionally narrows by a case-insensitive `search` substring
+ * (matched against display name, class name, and category) and/or an exact
+ * (case-insensitive) `category`.
+ */
+export function listBuildings(
+  ctx: QueryContext,
+  opts?: { search?: string; category?: string },
+): BuildingSummary[] {
+  const search = opts?.search?.trim().toLowerCase();
+  const category = opts?.category?.trim().toLowerCase();
+  const results: BuildingSummary[] = [];
+  for (const building of Object.values(ctx.gameData.buildings)) {
+    if (building.displayName === '') {
+      continue;
+    }
+    if (category !== undefined && category !== '' && building.category.toLowerCase() !== category) {
+      continue;
+    }
+    if (search !== undefined && search !== '') {
+      const haystack =
+        `${building.displayName} ${building.className} ${building.category}`.toLowerCase();
+      if (!haystack.includes(search)) {
+        continue;
+      }
+    }
+    results.push({
+      className: building.className,
+      displayName: building.displayName,
+      category: building.category,
+    });
+  }
+  return results.sort((a, b) => a.displayName.localeCompare(b.displayName));
 }
 
 /**
