@@ -33,6 +33,7 @@ docs/                 product.md · architecture.md · work-orders.md · playthr
 | How it fits together — services, MCP boundary, graph, deployment | [`docs/architecture.md`](./docs/architecture.md) |
 | The **target** component architecture — `sf-*`/`ff-*` packaging, reuse, community split | [`docs/component-architecture.md`](./docs/component-architecture.md) |
 | The work-order design (states, revisions, audit, plan/execution split) | [`docs/work-orders.md`](./docs/work-orders.md) |
+| Ingest-time verification of work-order quantities (#223) — power reject + manufacturing advisory | [`docs/work-order-quantity-verification.md`](./docs/work-order-quantity-verification.md) |
 | The session/playthrough & foreman model (design) | [`docs/playthroughs.md`](./docs/playthroughs.md) |
 | The save subsystem (identity, re-upload history, same-game) — design & roadmap | [`docs/save-subsystem.md`](./docs/save-subsystem.md) |
 | Crash-site loot & drop-pod unlock costs (#107) — design | [`docs/crash-site-loot.md`](./docs/crash-site-loot.md) |
