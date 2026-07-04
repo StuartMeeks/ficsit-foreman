@@ -4,12 +4,13 @@ import type { McpGateway, ToolDefinition, ToolInvocationResult } from '../src/mc
 import { WorkOrderService } from '../src/services/workOrderService.js';
 import {
   BLOCK_WORK_ORDER,
+  CREATE_CHILD_WORK_ORDER,
   CREATE_WORK_ORDER,
   PROPOSE_COMPLETION,
   REVISE_WORK_ORDER,
-  enrichBuildCosts,
   handleWorkOrderTool,
   isWorkOrderTool,
+  resolvePlanReferences,
   workOrderToolDefinitions,
   type WorkOrderToolDeps,
 } from '../src/tools/workOrderTools.js';
@@ -22,7 +23,11 @@ async function seedPlaythrough(): Promise<string> {
   return createTestPlaythrough(db.prisma);
 }
 
-/** A stub gateway whose get_building returns a fixed cost for a couple of buildings. */
+/**
+ * A stub gateway covering every resolver + discovery tool resolvePlanReferences uses:
+ * get_building/get_recipe/get_item/get_schematic (exact-match, isError on a miss) and
+ * their list_* discovery counterparts (backing best-match suggestions).
+ */
 function stubMcp(): McpGateway {
   const costs: Record<
     string,
@@ -37,7 +42,15 @@ function stubMcp(): McpGateway {
       buildCost: [{ item: 'Iron Plate', itemClassName: 'Desc_IronPlate_C', amount: 2 }],
     },
   };
-  // The building list backing list_buildings (used to suggest names on a miss).
+  // Exact-match resolver tables for the non-buildable kinds (name → class).
+  const recipes: Record<string, string> = { 'Iron Ingot': 'Recipe_IngotIron_C' };
+  const items: Record<string, string> = {
+    'Iron Ore': 'Desc_OreIron_C',
+    'Iron Ingot': 'Desc_IronIngot_C',
+  };
+  const schematics: Record<string, string> = { 'Plate Production': 'Schematic_Tier0_Plates_C' };
+
+  // The lists backing list_* (used to suggest names on a miss).
   const buildings = [
     { className: 'Build_SmelterMk1_C', displayName: 'Smelter', category: 'Manufacturer' },
     {
@@ -51,20 +64,58 @@ function stubMcp(): McpGateway {
       category: 'SplitterSmart',
     },
   ];
+  const recipeList = [
+    { className: 'Recipe_IngotIron_C', displayName: 'Iron Ingot' },
+    { className: 'Recipe_IngotPureIron_C', displayName: 'Alternate: Pure Iron Ingot' },
+  ];
+  const itemList = [
+    { className: 'Desc_OreIron_C', displayName: 'Iron Ore' },
+    { className: 'Desc_IronIngot_C', displayName: 'Iron Ingot' },
+    { className: 'Desc_IronPlate_C', displayName: 'Iron Plate' },
+  ];
+  const schematicList = [
+    { className: 'Schematic_Tier0_Plates_C', displayName: 'Plate Production' },
+  ];
+
+  /** A get_* result: the entity under `key` on a hit, isError on a miss. */
+  const resolved = (
+    map: Record<string, string>,
+    name: string,
+    key: string,
+  ): ToolInvocationResult =>
+    map[name] === undefined
+      ? { text: `Not found: ${key}.`, isError: true }
+      : { text: JSON.stringify({ [key]: { className: map[name] } }), isError: false };
+
   return {
     gameVersion: '1.2.3.0',
     listTools: async (): Promise<ToolDefinition[]> => [],
     callTool: async (name, args): Promise<ToolInvocationResult> => {
-      if (name === 'get_building') {
-        const building = costs[String((args as { name?: string }).name)];
-        return building === undefined
-          ? { text: 'Not found: building.', isError: true }
-          : { text: JSON.stringify({ building }), isError: false };
+      const argName = String((args as { name?: string }).name);
+      switch (name) {
+        case 'get_building': {
+          const building = costs[argName];
+          return building === undefined
+            ? { text: 'Not found: building.', isError: true }
+            : { text: JSON.stringify({ building }), isError: false };
+        }
+        case 'get_recipe':
+          return resolved(recipes, argName, 'recipe');
+        case 'get_item':
+          return resolved(items, argName, 'item');
+        case 'get_schematic':
+          return resolved(schematics, argName, 'schematic');
+        case 'list_buildings':
+          return { text: JSON.stringify({ buildings }), isError: false };
+        case 'list_recipes':
+          return { text: JSON.stringify({ recipes: recipeList }), isError: false };
+        case 'list_items':
+          return { text: JSON.stringify({ items: itemList }), isError: false };
+        case 'list_schematics':
+          return { text: JSON.stringify({ schematics: schematicList }), isError: false };
+        default:
+          return { text: '', isError: true };
       }
-      if (name === 'list_buildings') {
-        return { text: JSON.stringify({ buildings }), isError: false };
-      }
-      return { text: '', isError: true };
     },
   };
 }
@@ -76,6 +127,26 @@ const validCreateInput = {
     { title: 'Place two smelters', buildables: [{ name: 'Smelter', requiredCount: 2 }] },
   ],
   expectedOutputs: [{ kind: 'item', item: 'Iron Ingot', perMinute: 30 }],
+};
+
+/** A plan exercising every resolvable name kind (buildable, machine, recipe, items, schematic, resource). */
+const validFullCreateInput = {
+  title: 'Iron Ingot Line',
+  goal: 'Smelt iron ingots.',
+  buildSteps: [{ title: 'Smelters', buildables: [{ name: 'Smelter', requiredCount: 2 }] }],
+  recipes: [
+    {
+      machineName: 'Smelter',
+      recipeName: 'Iron Ingot',
+      inputItems: [{ itemName: 'Iron Ore', perMinute: 30 }],
+      outputItems: [{ itemName: 'Iron Ingot', perMinute: 30 }],
+    },
+  ],
+  expectedOutputs: [
+    { kind: 'item', item: 'Iron Ingot', perMinute: 30 },
+    { kind: 'unlock', schematic: 'Plate Production' },
+  ],
+  resourceNodes: [{ resourceName: 'Iron Ore', purity: 'normal' }],
 };
 
 beforeAll(async () => {
@@ -245,7 +316,147 @@ describe('handleWorkOrderTool', () => {
   });
 });
 
-describe('enrichBuildCosts', () => {
+describe('ingest-time name resolution (#222)', () => {
+  it('persists an order when every name resolves (buildable, machine, recipe, items, schematic, resource)', async () => {
+    const playthrough = await seedPlaythrough();
+    const outcome = await handleWorkOrderTool(
+      playthrough,
+      CREATE_WORK_ORDER,
+      validFullCreateInput,
+      deps,
+    );
+    expect(outcome.isError).toBe(false);
+    expect(outcome.workOrder).toBeDefined();
+    expect(await deps.workOrders.list(playthrough)).toHaveLength(1);
+  });
+
+  // Each row overrides exactly one resolvable field with a bad name; the rest resolve.
+  const cases: {
+    field: string;
+    patch: Record<string, unknown>;
+    bad: string;
+    suggestion: string;
+    listTool: string;
+  }[] = [
+    {
+      field: 'recipe machineName',
+      patch: { recipes: [{ ...validFullCreateInput.recipes[0], machineName: 'Smelter Unit' }] },
+      bad: 'Smelter Unit',
+      suggestion: 'Smelter',
+      listTool: 'list_buildings',
+    },
+    {
+      field: 'recipeName',
+      patch: { recipes: [{ ...validFullCreateInput.recipes[0], recipeName: 'Iron Ingots' }] },
+      bad: 'Iron Ingots',
+      suggestion: 'Iron Ingot',
+      listTool: 'list_recipes',
+    },
+    {
+      field: 'recipe itemName',
+      patch: {
+        recipes: [
+          {
+            ...validFullCreateInput.recipes[0],
+            inputItems: [{ itemName: 'Iron Ores', perMinute: 30 }],
+          },
+        ],
+      },
+      bad: 'Iron Ores',
+      suggestion: 'Iron Ore',
+      listTool: 'list_items',
+    },
+    {
+      field: 'expectedOutputs schematic',
+      patch: {
+        expectedOutputs: [
+          { kind: 'item', item: 'Iron Ingot', perMinute: 30 },
+          { kind: 'unlock', schematic: 'Plate Prod' },
+        ],
+      },
+      bad: 'Plate Prod',
+      suggestion: 'Plate Production',
+      listTool: 'list_schematics',
+    },
+    {
+      field: 'resourceName',
+      patch: { resourceNodes: [{ resourceName: 'Iron Ore Node' }] },
+      bad: 'Iron Ore Node',
+      suggestion: 'Iron Ore',
+      listTool: 'list_items',
+    },
+  ];
+
+  for (const c of cases) {
+    it(`rejects (and does not persist) a bad ${c.field}, suggesting via ${c.listTool}`, async () => {
+      const playthrough = await seedPlaythrough();
+      const outcome = await handleWorkOrderTool(
+        playthrough,
+        CREATE_WORK_ORDER,
+        { ...validFullCreateInput, ...c.patch },
+        deps,
+      );
+      expect(outcome.isError).toBe(true);
+      expect(outcome.workOrder).toBeUndefined();
+      expect(outcome.text).toContain(`"${c.bad}"`);
+      expect(outcome.text).toContain(c.suggestion);
+      expect(outcome.text).toContain(c.listTool);
+      expect(await deps.workOrders.list(playthrough)).toHaveLength(0);
+    });
+  }
+
+  it('rejects a revise whose patch names an unresolvable recipe item, leaving the order untouched', async () => {
+    const playthrough = await seedPlaythrough();
+    await handleWorkOrderTool(playthrough, CREATE_WORK_ORDER, validFullCreateInput, deps);
+    const outcome = await handleWorkOrderTool(
+      playthrough,
+      REVISE_WORK_ORDER,
+      {
+        recipes: [
+          {
+            machineName: 'Smelter',
+            recipeName: 'Iron Ingot',
+            inputItems: [{ itemName: 'Iron Ores', perMinute: 30 }],
+          },
+        ],
+      },
+      deps,
+    );
+    expect(outcome.isError).toBe(true);
+    expect(outcome.text).toContain('list_items');
+    // No new revision was written.
+    const orders = await deps.workOrders.list(playthrough);
+    expect(orders).toHaveLength(1);
+    expect(orders[0]?.currentRevision).toBe(1);
+  });
+
+  it('rejects a create_child whose plan names an unresolvable recipe, leaving only the parent', async () => {
+    const playthrough = await seedPlaythrough();
+    const parent = await handleWorkOrderTool(
+      playthrough,
+      CREATE_WORK_ORDER,
+      validFullCreateInput,
+      deps,
+    );
+    const outcome = await handleWorkOrderTool(
+      playthrough,
+      CREATE_CHILD_WORK_ORDER,
+      {
+        ...validFullCreateInput,
+        title: 'Child order',
+        parentWorkOrderId: parent.workOrder!.id,
+        relationshipToParent: 'prerequisite',
+        recipes: [{ ...validFullCreateInput.recipes[0], recipeName: 'Iron Ingots' }],
+      },
+      deps,
+    );
+    expect(outcome.isError).toBe(true);
+    expect(outcome.text).toContain('Iron Ingot'); // suggestion
+    expect(await deps.workOrders.list(playthrough)).toHaveLength(1); // only the parent
+  });
+});
+
+describe('resolvePlanReferences', () => {
   it('attaches per-unit cost + class for resolved buildables', async () => {
     const plan = {
       buildSteps: [
@@ -253,7 +464,7 @@ describe('enrichBuildCosts', () => {
         { title: 'b', buildables: [{ name: 'Conveyor Splitter', requiredCount: 4 }] },
       ],
     };
-    const result = await enrichBuildCosts(plan, stubMcp());
+    const result = await resolvePlanReferences(plan, stubMcp());
     expect(result.ok).toBe(true);
     expect(plan.buildSteps[0]!.buildables[0]).toMatchObject({
       buildingClass: 'Build_SmelterMk1_C',
@@ -265,7 +476,7 @@ describe('enrichBuildCosts', () => {
   });
 
   it('is ok when there are no buildables to resolve', async () => {
-    const result = await enrichBuildCosts({}, stubMcp());
+    const result = await resolvePlanReferences({}, stubMcp());
     expect(result.ok).toBe(true);
   });
 
@@ -273,7 +484,7 @@ describe('enrichBuildCosts', () => {
     const plan = {
       buildSteps: [{ title: 'a', buildables: [{ name: 'Splitter', requiredCount: 15 }] }],
     };
-    const result = await enrichBuildCosts(plan, stubMcp());
+    const result = await resolvePlanReferences(plan, stubMcp());
     expect(result.ok).toBe(false);
     if (result.ok) {
       return; // narrow for the type-checker
@@ -290,7 +501,7 @@ describe('enrichBuildCosts', () => {
     const plan = {
       buildSteps: [{ title: 'a', buildables: [{ name: 'Nonexistent Machine', requiredCount: 1 }] }],
     };
-    const result = await enrichBuildCosts(plan, stubMcp());
+    const result = await resolvePlanReferences(plan, stubMcp());
     expect(result.ok).toBe(false);
     if (result.ok) {
       return;

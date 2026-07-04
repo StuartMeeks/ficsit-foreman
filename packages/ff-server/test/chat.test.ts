@@ -12,11 +12,15 @@ import { createTestDb, createTestForeman, createTestUser, type TestDb } from './
 let db: TestDb;
 let userId: string;
 
+// Name-light on purpose: this test exercises the tool-use LOOP, not ingest-time name
+// resolution (covered in workOrderTools.test.ts). With no buildable/recipe/item/schematic
+// names, create_work_order makes no resolution round-trips, so mcp.calls below stays
+// exactly the model's own get_recipe.
 const validWorkOrderInput = {
   title: 'Establish Iron Plate Line',
   goal: 'Make 20 plates per minute.',
   buildSteps: [{ title: 'Place constructors' }],
-  expectedOutputs: [{ kind: 'item', item: 'Iron Plate', perMinute: 20 }],
+  expectedOutputs: [{ kind: 'infrastructure', description: 'Constructors online and fed.' }],
 };
 
 /** A scripted provider: returns queued turns, emitting their text as a delta. */
