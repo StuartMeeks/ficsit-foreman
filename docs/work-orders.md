@@ -5,6 +5,10 @@
 > the source of truth for all implementation sessions. Where this conflicts with
 > older notes, this wins.
 
+> **Related:** ingest-time resolution of the plan's game-data **names** (#220, #222)
+> and verification of its **quantities** (#223 — power reject + manufacturing advisory)
+> are specified in [`work-order-quantity-verification.md`](./work-order-quantity-verification.md).
+
 ## Purpose
 
 FICSIT Foreman uses work orders to direct Satisfactory gameplay.
