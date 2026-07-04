@@ -42,7 +42,10 @@ export function ChatColumn({ messages, sending, onSend }: ChatColumnProps): Reac
         ) : (
           messages.map((m) => (
             <div key={m.id} className={`msg ${m.role === 'assistant' ? 'foreman' : 'pioneer'}`}>
-              <span className="marker" aria-hidden="true">
+              <span
+                className={`marker${m.role === 'assistant' && m.streaming ? ' thinking' : ''}`}
+                aria-hidden="true"
+              >
                 {m.role === 'assistant' ? '⟩' : '›'}
               </span>
               <div>
