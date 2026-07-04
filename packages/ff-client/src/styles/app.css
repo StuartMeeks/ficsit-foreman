@@ -238,6 +238,24 @@ textarea {
   color: var(--accent);
 }
 
+/* While the foreman is thinking/streaming, its ⟩ marker breathes; it settles the
+   moment the stream ends (the `thinking` class is dropped). */
+.msg.foreman .marker.thinking {
+  animation: think 1.1s ease-in-out infinite;
+}
+
+@keyframes think {
+  0%,
+  100% {
+    opacity: 0.35;
+    transform: translateX(0);
+  }
+  50% {
+    opacity: 1;
+    transform: translateX(2px);
+  }
+}
+
 .msg.pioneer .marker {
   color: var(--text-muted);
 }
