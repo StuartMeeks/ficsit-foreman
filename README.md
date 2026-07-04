@@ -77,6 +77,11 @@ containers in place (they stay listed in Docker Desktop, just stopped). Use
 survives in the `foreman-db` volume either way. **Update** to a newer build with
 `docker compose pull` then `docker compose up -d`.
 
+> **Prefer not to install Docker Desktop?** On Windows 11 you can run the same images
+> with WSL's built-in container runtime (`wslc`, public preview) instead — see
+> [Installation — WSL Containers](https://github.com/StuartMeeks/ficsit-foreman/wiki/Installation-wslc)
+> in the wiki for the full walkthrough.
+
 ### macOS / Linux
 
 Use the same `compose.yaml` (`docker compose up -d`), or a one-off container:
