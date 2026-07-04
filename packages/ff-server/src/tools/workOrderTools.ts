@@ -1,5 +1,5 @@
 import type { McpGateway, ToolDefinition } from '../mcp/client.js';
-import type { BuildCostLine, WorkOrder } from '../types.js';
+import type { BuildCostLine, RecipeAssignment, RecipeItemRate, WorkOrder } from '../types.js';
 import {
   formatWorkOrderLabel,
   type UpdatePlanInput,
@@ -91,13 +91,17 @@ const expectedOutputItemSchema = {
 const buildablesSchema = {
   type: 'array',
   description:
-    'The buildables this step requires — every machine AND logistics piece (belts, splitters, mergers, pipes, poles), each with how many to build. Enumerate per consumer: e.g. an 8-generator plant needs a splitter and a merger PER generator, and belts feeding each machine — not one or two of each. Do NOT include build-cost materials; the server computes the construction cost from game data automatically.',
+    'The buildables this step requires — every machine AND logistics piece (belts, splitters, mergers, pipes, poles), each with how many to build. Enumerate per consumer: e.g. an 8-generator plant needs a splitter and a merger PER generator, and belts feeding each machine — not one or two of each. For a PRODUCTION machine, set recipeName to the exact recipe it runs, and split machines that differ by recipe into separate blocks (not one "16 Constructors" entry but four blocks of 4, each with its own recipe). Do NOT include build-cost materials or per-minute rates; the server resolves build cost and derives production rates from recipe × count automatically.',
   items: {
     type: 'object',
     properties: {
       name: { type: 'string', description: 'Building display name, e.g. "Coal Generator".' },
       requiredCount: { type: 'integer', minimum: 0 },
-      recipeName: { type: 'string' },
+      recipeName: {
+        type: 'string',
+        description:
+          'For a production machine, the exact recipe this block runs (e.g. "Iron Plate"). One recipe per block. Omit for logistics/storage/generators.',
+      },
       notes: { type: 'string' },
     },
     required: ['name', 'requiredCount'],
@@ -164,7 +168,7 @@ export function workOrderToolDefinitions(): ToolDefinition[] {
     {
       name: CREATE_WORK_ORDER,
       description:
-        'Issue a NEW work order — a specific, self-contained task with everything needed to start. Use this ONLY for genuinely new work. To change the order the pioneer is already on (add/edit a step, swap a recipe, adjust counts, change the goal), call revise_work_order instead — do NOT create a second order. It starts in the `new` state for the pioneer to begin; it does NOT abandon any existing order (use supersede_work_order for that). Resolve alternate recipe choices and use the game-data + save-game tools for accurate materials, rates, locations, and opportunities before issuing.',
+        'Issue a NEW work order — a specific, self-contained task with everything needed to start. Use this ONLY for genuinely new work. To change the order the pioneer is already on (add/edit a step, swap a recipe, adjust counts, change the goal), call revise_work_order instead — do NOT create a second order. It starts in the `new` state for the pioneer to begin; it does NOT abandon any existing order (use supersede_work_order for that). Annotate each production buildable with its exact recipe (split machines by recipe into separate blocks) and use the game-data + save-game tools to choose recipes, get counts right, and size power before issuing — the server derives per-minute rates and build costs, so do not author them.',
       inputSchema: {
         type: 'object',
         properties: planProperties,
@@ -310,14 +314,20 @@ async function handleCreate(
   if (!enrich.ok) {
     return { text: enrich.message, isError: true };
   }
+  const derived = await deriveRecipes(parsed.data, deps.mcp);
+  if (!derived.ok) {
+    return { text: derived.message, isError: true };
+  }
   const power = await verifyPlanPower(parsed.data, deps.mcp);
   if (!power.ok) {
     return { text: power.message, isError: true };
   }
   const order = await deps.workOrders.create(playthroughId, parsed.data, deps.gameVersion());
   const label = formatWorkOrderLabel(order.sequenceNumber);
+  const advisory = outputAdvisory(parsed.data);
+  const advisoryText = advisory !== undefined ? `\n\n${advisory}` : '';
   return {
-    text: `Issued ${label}: "${order.title}" (state: new). Tell the pioneer it is ready to start.`,
+    text: `Issued ${label}: "${order.title}" (state: new). Tell the pioneer it is ready to start.${advisoryText}`,
     isError: false,
     workOrder: order,
   };
@@ -366,7 +376,24 @@ async function handleRevise(
   if (!enrich.ok) {
     return { text: enrich.message, isError: true };
   }
-  const power = await verifyPlanPower(patch, deps.mcp);
+  const derived = await deriveRecipes(patch, deps.mcp);
+  if (!derived.ok) {
+    return { text: derived.message, isError: true };
+  }
+  // Cross-field checks (power, output shortfall) must see the MERGED order, not just the
+  // patch: a target-only revise ("2400 MW") is otherwise never compared to the existing
+  // generators. Overlay the patch onto the current order with the same field semantics
+  // updatePlan uses (a present field replaces; an absent one keeps the existing value).
+  const existing = await deps.workOrders.get(playthroughId, target.id);
+  const effective: PlanInput =
+    existing === undefined
+      ? patch
+      : {
+          buildSteps: patch.buildSteps ?? existing.buildSteps,
+          expectedOutputs: patch.expectedOutputs ?? existing.expectedOutputs,
+          recipes: patch.recipes ?? existing.recipes,
+        };
+  const power = await verifyPlanPower(effective, deps.mcp);
   if (!power.ok) {
     return { text: power.message, isError: true };
   }
@@ -378,8 +405,10 @@ async function handleRevise(
     'Foreman',
     meta,
   );
+  const advisory = outputAdvisory(effective);
+  const advisoryText = advisory !== undefined ? `\n\n${advisory}` : '';
   return mapOutcome(outcome, (order) => ({
-    text: `Revised ${formatWorkOrderLabel(order.sequenceNumber)} (now revision ${order.currentRevision}). The pioneer will see a plan-changed notice to acknowledge.`,
+    text: `Revised ${formatWorkOrderLabel(order.sequenceNumber)} (now revision ${order.currentRevision}). The pioneer will see a plan-changed notice to acknowledge.${advisoryText}`,
     workOrder: order,
   }));
 }
@@ -491,6 +520,10 @@ async function handleCreateChild(
   if (!enrich.ok) {
     return { text: enrich.message, isError: true };
   }
+  const derived = await deriveRecipes(parsed.data, deps.mcp);
+  if (!derived.ok) {
+    return { text: derived.message, isError: true };
+  }
   const power = await verifyPlanPower(parsed.data, deps.mcp);
   if (!power.ok) {
     return { text: power.message, isError: true };
@@ -500,16 +533,20 @@ async function handleCreateChild(
     { ...parsed.data, parentWorkOrderId: parentId },
     deps.gameVersion(),
   );
+  const advisory = outputAdvisory(parsed.data);
+  const advisoryText = advisory !== undefined ? `\n\n${advisory}` : '';
   return {
-    text: `Issued child ${formatWorkOrderLabel(order.sequenceNumber)}: "${order.title}" under the parent. Completing it will auto-unblock a blocked parent.`,
+    text: `Issued child ${formatWorkOrderLabel(order.sequenceNumber)}: "${order.title}" under the parent. Completing it will auto-unblock a blocked parent.${advisoryText}`,
     isError: false,
     workOrder: order,
   };
 }
 
-/** Per-unit build cost + resolved class for one buildable, from `get_building`. */
+/** Per-unit build cost + resolved class/display name for one buildable, from `get_building`. */
 interface ResolvedBuild {
   buildingClass?: string;
+  /** Canonical building display name (for recipe↔machine compatibility checks). */
+  displayName?: string;
   buildCost: BuildCostLine[];
 }
 
@@ -518,6 +555,7 @@ interface BuildableInput {
   buildingClass?: string;
   buildCost?: BuildCostLine[];
   requiredCount?: number;
+  recipeName?: string;
 }
 interface StepInput {
   buildables?: BuildableInput[];
@@ -584,13 +622,15 @@ const KIND_ORDER: RefKind[] = ['building', 'recipe', 'item', 'schematic'];
 /** The name-bearing plan fields resolution walks. All optional (revise sends a partial plan). */
 interface PlanInput {
   buildSteps?: StepInput[];
-  recipes?: {
-    machineName?: string;
-    recipeName?: string;
-    inputItems?: { itemName?: string }[];
-    outputItems?: { itemName?: string }[];
+  /** Server-DERIVED (#228): overwritten by deriveRecipes from the recipe-annotated blocks. */
+  recipes?: RecipeAssignment[];
+  expectedOutputs?: {
+    kind: string;
+    item?: string;
+    schematic?: string;
+    megawatts?: number;
+    perMinute?: number;
   }[];
-  expectedOutputs?: { kind: string; item?: string; schematic?: string; megawatts?: number }[];
   resourceNodes?: { resourceName?: string }[];
 }
 
@@ -625,16 +665,12 @@ export async function resolvePlanReferences(
     item: new Set(),
     schematic: new Set(),
   };
-  for (const recipe of plan.recipes ?? []) {
-    if (recipe.machineName !== undefined) {
-      toResolve.building.add(recipe.machineName);
-    }
-    if (recipe.recipeName !== undefined) {
-      toResolve.recipe.add(recipe.recipeName);
-    }
-    for (const line of [...(recipe.inputItems ?? []), ...(recipe.outputItems ?? [])]) {
-      if (line.itemName !== undefined) {
-        toResolve.item.add(line.itemName);
+  // Recipes are annotated PER PRODUCTION BLOCK now (#228), not in a separate recipes[]
+  // array — the server derives that array + its rates from the blocks (see deriveRecipes).
+  for (const step of plan.buildSteps ?? []) {
+    for (const b of step.buildables ?? []) {
+      if (b.recipeName !== undefined) {
+        toResolve.recipe.add(b.recipeName);
       }
     }
   }
@@ -824,6 +860,7 @@ async function resolveBuild(name: string, mcp: McpGateway): Promise<ResolvedBuil
     const parsed = JSON.parse(res.text) as {
       building?: {
         className?: string;
+        displayName?: string;
         buildCost?: { item?: string; itemClassName?: string; amount?: number }[];
       };
     };
@@ -839,10 +876,242 @@ async function resolveBuild(name: string, mcp: McpGateway): Promise<ResolvedBuil
     return {
       buildCost,
       ...(building.className !== undefined ? { buildingClass: building.className } : {}),
+      ...(building.displayName !== undefined ? { displayName: building.displayName } : {}),
     };
   } catch {
     return null;
   }
+}
+
+// --- Recipe derivation: server-owned rates + recipes[] projection (#228) ----
+
+/** Outcome of recipe derivation: ok, or a rejection (building↔recipe mismatch). */
+export type DeriveResult = { ok: true } | { ok: false; message: string };
+
+/** A recipe's per-machine rates + the machine it runs in, from `get_recipe`. */
+interface RecipeData {
+  /** Machine display name (`producedIn[0]`); undefined for machineless recipes. */
+  machineName?: string;
+  producedIn: string[];
+  /** Per single machine at 100% clock. */
+  ingredients: RecipeItemRate[];
+  products: RecipeItemRate[];
+}
+
+/** Fetches a recipe's per-machine rates via `get_recipe`; null on miss (names are pre-resolved). */
+async function fetchRecipeData(name: string, mcp: McpGateway): Promise<RecipeData | null> {
+  try {
+    const res = await mcp.callTool('get_recipe', { name });
+    if (res.isError) {
+      return null;
+    }
+    const parsed = JSON.parse(res.text) as {
+      recipe?: {
+        producedIn?: string[];
+        ingredients?: { item?: string; perMinute?: number }[];
+        products?: { item?: string; perMinute?: number }[];
+      };
+    };
+    const recipe = parsed.recipe;
+    if (recipe === undefined) {
+      return null;
+    }
+    const rates = (xs?: { item?: string; perMinute?: number }[]): RecipeItemRate[] =>
+      (xs ?? [])
+        .filter(
+          (x): x is { item: string; perMinute: number } =>
+            typeof x.item === 'string' && typeof x.perMinute === 'number',
+        )
+        .map((x) => ({ itemName: x.item, perMinute: x.perMinute }));
+    const producedIn = recipe.producedIn ?? [];
+    return {
+      producedIn,
+      ...(producedIn[0] !== undefined ? { machineName: producedIn[0] } : {}),
+      ingredients: rates(recipe.ingredients),
+      products: rates(recipe.products),
+    };
+  } catch {
+    return null;
+  }
+}
+
+/** Rounds a per-minute rate to 4dp and formats without noisy trailing zeros. */
+function fmtRate(rate: number): string {
+  const r = Math.round(rate * 10_000) / 10_000;
+  return Number.isInteger(r) ? String(r) : r.toFixed(2);
+}
+
+/**
+ * Derives the work order's `recipes[]` projection and its per-minute rates from each
+ * recipe-annotated PRODUCTION buildable block — the server owns the rates, the foreman
+ * only annotates recipe + count (#228). Hard-rejects a block whose building can't run its
+ * recipe (deterministic, from the recipe's `producedIn`). Returns a non-blocking advisory
+ * when derived output falls short of an `expectedOutputs` item target (never rejects on that
+ * — clock/somersloop variance is legitimate). Skips (ok) a partial revise with no buildSteps.
+ */
+export async function deriveRecipes(plan: PlanInput, mcp: McpGateway): Promise<DeriveResult> {
+  if (plan.buildSteps === undefined) {
+    return { ok: true };
+  }
+
+  interface Block {
+    buildingName: string;
+    recipeName: string;
+    count: number;
+  }
+  const blocks: Block[] = [];
+  for (const step of plan.buildSteps) {
+    for (const b of step.buildables ?? []) {
+      if (b.recipeName !== undefined) {
+        blocks.push({
+          buildingName: b.name,
+          recipeName: b.recipeName,
+          count: b.requiredCount ?? 0,
+        });
+      }
+    }
+  }
+  if (blocks.length === 0) {
+    plan.recipes = [];
+    return { ok: true };
+  }
+
+  const recipeCache = new Map<string, RecipeData | null>();
+  const buildCache = new Map<string, ResolvedBuild | null>();
+  const getRecipe = async (name: string): Promise<RecipeData | null> => {
+    if (!recipeCache.has(name)) {
+      recipeCache.set(name, await fetchRecipeData(name, mcp));
+    }
+    return recipeCache.get(name) ?? null;
+  };
+  const getBuild = async (name: string): Promise<ResolvedBuild | null> => {
+    if (!buildCache.has(name)) {
+      buildCache.set(name, await resolveBuild(name, mcp));
+    }
+    return buildCache.get(name) ?? null;
+  };
+
+  interface Agg {
+    machineName: string;
+    recipeName: string;
+    inputs: Map<string, number>;
+    outputs: Map<string, number>;
+  }
+  const byRecipe = new Map<string, Agg>();
+  const mismatches: string[] = [];
+
+  for (const block of blocks) {
+    const recipe = await getRecipe(block.recipeName);
+    if (recipe === null) {
+      continue; // name was resolved upstream; be defensive
+    }
+    // Compatibility: the block's building must be a machine the recipe runs in.
+    if (recipe.producedIn.length > 0) {
+      const build = await getBuild(block.buildingName);
+      const buildingDisplay = build?.displayName ?? block.buildingName;
+      const compatible = recipe.producedIn.some(
+        (m) => m.toLowerCase() === buildingDisplay.toLowerCase(),
+      );
+      if (!compatible) {
+        mismatches.push(
+          `  • "${block.recipeName}" runs in ${recipe.producedIn.join(' or ')}, not ${buildingDisplay} — fix the block's building or its recipe.`,
+        );
+        continue;
+      }
+    }
+    const agg = byRecipe.get(block.recipeName) ?? {
+      machineName: recipe.machineName ?? block.buildingName,
+      recipeName: block.recipeName,
+      inputs: new Map<string, number>(),
+      outputs: new Map<string, number>(),
+    };
+    for (const ing of recipe.ingredients) {
+      agg.inputs.set(
+        ing.itemName,
+        (agg.inputs.get(ing.itemName) ?? 0) + ing.perMinute * block.count,
+      );
+    }
+    for (const prod of recipe.products) {
+      agg.outputs.set(
+        prod.itemName,
+        (agg.outputs.get(prod.itemName) ?? 0) + prod.perMinute * block.count,
+      );
+    }
+    byRecipe.set(block.recipeName, agg);
+  }
+
+  if (mismatches.length > 0) {
+    return {
+      ok: false,
+      message:
+        `Work order not created: these blocks pair a recipe with the wrong machine — ` +
+        `correct the building or recipe and retry.\n${mismatches.join('\n')}`,
+    };
+  }
+
+  const round = (n: number): number => Math.round(n * 10_000) / 10_000;
+  plan.recipes = [...byRecipe.values()].map((e) => ({
+    machineName: e.machineName,
+    recipeName: e.recipeName,
+    inputItems: [...e.inputs].map(([itemName, perMinute]) => ({
+      itemName,
+      perMinute: round(perMinute),
+    })),
+    outputItems: [...e.outputs].map(([itemName, perMinute]) => ({
+      itemName,
+      perMinute: round(perMinute),
+    })),
+  }));
+
+  return { ok: true };
+}
+
+/**
+ * Non-blocking advisory: which `expectedOutputs` item targets does the plan's derived
+ * production fall short of? Works purely from the derived `recipes[]` (output totals + the
+ * producing machine) + `expectedOutputs`, so it runs on a full plan (create) OR the merged
+ * effective plan (revise). Never rejects; surfaced to the foreman, never the pioneer.
+ */
+export function outputAdvisory(plan: PlanInput): string | undefined {
+  const producedByItem = new Map<string, { total: number; machine: string }>();
+  for (const recipe of plan.recipes ?? []) {
+    for (const out of recipe.outputItems ?? []) {
+      const prev = producedByItem.get(out.itemName);
+      producedByItem.set(out.itemName, {
+        total: (prev?.total ?? 0) + out.perMinute,
+        machine: prev?.machine ?? recipe.machineName,
+      });
+    }
+  }
+  const notes: string[] = [];
+  for (const output of plan.expectedOutputs ?? []) {
+    if (
+      output.kind !== 'item' ||
+      output.item === undefined ||
+      typeof output.perMinute !== 'number'
+    ) {
+      continue;
+    }
+    const produced = producedByItem.get(output.item);
+    const total = produced?.total ?? 0;
+    if (total + 0.01 >= output.perMinute) {
+      continue;
+    }
+    const where =
+      produced !== undefined
+        ? ` — increase the ${produced.machine} block(s)`
+        : ' — no block produces it';
+    notes.push(
+      `  • ${output.item}: the plan produces ${fmtRate(total)}/min but targets ${fmtRate(output.perMinute)}/min${where}.`,
+    );
+  }
+  if (notes.length > 0) {
+    return (
+      `Heads up — the plan under-delivers its own stated targets; adjust the block counts ` +
+      `(or the targets) before the pioneer starts:\n${notes.join('\n')}`
+    );
+  }
+  return undefined;
 }
 
 // --- Quantity verification: power output (#223) ----------------------------
