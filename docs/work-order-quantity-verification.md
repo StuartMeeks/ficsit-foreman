@@ -1,8 +1,9 @@
 # Work-order quantity verification (#223)
 
-> **Status:** Agreed design — the design of record for issue #223. Slice 1 (power
-> output verification) is the first implementation; slice 2 (manufacturing advisory)
-> is a tracked follow-up. Where this conflicts with older notes, this wins.
+> **Status:** Agreed design — the design of record for issues #223 and #228. Slice 1
+> (power output verification, #227) shipped; slice 2 (recipe-per-block model + server-derived
+> rates + output advisory, #228) implements the rest. Where this conflicts with older notes,
+> this wins.
 
 ## Problem
 
@@ -97,17 +98,54 @@ have no structured warnings field. Therefore:
 contains; if it can't see *both* a power output and generator buildables it skips — so a
 revise touching only the target, or only the buildables, is never falsely rejected.
 
-## Slice 2 — manufacturing count/rate advisory (follow-up issue, non-blocking)
+## Slice 2 — recipe-per-block model + server-derived rates + output advisory (#228)
 
-For each `expectedOutputs[kind=item]` target, recompute expected machine counts and input/
-output rates via `ingredient_tree` / `full_production_line` (passing the plan's chosen
-recipes as `recipeChoices`), compare to the plan's `requiredCount` / `perMinute`, and append
-a **non-blocking advisory** to the success `text` when they diverge beyond a tolerance —
-never reject. Filed separately after slice 1 ships.
+A design review found the plan model couldn't support a clean manufacturing check as-is:
+recipes lived both as an optional, unvalidated `buildables[].recipeName` string *and* as a
+top-level `recipes[]` array (rates, no counts, unlinked, not even in the `create_work_order`
+tool schema — so the model never authored it). Rates that appeared were foreman-transcribed —
+the same error class this doc exists to close. So slice 2 **reshapes** the model rather than
+just checking it:
+
+1. **Recipe is a first-class property of each production buildable block.** A buildable is
+   *N identical machines running one recipe* (e.g. `4 Constructors → Iron Plate`); mixed
+   machines are split into one-recipe blocks. `buildables[].recipeName` is **resolved-or-
+   rejected at ingest** (extends #222; suggestions from `list_recipes`). Logistics buildables
+   carry no recipe.
+2. **The server derives rates — the foreman never transcribes them.** `deriveRecipes(plan, mcp)`
+   (`workOrderTools.ts`, a sibling to `resolvePlanReferences`, run in all three handlers) reads
+   each block's recipe via `get_recipe`, and sets each block's input/output per-minute =
+   `count × per-machine rate` (100% clock; **all** products, so byproducts are included).
+3. **`recipes[]` is a server-derived projection, not model input.** `deriveRecipes` overwrites
+   `plan.recipes` with one `RecipeAssignment` per recipe (`machineName = producedIn[0]`, summed
+   input/output rates). The client renders it unchanged (same shape). No DB/migration/client
+   change.
+4. **Building↔recipe compatibility is a hard reject** (deterministic): a block whose building
+   isn't a machine the recipe runs in (`recipe.producedIn`) is rejected with an actionable
+   message. Skipped when `producedIn` is empty (non-factory recipes).
+5. **Output advisory (non-blocking).** For each `expectedOutputs[kind=item]` target, compare
+   derived total output; if short beyond a rounding tolerance, append an advisory to the
+   success `text` — surfaced to the **foreman** in the tool-use loop (self-correct before
+   replying), **never** rejected and **never** shown to the pioneer as a decision. A missing
+   recipe on a production block surfaces here naturally (derived output falls short).
+
+Net effect: the pioneer receives labelled blocks with server-computed rates and never
+adjudicates a recipe; machine **count** is the only model-authored quantity, which the advisory
+nudges.
+
+**Revises validate the merged order, not just the patch.** A revise patch omits fields it
+isn't changing, so the cross-field checks (power, output advisory) run against the *effective*
+plan — the current order overlaid with the patch (a present field replaces; an absent one keeps
+the existing value, matching `updatePlan`'s merge). Without this, a target-only revise
+("2400 MW") is never compared to the existing generators and an under-provisioned plant ships on
+a revision — the exact bug observed live (WO-001 rev4: `megawatts` bumped to 2400 while 16
+generators = 1200 MW stayed). Name resolution and recipe derivation still operate on the patch
+(what changed); only the cross-field checks use the merged view.
 
 ## Out of scope
 
-- Hard-rejecting manufacturing counts/rates (false-positive risk) — advisory only (slice 2).
-- Modelling clock-speed/somersloop in the graph, or adding a plan field for it.
-- Server-computed fill (option 3).
-- Flow-solver / built-topology verification.
+- Hard-rejecting manufacturing **counts** (clock/somersloop variance is legitimate) — advisory only.
+- A clock-speed/somersloop plan field; rates are derived at 100% clock.
+- Classifying "which buildings require a recipe" — a missing recipe is caught via the output
+  advisory, not a category-based reject.
+- Server-computed fill of counts (option 3); flow-solver / built-topology verification.

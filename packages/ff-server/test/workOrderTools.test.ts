@@ -53,12 +53,58 @@ function stubMcp(): McpGateway {
       className: 'Build_GeneratorGeoThermal_C',
       buildCost: [{ item: 'Copper Sheet', itemClassName: 'Desc_CopperSheet_C', amount: 20 }],
     },
+    Constructor: {
+      className: 'Build_ConstructorMk1_C',
+      buildCost: [
+        { item: 'Reinforced Iron Plate', itemClassName: 'Desc_IronPlateReinforced_C', amount: 2 },
+      ],
+    },
+    Assembler: {
+      className: 'Build_AssemblerMk1_C',
+      buildCost: [{ item: 'Rotor', itemClassName: 'Desc_Rotor_C', amount: 4 }],
+    },
+    Refinery: {
+      className: 'Build_OilRefinery_C',
+      buildCost: [{ item: 'Motor', itemClassName: 'Desc_Motor_C', amount: 4 }],
+    },
   };
-  // Exact-match resolver tables for the non-buildable kinds (name → class).
-  const recipes: Record<string, string> = { 'Iron Ingot': 'Recipe_IngotIron_C' };
+  // Full RecipeView data (per single machine at 100% clock) for get_recipe + derivation.
+  const recipeViews: Record<
+    string,
+    {
+      className: string;
+      producedIn: string[];
+      ingredients: { item: string; perMinute: number }[];
+      products: { item: string; perMinute: number }[];
+    }
+  > = {
+    'Iron Plate': {
+      className: 'Recipe_IronPlate_C',
+      producedIn: ['Constructor'],
+      ingredients: [{ item: 'Iron Ingot', perMinute: 30 }],
+      products: [{ item: 'Iron Plate', perMinute: 20 }],
+    },
+    Screw: {
+      className: 'Recipe_Screw_C',
+      producedIn: ['Constructor'],
+      ingredients: [{ item: 'Iron Rod', perMinute: 10 }],
+      products: [{ item: 'Screw', perMinute: 40 }],
+    },
+    // A byproduct recipe (two products) to exercise multi-product aggregation.
+    Fuel: {
+      className: 'Recipe_Fuel_C',
+      producedIn: ['Refinery'],
+      ingredients: [{ item: 'Crude Oil', perMinute: 60 }],
+      products: [
+        { item: 'Fuel', perMinute: 40 },
+        { item: 'Polymer Resin', perMinute: 30 },
+      ],
+    },
+  };
   const items: Record<string, string> = {
     'Iron Ore': 'Desc_OreIron_C',
     'Iron Ingot': 'Desc_IronIngot_C',
+    'Iron Plate': 'Desc_IronPlate_C',
   };
   const schematics: Record<string, string> = { 'Plate Production': 'Schematic_Tier0_Plates_C' };
 
@@ -77,6 +123,7 @@ function stubMcp(): McpGateway {
     },
   ];
   const recipeList = [
+    { className: 'Recipe_IronPlate_C', displayName: 'Iron Plate' },
     { className: 'Recipe_IngotIron_C', displayName: 'Iron Ingot' },
     { className: 'Recipe_IngotPureIron_C', displayName: 'Alternate: Pure Iron Ingot' },
   ];
@@ -129,8 +176,24 @@ function stubMcp(): McpGateway {
             ? { text: 'Not found: building.', isError: true }
             : { text: JSON.stringify({ building }), isError: false };
         }
-        case 'get_recipe':
-          return resolved(recipes, argName, 'recipe');
+        case 'get_recipe': {
+          const view = recipeViews[argName];
+          return view === undefined
+            ? { text: 'Not found: recipe.', isError: true }
+            : {
+                text: JSON.stringify({
+                  recipe: {
+                    className: view.className,
+                    displayName: argName,
+                    isAlternate: false,
+                    producedIn: view.producedIn,
+                    ingredients: view.ingredients,
+                    products: view.products,
+                  },
+                }),
+                isError: false,
+              };
+        }
         case 'get_item':
           return resolved(items, argName, 'item');
         case 'get_schematic':
@@ -161,21 +224,22 @@ const validCreateInput = {
   expectedOutputs: [{ kind: 'item', item: 'Iron Ingot', perMinute: 30 }],
 };
 
-/** A plan exercising every resolvable name kind (buildable, machine, recipe, items, schematic, resource). */
+/**
+ * A plan exercising every resolvable name kind (buildable, per-block recipe, expected-output
+ * item, unlock schematic, resource). Recipes are annotated on the production block (#228); the
+ * server derives the recipes[] rates. 3 Constructors × 20 Iron Plate/min = 60 → meets the target.
+ */
 const validFullCreateInput = {
-  title: 'Iron Ingot Line',
-  goal: 'Smelt iron ingots.',
-  buildSteps: [{ title: 'Smelters', buildables: [{ name: 'Smelter', requiredCount: 2 }] }],
-  recipes: [
+  title: 'Iron Plate Line',
+  goal: 'Make iron plates.',
+  buildSteps: [
     {
-      machineName: 'Smelter',
-      recipeName: 'Iron Ingot',
-      inputItems: [{ itemName: 'Iron Ore', perMinute: 30 }],
-      outputItems: [{ itemName: 'Iron Ingot', perMinute: 30 }],
+      title: 'Constructors',
+      buildables: [{ name: 'Constructor', requiredCount: 3, recipeName: 'Iron Plate' }],
     },
   ],
   expectedOutputs: [
-    { kind: 'item', item: 'Iron Ingot', perMinute: 30 },
+    { kind: 'item', item: 'Iron Plate', perMinute: 60 },
     { kind: 'unlock', schematic: 'Plate Production' },
   ],
   resourceNodes: [{ resourceName: 'Iron Ore', purity: 'normal' }],
@@ -362,6 +426,14 @@ describe('ingest-time name resolution (#222)', () => {
     expect(await deps.workOrders.list(playthrough)).toHaveLength(1);
   });
 
+  // A production block carrying a bad recipe name.
+  const badRecipeSteps = [
+    {
+      title: 'Constructors',
+      buildables: [{ name: 'Constructor', requiredCount: 3, recipeName: 'Iron Plates' }],
+    },
+  ];
+
   // Each row overrides exactly one resolvable field with a bad name; the rest resolve.
   const cases: {
     field: string;
@@ -371,38 +443,24 @@ describe('ingest-time name resolution (#222)', () => {
     listTool: string;
   }[] = [
     {
-      field: 'recipe machineName',
-      patch: { recipes: [{ ...validFullCreateInput.recipes[0], machineName: 'Smelter Unit' }] },
-      bad: 'Smelter Unit',
-      suggestion: 'Smelter',
-      listTool: 'list_buildings',
-    },
-    {
-      field: 'recipeName',
-      patch: { recipes: [{ ...validFullCreateInput.recipes[0], recipeName: 'Iron Ingots' }] },
-      bad: 'Iron Ingots',
-      suggestion: 'Iron Ingot',
+      field: 'buildable recipeName',
+      patch: { buildSteps: badRecipeSteps },
+      bad: 'Iron Plates',
+      suggestion: 'Iron Plate',
       listTool: 'list_recipes',
     },
     {
-      field: 'recipe itemName',
-      patch: {
-        recipes: [
-          {
-            ...validFullCreateInput.recipes[0],
-            inputItems: [{ itemName: 'Iron Ores', perMinute: 30 }],
-          },
-        ],
-      },
-      bad: 'Iron Ores',
-      suggestion: 'Iron Ore',
+      field: 'expectedOutputs item',
+      patch: { expectedOutputs: [{ kind: 'item', item: 'Iron Plates', perMinute: 60 }] },
+      bad: 'Iron Plates',
+      suggestion: 'Iron Plate',
       listTool: 'list_items',
     },
     {
       field: 'expectedOutputs schematic',
       patch: {
         expectedOutputs: [
-          { kind: 'item', item: 'Iron Ingot', perMinute: 30 },
+          { kind: 'item', item: 'Iron Plate', perMinute: 60 },
           { kind: 'unlock', schematic: 'Plate Prod' },
         ],
       },
@@ -437,32 +495,24 @@ describe('ingest-time name resolution (#222)', () => {
     });
   }
 
-  it('rejects a revise whose patch names an unresolvable recipe item, leaving the order untouched', async () => {
+  it('rejects a revise whose patch names an unresolvable block recipe, leaving the order untouched', async () => {
     const playthrough = await seedPlaythrough();
     await handleWorkOrderTool(playthrough, CREATE_WORK_ORDER, validFullCreateInput, deps);
     const outcome = await handleWorkOrderTool(
       playthrough,
       REVISE_WORK_ORDER,
-      {
-        recipes: [
-          {
-            machineName: 'Smelter',
-            recipeName: 'Iron Ingot',
-            inputItems: [{ itemName: 'Iron Ores', perMinute: 30 }],
-          },
-        ],
-      },
+      { buildSteps: badRecipeSteps },
       deps,
     );
     expect(outcome.isError).toBe(true);
-    expect(outcome.text).toContain('list_items');
+    expect(outcome.text).toContain('list_recipes');
     // No new revision was written.
     const orders = await deps.workOrders.list(playthrough);
     expect(orders).toHaveLength(1);
     expect(orders[0]?.currentRevision).toBe(1);
   });
 
-  it('rejects a create_child whose plan names an unresolvable recipe, leaving only the parent', async () => {
+  it('rejects a create_child whose plan names an unresolvable block recipe, leaving only the parent', async () => {
     const playthrough = await seedPlaythrough();
     const parent = await handleWorkOrderTool(
       playthrough,
@@ -478,12 +528,12 @@ describe('ingest-time name resolution (#222)', () => {
         title: 'Child order',
         parentWorkOrderId: parent.workOrder!.id,
         relationshipToParent: 'prerequisite',
-        recipes: [{ ...validFullCreateInput.recipes[0], recipeName: 'Iron Ingots' }],
+        buildSteps: badRecipeSteps,
       },
       deps,
     );
     expect(outcome.isError).toBe(true);
-    expect(outcome.text).toContain('Iron Ingot'); // suggestion
+    expect(outcome.text).toContain('Iron Plate'); // suggestion
     expect(await deps.workOrders.list(playthrough)).toHaveLength(1); // only the parent
   });
 });
@@ -587,7 +637,26 @@ describe('power output verification (#223)', () => {
     expect(await deps.workOrders.list(playthrough)).toHaveLength(0);
   });
 
-  it('does not falsely reject a revise that changes only the power target', async () => {
+  it('allows a target-only revise the existing generators still cover', async () => {
+    const playthrough = await seedPlaythrough();
+    await handleWorkOrderTool(
+      playthrough,
+      CREATE_WORK_ORDER,
+      powerPlant(1200, [{ name: 'Coal-Powered Generator', requiredCount: 16 }]), // 16 × 75 = 1200
+      deps,
+    );
+    // Lowering the target below existing capacity is fine.
+    const outcome = await handleWorkOrderTool(
+      playthrough,
+      REVISE_WORK_ORDER,
+      { expectedOutputs: [{ kind: 'power', megawatts: 900 }], changeSummary: 'Trim target.' },
+      deps,
+    );
+    expect(outcome.isError).toBe(false);
+  });
+
+  it('rejects a target-only revise that outstrips the existing generators (merged check)', async () => {
+    // The live bug: "revise to 2400 MW" left 16 generators (= 1200 MW) untouched and shipped.
     const playthrough = await seedPlaythrough();
     await handleWorkOrderTool(
       playthrough,
@@ -595,14 +664,179 @@ describe('power output verification (#223)', () => {
       powerPlant(1200, [{ name: 'Coal-Powered Generator', requiredCount: 16 }]),
       deps,
     );
-    // Patch touches only the target — no buildSteps to check against → skip, not reject.
     const outcome = await handleWorkOrderTool(
       playthrough,
       REVISE_WORK_ORDER,
-      { expectedOutputs: [{ kind: 'power', megawatts: 2000 }], changeSummary: 'Bump target.' },
+      { expectedOutputs: [{ kind: 'power', megawatts: 2400 }], changeSummary: 'Double it.' },
+      deps,
+    );
+    expect(outcome.isError).toBe(true);
+    expect(outcome.text).toContain('2400'); // the new claim
+    expect(outcome.text).toContain('1200'); // what the existing 16 generators produce
+    expect(outcome.text).toContain('32'); // ceil(2400 / 75)
+    // Rejected before persist — still on the original revision.
+    const orders = await deps.workOrders.list(playthrough);
+    expect(orders).toHaveLength(1);
+    expect(orders[0]?.currentRevision).toBe(1);
+  });
+});
+
+describe('recipe derivation (#228)', () => {
+  const block = (
+    name: string,
+    requiredCount: number,
+    recipeName: string,
+  ): Record<string, unknown> => ({ name, requiredCount, recipeName });
+
+  it('derives recipes[] rates (count × per-machine) from an annotated production block', async () => {
+    const playthrough = await seedPlaythrough();
+    const outcome = await handleWorkOrderTool(
+      playthrough,
+      CREATE_WORK_ORDER,
+      validFullCreateInput,
       deps,
     );
     expect(outcome.isError).toBe(false);
+    // 3 Constructors × (30 Iron Ingot → 20 Iron Plate) per machine.
+    expect(outcome.workOrder?.recipes).toEqual([
+      {
+        machineName: 'Constructor',
+        recipeName: 'Iron Plate',
+        inputItems: [{ itemName: 'Iron Ingot', perMinute: 90 }],
+        outputItems: [{ itemName: 'Iron Plate', perMinute: 60 }],
+      },
+    ]);
+  });
+
+  it('aggregates two blocks of the same recipe into one derived entry', async () => {
+    const playthrough = await seedPlaythrough();
+    const outcome = await handleWorkOrderTool(
+      playthrough,
+      CREATE_WORK_ORDER,
+      {
+        title: 'Plates',
+        goal: 'Plates.',
+        buildSteps: [
+          { title: 'A', buildables: [block('Constructor', 3, 'Iron Plate')] },
+          { title: 'B', buildables: [block('Constructor', 2, 'Iron Plate')] },
+        ],
+      },
+      deps,
+    );
+    expect(outcome.isError).toBe(false);
+    expect(outcome.workOrder?.recipes).toHaveLength(1);
+    expect(outcome.workOrder?.recipes[0]?.outputItems).toEqual([
+      { itemName: 'Iron Plate', perMinute: 100 }, // (3 + 2) × 20
+    ]);
+  });
+
+  it('derives all products of a byproduct recipe', async () => {
+    const playthrough = await seedPlaythrough();
+    const outcome = await handleWorkOrderTool(
+      playthrough,
+      CREATE_WORK_ORDER,
+      {
+        title: 'Fuel',
+        goal: 'Burn oil.',
+        buildSteps: [{ title: 'Refineries', buildables: [block('Refinery', 2, 'Fuel')] }],
+      },
+      deps,
+    );
+    expect(outcome.isError).toBe(false);
+    expect(outcome.workOrder?.recipes[0]?.outputItems).toEqual([
+      { itemName: 'Fuel', perMinute: 80 }, // 2 × 40
+      { itemName: 'Polymer Resin', perMinute: 60 }, // 2 × 30
+    ]);
+  });
+
+  it('rejects a block whose building cannot run its recipe', async () => {
+    const playthrough = await seedPlaythrough();
+    const outcome = await handleWorkOrderTool(
+      playthrough,
+      CREATE_WORK_ORDER,
+      {
+        title: 'Wrong machine',
+        goal: 'Oops.',
+        buildSteps: [{ title: 'A', buildables: [block('Assembler', 3, 'Iron Plate')] }],
+      },
+      deps,
+    );
+    expect(outcome.isError).toBe(true);
+    expect(outcome.workOrder).toBeUndefined();
+    expect(outcome.text).toContain('Constructor'); // the recipe's actual machine
+    expect(outcome.text).toContain('Assembler'); // the wrongly-chosen building
+    expect(await deps.workOrders.list(playthrough)).toHaveLength(0);
+  });
+
+  it('persists with a non-blocking advisory when derived output falls short of the target', async () => {
+    const playthrough = await seedPlaythrough();
+    const outcome = await handleWorkOrderTool(
+      playthrough,
+      CREATE_WORK_ORDER,
+      {
+        title: 'Under-built',
+        goal: 'Plates.',
+        buildSteps: [{ title: 'A', buildables: [block('Constructor', 2, 'Iron Plate')] }],
+        expectedOutputs: [{ kind: 'item', item: 'Iron Plate', perMinute: 60 }],
+      },
+      deps,
+    );
+    // Persists (advisory is non-blocking) but the foreman is told to self-correct.
+    expect(outcome.isError).toBe(false);
+    expect(outcome.workOrder).toBeDefined();
+    expect(outcome.text).toContain('40'); // 2 × 20 produced
+    expect(outcome.text).toContain('60'); // target
+    expect(outcome.text).toContain('Constructor'); // "about 1 more Constructor"
+    expect(await deps.workOrders.list(playthrough)).toHaveLength(1);
+  });
+
+  it('adds no advisory when the plan meets its target', async () => {
+    const playthrough = await seedPlaythrough();
+    const outcome = await handleWorkOrderTool(
+      playthrough,
+      CREATE_WORK_ORDER,
+      validFullCreateInput, // 3 × 20 = 60 = target
+      deps,
+    );
+    expect(outcome.isError).toBe(false);
+    expect(outcome.text).not.toContain('under-delivers');
+  });
+
+  it('advises (non-blocking) on a target-only revise that outstrips current production, via the merged plan', async () => {
+    const playthrough = await seedPlaythrough();
+    // validFullCreateInput: 3 Constructors → 60 Iron Plate/min.
+    await handleWorkOrderTool(playthrough, CREATE_WORK_ORDER, validFullCreateInput, deps);
+    const outcome = await handleWorkOrderTool(
+      playthrough,
+      REVISE_WORK_ORDER,
+      {
+        expectedOutputs: [{ kind: 'item', item: 'Iron Plate', perMinute: 200 }],
+        changeSummary: 'Bump target.',
+      },
+      deps,
+    );
+    // Non-blocking (manufacturing counts are advisory), but the merged check catches that
+    // the existing 60/min doesn't meet the new 200/min target and tells the foreman.
+    expect(outcome.isError).toBe(false);
+    expect(outcome.text).toContain('under-delivers');
+    expect(outcome.text).toContain('60'); // current production
+    expect(outcome.text).toContain('200'); // new target
+    const orders = await deps.workOrders.list(playthrough);
+    expect(orders[0]?.currentRevision).toBe(2);
+  });
+
+  it('does not advise when a partial revise touches neither production nor its target', async () => {
+    const playthrough = await seedPlaythrough();
+    await handleWorkOrderTool(playthrough, CREATE_WORK_ORDER, validFullCreateInput, deps);
+    // Change only the goal text — no buildSteps, no expectedOutputs → nothing to check.
+    const outcome = await handleWorkOrderTool(
+      playthrough,
+      REVISE_WORK_ORDER,
+      { goal: 'Make iron plates, faster.', changeSummary: 'Reword.' },
+      deps,
+    );
+    expect(outcome.isError).toBe(false);
+    expect(outcome.text).not.toContain('under-delivers');
   });
 });
 
