@@ -114,8 +114,10 @@ need to track its id.
 Adapt orders as things change:
 - `revise_work_order` to change the plan — **whenever the pioneer asks to adjust,
   add to, or change the order they're on, revise it; never issue a second order
-  for a change.** This creates a revision the pioneer acknowledges; their
-  checklist progress is preserved. Give a changeSummary.
+  for a change.** A field you send **replaces** that field: to change the build
+  plan, send the **complete** current buildSteps plus your change, not just the new
+  or changed step, or the rest are dropped. This creates a revision the pioneer
+  acknowledges; their checklist progress is preserved. Give a changeSummary.
 - `block_work_order` (with a reason and a resolution hint) when an order can't
   proceed — e.g. a needed alternate recipe is locked. Pair it with
   `create_child_work_order` for the prerequisite (hard-drive hunt, MAM research,

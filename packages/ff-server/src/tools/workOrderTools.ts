@@ -190,7 +190,7 @@ export function workOrderToolDefinitions(): ToolDefinition[] {
     {
       name: REVISE_WORK_ORDER,
       description:
-        "Revise the current order's plan (any plan fields). Defaults to the order the pioneer is on — use this whenever they ask to adjust, add to, or change the active work order, rather than issuing a new one. Creates a new revision the pioneer acknowledges; their checklist progress is preserved. Provide a changeSummary describing what changed and why.",
+        "Revise the current order's plan (any plan fields). Defaults to the order the pioneer is on — use this whenever they ask to adjust, add to, or change the active work order, rather than issuing a new one. IMPORTANT: a field you send REPLACES that field wholesale — to change buildSteps, send the COMPLETE current set of steps plus your change, not just the new/changed step, or the omitted steps are dropped (checklist progress on surviving steps is preserved by id). Creates a new revision the pioneer acknowledges. Provide a changeSummary describing what changed and why.",
       inputSchema: {
         type: 'object',
         properties: {
@@ -405,8 +405,11 @@ async function handleRevise(
     'Foreman',
     meta,
   );
-  const advisory = outputAdvisory(effective);
-  const advisoryText = advisory !== undefined ? `\n\n${advisory}` : '';
+  const notes = [
+    outputAdvisory(effective),
+    droppedContentAdvisory(patch.buildSteps, existing?.buildSteps),
+  ].filter((n): n is string => n !== undefined);
+  const advisoryText = notes.length > 0 ? `\n\n${notes.join('\n\n')}` : '';
   return mapOutcome(outcome, (order) => ({
     text: `Revised ${formatWorkOrderLabel(order.sequenceNumber)} (now revision ${order.currentRevision}). The pioneer will see a plan-changed notice to acknowledge.${advisoryText}`,
     workOrder: order,
@@ -1112,6 +1115,38 @@ export function outputAdvisory(plan: PlanInput): string | undefined {
     );
   }
   return undefined;
+}
+
+/**
+ * Non-blocking safeguard for the revise trap: `updatePlan` REPLACES `buildSteps` with exactly
+ * what the patch sends (checklist state is carried forward by id, but plan content of omitted
+ * steps is dropped), yet the model tends to send only the delta. We can't tell an intentional
+ * trim from an accidental delta, so rather than reject, we warn the foreman when a revise
+ * SHRINKS the plan (fewer steps or buildables than the current order) to resend the full plan
+ * if the drop wasn't intended. Surfaced to the foreman in-loop, never the pioneer.
+ */
+function droppedContentAdvisory(
+  incoming: StepInput[] | undefined,
+  existing: StepInput[] | undefined,
+): string | undefined {
+  if (incoming === undefined || existing === undefined || existing.length === 0) {
+    return undefined;
+  }
+  const countBuildables = (steps: StepInput[]): number =>
+    steps.reduce((n, s) => n + (s.buildables?.length ?? 0), 0);
+  const wasSteps = existing.length;
+  const nowSteps = incoming.length;
+  const wasBuildables = countBuildables(existing);
+  const nowBuildables = countBuildables(incoming);
+  if (nowSteps >= wasSteps && nowBuildables >= wasBuildables) {
+    return undefined;
+  }
+  return (
+    `Heads up — revising REPLACES the whole build plan, and this patch has fewer parts than the ` +
+    `current order (was ${wasSteps} step(s) / ${wasBuildables} buildable(s), now ${nowSteps} / ` +
+    `${nowBuildables}). If you only meant to add or tweak something, resend the existing steps ` +
+    `alongside your change so they aren't dropped.`
+  );
 }
 
 // --- Quantity verification: power output (#223) ----------------------------
