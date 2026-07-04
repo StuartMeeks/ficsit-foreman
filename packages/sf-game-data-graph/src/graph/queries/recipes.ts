@@ -43,6 +43,42 @@ export function getRecipe(ctx: QueryContext, name: string): RecipeView | undefin
   return recipe === undefined ? undefined : toRecipeView(recipe);
 }
 
+/** A compact recipe entry for name discovery (no ingredient detail). */
+export interface RecipeSummary {
+  className: string;
+  displayName: string;
+  isAlternate: boolean;
+}
+
+/**
+ * Every recipe as a compact `{ className, displayName, isAlternate }` entry — the
+ * foreman's way to discover canonical recipe names before naming one in a work
+ * order. `isAlternate` helps disambiguate the standard from alternate recipes that
+ * can share a display name. Optionally narrows by a case-insensitive `search`
+ * substring matched against display name and class name.
+ */
+export function listRecipes(ctx: QueryContext, opts?: { search?: string }): RecipeSummary[] {
+  const search = opts?.search?.trim().toLowerCase();
+  const results: RecipeSummary[] = [];
+  for (const recipe of Object.values(ctx.gameData.recipes)) {
+    if (recipe.displayName === '') {
+      continue;
+    }
+    if (search !== undefined && search !== '') {
+      const haystack = `${recipe.displayName} ${recipe.className}`.toLowerCase();
+      if (!haystack.includes(search)) {
+        continue;
+      }
+    }
+    results.push({
+      className: recipe.className,
+      displayName: recipe.displayName,
+      isAlternate: recipe.isAlternate,
+    });
+  }
+  return results.sort((a, b) => a.displayName.localeCompare(b.displayName));
+}
+
 /** Class names of recipes that produce an item, via the PRODUCES edge. */
 async function producingRecipeClasses(ctx: QueryContext, itemClassName: string): Promise<string[]> {
   const result = await rows(

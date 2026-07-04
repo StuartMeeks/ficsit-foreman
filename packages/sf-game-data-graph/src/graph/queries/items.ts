@@ -10,6 +10,42 @@ export function getItem(ctx: QueryContext, name: string): Item | undefined {
   return itemByClass(ctx.gameData, className);
 }
 
+/** A compact item entry for name discovery (no recipe/stack detail). */
+export interface ItemSummary {
+  className: string;
+  displayName: string;
+}
+
+/**
+ * Every real, named item and resource as a compact `{ className, displayName }`
+ * entry — the foreman's way to discover canonical item names before naming one in
+ * a work order (item/resource references resolve through the same set). Excludes
+ * dataless descriptors (empty display name). Optionally narrows by a
+ * case-insensitive `search` substring matched against display name and class name.
+ */
+export function listItems(ctx: QueryContext, opts?: { search?: string }): ItemSummary[] {
+  const search = opts?.search?.trim().toLowerCase();
+  const seen = new Set<string>();
+  const results: ItemSummary[] = [];
+  for (const item of [
+    ...Object.values(ctx.gameData.items),
+    ...Object.values(ctx.gameData.resources),
+  ]) {
+    if (item.displayName === '' || seen.has(item.className)) {
+      continue;
+    }
+    if (search !== undefined && search !== '') {
+      const haystack = `${item.displayName} ${item.className}`.toLowerCase();
+      if (!haystack.includes(search)) {
+        continue;
+      }
+    }
+    seen.add(item.className);
+    results.push({ className: item.className, displayName: item.displayName });
+  }
+  return results.sort((a, b) => a.displayName.localeCompare(b.displayName));
+}
+
 export interface ConsumingRecipe {
   recipe: string;
   className: string;

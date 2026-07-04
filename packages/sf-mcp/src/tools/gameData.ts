@@ -90,6 +90,19 @@ export function registerGameDataTools(
   );
 
   server.registerTool(
+    'list_items',
+    {
+      title: 'List items',
+      description:
+        'Discover canonical item (and resource) names before naming one in a work order. Returns compact entries (display name, class name) for every real item. Pass a search term to narrow by name (e.g. "plate" → Iron Plate, Reinforced Iron Plate, Copper Sheet…). Use this whenever unsure of an item\'s exact name — item names in a work order resolve by exact display or class name, so a near-miss silently degrades the plan.',
+      inputSchema: { search: z.string().optional() },
+    },
+    async ({ search }): Promise<ToolResult> => {
+      return ok({ items: graph.listItems({ search }) });
+    },
+  );
+
+  server.registerTool(
     'get_recipe',
     {
       title: 'Get recipe',
@@ -100,6 +113,19 @@ export function registerGameDataTools(
     async ({ name }): Promise<ToolResult> => {
       const recipe = graph.getRecipe(name);
       return recipe === undefined ? notFound(`recipe '${name}'`) : ok({ recipe });
+    },
+  );
+
+  server.registerTool(
+    'list_recipes',
+    {
+      title: 'List recipes',
+      description:
+        'Discover canonical recipe names before naming one in a work order. Returns compact entries (display name, class name, isAlternate) for every recipe. Pass a search term to narrow by name (e.g. "rotor" → Rotor, Alternate: Steel Rotor…). isAlternate distinguishes the standard recipe from alternates that can share a display name. Use this whenever unsure of a recipe\'s exact name — recipe names in a work order resolve by exact display or class name.',
+      inputSchema: { search: z.string().optional() },
+    },
+    async ({ search }): Promise<ToolResult> => {
+      return ok({ recipes: graph.listRecipes({ search }) });
     },
   );
 
@@ -225,11 +251,14 @@ export function registerGameDataTools(
     {
       title: 'List schematics',
       description:
-        'All schematics (milestones, MAM, AWESOME shop, hard drives), optionally filtered by tier.',
-      inputSchema: { tier: z.number().int().min(0).optional() },
+        "All schematics (milestones, MAM, AWESOME shop, hard drives), optionally filtered by tier and/or a search term matched against display and class name. Use the search term to confirm a schematic's exact name before naming one in a work-order unlock output.",
+      inputSchema: {
+        tier: z.number().int().min(0).optional(),
+        search: z.string().optional(),
+      },
     },
-    async ({ tier }): Promise<ToolResult> => {
-      return ok({ schematics: graph.listSchematics(tier) });
+    async ({ tier, search }): Promise<ToolResult> => {
+      return ok({ schematics: graph.listSchematics({ tier, search }) });
     },
   );
 

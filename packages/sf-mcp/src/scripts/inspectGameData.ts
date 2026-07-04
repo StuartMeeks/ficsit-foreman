@@ -75,7 +75,7 @@ async function run(): Promise<void> {
       result = await graph.buildableWith((args['resources'] as string[]) ?? []);
       break;
     case 'list_schematics':
-      result = graph.listSchematics(args['tier'] === undefined ? undefined : num('tier'));
+      result = graph.listSchematics(args['tier'] === undefined ? undefined : { tier: num('tier') });
       break;
     case 'get_schematic':
       result = graph.getSchematic(str('name'));
