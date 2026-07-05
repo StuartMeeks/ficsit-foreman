@@ -50,13 +50,14 @@ async function main(): Promise<void> {
   });
 
   const playthroughs = new PlaythroughService(prisma);
+  const workOrders = new WorkOrderService(prisma);
   const deps: AppDeps = {
     config,
     auth: createAuth(prisma),
     foremen: new ForemanService(prisma),
     playthroughs,
-    saves: new SaveService(prisma, mcp, config.saveDataDir),
-    workOrders: new WorkOrderService(prisma),
+    saves: new SaveService(prisma, mcp, config.saveDataDir, workOrders),
+    workOrders,
     mcp,
     summary: new SummaryService(
       playthroughs,

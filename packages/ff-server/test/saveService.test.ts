@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import type { McpGateway, ToolDefinition, ToolInvocationResult } from '../src/mcp/client.js';
 import { SaveService } from '../src/services/saveService.js';
+import { WorkOrderService } from '../src/services/workOrderService.js';
 import { createTestDb, createTestPlaythrough, createTestUser, type TestDb } from './helpers.js';
 
 /** A save-game MCP stub whose describe_save payload + game build are configurable. */
@@ -37,7 +38,8 @@ describe('SaveService', () => {
     fs.rmSync(saveDir, { recursive: true, force: true });
   });
 
-  const svcWith = (mcp: McpGateway): SaveService => new SaveService(db.prisma, mcp, saveDir);
+  const svcWith = (mcp: McpGateway): SaveService =>
+    new SaveService(db.prisma, mcp, saveDir, new WorkOrderService(db.prisma));
   const bytes = Buffer.from([1, 2, 3, 4]);
   const currentSaveId = async (id: string): Promise<string | null> =>
     (await db.prisma.playthrough.findUnique({ where: { id }, select: { currentSaveId: true } }))

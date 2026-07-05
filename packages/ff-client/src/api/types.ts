@@ -361,16 +361,24 @@ export interface Save {
 
 /** A non-fatal advisory returned alongside an uploaded/previewed save. */
 export interface SaveWarning {
-  kind: 'build_mismatch' | 'playtime_regressed';
+  kind: 'build_mismatch' | 'playtime_regressed' | 'collectibles_synced';
   message: string;
   saveBuild?: number;
   gameDataBuild?: number;
+}
+
+/** Collectibles auto-marked collected on a re-upload (#209-B). */
+export interface CollectibleSyncSummary {
+  synced: number;
+  orders: { id: string; label: string; collected: number }[];
 }
 
 /** The save-upload response: the stored save plus any advisories. */
 export interface SaveUploadResult {
   save: Save;
   warnings: SaveWarning[];
+  /** Collectibles auto-marked collected on this re-upload (#209-B); absent when none. */
+  collectibleSync?: CollectibleSyncSummary;
 }
 
 /** Header identity parsed from a save (same-game matching + warnings). */

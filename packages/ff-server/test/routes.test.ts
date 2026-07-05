@@ -78,7 +78,7 @@ beforeAll(async () => {
     auth: createAuth(db.prisma),
     foremen: new ForemanService(db.prisma),
     playthroughs,
-    saves: new SaveService(db.prisma, stubMcp, saveDir),
+    saves: new SaveService(db.prisma, stubMcp, saveDir, new WorkOrderService(db.prisma)),
     workOrders: new WorkOrderService(db.prisma),
     mcp: stubMcp,
     summary: new SummaryService(playthroughs, { historyWindow: 20 }, stubFactory),
@@ -374,7 +374,7 @@ describe('HTTP routes', () => {
   });
 
   it('save path resolution refuses to escape the data directory', () => {
-    const saves = new SaveService(db.prisma, stubMcp, saveDir);
+    const saves = new SaveService(db.prisma, stubMcp, saveDir, new WorkOrderService(db.prisma));
     // Sound ids resolve to a per-playthrough, per-save file inside the data dir.
     expect(saves.savePathFor('abc123', 'save1')).toBe(path.join(saveDir, 'abc123', 'save1.sav'));
     // Traversal / separators in either segment are rejected before any fs access.

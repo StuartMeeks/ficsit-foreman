@@ -12,6 +12,7 @@ import type {
   Buildable,
   BuildableDef,
   BuildCostLine,
+  CollectibleSyncSummary,
   ExpectedOutput,
   ExploreWaypoint,
   LocationRecommendation,
@@ -703,6 +704,63 @@ export class WorkOrderService {
         details: { waypointId, collectibleId, kind: item.kind, from: previous, to: collected },
       };
     });
+  }
+
+  /**
+   * Reconciles active explore orders against a re-uploaded save (#209-B): marks a collectible
+   * collected when its guid is in the save's collected-pickup set or its schematic is unlocked.
+   * MONOTONIC — only un-collected→collected (a save can't un-collect), so recorded progress is
+   * never erased. Writes a `System` audit event per changed order and returns a summary.
+   */
+  public async reconcileCollectibles(
+    playthroughId: string,
+    collectedGuids: Set<string>,
+    unlockedSchematics: Set<string>,
+  ): Promise<CollectibleSyncSummary> {
+    const rows = await this.prisma.workOrder.findMany({
+      where: { playthroughId, orderType: 'explore' },
+    });
+    const summary: CollectibleSyncSummary = { synced: 0, orders: [] };
+    for (const row of rows) {
+      if (isTerminalState(row.state)) {
+        continue;
+      }
+      const waypoints = parseJson<ExploreWaypoint[]>(row.waypoints, []);
+      let changed = 0;
+      for (const waypoint of waypoints) {
+        for (const c of waypoint.collectibles) {
+          if (c.collected) {
+            continue;
+          }
+          const nowCollected =
+            (c.guid !== undefined && collectedGuids.has(c.guid)) ||
+            (c.schematic !== undefined && unlockedSchematics.has(c.schematic));
+          if (nowCollected) {
+            c.collected = true;
+            changed += 1;
+          }
+        }
+      }
+      if (changed > 0) {
+        await this.prisma.$transaction(async (tx) => {
+          await tx.workOrder.update({
+            where: { id: row.id },
+            data: { waypoints: JSON.stringify(waypoints) },
+          });
+          await this.appendAudit(tx, row.id, 'System', 'collectible_collected', {
+            note: `Save synced: ${changed} collectible(s) marked collected on re-upload.`,
+            details: { syncedCount: changed, source: 'save_reupload' },
+          });
+        });
+        summary.synced += changed;
+        summary.orders.push({
+          id: row.id,
+          label: formatWorkOrderLabel(row.sequenceNumber, 'explore'),
+          collected: changed,
+        });
+      }
+    }
+    return summary;
   }
 
   /** Adds to the manually-logged hours total. */

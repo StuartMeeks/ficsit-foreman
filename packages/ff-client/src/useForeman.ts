@@ -45,6 +45,7 @@ import {
   type Playthrough,
   type Save,
   type SavePreviewResult,
+  type SaveUploadResult,
   type SaveWarning,
   type StoredMessage,
   type WorkOrder,
@@ -254,6 +255,27 @@ export interface WorkOrderActions {
   acknowledge(id: string, revisionNumber?: number): Promise<void>;
   revert(id: string, revisionNumber: number): Promise<void>;
   logHours(id: string, hours: number): Promise<void>;
+}
+
+/**
+ * Fold a re-upload's collectible-sync summary into the save-advisory banner as a
+ * `collectibles_synced` entry (#209-B), so a positive "Save synced" note rides the
+ * same dismissible mechanism as build/playtime warnings.
+ */
+function withSyncBanner(result: SaveUploadResult): SaveWarning[] {
+  const sync = result.collectibleSync;
+  if (sync === undefined || sync.synced === 0) {
+    return result.warnings;
+  }
+  const orders = sync.orders.map((o) => o.label).join(', ');
+  const noun = sync.synced === 1 ? 'collectible' : 'collectibles';
+  return [
+    ...result.warnings,
+    {
+      kind: 'collectibles_synced',
+      message: `Save synced: ${sync.synced} ${noun} marked collected${orders !== '' ? ` (${orders})` : ''}.`,
+    },
+  ];
 }
 
 export function useForeman(): ForemanState {
@@ -663,8 +685,7 @@ export function useForeman(): ForemanState {
         pioneerProfile: input.pioneerProfile,
       });
       if (input.saveFile !== undefined) {
-        const { warnings } = await uploadSave(created.id, input.saveFile);
-        setSaveWarnings(warnings);
+        setSaveWarnings(withSyncBanner(await uploadSave(created.id, input.saveFile)));
       }
       // Re-fetch so a save-derived default name + save metadata are reflected.
       const fresh = (await getPlaythrough(created.id)) ?? created;
@@ -679,8 +700,7 @@ export function useForeman(): ForemanState {
       if (playthrough === null) {
         return;
       }
-      const { warnings } = await uploadSave(playthrough.id, file);
-      setSaveWarnings(warnings);
+      setSaveWarnings(withSyncBanner(await uploadSave(playthrough.id, file)));
       // Re-fetch so the refreshed save metadata is reflected in state + the list.
       const fresh = (await getPlaythrough(playthrough.id)) ?? playthrough;
       setPlaythrough(fresh);
@@ -701,8 +721,7 @@ export function useForeman(): ForemanState {
       // Switch first: activating a playthrough resets save warnings, so set them
       // after, against the now-current playthrough.
       await switchPlaythrough(playthroughId);
-      const { warnings } = await uploadSave(playthroughId, file);
-      setSaveWarnings(warnings);
+      setSaveWarnings(withSyncBanner(await uploadSave(playthroughId, file)));
       const fresh = await getPlaythrough(playthroughId);
       if (fresh !== null) {
         setPlaythrough(fresh);
