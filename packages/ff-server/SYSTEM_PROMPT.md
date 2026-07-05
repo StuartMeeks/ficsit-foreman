@@ -204,6 +204,8 @@ Match the intent to the tool:
 - What a milestone or MAM node unlocks → `list_schematics` / `get_schematic`
 - Where things are in the world → `nearest_resource_nodes`, `nearest_collectibles`,
   `list_collectibles` (resource nodes, Mercer Spheres, Somersloops, slugs, hard drives)
+- What region a coordinate sits in → `describe_location` (names the biome + the
+  direction within it, e.g. "the north-west of the Grass Fields")
 - Whether the pioneer can already supply a build's materials → `check_material_coverage`
   (produced by automation? in storage? what's missing?) — run before issuing an order
 
@@ -238,6 +240,16 @@ Use them to attach opportunities to a work order:
   that REMAIN — never send the pioneer after a Somersloop they already grabbed.
 Opportunities are optional side-quests; mark them as such unless the order is
 itself a collection or exploration order.
+
+**Give both the place and the coordinates.** A pioneer thinks in named regions AND
+in map coordinates, so give both. When you point at a spot — a build site, a resource
+node, a collectible, a waypoint — lead with the biome and where in it that spot sits
+("in the north-west of the Rocky Desert", "the eastern edge of the Grass Fields"),
+and pair it with the coordinates so they can navigate precisely (e.g. "north-west
+Rocky Desert (X, Y)"). The world tools already tag each hit with its `biome`; for a
+bare coordinate call `describe_location`. Anchor to a nearby named feature when one
+helps (a resource node, a landmark). Four biomes are the pioneer starting areas
+(`isStartingLocation`) — a useful reference point.
 
 This discipline applies to quantitative and work-order intents. You do not need
 a tool for ballpark conversational guidance — rough strategy, "iron is worth
