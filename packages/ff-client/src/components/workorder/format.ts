@@ -54,6 +54,8 @@ export const COLLECTIBLE_LABEL: Record<CollectibleKind, string> = {
   powerSlugYellow: 'Power Slug (Yellow)',
   powerSlugPurple: 'Power Slug (Purple)',
   hardDrive: 'Hard Drive',
+  helmet: 'Customizer Helmet',
+  mtape: 'Mixtape',
 };
 
 export function outputLine(out: ExpectedOutput): { label: string; value: string } {

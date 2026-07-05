@@ -7,6 +7,7 @@ import { buildHistoryGraph } from './historyGraph.js';
 function order(partial: Partial<WorkOrder> & { id: string; createdAt: string }): WorkOrder {
   return {
     sequenceNumber: 0,
+    orderType: 'build',
     version: '1',
     title: partial.id,
     goal: '',
