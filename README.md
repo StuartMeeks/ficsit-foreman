@@ -18,7 +18,7 @@ in one Docker Compose project.
 
 | Package | Status | Purpose |
 |---|---|---|
-| [`packages/sf-mcp`](./packages/sf-mcp) | **Built** | The unified MCP server: game-data graph tools (loads the bundled merged dataset into an embedded Kùzu graph) **and** live save-game tools (save-file parser exposing pioneer location, inventory, unlocks, milestones, remaining collectibles) from one endpoint. Works standalone with Claude Desktop. |
+| [`packages/sf-mcp`](./packages/sf-mcp) | **Built** | The unified MCP server: game-data graph tools (loads the bundled merged dataset into an in-memory production graph) **and** live save-game tools (save-file parser exposing pioneer location, inventory, unlocks, milestones, remaining collectibles) from one endpoint. Works standalone with Claude Desktop. |
 | [`packages/ff-server`](./packages/ff-server) | **Built** | Express backend: LLM chat proxy (Anthropic or OpenAI-compatible) with the foreman persona, MCP tool use, and stateful work-order persistence (see [`docs/work-orders.md`](./docs/work-orders.md)). |
 | [`packages/ff-client`](./packages/ff-client) | **In progress** | React UI (Phase 3): foreman chat (streaming), active work-order panel, history, and onboarding/settings. Served on port `8725`. |
 

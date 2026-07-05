@@ -7,7 +7,6 @@ import {
   round,
   unitForItem,
 } from '../context.js';
-import { rows } from '../run.js';
 import type {
   CostLine,
   ExtractionCost,
@@ -49,18 +48,11 @@ async function producingRecipes(
   ctx: QueryContext,
   itemClassName: string,
 ): Promise<ProducingRecipe[]> {
-  const result = await rows(
-    ctx.conn,
-    `MATCH (rec:Recipe)-[p:PRODUCES]->(i:Item {className: $cn})
-     RETURN rec.className AS className, rec.displayName AS displayName,
-            rec.isAlternate AS isAlternate, p.perMinute AS perMinute`,
-    { cn: itemClassName },
-  );
-  return result.map((row) => ({
-    className: String(row['className']),
-    displayName: String(row['displayName']),
-    isAlternate: Boolean(row['isAlternate']),
-    outputPerMinute: Number(row['perMinute']),
+  return (ctx.producersByItem.get(itemClassName) ?? []).map((recipe) => ({
+    className: recipe.className,
+    displayName: recipe.displayName,
+    isAlternate: recipe.isAlternate,
+    outputPerMinute: recipe.products.find((p) => p.itemClassName === itemClassName)?.perMinute ?? 0,
   }));
 }
 
@@ -68,15 +60,10 @@ async function consumesOf(
   ctx: QueryContext,
   recipeClassName: string,
 ): Promise<{ className: string; perMinute: number }[]> {
-  const result = await rows(
-    ctx.conn,
-    `MATCH (r:Recipe {className: $rc})-[c:CONSUMES]->(i:Item)
-     RETURN i.className AS className, c.perMinute AS perMinute`,
-    { rc: recipeClassName },
-  );
-  return result.map((row) => ({
-    className: String(row['className']),
-    perMinute: Number(row['perMinute']),
+  const recipe = ctx.gameData.recipes[recipeClassName];
+  return (recipe?.ingredients ?? []).map((ingredient) => ({
+    className: ingredient.itemClassName,
+    perMinute: ingredient.perMinute,
   }));
 }
 
@@ -105,10 +92,10 @@ function chooseRecipe(
 
 /**
  * Flattened per-minute requirements and machine counts for every tier of
- * production. The graph supplies the structure (producing recipes and their
- * consume edges); the weighted multiplicative roll-up — demand multiplies along
- * each edge and sums across shared sub-components — is done here over a
- * topologically-ordered subgraph, which recursive Cypher cannot express cleanly.
+ * production. The adjacency index supplies the structure (producing recipes and
+ * their ingredients); the weighted multiplicative roll-up — demand multiplies
+ * along each edge and sums across shared sub-components — is done here over a
+ * topologically-ordered subgraph.
  */
 export async function ingredientTree(
   ctx: QueryContext,
@@ -514,21 +501,17 @@ export async function buildableWith(
   }
   const seeds = new Set(available);
 
-  const ingredientRows = await rows(
-    ctx.conn,
-    `MATCH (r:Recipe)-[:CONSUMES]->(i:Item) RETURN r.className AS recipe, collect(i.className) AS ins`,
-  );
-  const productRows = await rows(
-    ctx.conn,
-    `MATCH (r:Recipe)-[:PRODUCES]->(i:Item) RETURN r.className AS recipe, collect(i.className) AS outs`,
-  );
   const ingredientsByRecipe = new Map<string, string[]>();
-  for (const row of ingredientRows) {
-    ingredientsByRecipe.set(String(row['recipe']), (row['ins'] as string[]) ?? []);
-  }
   const productsByRecipe = new Map<string, string[]>();
-  for (const row of productRows) {
-    productsByRecipe.set(String(row['recipe']), (row['outs'] as string[]) ?? []);
+  for (const recipe of Object.values(ctx.gameData.recipes)) {
+    ingredientsByRecipe.set(
+      recipe.className,
+      recipe.ingredients.map((i) => i.itemClassName),
+    );
+    productsByRecipe.set(
+      recipe.className,
+      recipe.products.map((p) => p.itemClassName),
+    );
   }
 
   let changed = true;

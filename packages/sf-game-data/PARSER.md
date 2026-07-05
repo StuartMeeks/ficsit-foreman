@@ -3,7 +3,7 @@
 This document describes the design of:
 
 1. The `en-US.json` parser — **C#**, in `packages/sf-game-data/extract/sf-game-data-parse/`
-2. The Kùzu graph load pipeline — TypeScript, in `packages/sf-game-data-graph/src/`
+2. The production-graph build — TypeScript, in `packages/sf-game-data-graph/src/`
 
 > **The parser is C#.** It was a hand-written TypeScript parser originally; that was
 > ported 1:1 to C# (validated by a golden-diff against the TS version at port time)
@@ -173,30 +173,40 @@ number formatting matches.
 
 ---
 
-## Graph Load Architecture (TypeScript)
+## Graph Build Architecture (TypeScript)
 
-The graph layer sits between the dataset and the MCP tools: it loads `GameData` into
-Kùzu and provides a clean query interface.
+The graph layer sits between the dataset and the MCP tools: it wraps `GameData` in
+a query facade with no database — relationship queries read two precomputed
+item→recipe adjacency maps, everything else reads `GameData` directly.
 
 ```
 packages/sf-game-data-graph/src/
   index.ts              ← public API: initGraph(gameData: GameData): GraphDB
-  schema.ts             ← Kùzu DDL: CREATE NODE TABLE, CREATE REL TABLE
-  loader.ts             ← idempotent load from GameData (drop + reload on rebuild)
-  queries/
-    items.ts            ← get_item, what_consumes, what_produces
-    recipes.ts          ← get_recipe, recipes_for, compare_alternates
-    production.ts       ← ingredient_tree, total_raw_inputs, buildable_with
-    schematics.ts       ← list_schematics, get_schematic
-  types.ts              ← query result types (distinct from parser types)
+  graph/
+    indexes.ts          ← buildGraphIndex: item→producing/consuming recipe maps
+    context.ts          ← QueryContext (GameData + resolver + adjacency maps)
+    resolve.ts          ← name → class-name resolver
+    queries/
+      items.ts          ← get_item, what_consumes
+      recipes.ts        ← get_recipe, recipes_for, compare_alternates
+      production.ts     ← ingredient_tree, total_raw_inputs, buildable_with
+      schematics.ts     ← list_schematics, get_schematic
+      buildings.ts      ← get_building, list_buildings, list_power_generators
+    types.ts            ← query result types (distinct from parser types)
 ```
 
-**Kùzu notes:**
-- Embedded, in-process — no daemon, no network. Imported as a Node.js package.
-- Relationship tables are typed. `UNLOCKS` is three tables: `UNLOCKS_RECIPE`,
-  `UNLOCKS_BUILDING`, `UNLOCKS_ITEM`.
-- Load is idempotent: drop all tables and reload on every rebuild. The dataset is
-  small enough that a full rebuild is the right strategy.
+**Notes:**
+- Pure in-memory, zero runtime dependencies beyond `@foreman/sf-game-data` — no
+  database, no daemon, no native addon. The graph builds in sub-millisecond time.
+- The facts (a recipe's ingredients/products/producedIn with `perMinute`, a
+  building's build cost, a schematic's unlocks) already live fully-resolved on the
+  parsed `GameData` objects; the graph just indexes item→recipe adjacency over
+  them so producer/consumer lookups are O(1).
+- The recursive work — ingredient-tree demand roll-up, topological ordering,
+  cycle-breaking, the buildable-with fixpoint closure — runs in TypeScript.
+- (Historically this layer used an embedded Kùzu graph DB; it was dropped in #243
+  — the dataset is tiny (~320 recipes) and the native dependency wasn't earning
+  its keep. See `docs/architecture.md`.)
 
 ---
 

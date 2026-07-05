@@ -4,8 +4,8 @@ The FICSIT Foreman **unified MCP server**. It serves two Satisfactory tool sets
 from one [Model Context Protocol](https://modelcontextprotocol.io) endpoint:
 
 - **Game-data tools** — answer *"how is anything in the game made?"* from the static
-  game data, loaded by [`@foreman/sf-game-data`](../sf-game-data) into an embedded
-  [Kùzu](https://kuzudb.com) graph ([`@foreman/sf-game-data-graph`](../sf-game-data-graph)).
+  game data, parsed by [`@foreman/sf-game-data`](../sf-game-data) and wrapped in an
+  in-memory production graph ([`@foreman/sf-game-data-graph`](../sf-game-data-graph)).
 - **Save-game tools** — answer *"what has this pioneer actually built, unlocked, and
   collected?"* from their live `.sav`, parsed by [`@foreman/sf-save-data`](../sf-save-data).
 
@@ -170,7 +170,6 @@ response is tagged with the detected game version.
 | `list_schematics(tier?)` / `get_schematic(name)` | Milestones/MAM/shop/hard-drive schematics. |
 | `get_building(name)` / `list_power_generators()` | Building power/cost; full generator fuel breakdowns. |
 | `list_buildings(search?, category?)` | Discover canonical buildable names (display + class + category); search by name or list a category. |
-| `cypher_query(query)` | Guarded read-only Cypher escape hatch (rejects mutating keywords). |
 | `list_collectibles(type?)` / `nearest_collectibles(coord, type?, n?)` | Static world collectible totals + nearest-to-a-location. |
 | `nearest_resource_nodes(coord, resource?, purity?, n?)` | Resource nodes nearest a location, with resource type and purity. |
 | `list_parts(item?)` / `nearest_parts(coord, item?, n?)` | Loose crash-site parts: world totals + nearest-to-a-location. |
@@ -210,7 +209,7 @@ src/
 ```
 
 The `en-US.json` parser, types and bundled data live in
-[`@foreman/sf-game-data`](../sf-game-data); the Kùzu graph in
+[`@foreman/sf-game-data`](../sf-game-data); the in-memory production graph in
 [`@foreman/sf-game-data-graph`](../sf-game-data-graph); the `.sav` model in
 [`@foreman/sf-save-data`](../sf-save-data). This package is a thin MCP server that
 loads those libraries and registers their tools — see

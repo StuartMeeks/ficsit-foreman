@@ -41,7 +41,7 @@ A persistent AI conversation interface. The player talks to their foreman, descr
 The foreman issues structured work orders: a specific, achievable task with build costs, expected inputs/outputs, and a clear success condition. The current order is always visible in the UI; completed orders are logged. Work orders are **achievable within a session**, **accurate** (built from real game data, not hallucinated ratios), and **cheap to generate** (a structured schema, not free-form prose). The full design is in [`work-orders.md`](./work-orders.md).
 
 ### 3. Game Data Backbone (MCP Server)
-A locally-run MCP server backed by an embedded graph database (Kùzu). It parses the player's actual game install (`en-US.json` from `CommunityResources/Docs/`), loads the data into the graph, and exposes it as queryable MCP tools. The graph makes recursive production queries — "what raw inputs do I need for this item, all the way down?" — cheap server-side, keeping tool responses compact. Data is tagged to the detected game version.
+A locally-run MCP server backed by an in-memory production graph. It parses the player's actual game install (`en-US.json` from `CommunityResources/Docs/`), builds the graph from that data, and exposes it as queryable MCP tools. The graph makes recursive production queries — "what raw inputs do I need for this item, all the way down?" — cheap server-side, keeping tool responses compact. Data is tagged to the detected game version.
 
 ### 4. Onboarding & Personalisation
 Before the foreman issues the first order, the player answers a short set of questions: play style, current game state, time available, goals, and foreman personality. These shape the foreman's approach — not just the first session, but ongoing.

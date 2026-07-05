@@ -32,7 +32,7 @@ services under one `foreman` Docker Compose project.
         │ MCP (Streamable HTTP)                       │ LLM API
 ┌───────▼─────────────────────────────────────┐   ┌──▼─────────────┐
 │ sf-mcp                                       │   │ Claude / OpenAI │
-│  · game-data tools: parser + Kùzu graph +    │   │ -compatible     │
+│  · game-data tools: parser + in-mem graph +  │   │ -compatible     │
 │    world locations — "how is it made?"       │   │ foreman persona │
 │  · save-game tools: live save state          │   │                 │
 │    — player, unlocks, collectibles, …        │   │                 │
@@ -54,7 +54,7 @@ client, injecting the active playthrough's save path into each tool call (see
 | Frontend | React + TypeScript + Vite | Fast dev, strong ecosystem |
 | Backend | Node.js + Express + TypeScript | Unified language across the stack |
 | MCP servers | TypeScript (official MCP SDK) | Same stack everywhere |
-| Graph DB | Kùzu (embedded, in-process) | Recursive production queries are cheap; no daemon/infra |
+| Production graph | In-memory adjacency (no DB) | Dataset is tiny (~320 recipes); item→recipe maps + TS traversal beat a native graph DB — no daemon, no native addon, instant load |
 | App DB | SQLite (dev) → Postgres (prod) | Zero local setup; clean migration path |
 | ORM | Prisma | Readable schema, good migrations |
 | Auth | Better Auth (self-hosted) | Email+password now, passkeys/TOTP next; HttpOnly-cookie sessions; Prisma adapter |
@@ -91,34 +91,35 @@ reduce itself. The foreman asks one question and gets one useful answer.
 
 Satisfactory ships `<install>/CommunityResources/Docs/en-US.json` — machine-readable
 data for all items, recipes, buildings, and rates. FICSIT Foreman parses it with a
-**purpose-built, hand-written parser** (no third-party parsing libraries), loads it
-into Kùzu, and tags it to the detected game version. Bundled copies per release
+**purpose-built, hand-written parser** (no third-party parsing libraries), builds
+the in-memory production graph from it, and tags it to the detected game version.
+Bundled copies per release
 channel ship with the game-data package so it works out of the box; players can
 also point at a local install. Version support is additive. The full parser design
 is in [`packages/sf-game-data/PARSER.md`](../packages/sf-game-data/PARSER.md).
 
-## Graph schema (Kùzu)
+## Production graph (in-memory)
 
-Node tables:
+`@foreman/sf-game-data-graph` wraps the parsed `GameData` in a query facade — no
+database. The nodes (items, recipes, buildings, schematics) and their nested
+relationships (a recipe's ingredients/products/producedIn, a building's build
+cost, a schematic's unlocks) already live fully-resolved on the parsed objects,
+with `perMinute` precomputed at parse (`amount * 60 / durationSeconds`).
 
-| Node | Key fields |
-|---|---|
-| `Item` | className, displayName, form (solid/liquid/gas), stackSize, sinkPoints, isResource |
-| `Recipe` | className, displayName, isAlternate, durationSeconds, power |
-| `Building` | className, displayName, category, powerConsumption, maxPowerConsumption, powerProduction |
-| `Schematic` | className, displayName, type (milestone/mam/awesome_shop/hard_drive), tier |
-
-Relationship tables: `PRODUCES` / `CONSUMES` (Recipe→Item, with amount + perMinute),
-`PRODUCED_IN` (Recipe→Building), `BUILD_COST` (Building→Item), and
-`UNLOCKS_RECIPE` / `UNLOCKS_BUILDING` / `UNLOCKS_ITEM` (Schematic→…). `perMinute` is
-computed at ingest (`amount * 60 / durationSeconds`) and stored on the relationship.
+Relationship queries — *what produces / consumes an item* — read two adjacency
+maps built once from the recipe set (`item className → producing recipes` and
+`→ consuming recipes`). Everything else (full recipe/item/schematic detail,
+building lookups) reads `GameData` directly. The recursive work — ingredient-tree
+demand roll-up, topological ordering, the buildable-with fixpoint closure — runs
+in TypeScript over those maps. The dataset is small (~320 recipes), so this beats
+an embedded graph DB on every axis: no native addon, no daemon, near-instant load.
 
 ## Tool surface
 
 The full, authoritative MCP tool reference lives with the server package,
 [`packages/sf-mcp/README.md`](../packages/sf-mcp/README.md): the game-data tools
 (recipes, ingredient trees, raw inputs, alternates, schematics, buildings,
-world-location queries, and a guarded `cypher_query`) and the save-game tools
+world-location queries) and the save-game tools
 (player state, unlocks, milestones, storage, remaining collectibles). Name
 resolution (displayName or className) is transparent — the foreman never needs
 internal class names.

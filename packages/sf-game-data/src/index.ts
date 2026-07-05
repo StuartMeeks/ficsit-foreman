@@ -6,9 +6,9 @@
  * `data/`. Game data is produced offline by the C# extractor
  * (`sf-game-data-extractor`); the hand-written `en-US.json` parser was retired in
  * #162. The unified `@foreman/sf-mcp` server consumes this package so item/recipe
- * class names and display names resolve identically across its tool sets. The Kùzu
- * graph layer lives in `@foreman/sf-game-data-graph`, not here — this package's
- * only runtime dependency is the shared kernel `@foreman/sf-core`.
+ * class names and display names resolve identically across its tool sets. The
+ * production graph layer lives in `@foreman/sf-game-data-graph`, not here — this
+ * package's only runtime dependency is the shared kernel `@foreman/sf-core`.
  */
 
 // GameData types.

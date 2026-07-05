@@ -16,7 +16,7 @@ packages/
   sf-game-data/       GameData types + merged-dataset loaders + bundled data (lib).
                       The offline C# extractor (en-US.json + cooked assets → one
                       sf-game-data.json per channel) lives in extract/ (PARSER.md here)
-  sf-game-data-graph/ Kùzu production graph as a library (carries the kuzu addon)
+  sf-game-data-graph/ in-memory production graph as a library (zero-dep, no native addon)
   sf-save-data/       .sav → SaveState parser + normalise (lib)
   sf-mcp/             unified MCP server: game-data graph tools + live save-game tools
   ff-server/          Express backend: LLM proxy (SSE), sessions, work orders, MCP gateway

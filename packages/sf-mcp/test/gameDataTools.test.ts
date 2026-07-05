@@ -121,7 +121,6 @@ const graphCases: {
   { name: 'get_building', key: 'building', happy: { name: 'Smelter' }, miss: { name: 'Nope' } },
   { name: 'list_power_generators', key: 'generators', happy: {} },
   { name: 'list_buildings', key: 'buildings', happy: {} },
-  { name: 'cypher_query', key: 'rows', happy: { query: 'MATCH (i:Item) RETURN count(i) AS n' } },
 ];
 
 describe('game-data tool registration (#225)', () => {
@@ -162,11 +161,6 @@ describe('game-data tool registration (#225)', () => {
       expect(res.isError).toBeFalsy();
     });
   }
-
-  it('rejects a mutating cypher_query', async () => {
-    const res = await handlers.get('cypher_query')!({ query: 'MATCH (i:Item) DELETE i' });
-    expect(res.isError).toBe(true);
-  });
 
   // #207/#209: the foreman must be able to store a collectible's identity on a waypoint.
   it('nearest_collectibles preserves collectible identity (guid / schematic)', async () => {

@@ -1,6 +1,5 @@
 import type { Item } from '@foreman/sf-game-data';
 import { type QueryContext, itemByClass } from '../context.js';
-import { rows } from '../run.js';
 
 export function getItem(ctx: QueryContext, name: string): Item | undefined {
   const className = ctx.resolver.resolveItem(name);
@@ -59,7 +58,7 @@ export interface WhatConsumesResult {
   consumedBy: ConsumingRecipe[];
 }
 
-/** All recipes that use an item as an ingredient, via the CONSUMES edge. */
+/** All recipes that use an item as an ingredient. */
 export async function whatConsumes(
   ctx: QueryContext,
   name: string,
@@ -68,22 +67,17 @@ export async function whatConsumes(
   if (itemClassName === undefined) {
     return undefined;
   }
-  const result = await rows(
-    ctx.conn,
-    `MATCH (r:Recipe)-[c:CONSUMES]->(i:Item {className: $cn})
-     RETURN r.className AS className, r.displayName AS displayName,
-            r.isAlternate AS isAlternate, c.perMinute AS perMinute
-     ORDER BY displayName`,
-    { cn: itemClassName },
-  );
+  const consumedBy = (ctx.consumersByItem.get(itemClassName) ?? [])
+    .map((recipe) => ({
+      recipe: recipe.displayName,
+      className: recipe.className,
+      isAlternate: recipe.isAlternate,
+      perMinute: recipe.ingredients.find((i) => i.itemClassName === itemClassName)?.perMinute ?? 0,
+    }))
+    .sort((a, b) => a.recipe.localeCompare(b.recipe));
   return {
     item: itemByClass(ctx.gameData, itemClassName)?.displayName ?? name,
     itemClassName,
-    consumedBy: result.map((row) => ({
-      recipe: String(row['displayName']),
-      className: String(row['className']),
-      isAlternate: Boolean(row['isAlternate']),
-      perMinute: Number(row['perMinute']),
-    })),
+    consumedBy,
   };
 }
