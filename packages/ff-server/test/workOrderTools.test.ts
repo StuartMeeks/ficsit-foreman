@@ -1030,6 +1030,36 @@ describe('explore orders (#207)', () => {
       .find((c) => c.id === 'C-SLOOP')?.collected;
     expect(collected).toBe(true);
   });
+
+  it('reconciles collectibles by identity on re-upload, monotonically (#209-B)', async () => {
+    const playthrough = await seedPlaythrough();
+    const created = await handleWorkOrderTool(
+      playthrough,
+      CREATE_EXPLORE_ORDER,
+      explorePlan,
+      deps,
+    );
+    // The re-uploaded save shows the somersloop (G-SLOOP) collected; the pod (G-POD) not.
+    const summary = await deps.workOrders.reconcileCollectibles(
+      playthrough,
+      new Set(['G-SLOOP']),
+      new Set(),
+    );
+    expect(summary.synced).toBe(1);
+    expect(summary.orders[0]?.label).toContain('EO-');
+    const reloaded = await deps.workOrders.get(playthrough, created.workOrder!.id);
+    const items = reloaded!.waypoints!.flatMap((w) => w.collectibles);
+    expect(items.find((c) => c.guid === 'G-SLOOP')?.collected).toBe(true);
+    expect(items.find((c) => c.guid === 'G-POD')?.collected).toBe(false);
+    // Monotonic: a later save that no longer reports it collected does NOT un-collect.
+    const again = await deps.workOrders.reconcileCollectibles(playthrough, new Set(), new Set());
+    expect(again.synced).toBe(0);
+    const reloaded2 = await deps.workOrders.get(playthrough, created.workOrder!.id);
+    expect(
+      reloaded2!.waypoints!.flatMap((w) => w.collectibles).find((c) => c.guid === 'G-SLOOP')
+        ?.collected,
+    ).toBe(true);
+  });
 });
 
 describe('resolvePlanReferences', () => {

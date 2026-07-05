@@ -420,9 +420,19 @@ export interface SaveWarning {
 }
 
 /** Response of the save-upload route: the stored save plus any advisories. */
+/** Result of reconciling explore-order collectibles against a re-uploaded save (#209-B). */
+export interface CollectibleSyncSummary {
+  /** Total collectibles newly marked collected across all active explore orders. */
+  synced: number;
+  /** Per-order breakdown (label + count) for the "Save synced" banner. */
+  orders: { id: string; label: string; collected: number }[];
+}
+
 export interface SaveUploadResult {
   save: Save;
   warnings: SaveWarning[];
+  /** Collectibles auto-marked collected on this re-upload (#209-B); absent when none. */
+  collectibleSync?: CollectibleSyncSummary;
 }
 
 /** Header identity parsed from a save — drives same-game matching + warnings. */

@@ -7,6 +7,7 @@ import type { PrismaClient, Save as SaveRow } from '@prisma/client';
 import { logger } from '../logger.js';
 import type { McpGateway } from '../mcp/client.js';
 import type {
+  CollectibleSyncSummary,
   Save,
   SaveIdentity,
   SaveMatch,
@@ -15,6 +16,7 @@ import type {
   SaveWarning,
 } from '../types.js';
 import { rowToSave } from './playthroughService.js';
+import type { WorkOrderService } from './workOrderService.js';
 
 /** An uploaded file's bytes + metadata, as handed over by the upload route. */
 export interface UploadedSave {
@@ -42,6 +44,7 @@ export class SaveService {
     private readonly prisma: PrismaClient,
     private readonly mcp: McpGateway,
     private readonly saveDataDir: string,
+    private readonly workOrders: WorkOrderService,
   ) {}
 
   /** Per-playthrough save directory, guarded against path traversal. */
@@ -131,10 +134,38 @@ export class SaveService {
     await this.seedName(playthroughId, metadata.saveName);
     await this.prune(playthroughId, row.id);
 
+    // #209-B: auto-reconcile active explore orders' collectibles against the new save.
+    const collectibleSync = await this.syncCollectibles(playthroughId, filePath);
+
     return {
       save: rowToSave(row),
       warnings: [...this.buildWarnings(metadata), ...this.regressionWarnings(previous, metadata)],
+      ...(collectibleSync !== undefined && collectibleSync.synced > 0 ? { collectibleSync } : {}),
     };
+  }
+
+  /**
+   * Marks explore-order collectibles collected from the just-uploaded save (#209-B). Best-
+   * effort: a missing/unreachable save tool or no explore orders simply yields no sync.
+   */
+  private async syncCollectibles(
+    playthroughId: string,
+    savePath: string,
+  ): Promise<CollectibleSyncSummary | undefined> {
+    try {
+      const res = await this.mcp.callTool('get_collected_identities', { savePath });
+      if (res.isError) {
+        return undefined;
+      }
+      const parsed = JSON.parse(res.text) as { guids?: string[]; schematics?: string[] };
+      return await this.workOrders.reconcileCollectibles(
+        playthroughId,
+        new Set(parsed.guids ?? []),
+        new Set(parsed.schematics ?? []),
+      );
+    } catch {
+      return undefined;
+    }
   }
 
   /** Re-activates an older version as the current save. Returns it, or undefined. */
