@@ -5,6 +5,7 @@ import { WorkOrderService } from '../src/services/workOrderService.js';
 import {
   BLOCK_WORK_ORDER,
   CREATE_CHILD_WORK_ORDER,
+  CREATE_EXPLORE_ORDER,
   CREATE_WORK_ORDER,
   PROPOSE_COMPLETION,
   REVISE_WORK_ORDER,
@@ -208,6 +209,31 @@ function stubMcp(): McpGateway {
           return { text: JSON.stringify({ schematics: schematicList }), isError: false };
         case 'list_power_generators':
           return { text: JSON.stringify({ generators: powerGenerators }), isError: false };
+        case 'resolve_collectibles': {
+          const ids = ((args as { ids?: string[] }).ids ?? []) as string[];
+          const world: Record<string, Record<string, unknown>> = {
+            'C-SLOOP': { kind: 'somersloop', guid: 'G-SLOOP', x: 1, y: 2, z: 0 },
+            'C-POD': {
+              kind: 'hardDrive',
+              guid: 'G-POD',
+              unlock: { powerMW: 250 },
+              x: 3,
+              y: 4,
+              z: 0,
+            },
+          };
+          const resolved: Record<string, unknown>[] = [];
+          const unresolved: string[] = [];
+          for (const id of ids) {
+            const c = world[id];
+            if (c === undefined) {
+              unresolved.push(id);
+            } else {
+              resolved.push({ id, ...c });
+            }
+          }
+          return { text: JSON.stringify({ resolved, unresolved }), isError: false };
+        }
         default:
           return { text: '', isError: true };
       }
@@ -941,6 +967,68 @@ describe('revise buildSteps drop safeguard (#16)', () => {
     );
     expect(outcome.isError).toBe(false);
     expect(outcome.text).not.toContain('fewer parts');
+  });
+});
+
+describe('explore orders (#207)', () => {
+  const explorePlan = {
+    title: 'Sweep the ridge',
+    goal: 'Grab the nearby loot.',
+    waypoints: [
+      {
+        label: 'Ridge',
+        collectibles: [{ id: 'C-SLOOP', reason: 'overclock the iron line' }, { id: 'C-POD' }],
+      },
+    ],
+  };
+
+  it('creates an explore order with server-derived collectible facts (incl. pod unlock cost)', async () => {
+    const playthrough = await seedPlaythrough();
+    const outcome = await handleWorkOrderTool(playthrough, CREATE_EXPLORE_ORDER, explorePlan, deps);
+    expect(outcome.isError).toBe(false);
+    expect(outcome.workOrder?.orderType).toBe('explore');
+    expect(outcome.text).toContain('EO-001'); // explore label, not WO-
+    const waypoints = outcome.workOrder?.waypoints;
+    expect(waypoints).toHaveLength(1);
+    const collectibles = waypoints![0]!.collectibles;
+    // Facts are DERIVED from the world data, not transcribed by the model.
+    const pod = collectibles.find((c) => c.kind === 'hardDrive');
+    expect(pod?.guid).toBe('G-POD');
+    expect(pod?.unlockCost?.powerMW).toBe(250); // a pod always lists its true open cost
+    const sloop = collectibles.find((c) => c.kind === 'somersloop');
+    expect(sloop?.reason).toBe('overclock the iron line');
+    expect(collectibles.every((c) => c.collected === false)).toBe(true);
+  });
+
+  it('rejects an explore order referencing an unknown collectible id', async () => {
+    const playthrough = await seedPlaythrough();
+    const outcome = await handleWorkOrderTool(
+      playthrough,
+      CREATE_EXPLORE_ORDER,
+      { ...explorePlan, waypoints: [{ collectibles: [{ id: 'C-SLOOP' }, { id: 'ghost-id' }] }] },
+      deps,
+    );
+    expect(outcome.isError).toBe(true);
+    expect(outcome.text).toContain('ghost-id');
+    expect(await deps.workOrders.list(playthrough)).toHaveLength(0);
+  });
+
+  it('marks a waypoint collectible collected (execution)', async () => {
+    const playthrough = await seedPlaythrough();
+    const created = await handleWorkOrderTool(playthrough, CREATE_EXPLORE_ORDER, explorePlan, deps);
+    const waypointId = created.workOrder!.waypoints![0]!.id;
+    const outcome = await deps.workOrders.markCollectibleCollected(
+      playthrough,
+      created.workOrder!.id,
+      waypointId,
+      'C-SLOOP',
+      true,
+    );
+    expect(outcome.ok).toBe(true);
+    const collected = outcome.order?.waypoints
+      ?.flatMap((w) => w.collectibles)
+      .find((c) => c.id === 'C-SLOOP')?.collected;
+    expect(collected).toBe(true);
   });
 });
 
