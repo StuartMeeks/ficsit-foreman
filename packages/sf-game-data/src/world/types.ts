@@ -111,6 +111,22 @@ export interface ResourceNode {
   z: number;
 }
 
+/**
+ * A named surface biome region. Hand-traced (#239), build-independent, and loaded
+ * from a separate bundled `biomes.json` (not the extractor-produced dataset).
+ * Coordinates are Unreal world units (centimetres), matching everything else here.
+ */
+export interface Biome {
+  /** Biome name, UPPER CASE — e.g. `ROCKY DESERT`. */
+  name: string;
+  /** True for the four pioneer starting biomes (Grass Fields, Rocky Desert, Northern Forest, Dune Desert). */
+  isStartingLocation?: boolean;
+  /** Display colour (hex) for map overlays; not used by biome resolution. */
+  color?: string;
+  /** One or more filled rings; each is an array of `[x, y]` world-cm pairs. */
+  polygons: [number, number][][];
+}
+
 export interface WorldLocations {
   /** Game version the dataset was extracted from (stamped into the dataset). */
   gameVersion: string;
@@ -123,6 +139,11 @@ export interface WorldLocations {
   resourceNodes: ResourceNode[];
   /** Loose crash-site parts (`counts.crashSitePart` equals this array's length). */
   lootPickups: LootPickup[];
+  /**
+   * Surface biome regions (#239). Optional — loaded from the bundled `biomes.json`
+   * and attached at load time; datasets/fixtures without it default to `[]`.
+   */
+  biomes?: Biome[];
 }
 
 /** Outcome of resolving and loading the world-location dataset. */

@@ -46,6 +46,7 @@ export { GAME_CHANNELS, bundledDataDir, expandHome } from './config.js';
 export type {
   WorldLocations,
   WorldLocationsResolution,
+  Biome,
   Collectible,
   ResourceNode,
   LootPickup,
@@ -79,4 +80,5 @@ export type {
   ResourceNodeHit,
   LootPickupHit,
   PartSummary,
+  BiomeHit,
 } from './world/queries.js';
