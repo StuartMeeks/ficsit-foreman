@@ -35,11 +35,16 @@ alongside `sf-mcp`.
   are present.
 - **Work orders (v2).** Stateful, auditable records with a plan/execution split —
   see the canonical [`docs/work-orders.md`](../../docs/work-orders.md). The foreman
-  drives the plan via tools (`create_work_order`, `revise_work_order`,
-  `block`/`unblock`/`supersede`, `create_child_work_order`) and may only
-  `propose_completion` — **completion is Pioneer-only** (via REST/UI). Creating an
-  order no longer abandons the current one; supersession is explicit. Sequence
-  numbers are per-playthrough and monotonic (WO-001, …); at most one order is `active`
+  drives the plan via tools (`create_work_order`, `create_explore_order`,
+  `revise_work_order`, `block_work_order`/`unblock_work_order`/`supersede_work_order`,
+  `create_child_work_order`) and may only `propose_completion` — **completion is
+  Pioneer-only** (via REST/UI). Two order types share this machinery: **build**
+  orders and **explore** orders (collection routes of waypoints). Every plan
+  reference is resolved against game data and **rejected at ingest** if unresolvable,
+  and quantities are verified (power over-provision is hard-rejected; recipes and
+  per-minute rates are server-derived). Creating an order no longer abandons the
+  current one; supersession is explicit. Sequence numbers are per-playthrough and
+  monotonic (WO-001 for build, EO-001 for explore); at most one order is `active`
   at a time, though non-terminal orders may coexist (a blocked parent + an active
   child). Plan edits write acknowledged **revision snapshots**; execution changes
   (checklists, machine counts, hours) append to an **audit trail**.
@@ -65,9 +70,13 @@ with credentials (cookies) included.
 | `GET` | `/api/playthroughs/:id` | Fetch a playthrough you own. |
 | `POST` | `/api/playthroughs/:id/claim` | Claim a pre-accounts anonymous playthrough on first login. |
 | `PATCH` | `/api/playthroughs/:id` | Update name, pioneer profile, and/or attached foreman (effective next message). |
-| `DELETE` | `/api/playthroughs/:id` | Delete a playthrough — cascades its messages + work orders, removes its save file. |
+| `DELETE` | `/api/playthroughs/:id` | Delete a playthrough — cascades its messages + work orders, removes its save files. |
 | `GET` | `/api/playthroughs/:id/messages` | Recent chat history (chronological) for re-hydrating the conversation. |
-| `POST` | `/api/playthroughs/:id/save` | Upload (or replace) the current `.sav` (multipart `save`); parses metadata, seeds the name. |
+| `POST` | `/api/playthroughs/:id/save` | Upload a `.sav` (multipart `save`); adds a version, makes it current, parses metadata, reconciles collectibles on explore orders. |
+| `GET` | `/api/playthroughs/:id/saves` | List the playthrough's save versions (newest first). |
+| `POST` | `/api/playthroughs/:id/saves/:saveId/activate` | Re-activate an earlier save version as current. |
+| `DELETE` | `/api/playthroughs/:id/saves/:saveId` | Delete a save version (promotes the newest remaining if it was current). |
+| `POST` | `/api/saves/preview` | Parse an uploaded save's identity and find the caller's matching (same-game) playthroughs. |
 | `POST` | `/api/playthroughs/:id/chat` | Send a message; streams the response over SSE. |
 | `POST` | `/api/playthroughs/:id/work-orders` | Create a work order (starts in `new`; does not abandon others). |
 | `GET` | `/api/playthroughs/:id/work-orders` | Full work-order history. |
@@ -75,9 +84,10 @@ with credentials (cookies) included.
 | `GET` | `/api/playthroughs/:id/work-orders/:woId` | A single order (also `/children`, `/parent`). |
 | `PATCH` | `…/work-orders/:woId/plan` | Foreman plan edit (writes a revision). |
 | `POST` | `…/work-orders/:woId/transitions` | Lifecycle action: start/pause/resume/block/unblock/complete/force-complete/cancel/supersede. |
-| `PATCH` | `…/work-orders/:woId/materials\|steps\|machines/:itemId` | Pioneer execution updates (check/uncheck, built count). |
+| `PATCH` | `…/work-orders/:woId/steps/:stepId` · `…/steps/:stepId/buildables/:buildableId` | Pioneer execution updates on build orders (check/uncheck a step, set a buildable's built count). |
+| `PATCH` | `…/work-orders/:woId/waypoints/:waypointId/collectibles/:collectibleId` | Pioneer execution update on explore orders (mark a collectible collected). |
 | `POST` | `…/work-orders/:woId/hours` · `/acknowledge` · `/revert` | Log hours, acknowledge a revision, revert to a revision. |
-| `GET` | `…/work-orders/:woId/audit` · `/revisions` · `/revisions/diff` | Audit trail, revision history, field-level diff. |
+| `GET` | `…/work-orders/:woId/audit` · `/revisions` · `/revisions/:n` · `/revisions/diff` | Audit trail, revision history, a single revision snapshot, field-level diff. |
 | `GET` | `/health` | Liveness + model/MCP/game-version info. |
 
 The full work-order surface (every transition, required fields, and actor rules)

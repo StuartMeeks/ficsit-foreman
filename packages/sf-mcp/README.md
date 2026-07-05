@@ -159,7 +159,9 @@ response is tagged with the detected game version.
 | Tool | Description |
 |---|---|
 | `get_item(name)` | Resolve an item by display name or class name; returns form and sink points. |
+| `list_items(search?)` | Discover canonical item/resource names (display + class); optional substring search. |
 | `get_recipe(name)` | Full recipe: ingredients, products, machine, per-minute rates. |
+| `list_recipes(search?)` | Discover canonical recipe names (display + class + isAlternate); optional substring search. |
 | `recipes_for(item)` | All recipes that produce an item, including alternates; flags the standard. |
 | `ingredient_tree(item, targetPerMinute, recipeChoices?)` | Flat per-minute requirements + machine counts for every tier. |
 | `total_raw_inputs(item, targetPerMinute)` | Leaf raw resources only — what to mine/extract. |
@@ -170,7 +172,8 @@ response is tagged with the detected game version.
 | `list_schematics(tier?)` / `get_schematic(name)` | Milestones/MAM/shop/hard-drive schematics. |
 | `get_building(name)` / `list_power_generators()` | Building power/cost; full generator fuel breakdowns. |
 | `list_buildings(search?, category?)` | Discover canonical buildable names (display + class + category); search by name or list a category. |
-| `list_collectibles(type?)` / `nearest_collectibles(coord, type?, n?)` | Static world collectible totals + nearest-to-a-location. |
+| `list_collectibles(type?)` / `nearest_collectibles(coord, type?, n?)` | Static world collectible totals + nearest-to-a-location, each with its stable identity (`guid` / `schematic`). |
+| `resolve_collectibles(ids)` | Resolve collectible ids to their world facts (kind, coordinates, identity, unlock cost); reports unresolved ids. Backs explore-order ingest. |
 | `nearest_resource_nodes(coord, resource?, purity?, n?)` | Resource nodes nearest a location, with resource type and purity. |
 | `list_parts(item?)` / `nearest_parts(coord, item?, n?)` | Loose crash-site parts: world totals + nearest-to-a-location. |
 
@@ -186,9 +189,13 @@ save name, and accept a host-injected `savePath` (the model never sets it).
 | `get_milestones()` | Milestones by tier, Project Assembly phase, and unlocked MAM research trees. |
 | `get_storage(location?)` | Storage container contents + dimensional depot; sortable nearest-first. |
 | `get_collectibles()` | Exact per-kind collectible progress (worldTotal/collected/remaining). |
+| `get_collected_identities()` | The collected identity set — looted-pod/destroyed-pickup GUIDs ∪ unlocked schematics. Backs explore-order re-upload reconciliation. |
 | `get_nearby(location, kinds?, radius?, limit?)` | Un-collected collectibles near a location. |
 | `get_nearby_parts(location, item?, radius?, limit?)` | Un-grabbed loose crash-site parts near a location. |
 | `get_production(item?)` | Theoretical production capacity by output item, with an estimated power draw. |
+| `get_power()` | Power-grid status per circuit: production, consumption, capacity, battery, and trip state. |
+| `check_material_coverage(items)` | Whether the pioneer's on-hand + producible materials cover a set of item targets. |
+| `find_bottlenecks(tolerance?)` | Steady-state flow analysis over the save's connection graph — throttled machines and starved links (via `@foreman/sf-flow`). |
 | `describe_save(savePath)` | Host-internal: a save's identity (name, session/map, build/save version, play time). |
 
 ---

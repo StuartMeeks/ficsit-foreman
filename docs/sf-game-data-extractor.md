@@ -1,6 +1,10 @@
 # `sf-game-data-extractor` — single-producer game-data pipeline
 
-**Status:** design agreed, not yet implemented.
+**Status:** **shipped** (epic #164, #158–#162). The offline C# extractor lives at
+`packages/sf-game-data/extract/`, each channel ships a single
+`data/<channel>/sf-game-data.json`, the TS parser was retired (#162), and neither
+`en-US.json` nor `meta.json` is committed. Run mode (b) — open-PR automation (#163)
+— was skipped. This doc is retained as the design of record.
 **Supersedes:** the split pipeline (runtime `en-US.json` parse + offline `fg-extract`).
 
 ## Summary
@@ -118,18 +122,18 @@ The tool produces `stable` or `experimental` depending on which install it is
 pointed at; that determines the output file path and, in mode (b), which single
 channel the PR touches.
 
-## Consumer-side change (separate workstream)
+## Consumer-side change (delivered)
 
-Producing the file is only half the work. Today `@foreman/sf-game-data`
-**live-parses `en-US.json`** at runtime. After this change it must **load the
-pre-extracted merged file** instead:
+Producing the file was only half the work. `@foreman/sf-game-data` no longer parses
+`en-US.json` at runtime — it **loads the pre-extracted merged file**:
 
-- Collapse the two runtime loaders — `config.ts`/parser (docs) and
-  `world/index.ts` (world dataset) — into a single merged-file read.
-- `sf-mcp` and other consumers keep using item/recipe/world data as before; only
-  the *source* changes from "parse on startup" to "load JSON". ("`GameData` is
-  deprecated" = the runtime parse path is deprecated, **not** the data itself.)
-- The TS parser is removed once the C# port passes the golden-diff gate.
+- The runtime loaders were collapsed into a single merged-file read (`loadGameData`
+  in `world/index.ts`).
+- `sf-mcp` and other consumers use item/recipe/world data as before; only the
+  *source* changed from "parse on startup" to "load JSON".
+- The TS parser was removed once the C# port passed the golden-diff gate (#162);
+  `packages/sf-game-data/src/parser/` now holds only the `GameData` types + an
+  `emptyGameData` fallback.
 
 ## CI / repo changes
 
@@ -142,25 +146,22 @@ pre-extracted merged file** instead:
   committed game data is `sf-game-data.json` per channel.
 - The "one channel per PR" rule and forward-only `build` rule are retained.
 
-## Suggested sequencing
+## Sequencing (as delivered)
 
-1. Refactor `fg-extract` extraction into a reusable library; stand up the
-   `sf-game-data-extractor` skeleton that calls it and writes today's world-only
-   `sf-game-data.json` (no behaviour change yet).
-2. Port the TS parser to C#; add the golden-diff harness against a real
-   `en-US.json`. Gate: byte-identical output.
-3. Merge the parsed `gameData` into the output file (new shape); update the CI
-   gate and the `KNOWN_COLLECTIBLE_TOTALS` paths.
-4. Switch `@foreman/sf-game-data` to load the merged file; collapse the loaders.
-5. Retire the TS parser and stop committing `en-US.json`.
-6. Add run mode (b) — open-PR automation.
+1. ✅ Refactored `fg-extract` extraction into a reusable library; stood up the
+   `sf-game-data-extractor` skeleton writing a world-only `sf-game-data.json`.
+2. ✅ Ported the TS parser to C# with a golden-diff harness against a real
+   `en-US.json` (byte-identical gate) — `sf-game-data-parse` / `-golden`.
+3. ✅ Merged the parsed `gameData` into the output file; updated the CI gate and
+   the `KNOWN_COLLECTIBLE_TOTALS` paths.
+4. ✅ Switched `@foreman/sf-game-data` to load the merged file; collapsed the loaders.
+5. ✅ Retired the TS parser (#162) and stopped committing `en-US.json`.
+6. ⏭️ Run mode (b) — open-PR automation (#163) — **skipped** (not built).
 
-## Open questions
+## Resolved decisions
 
-- Exact `gameData` sub-shape (mirror the current `GameData` type, or reshape while
-  we have the chance?).
-- Does the merged file stay one-per-channel under
-  `packages/sf-game-data/data/<channel>/`, keeping the current layout minus the two
-  dropped files?
-- Where the C# tool lives (`packages/sf-game-data/extract/` alongside the reused
-  extractor, vs. a top-level `tools/`).
+- **`gameData` sub-shape** — mirrors the existing `GameData` type (no reshape).
+- **File layout** — one merged file per channel under
+  `packages/sf-game-data/data/<channel>/sf-game-data.json`, minus the two dropped files.
+- **Where the C# tool lives** — `packages/sf-game-data/extract/`, alongside the reused
+  extractor (`sf-game-data-extraction` / `-parse` / `-parse-golden` sibling projects).

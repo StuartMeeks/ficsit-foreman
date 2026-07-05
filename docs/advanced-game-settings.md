@@ -1,8 +1,9 @@
 # Advanced Game Settings — parse & overlay (#172)
 
-> Status: **designed, investigation complete** (#172 open). Every persistence location,
-> property type and enum value below is verified against real 1.2 saves on the VM (see
-> _Test fixtures_). This is the agreed design; implementation is sliced in _Plan_.
+> Status: **largely shipped** — slices A/B/C/E merged and D's numeric/state surfaces landed
+> (build-cost/unlock overlays deliberately deferred as flags — see Scope D). Every persistence
+> location, property type and enum value below is verified against real 1.2 saves on the VM
+> (see _Test fixtures_). Design of record for #172.
 
 ## Problem
 
@@ -212,8 +213,10 @@ the pioneer never actually researched. A non-creative save leaves every overlay 
   `nodeRandomization='Strict'`, `nodePuritySettings='AllRandom'`.
 - Parsing `Test - Creative and Game Mode…` yields `creativeMode.enabled=true`,
   `startingTier=6`, and the Game Modes values above for that save.
-- Overlay on a known recipe/building shows multiplied input rate / power; `noBuildCost` zeroes
-  build costs; `unlockAll*` expands the effective unlocked set; an all-default save is a no-op.
+- Overlay on a known recipe/building shows multiplied input rate / power; a creative save
+  surfaces its flags (no-build-cost / no-unlock-cost / unlock-all) on `get_milestones` for
+  foreman *awareness* — deliberately **not** mutating cost or unlocked-set lists (see Scope D);
+  an all-default save is a no-op.
 
 ## Out of scope
 
@@ -228,7 +231,10 @@ the pioneer never actually researched. A non-creative save leaves every overlay 
    ✅ shipped (#199)
 3. **B** — Game Modes overlay in `getEffectiveGameData` (recipe×, power×, node type/purity).
    ✅ shipped — space-elevator× split to E.
-4. **D** — Creative overlay (no-power/fuel/build/unlock-cost, unlock-all, progression).
+4. **D** — Creative overlay. ✅ shipped (numeric/state surfaces): `effectivePowerMultiplier`
+   (no-power → 0), the `creative` block on `get_milestones`, and `creativeModeEnabled` on
+   `describe_save`. Build-cost / unlock-cost / unlock-set are deliberately surfaced as flags,
+   not overlaid (see Scope D above).
 5. **E** — Space-elevator deliverable cost ×: extract `GP_Project_Assembly_Phase_*` `mCosts` in the
    game-data extractor → `gameData.projectAssemblyPhases`, surface in `get_milestones`, apply
    `spaceElevatorCostMultiplier`. ✅ shipped — dataset regenerated (v1.2.3.1 / build 495413).
