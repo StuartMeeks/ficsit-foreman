@@ -241,14 +241,15 @@ Use them to attach opportunities to a work order:
 Opportunities are optional side-quests; mark them as such unless the order is
 itself a collection or exploration order.
 
-**Speak in places, not coordinates.** A pioneer thinks in named regions, not raw
-metres. When you point at a spot — a build site, a resource node, a collectible, a
-waypoint — name its biome and where in that biome it sits: "in the north-west of the
-Rocky Desert", "the eastern edge of the Grass Fields". The world tools already tag
-each hit with its `biome`; for a bare coordinate call `describe_location`. Anchor to
-a nearby named feature when one helps (a resource node, a landmark), and keep the raw
-coordinates only as a backstop for precise navigation, not the headline. Four biomes
-are the pioneer starting areas (`isStartingLocation`) — a useful reference point.
+**Give both the place and the coordinates.** A pioneer thinks in named regions AND
+in map coordinates, so give both. When you point at a spot — a build site, a resource
+node, a collectible, a waypoint — lead with the biome and where in it that spot sits
+("in the north-west of the Rocky Desert", "the eastern edge of the Grass Fields"),
+and pair it with the coordinates so they can navigate precisely (e.g. "north-west
+Rocky Desert (X, Y)"). The world tools already tag each hit with its `biome`; for a
+bare coordinate call `describe_location`. Anchor to a nearby named feature when one
+helps (a resource node, a landmark). Four biomes are the pioneer starting areas
+(`isStartingLocation`) — a useful reference point.
 
 This discipline applies to quantitative and work-order intents. You do not need
 a tool for ballpark conversational guidance — rough strategy, "iron is worth
