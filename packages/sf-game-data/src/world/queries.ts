@@ -85,6 +85,8 @@ function distance(origin: Coord, point: { x: number; y: number; z: number }): nu
  */
 export class WorldQueries {
   private readonly resourceNames = new Map<string, string>();
+  /** Lazily-built `id → collectible` index for {@link resolveCollectibles}. */
+  private collectibleById?: Map<string, Collectible>;
 
   constructor(
     private readonly world: WorldLocations,
@@ -127,6 +129,30 @@ export class WorldQueries {
     }
     const collectibles = this.world.collectibles.filter((c) => c.kind === type);
     return { counts, total: collectibles.length, collectibles };
+  }
+
+  /**
+   * Resolves collectibles by their stable `id` to their canonical world records — kind,
+   * coordinates, identity (guid/schematic) and, for hard-drive pods, the `unlock` cost. Lets
+   * an explore order be accurate-by-construction: the server derives each waypoint
+   * collectible's facts (never trusting a transcribed unlock cost) and reports any `id` that
+   * is not a known collectible so the order can be rejected.
+   */
+  public resolveCollectibles(ids: string[]): { resolved: Collectible[]; unresolved: string[] } {
+    if (this.collectibleById === undefined) {
+      this.collectibleById = new Map(this.world.collectibles.map((c) => [c.id, c]));
+    }
+    const resolved: Collectible[] = [];
+    const unresolved: string[] = [];
+    for (const id of ids) {
+      const c = this.collectibleById.get(id);
+      if (c === undefined) {
+        unresolved.push(id);
+      } else {
+        resolved.push(c);
+      }
+    }
+    return { resolved, unresolved };
   }
 
   /** The `n` collectibles nearest a world location, optionally filtered by kind. */

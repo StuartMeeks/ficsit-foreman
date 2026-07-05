@@ -186,4 +186,18 @@ describe('game-data tool registration (#225)', () => {
     const body = JSON.parse(res.content[0]!.text) as { collectibles?: Record<string, unknown>[] };
     expect(body.collectibles?.[0]?.['guid']).toBe('GUID-SLOOP-1');
   });
+
+  // #207 accuracy: resolve by id → canonical facts (incl. a pod's unlock cost); reject unknown ids.
+  it('resolve_collectibles returns canonical facts + reports unknown ids', async () => {
+    const res = await handlers.get('resolve_collectibles')!({ ids: ['C3', 'not-a-real-id'] });
+    const body = JSON.parse(res.content[0]!.text) as {
+      resolved: Record<string, unknown>[];
+      unresolved: string[];
+    };
+    expect(body.unresolved).toEqual(['not-a-real-id']);
+    const pod = body.resolved.find((c) => c['id'] === 'C3');
+    expect(pod?.['kind']).toBe('hardDrive');
+    expect(pod?.['guid']).toBe('GUID-POD-1');
+    expect((pod?.['unlock'] as { powerMW?: number } | undefined)?.powerMW).toBe(250);
+  });
 });

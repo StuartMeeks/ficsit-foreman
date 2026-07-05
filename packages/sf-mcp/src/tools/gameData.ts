@@ -381,6 +381,28 @@ export function registerGameDataTools(
   );
 
   server.registerTool(
+    'resolve_collectibles',
+    {
+      title: 'Resolve collectibles by id',
+      description:
+        "Resolve collectibles by their stable `id` (as returned by nearest_collectibles / list_collectibles) to their canonical world facts: kind, coordinates (metres), identity (guid or schematic) and — for hard-drive pods — the `unlock` COST (power/items needed to open the pod). Use this at explore-order authoring so each waypoint collectible carries accurate, server-verified facts (never a guessed or omitted pod cost). Any id that isn't a known collectible is returned in `unresolved` — fix those before issuing. Coordinates only; no save state.",
+      inputSchema: { ids: z.array(z.string()).min(1) },
+    },
+    async ({ ids }): Promise<ToolResult> => {
+      const { resolved, unresolved } = world.resolveCollectibles(ids);
+      return ok({
+        resolved: resolved.map((c) => ({
+          ...c,
+          x: cmToMetres(c.x),
+          y: cmToMetres(c.y),
+          z: cmToMetres(c.z),
+        })),
+        unresolved,
+      });
+    },
+  );
+
+  server.registerTool(
     'nearest_resource_nodes',
     {
       title: 'Nearest resource nodes',
