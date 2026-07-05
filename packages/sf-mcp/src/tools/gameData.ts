@@ -30,19 +30,19 @@ function toCm(origin: { x: number; y: number; z: number }): Coord {
 }
 
 /**
- * A world hit (centimetre x/y/z + cm distance) reshaped for the pioneer: metres,
- * a compass bearing from the (metres) origin, and no internal `guid`/`id` noise
- * dropped by the caller's explicit field pick.
+ * A world hit (centimetre x/y/z + cm distance) reshaped for the pioneer: coordinates and
+ * distance in metres plus a compass bearing from the (metres) origin. Identity fields
+ * (`guid` / `id` / `schematic`) are PRESERVED so a collectible can be stored on an
+ * explore-order waypoint and later reconciled by identity on save re-upload (#207/#209).
  */
 function placeInMetres<T extends { x: number; y: number; z: number; distance: number }>(
   hit: T,
   originMetres: { x: number; y: number },
-): Omit<T, 'guid'> & { bearing: string } {
+): T & { bearing: string } {
   const x = cmToMetres(hit.x);
   const y = cmToMetres(hit.y);
-  const { guid: _guid, ...rest } = hit as T & { guid?: string };
   return {
-    ...(rest as Omit<T, 'guid'>),
+    ...hit,
     x,
     y,
     z: cmToMetres(hit.z),
@@ -346,12 +346,13 @@ export function registerGameDataTools(
     {
       title: 'List collectibles',
       description:
-        'World totals for each collectible kind (Mercer Spheres, Somersloops, blue/yellow/purple power slugs, hard-drive drop pods). Supply a type to also get the full coordinate list (metres) for that one kind. These are fixed world placements, not what a particular save has collected.',
+        'World totals for each collectible kind (Mercer Spheres, Somersloops, blue/yellow/purple power slugs, hard-drive drop pods). Supply a type to also get the full coordinate list (metres) for that one kind, each with its stable identity (`guid` or `schematic`, plus `id`). These are fixed world placements, not what a particular save has collected.',
       inputSchema: { type: collectibleKind.optional() },
     },
     async ({ type }): Promise<ToolResult> => {
       const result = world.listCollectibles(type);
-      const collectibles = result.collectibles?.map(({ guid: _g, ...c }) => ({
+      // Keep identity (guid / schematic / id) so the foreman can store a keyed collectible.
+      const collectibles = result.collectibles?.map((c) => ({
         ...c,
         x: cmToMetres(c.x),
         y: cmToMetres(c.y),
@@ -366,7 +367,7 @@ export function registerGameDataTools(
     {
       title: 'Nearest collectibles',
       description:
-        'The collectibles closest to a world location, nearest-first, each with its coordinates (metres), straight-line distance (metres) and a compass bearing (N/NE/E/…) from the origin. Filter by type; cap with n (default 10). Pass the pioneer location (metres, from the save) as the coord to answer "what can I grab near me?".',
+        'The collectibles closest to a world location, nearest-first, each with its coordinates (metres), straight-line distance (metres), a compass bearing (N/NE/E/…) from the origin, and its stable identity — `guid` (GUID-keyed kinds) or `schematic` (customizer helmet/tapes) plus `id`. Filter by type; cap with n (default 10). Pass the pioneer location (metres, from the save) as the coord to answer "what can I grab near me?". Store the identity on an explore-order waypoint so collection can be reconciled on save re-upload.',
       inputSchema: {
         coord,
         type: collectibleKind.optional(),
@@ -376,6 +377,28 @@ export function registerGameDataTools(
     async ({ coord: origin, type, n }): Promise<ToolResult> => {
       const hits = world.nearestCollectibles(toCm(origin), type, n);
       return ok({ collectibles: hits.map((h) => placeInMetres(h, origin)) });
+    },
+  );
+
+  server.registerTool(
+    'resolve_collectibles',
+    {
+      title: 'Resolve collectibles by id',
+      description:
+        "Resolve collectibles by their stable `id` (as returned by nearest_collectibles / list_collectibles) to their canonical world facts: kind, coordinates (metres), identity (guid or schematic) and — for hard-drive pods — the `unlock` COST (power/items needed to open the pod). Use this at explore-order authoring so each waypoint collectible carries accurate, server-verified facts (never a guessed or omitted pod cost). Any id that isn't a known collectible is returned in `unresolved` — fix those before issuing. Coordinates only; no save state.",
+      inputSchema: { ids: z.array(z.string()).min(1) },
+    },
+    async ({ ids }): Promise<ToolResult> => {
+      const { resolved, unresolved } = world.resolveCollectibles(ids);
+      return ok({
+        resolved: resolved.map((c) => ({
+          ...c,
+          x: cmToMetres(c.x),
+          y: cmToMetres(c.y),
+          z: cmToMetres(c.z),
+        })),
+        unresolved,
+      });
     },
   );
 

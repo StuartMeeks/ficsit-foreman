@@ -18,7 +18,8 @@ const CONSTRUCTOR =
   '/Game/FactoryGame/Buildable/Factory/ConstructorMk1/Build_ConstructorMk1.Build_ConstructorMk1_C';
 const STORAGE =
   '/Game/FactoryGame/Buildable/Storage/Build_StorageContainerMk1.Build_StorageContainerMk1_C';
-const RECIPE_IRON_PLATE = '/Game/FactoryGame/Recipes/Constructor/Recipe_IronPlate.Recipe_IronPlate_C';
+const RECIPE_IRON_PLATE =
+  '/Game/FactoryGame/Recipes/Constructor/Recipe_IronPlate.Recipe_IronPlate_C';
 const STORE_INV = `${LVL}.Store_1.StorageInventory`;
 
 // One constructor making Iron Plate (automated) + a storage box holding Copper Sheets (in stock).
@@ -29,7 +30,11 @@ const SAVE = makeSave({
       { mCurrentRecipe: objectProp(RECIPE_IRON_PLATE) },
       { instanceName: `${LVL}.Con_1`, transform: vec3(0, 0, 0) },
     ),
-    obj(STORAGE, {}, { instanceName: `${LVL}.Store_1`, transform: vec3(10, 0, 0), components: [STORE_INV] }),
+    obj(
+      STORAGE,
+      {},
+      { instanceName: `${LVL}.Store_1`, transform: vec3(10, 0, 0), components: [STORE_INV] },
+    ),
     obj(
       '/Script/FactoryGame.FGInventoryComponent',
       { mInventoryStacks: inventoryStacks([{ item: 'Desc_CopperSheet_C', num: 150 }]) },
@@ -52,10 +57,22 @@ const GAME: GameDataIndex = {
       isAlternate: false,
       craftTime: 6,
       ingredients: [
-        { itemClassName: 'Desc_IronIngot_C', displayName: 'Iron Ingot', amount: 3, perMinute: 30, unit: 'items' },
+        {
+          itemClassName: 'Desc_IronIngot_C',
+          displayName: 'Iron Ingot',
+          amount: 3,
+          perMinute: 30,
+          unit: 'items',
+        },
       ],
       products: [
-        { itemClassName: 'Desc_IronPlate_C', displayName: 'Iron Plate', amount: 2, perMinute: 20, unit: 'items' },
+        {
+          itemClassName: 'Desc_IronPlate_C',
+          displayName: 'Iron Plate',
+          amount: 2,
+          perMinute: 20,
+          unit: 'items',
+        },
       ],
       producedIn: [],
       producedInClasses: [],
@@ -85,7 +102,8 @@ const emptyWorld: WorldLocations = {
   lootPickups: [],
 };
 
-const resolve = (className: string): string => GAME.displayNames.get(className) ?? humaniseClassName(className);
+const resolve = (className: string): string =>
+  GAME.displayNames.get(className) ?? humaniseClassName(className);
 
 describe('materialCoverageView (#62 dependency check)', () => {
   const state = normaliseSave(SAVE, '2026-01-01T00:00:00.000Z').state;
