@@ -176,6 +176,7 @@ response is tagged with the detected game version.
 | `resolve_collectibles(ids)` | Resolve collectible ids to their world facts (kind, coordinates, identity, unlock cost); reports unresolved ids. Backs explore-order ingest. |
 | `nearest_resource_nodes(coord, resource?, purity?, n?)` | Resource nodes nearest a location, with resource type and purity. |
 | `list_parts(item?)` / `nearest_parts(coord, item?, n?)` | Loose crash-site parts: world totals + nearest-to-a-location. |
+| `describe_location(coord)` | Names the biome a location falls in (nearest biome for a coastal/cave point) + the within-biome bearing, so a position reads as "the north-west of the Grass Fields". Each `nearest_*` hit also carries its `biome`. |
 
 ### Save game
 

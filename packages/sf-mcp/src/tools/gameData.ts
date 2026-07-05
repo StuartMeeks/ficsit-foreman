@@ -51,6 +51,11 @@ function placeInMetres<T extends { x: number; y: number; z: number; distance: nu
   };
 }
 
+/** The biome a (centimetre) point falls in — nearest biome for coastal/cave points; null if none loaded. */
+function biomeOf(world: WorldQueries, h: { x: number; y: number; z: number }): string | null {
+  return world.biomeAt({ x: h.x, y: h.y, z: h.z })?.name ?? null;
+}
+
 /**
  * Registers every Foreman MCP tool. Tool descriptions are tight and
  * model-facing — they appear in the system context on every request. All
@@ -354,7 +359,9 @@ export function registerGameDataTools(
     },
     async ({ coord: origin, type, n }): Promise<ToolResult> => {
       const hits = world.nearestCollectibles(toCm(origin), type, n);
-      return ok({ collectibles: hits.map((h) => placeInMetres(h, origin)) });
+      return ok({
+        collectibles: hits.map((h) => ({ ...placeInMetres(h, origin), biome: biomeOf(world, h) })),
+      });
     },
   );
 
@@ -395,7 +402,9 @@ export function registerGameDataTools(
     },
     async ({ coord: origin, resource, purity, n }): Promise<ToolResult> => {
       const hits = world.nearestResourceNodes(toCm(origin), { resource, purity, n });
-      return ok({ nodes: hits.map((h) => placeInMetres(h, origin)) });
+      return ok({
+        nodes: hits.map((h) => ({ ...placeInMetres(h, origin), biome: biomeOf(world, h) })),
+      });
     },
   );
 
@@ -424,7 +433,33 @@ export function registerGameDataTools(
     },
     async ({ coord: origin, item, n }): Promise<ToolResult> => {
       const hits = world.nearestParts(toCm(origin), item, n);
-      return ok({ parts: hits.map((h) => placeInMetres(h, origin)) });
+      return ok({
+        parts: hits.map((h) => ({ ...placeInMetres(h, origin), biome: biomeOf(world, h) })),
+      });
+    },
+  );
+
+  server.registerTool(
+    'describe_location',
+    {
+      title: 'Describe a world location by biome',
+      description:
+        'Name the biome a world location (metres) falls in — or the nearest biome for a coastal/cave point — plus the rough direction within it, so you can phrase a position as "the north-west of the Grass Fields" instead of raw coordinates. Returns { biome, within (N/NE/… from the biome centre), contained (true when inside the biome), distanceMetres (0 when inside, else metres to its edge), isStartingLocation }. Pass the pioneer location, a work-order location, or a collectible/resource coordinate (metres).',
+      inputSchema: { coord },
+    },
+    async ({ coord: origin }): Promise<ToolResult> => {
+      const cm = toCm(origin);
+      const hit = world.biomeAt(cm);
+      if (hit === null) {
+        return ok({ biome: null });
+      }
+      return ok({
+        biome: hit.name,
+        within: compassBearing(hit.centroid, cm), // direction from the biome centre to the point
+        contained: hit.contained,
+        distanceMetres: cmToMetres(hit.distance),
+        isStartingLocation: hit.isStartingLocation,
+      });
     },
   );
 }

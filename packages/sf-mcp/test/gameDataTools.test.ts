@@ -53,6 +53,22 @@ const testWorld: WorldLocations = {
   ],
   resourceNodes: [],
   lootPickups: [],
+  // A single square biome (world-cm) enclosing the collectibles above, so biome
+  // tagging / describe_location have something to resolve (#239).
+  biomes: [
+    {
+      name: 'TEST FIELDS',
+      isStartingLocation: true,
+      polygons: [
+        [
+          [0, -100],
+          [400, -100],
+          [400, 100],
+          [0, 100],
+        ],
+      ],
+    },
+  ],
 };
 
 let graph: GraphDB;
@@ -152,6 +168,7 @@ describe('game-data tool registration (#225)', () => {
     { name: 'nearest_resource_nodes', happy: { coord: { x: 0, y: 0, z: 0 } } },
     { name: 'list_parts', happy: {} },
     { name: 'nearest_parts', happy: { coord: { x: 0, y: 0, z: 0 } } },
+    { name: 'describe_location', happy: { coord: { x: 0, y: 0, z: 0 } } },
   ];
   for (const c of worldTools) {
     it(`${c.name}: registered and returns without error`, async () => {
@@ -193,5 +210,30 @@ describe('game-data tool registration (#225)', () => {
     expect(pod?.['kind']).toBe('hardDrive');
     expect(pod?.['guid']).toBe('GUID-POD-1');
     expect((pod?.['unlock'] as { powerMW?: number } | undefined)?.powerMW).toBe(250);
+  });
+
+  // #239: nearest_* hits carry the biome they fall in, so a location can be described by region.
+  it('nearest_collectibles tags each hit with its biome', async () => {
+    const res = await handlers.get('nearest_collectibles')!({ coord: { x: 0, y: 0, z: 0 } });
+    const body = JSON.parse(res.content[0]!.text) as { collectibles: Record<string, unknown>[] };
+    expect(body.collectibles.every((c) => c['biome'] === 'TEST FIELDS')).toBe(true);
+  });
+
+  // #239: describe_location names the biome + within-biome bearing for an arbitrary coordinate.
+  it('describe_location resolves a coordinate to its biome', async () => {
+    // coord in metres → toCm ×100 → (100, 0) cm, inside the TEST FIELDS square.
+    const res = await handlers.get('describe_location')!({ coord: { x: 1, y: 0, z: 0 } });
+    const body = JSON.parse(res.content[0]!.text) as {
+      biome: string | null;
+      contained: boolean;
+      isStartingLocation: boolean;
+      distanceMetres: number;
+      within: string;
+    };
+    expect(body.biome).toBe('TEST FIELDS');
+    expect(body.contained).toBe(true);
+    expect(body.isStartingLocation).toBe(true);
+    expect(body.distanceMetres).toBe(0);
+    expect(typeof body.within).toBe('string');
   });
 });

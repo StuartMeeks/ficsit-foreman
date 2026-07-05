@@ -113,6 +113,12 @@ async function run(): Promise<void> {
         }),
       };
       break;
+    case 'describe_location':
+      result = { biome: worldQueries.biomeAt(coord()) };
+      break;
+    case 'list_biomes':
+      result = { biomes: worldQueries.listBiomes() };
+      break;
     default:
       result = {
         version: graph.version,
@@ -140,6 +146,8 @@ async function run(): Promise<void> {
           'list_collectibles',
           'nearest_collectibles',
           'nearest_resource_nodes',
+          'describe_location',
+          'list_biomes',
         ],
         usage: "npm run inspect <tool> '<json-args>'",
       };
