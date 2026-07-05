@@ -1,11 +1,12 @@
 # Playthroughs & Foremen — domain model
 
-> **Status: slice 1 implemented (#86); slices 2–3 pending.** The domain model and
-> data-preserving migration have landed — the schema now has `Foreman` and `Playthrough`
-> (the former `Session`), and the server speaks "playthrough" with Foreman CRUD + a
-> playthrough list (see [`packages/ff-server/prisma/schema.prisma`](../packages/ff-server/prisma/schema.prisma)).
-> The playthrough switcher / foreman library UI (#61) and the save subsystem (#76) build on
-> this. It supersedes the original framing of #61 and reshapes #76.
+> **Status: shipped (#86, #61, #76).** The domain model and data-preserving migration
+> landed — the schema has `Foreman` and `Playthrough` (the former `Session`), and the
+> server speaks "playthrough" with Foreman CRUD + a playthrough list (see
+> [`packages/ff-server/prisma/schema.prisma`](../packages/ff-server/prisma/schema.prisma)).
+> The playthrough switcher / foreman library UI (#61) and the save subsystem — including
+> per-version re-upload history (#76) — also shipped; see [`save-subsystem.md`](./save-subsystem.md).
+> Retained as the design of record. It supersedes the original framing of #61 and #76.
 
 ## Why
 
@@ -64,9 +65,9 @@ The uploaded `.sav` for a playthrough.
 | metadata | parsed world/save name, game version, uploaded-at |
 | file reference | how/where the `.sav` is stored — **decided in #76** (data-volume path vs object store) |
 
-**Latest state only** for v1: re-uploading replaces the current save (a multi-version history is
-deferred). The model just defines that a playthrough *has* a current save; the upload pipeline and
-storage are #76.
+The model defines that a playthrough *has* a **current** save; the upload pipeline, per-version
+storage and re-upload history are #76 (shipped). Re-uploading adds a new version and makes it
+current; earlier versions are retained and can be re-activated or deleted.
 
 ## Relationships
 
@@ -77,7 +78,7 @@ User ──1:*── Foreman ──1:*── Playthrough ──1:1── Save (c
 
 - User 1–* Foreman, User 1–* Playthrough
 - Foreman 1–* Playthrough (a foreman is reused across playthroughs)
-- Playthrough 1–1 current Save (re-uploaded over time); 1–* Message / WorkOrder
+- Playthrough 1–* Save (version history) with a 1–1 *current* pointer; 1–* Message / WorkOrder
 
 **Not affected:** `AuthSession` (the Better Auth login cookie) is unrelated to a play
 *session*/Playthrough — keeping the two distinct is exactly why that table was renamed
@@ -89,8 +90,9 @@ User ──1:*── Foreman ──1:*── Playthrough ──1:1── Save (c
   default name comes from the save; otherwise name it freely and add a save later. The foreman runs
   on game-data alone until a save is attached.
 - **Switch:** selecting a playthrough resumes its chat history and work orders.
-- **Re-upload save:** as the pioneer progresses, they upload a fresh `.sav`; it replaces the
-  playthrough's current save and refreshes the save-game MCP's view.
+- **Re-upload save:** as the pioneer progresses, they upload a fresh `.sav`; it is added as a new
+  version and becomes current (earlier versions retained), refreshing the save-game MCP's view and
+  reconciling collected collectibles on explore orders.
 - **Rename / delete:** playthroughs are freely renamed; deleting one removes its chat + work orders.
 - **Manage foremen:** a small library to create/edit/choose reusable foremen.
 
@@ -118,15 +120,15 @@ User ──1:*── Foreman ──1:*── Playthrough ──1:1── Save (c
    injected `savePath` (per-path LRU of mtime-gated parses) so it answers about the active
    playthrough's save; the server overrides `savePath` on save-routed tool calls.
 3. **Save subsystem: re-upload history + load-model refactor** *(refocused #76).* Re-upload-over-time
-   with version history (v1 here is latest-only), the save-game MCP folder/newest-per-playthrough
-   load-model refactor, and extracting the save parse/normalise layer into a shared lib.
+   with per-version history, the save-game MCP folder/newest-per-playthrough load-model refactor,
+   and extracting the save parse/normalise layer into a shared lib.
 
 ## Decisions (settled)
 
 - Design-first; this spec is signed off before implementation.
 - `pioneerProfile` lives on the **Playthrough**.
 - A save is **optional** to start a playthrough.
-- Save is **latest-only** for v1 (re-upload replaces it). Minimal upload + storage + the per-call
-  `savePath` MCP mechanism landed in **#61**; the load-model refactor + version history are **#76**.
+- Minimal upload + storage + the per-call `savePath` MCP mechanism landed in **#61**; the
+  load-model refactor + per-version re-upload history landed in **#76**.
 - Foremen are seeded by **deduping** existing personalities on migration; new users get a foreman
   from their chosen onboarding preset.

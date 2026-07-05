@@ -1,23 +1,27 @@
 # Save Subsystem — design & roadmap (#76)
 
-The minimal save upload shipped in #61 (PR #97): **one current `.sav` per
-playthrough**, stored as the raw file on a shared volume
-(`${SAVE_DATA_DIR}/<playthroughId>.sav`), with metadata parsed on upload via the
-save-game MCP's `describe_save` tool. The save-game MCP is per-playthrough-aware
-(every tool takes an optional `savePath`; the server injects the active
-playthrough's path; an LRU of mtime-gated per-path stores parses once per upload).
+> **Status: shipped.** All three PRs below (build-version awareness, re-upload
+> history, same-game recognition) have merged. This document is retained as the
+> design of record.
 
-This document is the agreed design for the **richer save-driven UX** tracked in
-[`docs/product.md`](./docs/product.md) and [`docs/playthroughs.md`](./docs/playthroughs.md).
-It is delivered as a sequence of independent PRs so each stays small and
-reviewable.
+The minimal save upload shipped first in #61 (PR #97). Saves are now stored
+**per-version** on a shared volume (`${SAVE_DATA_DIR}/<playthroughId>/<saveId>.sav`),
+with a separate "current" pointer per playthrough, and metadata parsed on upload
+via the save-game MCP's `describe_save` tool. The save-game MCP is
+per-playthrough-aware (every tool takes an optional `savePath`; the server injects
+the active playthrough's path; an LRU of mtime-gated per-path stores parses once
+per upload).
+
+This document is the design of record for the **richer save-driven UX** referenced
+in [`product.md`](./product.md) and [`playthroughs.md`](./playthroughs.md). It was
+delivered as a sequence of independent PRs so each stayed small and reviewable.
 
 ## Goals
 
 1. **Build-version awareness** — warn when an uploaded save's game build differs
    from the game-data the foreman reasons with (recipes/tools may not match).
-2. **Re-upload history** — keep prior uploads per playthrough (latest-only today)
-   with a clear "current" save and the ability to re-activate or delete versions.
+2. **Re-upload history** — keep prior uploads per playthrough, with a clear
+   "current" save and the ability to re-activate or delete versions.
 3. **"Same game" recognition** — when an uploaded save matches a playthrough
    already present, offer to update it rather than always creating a new
    playthrough; confirm on ambiguity, never silently overwrite.

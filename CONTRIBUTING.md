@@ -38,11 +38,12 @@ This file is the single home for our conventions (`CLAUDE.md` points here).
 When you open an issue, label it and slot it onto the roadmap:
 - **One type label** — `enhancement` (a feature or capability), `bug`,
   `documentation`, or `question` (an open decision to settle).
-- **At least one `area:` label** for the package(s) it touches — `area:client`,
-  `area:server`, `area:sf-mcp`.
+- **At least one `area:` label** for the package(s) it touches — `area:ff-client`,
+  `area:ff-server`, `area:sf-mcp`, `area:sf-game-data`, `area:sf-save-data`.
 - **A milestone**, so it lands on the roadmap (e.g. *Foundation — accounts &
-  persistence*, *Save subsystem*, *App features*, *Game-data MCP*). If none fits,
-  leave it unset and explain why in the body.
+  persistence*, *Save subsystem*, *App features*, *Game-data (parallel)*,
+  *Tooling & maintenance (non-app)*). If none fits, leave it unset and explain
+  why in the body.
 
 ### Closing issues — keep the roadmap honest
 What actually ships often diverges from what an issue first proposed. When you

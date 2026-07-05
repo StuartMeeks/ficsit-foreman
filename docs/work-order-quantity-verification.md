@@ -1,9 +1,9 @@
 # Work-order quantity verification (#223)
 
-> **Status:** Agreed design — the design of record for issues #223 and #228. Slice 1
-> (power output verification, #227) shipped; slice 2 (recipe-per-block model + server-derived
-> rates + output advisory, #228) implements the rest. Where this conflicts with older notes,
-> this wins.
+> **Status:** **Shipped** — the design of record for issues #223 and #228. Both slices
+> merged: slice 1 (power output verification, #227) and slice 2 (recipe-per-block model +
+> server-derived rates + output advisory + merged-order revise validation, #228/#229). Where
+> this conflicts with older notes, this wins.
 
 ## Problem
 

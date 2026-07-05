@@ -38,10 +38,10 @@ The goal isn't to play the game *for* you. It's to keep you playing.
 A persistent AI conversation interface. The player talks to their foreman, describes what's happening on the factory floor, asks questions, raises problems. The foreman responds in character — personality configured by the player — with real knowledge of the game.
 
 ### 2. Work Orders
-The foreman issues structured work orders: a specific, achievable task with build costs, expected inputs/outputs, and a clear success condition. The current order is always visible in the UI; completed orders are logged. Work orders are **achievable within a session**, **accurate** (built from real game data, not hallucinated ratios), and **cheap to generate** (a structured schema, not free-form prose). The full design is in [`work-orders.md`](./work-orders.md).
+The foreman issues structured work orders: a specific, achievable task with build costs, expected inputs/outputs, and a clear success condition. There are two order types — **build** orders (a production/infrastructure task) and **explore** orders (a collection route of waypoints for gathering collectibles) — sharing one state machine and revision/audit history. The current order is always visible in the UI; completed orders are logged. Work orders are **achievable**, **accurate** (built from real game data, not hallucinated ratios — the server resolves and verifies every reference at ingest), and **cheap to generate** (a structured schema, not free-form prose). The full design is in [`work-orders.md`](./work-orders.md) and [`explore-orders.md`](./explore-orders.md).
 
 ### 3. Game Data Backbone (MCP Server)
-A locally-run MCP server backed by an in-memory production graph. It parses the player's actual game install (`en-US.json` from `CommunityResources/Docs/`), builds the graph from that data, and exposes it as queryable MCP tools. The graph makes recursive production queries — "what raw inputs do I need for this item, all the way down?" — cheap server-side, keeping tool responses compact. Data is tagged to the detected game version.
+A locally-run MCP server backed by an in-memory production graph. It loads a bundled, pre-built merged dataset (`sf-game-data.json`) — produced offline by the C# extractor from the game's `en-US.json` + cooked assets — and builds the graph from it, exposing it as queryable MCP tools. The graph makes recursive production queries — "what raw inputs do I need for this item, all the way down?" — cheap server-side, keeping tool responses compact. Data is stamped with the game version it was extracted from.
 
 ### 4. Onboarding & Personalisation
 Before the foreman issues the first order, the player answers a short set of questions: play style, current game state, time available, goals, and foreman personality. These shape the foreman's approach — not just the first session, but ongoing.
@@ -70,7 +70,7 @@ Alongside personality, onboarding captures three questions about the pioneer the
 Like the personality string, the generated pioneer profile is editable freeform text. The questions seed it; the pioneer owns it. The interaction between the two blocks is intentional: a gruff foreman with a first-time player should still be gruff, but shouldn't assume knowledge; a warm mentor with a veteran can engage peer-to-peer. Personality sets the voice; pioneer profile sets the register.
 
 ### 5. Save Game Awareness
-The unified `sf-mcp` server's save-game tools (shipped) parse a Satisfactory `.sav` to expose the pioneer's live state — location, inventory, unlocked recipes, milestones, and which collectibles remain. The foreman reads that state so orders and opportunities reflect reality rather than assumption. Richer save-driven UX (in-app upload, verification) is tracked in the [issue tracker](https://github.com/StuartMeeks/ficsit-foreman/issues).
+The unified `sf-mcp` server's save-game tools (shipped) parse a Satisfactory `.sav` to expose the pioneer's live state — location, inventory, unlocked recipes, milestones, and which collectibles remain. The foreman reads that state so orders and opportunities reflect reality rather than assumption. In-app save upload has shipped: the client uploads `.sav` files (with same-game recognition and re-upload history), and a re-upload auto-reconciles collected collectibles on explore orders. Further save-driven UX is tracked in the [issue tracker](https://github.com/StuartMeeks/ficsit-foreman/issues).
 
 ---
 
@@ -80,7 +80,7 @@ FICSIT Foreman is free to use. Sustainability is funded through:
 
 | Tier | Access | API Cost |
 |---|---|---|
-| **Free** | Full feature access | Player supplies their own Anthropic API key |
+| **Free** | Full feature access | Player supplies their own LLM API key (Anthropic or OpenAI-compatible) |
 | **Supporter** (Patreon / subscription) | Full feature access + no key needed + priority support | Absorbed by FICSIT Foreman |
 
 Advertising is intentionally excluded. The Satisfactory community will support a tool they love through Patreon before they'll tolerate ads. Ads also conflict with the focused, distraction-free UX the product needs.

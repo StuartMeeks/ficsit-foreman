@@ -16,7 +16,7 @@ packages/
   sf-game-data/       GameData types + merged-dataset loaders + bundled data (lib).
                       The offline C# extractor (en-US.json + cooked assets → one
                       sf-game-data.json per channel) lives in extract/ (PARSER.md here)
-  sf-game-data-graph/ in-memory production graph as a library (zero-dep, no native addon)
+  sf-game-data-graph/ in-memory production graph as a library (no database, no native addon)
   sf-save-data/       .sav → SaveState parser + normalise (lib)
   sf-mcp/             unified MCP server: game-data graph tools + live save-game tools
   ff-server/          Express backend: LLM proxy (SSE), sessions, work orders, MCP gateway
@@ -51,7 +51,13 @@ Work Orders v2 shipped. The web client (Phase 3) is in progress. The save-game M
 shipped v1. The **single-producer game-data pipeline** shipped (epic #164): an
 offline C# extractor parses `en-US.json` and extracts the cooked assets into one
 merged `sf-game-data.json` per channel, which the runtime loads directly — the raw
-`en-US.json` is no longer committed. Live, per-component work is tracked in the
+`en-US.json` is no longer committed. Since then: **explore orders** (a second
+work-order type — collection routes with save-reupload reconciliation, #207/#209),
+**ingest-time verification** (every plan reference resolved-or-rejected + power/
+recipe quantity checks, #222/#223), and a **flow solver** (`sf-flow` +
+`find_bottlenecks`, #148/#126) shipped, and the game-data graph **dropped Kùzu**
+for an in-memory adjacency projection (#243) — no `sf-*` package carries a native
+dependency now. Live, per-component work is tracked in the
 [issue tracker](https://github.com/StuartMeeks/ficsit-foreman/issues).
 
 ## Conventions

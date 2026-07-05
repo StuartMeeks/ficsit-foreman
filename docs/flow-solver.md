@@ -91,48 +91,41 @@ converge → delivered rates + throughput per machine
    out) — game-data-free, unit-testable, reusable.
 2. **Plain-splitter distribution:** demand-weighted (each branch drawn proportional to its
    downstream demand, capped by belt throughput).
-3. **Fluids:** **full headlift + pump/valve modelling** (not capacity-only).
+3. **Fluids:** head-lift modelling (shared-network max head lift + actor elevation), not
+   capacity-only.
 
-### Prerequisite for full headlift (data gap — must land first)
+### Head lift (landed)
 
-Headlift is **not in the current dataset** (`Building` has no headlift field; nothing
-bundled). Modelling it requires, in order:
+Head lift **is now in the dataset**: the offline C# extractor was extended to read building
+head lift into `Building.headLiftMetres`, and the solver cuts a fluid leg that rises above its
+pipe network's **shared** head lift — `max(elevation + maxHeadLift)` over the connected
+component's sources/pumps/buffers, using each building's *maximum* head lift so only the
+genuinely-unreachable is blocked. Actor `location.z` (already parsed) supplies vertical lift.
 
-- **Extend the offline C# extractor** (`sf-game-data-extractor`) to read pump headlift
-  (`mDesignHeadLift` / `mMaxHeadLift`) + pipe/junction data from the building CDOs, add it to
-  the `Building` type, and **re-extract + re-bundle `sf-game-data.json`** (a channel bump).
-  This builds/runs **only on the Windows host** (game install + CUE4Parse, interactive) — see
-  CLAUDE.md and `windows-host-ssh`.
-- **Extract per-instance pump/valve facts from saves** (the reinstated old slice C): valve
-  `mDefaultFlowLimit`, pump direction (connectors) + position; actor `location.z` (already
-  parsed) gives vertical lift. Confirmed shapes: valve `mDefaultFlowLimit` (Float),
-  pump/valve `mFluidBox` (current content), pump `mIsProducing`.
-- Solver fluid edges then carry a height delta + headlift budget; a leg whose lift exceeds
-  available headlift is throughput-limited/blocked.
+Deferred (not blocking): finer **per-instance** pump/valve modelling from the save — valve
+`mDefaultFlowLimit`, pump direction/position — which would refine per-leg budgets beyond the
+building-max approximation. Confirmed save shapes if pursued: valve `mDefaultFlowLimit`
+(Float), pump/valve `mFluidBox`, pump `mIsProducing`.
 
-## Plan (incremental PRs, final one closes #148 **and** #126)
+## Delivery (all shipped — closed #148 + #126)
 
-1. **Directed-flow substrate** — `upstreamOf`/`downstreamOf` in `sf-save-data-graph`.
-   *(done on this branch; tested.)*
+1. **Directed-flow substrate** — `upstreamOf`/`downstreamOf` in `sf-save-data-graph`. ✅
 2. **`@foreman/sf-flow`** — the pure solver + a fixture test-suite (chains, splits, merges,
-   contention, smart-filter, belt-cap, headlift-limited leg, loop→unknown). Solids-complete;
-   fluid edges accept an optional headlift budget.
-3. **effective-game-data seam** in `sf-mcp` (rates today; #172 modifiers later).
-4. **Headlift data prerequisite** *(Windows-host, gates fluid accuracy)* — extend the C#
-   extractor + re-extract; reinstated slice C pump/valve save extraction.
-5. **adapter + `find_bottlenecks`** tool + real-save smoke tests. Closes #148 + #126.
+   contention, smart-filter, belt-cap, head-lift-limited leg, loop→unknown). ✅
+3. **effective-game-data seam** in `sf-mcp` (recipe rates today; #172 fills 1.2 modifiers
+   behind the same seam). ✅
+4. **Head-lift data** — the C# extractor now emits `Building.headLiftMetres`; the solver
+   honours shared-network head lift. ✅ (Per-instance pump/valve save modelling deferred.)
+5. **adapter + `find_bottlenecks`** tool + real-save smoke tests. ✅
 
-Steps 2–3 (solids) don't depend on step 4 (headlift data) — the solver runs solids fully and
-treats fluid headlift as unbounded until the data lands, so progress isn't host-blocked.
+## Resolved decisions
 
-## Open questions for sign-off
-
-1. **New `sf-flow` lib vs a module inside `sf-mcp`?** (Recommend the lib: pure, testable,
-   and the abstract-network boundary is clean.)
-2. **Plain-splitter distribution** at steady state — model as **demand-weighted** even split
-   (recommended) rather than literal round-robin?
-3. **Fluids in v1** — full pipe headlift/pump modelling, or capacity-only with a noted
-   simplification (headlift deferred)?
+1. **New `sf-flow` lib vs a module inside `sf-mcp`?** → A pure, standalone lib — testable, and
+   the abstract-network boundary is clean.
+2. **Plain-splitter distribution** at steady state → **demand-weighted** even split (each
+   branch drawn proportional to its downstream demand, capped by belt throughput).
+3. **Fluids** → head-lift via shared-network max head lift + actor elevation (not capacity-only,
+   not per-instance valve modelling).
 
 Resolved: belt/pipe capacity is available (`Building.conveyorSpeedPerMin` / `pipeFlowPerMin`,
 extractors via `extractionRatePerMin`) — used to cap edges.

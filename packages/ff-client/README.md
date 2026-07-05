@@ -26,14 +26,16 @@ origin (no CORS).
 - **Foreman chat** — streams the foreman's reply token-by-token over SSE, and shows
   tool calls (game-data + work-order tools) as inline chips. Past turns re-hydrate when
   a playthrough is opened.
-- **Work-order cockpit** — the active order rendered to the v2 model: state badge,
-  plan-revised banner with a field-level diff + acknowledge, blocked banner,
-  foreman completion suggestion, build-step and material checklists, machine built
-  counters, a megawatt power hero, and collapsible recipes / resource nodes /
-  two-group nearby collectibles / child orders / revision history. The pioneer
-  starts, pauses, ticks items, sets counts, reverts, and **completes** (completion
-  is Pioneer-only; the foreman only proposes) — all against the work-order REST
-  API, updating live over SSE. A history list sits beneath the active order.
+- **Work-order cockpit** — the active order rendered to the v2 model, in a tabbed
+  panel (Order / Revisions / Audit): state badge, plan-revised banner with a
+  field-level diff + acknowledge, blocked banner, foreman completion suggestion. A
+  **build** order shows build-step checklists with per-buildable built counters, a
+  megawatt power hero, and collapsible recipes / resource nodes / two-group nearby
+  collectibles / child orders; an **explore** order shows its ordered waypoint
+  route with per-collectible collected toggles. The pioneer starts, pauses, ticks
+  items, sets counts, marks collectibles, reverts, and **completes** (completion is
+  Pioneer-only; the foreman only proposes) — all against the work-order REST API,
+  updating live over SSE. A history list sits beneath the active order.
 - **Settings** — a sectioned dialog: **Foremen** (a library to create / edit / delete
   reusable personas and choose which one this playthrough uses), **Pioneer** (this
   playthrough's profile), **LLM** (provider / model / key, kept only in the browser and

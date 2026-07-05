@@ -1,6 +1,9 @@
 # Crash-site loot & drop-pod unlock costs (#107)
 
-Design spec for surfacing two new, **fully static** world datasets to the pioneer:
+> Status: **shipped** — the datasets and MCP tools below (`list_parts` / `nearest_parts`,
+> `get_nearby_parts`, drop-pod `unlockCost`) are live. Retained as the design of record.
+
+Design of record for surfacing two new, **fully static** world datasets to the pioneer:
 
 1. **Loose crash-site parts** — the ~703 `FGItemPickup_Spawnable` actors strewn around crash
    sites (free high-tier parts: Computers, Heavy Modular Frames, Motors, …). Answers *"where can

@@ -76,7 +76,7 @@ know or do. It is not a generic project-management interface.
 ### One active direction
 
 The Foreman keeps the Pioneer focused on the active work order (or its currently
-relevant child). At most one work order is `active` per session at a time — but
+relevant child). At most one work order is `active` per playthrough at a time — but
 multiple **non-terminal** work orders may coexist (e.g. a `blocked` parent while
 its child is `active`). See *Single-active invariant*.
 
@@ -170,7 +170,7 @@ a future explicit reopen/clone feature is added.
 
 ## Single-active invariant
 
-* At most **one** `active` work order per session at any time.
+* At most **one** `active` work order per playthrough at any time.
 * Multiple **non-terminal** orders may coexist (`new`, `paused`, `blocked`).
 * Creating a new work order does **not** automatically abandon/supersede the
   current one (a correction to today's behaviour). Supersession is an explicit
@@ -359,8 +359,9 @@ schema), but the domain supports:
 ```ts
 type WorkOrder = {
   id: string;
-  sessionId: string;
-  sequenceNumber: number;        // rendered WO-001, WO-002, …
+  playthroughId: string;
+  orderType: 'build' | 'explore';  // #207 — default 'build'
+  sequenceNumber: number;        // rendered WO-001 (build) / EO-001 (explore)
   version: string;               // game-data version this order was built for
 
   // Plan
@@ -373,9 +374,10 @@ type WorkOrder = {
   notes?: string[];              // freeform foreman build notes
   locationRecommendation?: LocationRecommendation;
   resourceNodes?: ResourceNodeReference[];
-  recipes: RecipeAssignment[];
+  recipes: RecipeAssignment[];   // server-derived from per-buildable recipe × count (#228)
   expectedOutputs: ExpectedOutput[];
-  buildSteps: WorkOrderStep[];   // each step nests the buildables it requires
+  buildSteps: WorkOrderStep[];   // build orders — each step nests the buildables it requires
+  waypoints?: ExploreWaypoint[]; // explore orders — the ordered collection route (#207)
   opportunities?: WorkOrderOpportunities;
   blockedReason?: string;
   blockedResolutionHint?: string;
@@ -462,9 +464,15 @@ new revision snapshot.
 ### Recipes, location, resource nodes
 
 Alternate recipe choices are resolved *before* a production/build work order is
-issued; an issued order contains selected recipes, not unresolved options.
+issued; an issued order contains selected recipes, not unresolved options. Recipe
+is a first-class property of each production buildable block; the foreman annotates
+recipe + count, and the server **derives** the `recipes[]` array and its per-minute
+rates from recipe × count (#228) — the model no longer authors rates. A
+building↔recipe mismatch is hard-rejected at ingest. See
+[`work-order-quantity-verification.md`](./work-order-quantity-verification.md).
 
 ```ts
+// Server-derived projection (not model-authored):
 type RecipeAssignment = {
   id: string;
   machineName: string;
@@ -493,9 +501,13 @@ type ResourceNodeReference = {
 };
 ```
 
-> Names (`itemName`, `machineName`, `recipeName`, `resourceName`) are free
-> strings resolved by the game-data MCP's `displayName`/`className` lookups.
-> Optionally validate them against the MCP at issue time; do not hard-fail.
+> Names (`itemName`, `machineName`, `recipeName`, `resourceName`) are resolved
+> against the game-data MCP's `displayName`/`className` lookups **at ingest, and
+> the order is rejected if any reference is unresolvable** (#222) — the foreman
+> gets one message grouping the misses by kind, with best-match suggestions.
+> Quantities are verified too (power over-provision is hard-rejected; recipes and
+> per-minute rates are server-derived — see
+> [`work-order-quantity-verification.md`](./work-order-quantity-verification.md)).
 
 ## Opportunities (cross-MCP join)
 
@@ -513,7 +525,8 @@ type WorkOrderOpportunities = {
 
 // REUSE CollectibleKind from @foreman/sf-game-data — do not invent a parallel
 // enum. It is: mercerSphere | somersloop | powerSlugBlue | powerSlugYellow |
-// powerSlugPurple | hardDrive.
+// powerSlugPurple | hardDrive | helmet | mtape (the last two are customizer
+// pickups, schematic-keyed — #67).
 type CollectibleOpportunity = {
   id?: string;
   kind: CollectibleKind;
@@ -614,6 +627,7 @@ type WorkOrderAuditEventType =
   | 'child_work_order_completed'
   | 'step_checked' | 'step_unchecked'
   | 'buildable_built_count_changed'
+  | 'collectible_collected'         // explore orders — Pioneer or System (#207/#209)
   | 'hours_logged'
   | 'recipe_choice_changed'
   | 'build_plan_adapted'
@@ -643,9 +657,9 @@ Extend the existing work-order REST API. Required operations:
 * Fetch parent / children
 * Start; transition state; block; unblock
 * Update work-order plan (writes revision + audit)
-* Update per-buildable built count; check/uncheck step; log
-  hours (audit only). Collapse these behind a small number of endpoints rather
-  than one per verb.
+* Update per-buildable built count; check/uncheck step; mark an explore-order
+  collectible collected; log hours (audit only). Collapse these behind a small
+  number of endpoints rather than one per verb.
 * Acknowledge current revision
 * Complete (Pioneer); force-complete (Pioneer)
 * Cancel; supersede
@@ -657,9 +671,9 @@ Extend the existing work-order REST API. Required operations:
 Every mutating operation appends an audit event; every plan change creates a new
 plan-snapshot revision.
 
-The Foreman's tool surface (Anthropic tools, not REST) exposes: create, revise
-plan, block, unblock, supersede, create child, and **propose completion** — never
-complete.
+The Foreman's tool surface (Anthropic tools, not REST) exposes: create (build) —
+`create_work_order`, create explore — `create_explore_order`, revise plan, block,
+unblock, supersede, create child, and **propose completion** — never complete.
 
 ## UI requirements
 
@@ -725,8 +739,6 @@ below the fold under the step ledger.
 * No generic project-management interface.
 * No authentication to enforce the actor matrix (it is a guardrail, not access
   control).
-* No optional name validation against game data (the foreman is trusted to use
-  tool-verified names; the server does not re-check them).
 
 ## Suggested implementation order (slices)
 

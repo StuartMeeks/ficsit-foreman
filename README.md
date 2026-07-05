@@ -68,7 +68,7 @@ Most Satisfactory players are on Windows, so here's the full path:
    `ghcr.io/stuartmeeks/foreman-sf-mcp`, click **Run**, expand **Optional settings**, set the
    name to `foreman-sf-mcp` and the host port to `8723`.)*
 4. Confirm it's running: open **<http://localhost:8723/health>** — you should see
-   `{"status":"ok","version":"1.2.3.0"}`.
+   `{"status":"ok","version":"1.2.3.1"}`.
 
 **Start and stop it** any time from Docker Desktop's **Containers** tab (the `foreman`
 project), or with `docker compose stop` and `docker compose start` — this keeps the

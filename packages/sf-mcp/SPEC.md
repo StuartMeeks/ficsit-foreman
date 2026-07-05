@@ -108,11 +108,13 @@ pioneer plays without a restart.
 - **Power grids** — total capacity, total consumption, and a coverage map of which
   buildings/areas a grid serves.
 
-### MCP tools (planned)
-- `get_power()` — per-grid capacity vs consumption, headroom, and tripped/over-draw
-  status.
-- `get_generators(location?)` — generators with output and fuel, optionally by
-  proximity.
+### MCP tools
+- `get_power()` *(shipped)* — per-circuit capacity vs consumption, battery, headroom,
+  and tripped/over-draw status.
+- `find_bottlenecks(tolerance?)` *(shipped)* — steady-state flow analysis over the
+  save's connection graph (throttled machines, starved links), via `@foreman/sf-flow`.
+- `check_material_coverage(items)` *(shipped)* — whether on-hand + producible
+  materials cover a set of item targets.
 
 ---
 
