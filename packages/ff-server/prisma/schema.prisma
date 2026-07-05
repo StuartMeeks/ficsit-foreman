@@ -144,6 +144,8 @@ model WorkOrder {
   recipes                String  @default("[]") // JSON RecipeAssignment[]
   expectedOutputs        String  @default("[]") // JSON ExpectedOutput[]
   buildSteps             String  @default("[]") // JSON WorkOrderStep[]
+  orderType              String  @default("build") // OrderType: build | explore (#207)
+  waypoints              String  @default("[]") // JSON ExploreWaypoint[] (explore orders)
   opportunities          String? // JSON WorkOrderOpportunities
   blockedReason          String?
   blockedResolutionHint  String?

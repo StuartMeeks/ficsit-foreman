@@ -13,7 +13,9 @@ import type {
   BuildableDef,
   BuildCostLine,
   ExpectedOutput,
+  ExploreWaypoint,
   LocationRecommendation,
+  OrderType,
   PioneerFeedback,
   RecipeAssignment,
   ResourceNodeReference,
@@ -71,6 +73,9 @@ export interface WorkOrderPlanInput {
   recipes?: RecipeAssignment[];
   expectedOutputs?: ExpectedOutput[];
   buildSteps?: WorkOrderStepInput[];
+  /** Explore orders (#207): the server-derived collection route. */
+  orderType?: OrderType;
+  waypoints?: ExploreWaypoint[];
   opportunities?: WorkOrderOpportunities;
   blockedReason?: string;
   blockedResolutionHint?: string;
@@ -160,6 +165,8 @@ export class WorkOrderService {
           recipes: JSON.stringify(input.recipes ?? []),
           expectedOutputs: JSON.stringify(input.expectedOutputs ?? []),
           buildSteps: JSON.stringify(buildSteps),
+          orderType: input.orderType ?? 'build',
+          waypoints: JSON.stringify(input.waypoints ?? []),
           opportunities: toJsonOrNull(input.opportunities),
           blockedReason: input.blockedReason ?? null,
           blockedResolutionHint: input.blockedResolutionHint ?? null,
@@ -181,7 +188,7 @@ export class WorkOrderService {
       });
       if (created.parentWorkOrderId !== null) {
         await this.appendAudit(tx, created.parentWorkOrderId, actor, 'child_work_order_created', {
-          note: `Child ${formatWorkOrderLabel(created.sequenceNumber)} created.`,
+          note: `Child ${formatWorkOrderLabel(created.sequenceNumber, created.orderType as OrderType)} created.`,
           details: { childWorkOrderId: created.id },
         });
       }
@@ -669,6 +676,35 @@ export class WorkOrderService {
     });
   }
 
+  /** Marks one explore-order collectible collected/uncollected (per-collectible execution). */
+  public async markCollectibleCollected(
+    playthroughId: string,
+    id: string,
+    waypointId: string,
+    collectibleId: string,
+    collected: boolean,
+    actor: WorkOrderActor = 'Pioneer',
+  ): Promise<WorkOrderOutcome> {
+    return this.mutateChecklist(playthroughId, id, actor, (row) => {
+      const waypoints = parseJson<ExploreWaypoint[]>(row.waypoints, []);
+      const waypoint = waypoints.find((w) => w.id === waypointId);
+      if (waypoint === undefined) {
+        return { error: `Waypoint '${waypointId}' not found.` };
+      }
+      const item = waypoint.collectibles.find((c) => c.id === collectibleId);
+      if (item === undefined) {
+        return { error: `Collectible '${collectibleId}' not found in waypoint '${waypointId}'.` };
+      }
+      const previous = item.collected;
+      item.collected = collected;
+      return {
+        data: { waypoints: JSON.stringify(waypoints) },
+        eventType: 'collectible_collected',
+        details: { waypointId, collectibleId, kind: item.kind, from: previous, to: collected },
+      };
+    });
+  }
+
   /** Adds to the manually-logged hours total. */
   public async logHours(
     playthroughId: string,
@@ -905,8 +941,12 @@ function missingRequirement(action: WorkOrderAction, opts: TransitionOptions): s
 // --- Pure mapping & normalisation helpers -----------------------------------
 
 /** Renders a sequence number as the human-readable WO-001 form. */
-export function formatWorkOrderLabel(sequenceNumber: number): string {
-  return `WO-${String(sequenceNumber).padStart(3, '0')}`;
+export function formatWorkOrderLabel(
+  sequenceNumber: number,
+  orderType: OrderType = 'build',
+): string {
+  const prefix = orderType === 'explore' ? 'EO' : 'WO';
+  return `${prefix}-${String(sequenceNumber).padStart(3, '0')}`;
 }
 
 function isTerminalState(state: string): boolean {
@@ -1064,12 +1104,17 @@ function planSnapshotFromRow(row: WorkOrderRow): WorkOrderPlanSnapshot {
   });
 
   const snapshot: WorkOrderPlanSnapshot = {
+    orderType: row.orderType as OrderType,
     title: row.title,
     goal: row.goal,
     buildSteps,
     recipes: parseJson<RecipeAssignment[]>(row.recipes, []),
     expectedOutputs: parseJson<ExpectedOutput[]>(row.expectedOutputs, []),
   };
+  const waypoints = parseJson<ExploreWaypoint[]>(row.waypoints, []);
+  if (waypoints.length > 0) {
+    snapshot.waypoints = waypoints;
+  }
   if (row.objective !== null) {
     snapshot.objective = row.objective;
   }
@@ -1120,6 +1165,7 @@ export function rowToWorkOrder(row: WorkOrderRow, childWorkOrderIds: string[] = 
   const order: WorkOrder = {
     id: row.id,
     sequenceNumber: row.sequenceNumber,
+    orderType: row.orderType as OrderType,
     version: row.version,
     state: row.state as WorkOrderState,
     title: row.title,
@@ -1133,6 +1179,10 @@ export function rowToWorkOrder(row: WorkOrderRow, childWorkOrderIds: string[] = 
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   };
+  const waypoints = parseJson<ExploreWaypoint[]>(row.waypoints, []);
+  if (waypoints.length > 0) {
+    order.waypoints = waypoints;
+  }
   if (row.objective !== null) {
     order.objective = row.objective;
   }

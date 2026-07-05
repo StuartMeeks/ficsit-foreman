@@ -11,9 +11,12 @@
  * trail as its history. The snapshot/definition shapes below encode that split.
  */
 
-import type { CollectibleKind, Purity } from '@foreman/sf-game-data';
+import type { CollectibleKind, Purity, UnlockCost } from '@foreman/sf-game-data';
 
-export type { CollectibleKind, Purity };
+export type { CollectibleKind, Purity, UnlockCost };
+
+/** Which kind of order this is: a build contract, or an exploration/collection route (#207). */
+export type OrderType = 'build' | 'explore';
 
 /** Lifecycle state. `new`/`active`/`paused`/`blocked` are non-terminal. */
 export type WorkOrderState =
@@ -149,6 +152,43 @@ export interface CollectibleOpportunity {
   optional: boolean;
 }
 
+// --- Explore orders (#207) -------------------------------------------------
+// A collection route: waypoints the Pioneer travels to grab collectibles. A variant of
+// WorkOrder (orderType: 'explore') — reuses the state machine, revisions, audit, sequence
+// counter and relationships; carries `waypoints` instead of buildSteps/recipes/expectedOutputs.
+
+/**
+ * One collectible to grab. The Foreman supplies `id`; the server DERIVES kind, coordinates,
+ * identity (`guid`/`schematic`) and `unlockCost` from the world dataset (accurate-by-
+ * construction — a pod's open cost is never guessed or omitted). `collected` is Pioneer-owned
+ * execution state (a save re-upload may raise it false→true, #209-B).
+ */
+export interface ExploreCollectible {
+  id: string;
+  kind: CollectibleKind;
+  /** GUID-keyed kinds (spheres/sloops/slugs/pods) — the key the save records on collection. */
+  guid?: string;
+  /** Customizer helmet/tapes (#67) — no pickup GUID; collected status is a schematic unlock. */
+  schematic?: string;
+  collected: boolean;
+  coordinates?: Coordinates;
+  reason?: string;
+  /** For hard-drive pods / gated sites: what it costs to OPEN (power/items). Server-derived. */
+  unlockCost?: UnlockCost;
+}
+
+/** A stop on the route: a place with collectibles to grab. */
+export interface ExploreWaypoint {
+  id: string;
+  /** Suggested visit order along the route. */
+  order: number;
+  label?: string;
+  coordinates: Coordinates;
+  relativeToPlayer?: string;
+  collectibles: ExploreCollectible[];
+  notes?: string;
+}
+
 export interface OverclockingOption {
   target: string;
   recommendation: string;
@@ -185,6 +225,7 @@ export interface PioneerFeedback {
  * (no checked flags, built counts, or logged hours).
  */
 export interface WorkOrderPlanSnapshot {
+  orderType: OrderType;
   title: string;
   goal: string;
   objective?: string;
@@ -200,6 +241,8 @@ export interface WorkOrderPlanSnapshot {
   expectedOutputs: ExpectedOutput[];
   /** Build steps, each carrying the buildables it requires (with per-unit cost). */
   buildSteps: WorkOrderStepDef[];
+  /** Explore orders only: the collection route. */
+  waypoints?: ExploreWaypoint[];
   opportunities?: WorkOrderOpportunities;
   blockedReason?: string;
   blockedResolutionHint?: string;
@@ -210,8 +253,10 @@ export interface WorkOrderPlanSnapshot {
 /** A live work order: the plan plus the Pioneer-owned execution state. */
 export interface WorkOrder {
   id: string;
-  /** Per-session, monotonic. Displayed as WO-001, WO-002, … */
+  /** Per-session, monotonic. Displayed as WO-001 (build) or EO-001 (explore), by orderType. */
   sequenceNumber: number;
+  /** Build contract or exploration route (#207). Defaults to 'build'. */
+  orderType: OrderType;
   /** Game data version this order was built for. */
   version: string;
 
@@ -228,6 +273,8 @@ export interface WorkOrder {
   recipes: RecipeAssignment[];
   expectedOutputs: ExpectedOutput[];
   buildSteps: WorkOrderStep[];
+  /** Explore orders only: the collection route. Empty for build orders. */
+  waypoints?: ExploreWaypoint[];
   opportunities?: WorkOrderOpportunities;
   blockedReason?: string;
   blockedResolutionHint?: string;
@@ -281,6 +328,7 @@ export type WorkOrderAuditEventType =
   | 'step_checked'
   | 'step_unchecked'
   | 'buildable_built_count_changed'
+  | 'collectible_collected'
   | 'hours_logged'
   | 'recipe_choice_changed'
   | 'build_plan_adapted'

@@ -175,6 +175,42 @@ export const workOrderCreateSchema = z.object({
   relationshipToParent: relationshipTypeSchema.optional(),
 });
 
+// --- Explore order input (#207) --------------------------------------------
+// The foreman references each collectible by its stable `id` (from nearest_collectibles);
+// the server derives kind/coordinates/identity/unlockCost from the world dataset and rejects
+// unknown ids. So the input is deliberately thin — no transcribed collectible facts.
+
+export const exploreCollectibleRefSchema = z.object({
+  id: z.string().min(1),
+  reason: z.string().optional(),
+});
+
+export const exploreWaypointSchema = z.object({
+  label: z.string().optional(),
+  order: z.number().int().optional(),
+  coordinates: coordinatesSchema.optional(),
+  relativeToPlayer: z.string().optional(),
+  collectibles: z.array(exploreCollectibleRefSchema).min(1),
+  notes: z.string().optional(),
+});
+
+export const exploreOrderCreateSchema = z.object({
+  title: planFields.title,
+  goal: planFields.goal,
+  objective: planFields.objective,
+  strategicSignificance: planFields.strategicSignificance,
+  successCondition: planFields.successCondition,
+  tier: planFields.tier,
+  notes: planFields.notes,
+  locationRecommendation: planFields.locationRecommendation,
+  waypoints: z.array(exploreWaypointSchema).min(1),
+  parentWorkOrderId: z.string().optional(),
+  relationshipToParent: relationshipTypeSchema.optional(),
+});
+
+/** Marks one collectible collected/uncollected on an explore order (Pioneer execution). */
+export const collectibleCollectedSchema = z.object({ collected: z.boolean() });
+
 /** Plan patch: every field optional, but at least one must be present. */
 export const workOrderPlanPatchSchema = z
   .object({

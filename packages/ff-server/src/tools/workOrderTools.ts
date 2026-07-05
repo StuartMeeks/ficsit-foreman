@@ -1,3 +1,5 @@
+import { randomUUID } from 'node:crypto';
+
 import type { McpGateway, ToolDefinition } from '../mcp/client.js';
 import type { BuildCostLine, RecipeAssignment, RecipeItemRate, WorkOrder } from '../types.js';
 import {
@@ -8,12 +10,14 @@ import {
 } from '../services/workOrderService.js';
 import {
   blockToolSchema,
+  exploreOrderCreateSchema,
   proposeCompletionSchema,
   reviseToolSchema,
   supersedeToolSchema,
   unblockToolSchema,
   workOrderCreateSchema,
 } from '../validation.js';
+import type { ExploreCollectible, ExploreWaypoint } from '../types.js';
 
 /** Dependencies the work-order tool handlers need. */
 export interface WorkOrderToolDeps {
@@ -40,6 +44,7 @@ export const BLOCK_WORK_ORDER = 'block_work_order';
 export const UNBLOCK_WORK_ORDER = 'unblock_work_order';
 export const SUPERSEDE_WORK_ORDER = 'supersede_work_order';
 export const CREATE_CHILD_WORK_ORDER = 'create_child_work_order';
+export const CREATE_EXPLORE_ORDER = 'create_explore_order';
 
 const WORK_ORDER_TOOL_NAMES = new Set<string>([
   CREATE_WORK_ORDER,
@@ -49,6 +54,7 @@ const WORK_ORDER_TOOL_NAMES = new Set<string>([
   UNBLOCK_WORK_ORDER,
   SUPERSEDE_WORK_ORDER,
   CREATE_CHILD_WORK_ORDER,
+  CREATE_EXPLORE_ORDER,
 ]);
 
 /** True when `name` is one of the server-local work-order tools. */
@@ -362,6 +368,68 @@ export function workOrderToolDefinitions(): ToolDefinition[] {
         required: ['title', 'goal', 'relationshipToParent'],
       },
     },
+    {
+      name: CREATE_EXPLORE_ORDER,
+      description:
+        'Issue an EXPLORE order — a collection route the pioneer travels to grab collectibles (Mercer Spheres, Somersloops, power slugs, hard drives, customizer helmet/tapes), standalone or as a child of a work order (relationshipToParent "exploration"/"hard_drive_hunt"). Use this instead of create_work_order when the task is collecting/looting, not building. Find collectibles with nearest_collectibles / list_collectibles and reference each by its `id`; the server derives its kind, coordinates, and — for hard-drive pods — the unlock COST to open it, and rejects unknown ids (so a pod waypoint always shows what to bring). Group collectibles into ordered waypoints.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          title: { type: 'string', description: 'Short, memorable title.' },
+          goal: { type: 'string', description: 'One sentence — what the route is for.' },
+          objective: { type: 'string' },
+          strategicSignificance: { type: 'string' },
+          successCondition: { type: 'string' },
+          tier: { type: 'integer', minimum: 0, maximum: 9 },
+          notes: { type: 'array', items: { type: 'string' } },
+          waypoints: {
+            type: 'array',
+            description:
+              'Ordered stops on the route. Each groups the collectibles grabbable there; the server fills in each collectible’s facts from its id.',
+            items: {
+              type: 'object',
+              properties: {
+                label: { type: 'string' },
+                order: { type: 'integer' },
+                coordinates: coordProps,
+                relativeToPlayer: { type: 'string' },
+                notes: { type: 'string' },
+                collectibles: {
+                  type: 'array',
+                  items: {
+                    type: 'object',
+                    properties: {
+                      id: {
+                        type: 'string',
+                        description:
+                          'Stable collectible id from nearest_collectibles / list_collectibles.',
+                      },
+                      reason: { type: 'string', description: 'Why it is worth grabbing.' },
+                    },
+                    required: ['id'],
+                  },
+                },
+              },
+              required: ['collectibles'],
+            },
+          },
+          parentWorkOrderId: { type: 'string' },
+          relationshipToParent: {
+            type: 'string',
+            enum: [
+              'prerequisite',
+              'exploration',
+              'hard_drive_hunt',
+              'mam_research',
+              'resource_gathering',
+              'infrastructure_support',
+              'corrective_action',
+            ],
+          },
+        },
+        required: ['title', 'goal', 'waypoints'],
+      },
+    },
   ];
 }
 
@@ -390,6 +458,8 @@ export async function handleWorkOrderTool(
       return handleSupersede(playthroughId, input, deps);
     case CREATE_CHILD_WORK_ORDER:
       return handleCreateChild(playthroughId, input, deps);
+    case CREATE_EXPLORE_ORDER:
+      return handleCreateExplore(playthroughId, input, deps);
     default:
       return { text: `Unknown work-order tool '${name}'.`, isError: true };
   }
@@ -634,6 +704,159 @@ async function handleCreateChild(
   const advisoryText = advisory !== undefined ? `\n\n${advisory}` : '';
   return {
     text: `Issued child ${formatWorkOrderLabel(order.sequenceNumber)}: "${order.title}" under the parent. Completing it will auto-unblock a blocked parent.${advisoryText}`,
+    isError: false,
+    workOrder: order,
+  };
+}
+
+// --- Explore orders (#207) -------------------------------------------------
+
+/** A collectible resolved from the world dataset (coordinates in metres). */
+interface ResolvedCollectible {
+  id: string;
+  kind: string;
+  guid?: string;
+  schematic?: string;
+  unlock?: ExploreCollectible['unlockCost'];
+  x: number;
+  y: number;
+  z: number;
+}
+
+/** Resolves collectibles by id via `resolve_collectibles`; null if the tool is unavailable. */
+async function resolveCollectiblesByIds(
+  ids: string[],
+  mcp: McpGateway,
+): Promise<{ byId: Map<string, ResolvedCollectible>; unresolved: string[] } | null> {
+  try {
+    const res = await mcp.callTool('resolve_collectibles', { ids });
+    if (res.isError) {
+      return null;
+    }
+    const parsed = JSON.parse(res.text) as {
+      resolved?: ResolvedCollectible[];
+      unresolved?: string[];
+    };
+    const byId = new Map<string, ResolvedCollectible>();
+    for (const c of parsed.resolved ?? []) {
+      byId.set(c.id, c);
+    }
+    return { byId, unresolved: parsed.unresolved ?? [] };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Issues an explore order (#207). The foreman references collectibles by id; the server
+ * resolves them against the world dataset, DERIVES each collectible's facts (kind,
+ * coordinates, identity, and unlock cost — so a pod always lists its true open cost) and
+ * REJECTS any unknown id — the same accuracy standard as work orders.
+ */
+async function handleCreateExplore(
+  playthroughId: string,
+  input: unknown,
+  deps: WorkOrderToolDeps,
+): Promise<WorkOrderToolOutcome> {
+  const parsed = exploreOrderCreateSchema.safeParse(input);
+  if (!parsed.success) {
+    return {
+      text: `Invalid create_explore_order arguments: ${parsed.error.message}`,
+      isError: true,
+    };
+  }
+  const plan = parsed.data;
+
+  const ids = [...new Set(plan.waypoints.flatMap((w) => w.collectibles.map((c) => c.id)))];
+  const lookup = await resolveCollectiblesByIds(ids, deps.mcp);
+  if (lookup === null) {
+    return {
+      text: 'Could not resolve collectibles against the world data — try again.',
+      isError: true,
+    };
+  }
+  if (lookup.unresolved.length > 0) {
+    return {
+      text:
+        `Explore order not created: these collectible ids aren't in the world data — get valid ` +
+        `ids from nearest_collectibles / list_collectibles and retry.\n` +
+        lookup.unresolved.map((id) => `  • ${id}`).join('\n'),
+      isError: true,
+    };
+  }
+
+  const waypoints: ExploreWaypoint[] = plan.waypoints.map((w, i) => {
+    const collectibles: ExploreCollectible[] = w.collectibles.map((ref) => {
+      const c = lookup.byId.get(ref.id)!;
+      const item: ExploreCollectible = {
+        id: c.id,
+        kind: c.kind as ExploreCollectible['kind'],
+        collected: false,
+        coordinates: { x: c.x, y: c.y, z: c.z },
+      };
+      if (c.guid !== undefined) {
+        item.guid = c.guid;
+      }
+      if (c.schematic !== undefined) {
+        item.schematic = c.schematic;
+      }
+      if (c.unlock !== undefined) {
+        item.unlockCost = c.unlock;
+      }
+      if (ref.reason !== undefined) {
+        item.reason = ref.reason;
+      }
+      return item;
+    });
+    const waypoint: ExploreWaypoint = {
+      id: randomUUID(),
+      order: w.order ?? i,
+      // Default the stop to its first collectible's location when not given.
+      coordinates: w.coordinates ?? collectibles[0]?.coordinates ?? { x: 0, y: 0 },
+      collectibles,
+    };
+    if (w.label !== undefined) {
+      waypoint.label = w.label;
+    }
+    if (w.relativeToPlayer !== undefined) {
+      waypoint.relativeToPlayer = w.relativeToPlayer;
+    }
+    if (w.notes !== undefined) {
+      waypoint.notes = w.notes;
+    }
+    return waypoint;
+  });
+
+  const order = await deps.workOrders.create(
+    playthroughId,
+    {
+      orderType: 'explore',
+      title: plan.title,
+      goal: plan.goal,
+      ...(plan.objective !== undefined ? { objective: plan.objective } : {}),
+      ...(plan.strategicSignificance !== undefined
+        ? { strategicSignificance: plan.strategicSignificance }
+        : {}),
+      ...(plan.successCondition !== undefined ? { successCondition: plan.successCondition } : {}),
+      ...(plan.tier !== undefined ? { tier: plan.tier } : {}),
+      ...(plan.notes !== undefined ? { notes: plan.notes } : {}),
+      ...(plan.locationRecommendation !== undefined
+        ? { locationRecommendation: plan.locationRecommendation }
+        : {}),
+      waypoints,
+      ...(plan.parentWorkOrderId !== undefined
+        ? { parentWorkOrderId: plan.parentWorkOrderId }
+        : {}),
+      ...(plan.relationshipToParent !== undefined
+        ? { relationshipToParent: plan.relationshipToParent }
+        : {}),
+    },
+    deps.gameVersion(),
+  );
+  const label = formatWorkOrderLabel(order.sequenceNumber, 'explore');
+  const total = waypoints.reduce((n, w) => n + w.collectibles.length, 0);
+  return {
+    text: `Issued ${label}: "${order.title}" — a ${waypoints.length}-waypoint route to collect ${total} item(s). Tell the pioneer it is ready.`,
     isError: false,
     workOrder: order,
   };

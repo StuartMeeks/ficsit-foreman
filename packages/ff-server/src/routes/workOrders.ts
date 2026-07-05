@@ -6,6 +6,7 @@ import type { WorkOrderAction } from '../services/workOrderTransitions.js';
 import {
   acknowledgeSchema,
   buildableCountSchema,
+  collectibleCollectedSchema,
   logHoursSchema,
   revertSchema,
   stepCheckSchema,
@@ -206,6 +207,23 @@ export function workOrdersRouter(deps: AppDeps): Router {
       req.params.stepId,
       req.params.buildableId,
       parsed.data.builtCount,
+    );
+    respond(res, outcome);
+  });
+
+  // Explore orders (#207): mark one collectible on a waypoint collected/uncollected.
+  router.patch('/:id/waypoints/:waypointId/collectibles/:collectibleId', async (req, res) => {
+    const parsed = collectibleCollectedSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: parsed.error.message });
+      return;
+    }
+    const outcome = await deps.workOrders.markCollectibleCollected(
+      playthroughId(req),
+      req.params.id,
+      req.params.waypointId,
+      req.params.collectibleId,
+      parsed.data.collected,
     );
     respond(res, outcome);
   });
