@@ -175,7 +175,14 @@ export function WorkOrderPanel({
   const incompleteBuildables = o.buildSteps.flatMap((s) =>
     s.buildables.filter((b) => b.builtCount < b.requiredCount),
   );
-  const isComplete = incompleteSteps.length === 0 && incompleteBuildables.length === 0;
+  // Explore orders complete by collecting the route, not by checking build steps.
+  const uncollected = (o.waypoints ?? []).flatMap((w) =>
+    w.collectibles.filter((c) => !c.collected),
+  );
+  const isComplete =
+    o.orderType === 'explore'
+      ? uncollected.length === 0
+      : incompleteSteps.length === 0 && incompleteBuildables.length === 0;
 
   const lastEvent = audit[audit.length - 1];
   const proposed =
@@ -255,6 +262,7 @@ export function WorkOrderPanel({
     const summary = [
       incompleteSteps.length > 0 ? `${incompleteSteps.length} steps unchecked` : null,
       incompleteBuildables.length > 0 ? `${incompleteBuildables.length} buildables short` : null,
+      uncollected.length > 0 ? `${uncollected.length} collectibles uncollected` : null,
     ]
       .filter(Boolean)
       .join('; ');
@@ -506,6 +514,9 @@ export function WorkOrderPanel({
                       {incompleteBuildables.length > 0 ? (
                         <li>{incompleteBuildables.length} buildables short</li>
                       ) : null}
+                      {uncollected.length > 0 ? (
+                        <li>{uncollected.length} collectibles uncollected</li>
+                      ) : null}
                     </ul>
                     <div className="force-actions">
                       <button
@@ -627,7 +638,8 @@ export function WorkOrderPanel({
                         ⚡ Complete work order
                       </button>
                     ) : null}
-                    {(o.state === 'paused' || o.state === 'blocked') && o.buildSteps.length > 0 ? (
+                    {(o.state === 'paused' || o.state === 'blocked') &&
+                    (o.buildSteps.length > 0 || (o.waypoints ?? []).length > 0) ? (
                       <button
                         type="button"
                         className="ghost-btn"
