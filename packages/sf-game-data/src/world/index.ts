@@ -4,9 +4,10 @@ import path from 'node:path';
 import { GAME_CHANNELS, bundledDataDir, expandHome, type GameChannel } from '../config.js';
 import { emptyGameData } from '../parser/index.js';
 import type { GameData } from '../parser/types.js';
-import type { WorldLocations, WorldLocationsResolution } from './types.js';
+import type { Biome, WorldLocations, WorldLocationsResolution } from './types.js';
 
 export type {
+  Biome,
   WorldLocations,
   WorldLocationsResolution,
   Collectible,
@@ -19,6 +20,7 @@ export type {
 } from './types.js';
 
 const DATASET_FILENAME = 'sf-game-data.json';
+const BIOMES_FILENAME = 'biomes.json';
 const DEFAULT_CHANNEL: GameChannel = 'stable';
 
 /** An empty dataset, used when none is resolvable so callers never crash. */
@@ -31,6 +33,7 @@ export function emptyWorldLocations(version = 'unknown'): WorldLocations {
     collectibles: [],
     resourceNodes: [],
     lootPickups: [],
+    biomes: [],
   };
 }
 
@@ -83,6 +86,31 @@ function readParsed(filePath: string): { parsed?: unknown; warning?: string } {
   } catch (error) {
     const detail = error instanceof Error ? error.message : String(error);
     return { warning: `Failed to read dataset at '${filePath}': ${detail}.` };
+  }
+}
+
+/** Structural guard for a bundled biome record. */
+function isBiome(v: unknown): v is Biome {
+  if (typeof v !== 'object' || v === null) {
+    return false;
+  }
+  const c = v as Record<string, unknown>;
+  return typeof c['name'] === 'string' && Array.isArray(c['polygons']);
+}
+
+/**
+ * Loads the bundled, build-independent biome regions (`biomes.json`) — hand-traced
+ * surface polygons (#239), kept separate from the extractor-produced dataset so a
+ * re-extraction can't wipe them. Missing/malformed degrades to `[]`.
+ */
+function loadBiomes(dataDir: string): Biome[] {
+  try {
+    const parsed = JSON.parse(fs.readFileSync(path.join(dataDir, BIOMES_FILENAME), 'utf8')) as {
+      biomes?: unknown;
+    };
+    return Array.isArray(parsed.biomes) ? parsed.biomes.filter(isBiome) : [];
+  } catch {
+    return [];
   }
 }
 
@@ -159,7 +187,11 @@ export function loadDataset(
 
   const rawGameData = (parsed as Record<string, unknown>)['gameData'];
   const world = isWorldLocations(parsed)
-    ? ({ ...parsed, lootPickups: parsed.lootPickups ?? [] } as WorldLocations)
+    ? ({
+        ...parsed,
+        lootPickups: parsed.lootPickups ?? [],
+        biomes: loadBiomes(dataDir),
+      } as WorldLocations)
     : undefined;
   const gameData = isGameData(rawGameData) ? rawGameData : undefined;
 
@@ -212,7 +244,12 @@ export function loadWorldLocations(
     };
   }
   // Tolerate datasets predating lootPickups: default the array so callers needn't guard.
-  const world: WorldLocations = { ...parsed, lootPickups: parsed.lootPickups ?? [] };
+  // Biomes come from a separate bundled file, attached here (#239).
+  const world: WorldLocations = {
+    ...parsed,
+    lootPickups: parsed.lootPickups ?? [],
+    biomes: loadBiomes(dataDir),
+  };
   return { world, path: filePath, warning: resolveWarning };
 }
 

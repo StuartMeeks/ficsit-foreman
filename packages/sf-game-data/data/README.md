@@ -49,6 +49,19 @@ are redistributed. CI validates that collectible counts match the known fixed wo
 totals, that `gameData` is present and non-empty, and that `gameVersion`/`build`
 are well-formed and don't regress the channel.
 
+## Biome regions (`biomes.json`)
+
+A separate, **build-independent** file `data/biomes.json` holds the hand-traced
+surface **biome regions** (#239): the 22 named biomes as polygons in Unreal world
+units (cm), with the four pioneer starting biomes flagged. Unlike the per-channel
+`sf-game-data.json`, this is **not** produced by the extractor — biomes aren't a
+game asset, they're traced from the community biome map and validated against every
+world object — so it sits outside the channel folders, is loaded once and attached
+to `world.biomes` regardless of channel, and survives a dataset re-extraction. The
+map geography is stable across builds, so this file rarely changes.
+`WorldQueries.biomeAt(x, y)` resolves any position to its containing biome (or the
+nearest one, for coastal/cave stragglers).
+
 ## Contributing data
 
 Data is supplied by maintainers via pull requests, and a CI gate validates each

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { emptyGameData } from '../src/parser/index.js';
-import type { GameData, Item, WorldLocations } from '../src/index.js';
+import type { Biome, GameData, Item, WorldLocations } from '../src/index.js';
 import { WorldQueries } from '../src/world/queries.js';
 
 function resource(className: string, displayName: string): Item {
@@ -36,9 +36,33 @@ const world: WorldLocations = {
     { id: 's1', kind: 'somersloop', x: 50, y: 0, z: 0 },
   ],
   resourceNodes: [
-    { id: 'iron-pure', kind: 'resourceNode', resourceClass: 'Desc_OreIron_C', purity: 'pure', x: 300, y: 0, z: 0 },
-    { id: 'iron-impure', kind: 'resourceNode', resourceClass: 'Desc_OreIron_C', purity: 'impure', x: 200, y: 0, z: 0 },
-    { id: 'copper', kind: 'resourceNode', resourceClass: 'Desc_OreCopper_C', purity: 'normal', x: 10, y: 0, z: 0 },
+    {
+      id: 'iron-pure',
+      kind: 'resourceNode',
+      resourceClass: 'Desc_OreIron_C',
+      purity: 'pure',
+      x: 300,
+      y: 0,
+      z: 0,
+    },
+    {
+      id: 'iron-impure',
+      kind: 'resourceNode',
+      resourceClass: 'Desc_OreIron_C',
+      purity: 'impure',
+      x: 200,
+      y: 0,
+      z: 0,
+    },
+    {
+      id: 'copper',
+      kind: 'resourceNode',
+      resourceClass: 'Desc_OreCopper_C',
+      purity: 'normal',
+      x: 10,
+      y: 0,
+      z: 0,
+    },
     { id: 'geo', kind: 'geyser', resourceClass: null, purity: 'normal', x: 5, y: 0, z: 0 },
   ],
 };
@@ -102,5 +126,58 @@ describe('nearestResourceNodes', () => {
     expect(hits).toHaveLength(1);
     expect(hits[0]?.id).toBe('geo');
     expect(hits[0]?.resource).toBeNull();
+  });
+});
+
+describe('biomeAt / listBiomes', () => {
+  // BIG is a 0..100 square; SMALL is a 40..60 square nested inside it.
+  const biomes: Biome[] = [
+    {
+      name: 'BIG',
+      polygons: [
+        [
+          [0, 0],
+          [100, 0],
+          [100, 100],
+          [0, 100],
+        ],
+      ],
+    },
+    {
+      name: 'SMALL',
+      isStartingLocation: true,
+      polygons: [
+        [
+          [40, 40],
+          [60, 40],
+          [60, 60],
+          [40, 60],
+        ],
+      ],
+    },
+  ];
+  const bq = new WorldQueries({ ...world, biomes }, gameData);
+
+  it('lists biome names with start flags', () => {
+    expect(bq.listBiomes()).toEqual([
+      { name: 'BIG', isStartingLocation: false },
+      { name: 'SMALL', isStartingLocation: true },
+    ]);
+  });
+
+  it('returns the containing biome, smallest-area winning when regions nest', () => {
+    const inner = bq.biomeAt({ x: 50, y: 50, z: 0 }); // inside both -> SMALL
+    expect(inner).toMatchObject({ name: 'SMALL', contained: true, distance: 0 });
+    const outer = bq.biomeAt({ x: 10, y: 10, z: 0 }); // inside BIG only
+    expect(outer).toMatchObject({ name: 'BIG', contained: true });
+  });
+
+  it('snaps to the nearest biome when the point is outside every polygon', () => {
+    const hit = bq.biomeAt({ x: 110, y: 50, z: 0 }); // 10 cm past BIG's right edge
+    expect(hit).toMatchObject({ name: 'BIG', contained: false, distance: 10 });
+  });
+
+  it('returns null when no biomes are loaded', () => {
+    expect(new WorldQueries(world, gameData).biomeAt(origin)).toBeNull();
   });
 });

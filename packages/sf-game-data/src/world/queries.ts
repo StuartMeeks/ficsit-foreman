@@ -1,5 +1,6 @@
 import type { GameData } from '../parser/types.js';
 import type {
+  Biome,
   Collectible,
   CollectibleKind,
   Purity,
@@ -76,6 +77,78 @@ function distance(origin: Coord, point: { x: number; y: number; z: number }): nu
   return Math.round(Math.sqrt(dx * dx + dy * dy + dz * dz));
 }
 
+/** The biome a world position resolves to (contained outright, or the nearest one). */
+export interface BiomeHit {
+  name: string;
+  isStartingLocation: boolean;
+  /** True when the point is inside the biome's polygon; false when snapped to the nearest biome. */
+  contained: boolean;
+  /** Distance (cm) to the biome — 0 when contained, else to its nearest edge. */
+  distance: number;
+  /** Centroid (cm) of the biome's largest polygon — useful for a within-biome bearing. */
+  centroid: { x: number; y: number };
+}
+
+type Ring = [number, number][];
+interface BiomeEntry {
+  name: string;
+  isStartingLocation: boolean;
+  polygons: Ring[];
+  area: number;
+  centroid: { x: number; y: number };
+}
+
+/** Ray-casting point-in-ring test (2D, ignores z). */
+function ringContains(x: number, y: number, ring: Ring): boolean {
+  let inside = false;
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+    const xi = ring[i]![0];
+    const yi = ring[i]![1];
+    const xj = ring[j]![0];
+    const yj = ring[j]![1];
+    if (yi > y !== yj > y && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) {
+      inside = !inside;
+    }
+  }
+  return inside;
+}
+
+/** Absolute polygon area via the shoelace formula. */
+function ringArea(ring: Ring): number {
+  let a = 0;
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+    a += (ring[j]![0] + ring[i]![0]) * (ring[j]![1] - ring[i]![1]);
+  }
+  return Math.abs(a) / 2;
+}
+
+function ringCentroid(ring: Ring): { x: number; y: number } {
+  let sx = 0;
+  let sy = 0;
+  for (const [x, y] of ring) {
+    sx += x;
+    sy += y;
+  }
+  return { x: sx / ring.length, y: sy / ring.length };
+}
+
+/** Shortest distance from a point to a ring's edges. */
+function pointRingDistance(px: number, py: number, ring: Ring): number {
+  let best = Infinity;
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+    const ax = ring[j]![0];
+    const ay = ring[j]![1];
+    const bx = ring[i]![0];
+    const by = ring[i]![1];
+    const dx = bx - ax;
+    const dy = by - ay;
+    const l2 = dx * dx + dy * dy;
+    const t = l2 === 0 ? 0 : Math.max(0, Math.min(1, ((px - ax) * dx + (py - ay) * dy) / l2));
+    best = Math.min(best, Math.hypot(px - (ax + t * dx), py - (ay + t * dy)));
+  }
+  return best;
+}
+
 /**
  * Read-only queries over the static world-location dataset. Loaded straight
  * into memory (a flat point list + a distance sort beats the production graph
@@ -87,6 +160,8 @@ export class WorldQueries {
   private readonly resourceNames = new Map<string, string>();
   /** Lazily-built `id → collectible` index for {@link resolveCollectibles}. */
   private collectibleById?: Map<string, Collectible>;
+  /** Precomputed biome regions (rings + area + centroid) for {@link biomeAt}. */
+  private readonly biomeIdx: BiomeEntry[];
 
   constructor(
     private readonly world: WorldLocations,
@@ -95,6 +170,78 @@ export class WorldQueries {
     for (const item of [...Object.values(gameData.items), ...Object.values(gameData.resources)]) {
       this.resourceNames.set(item.className, item.displayName);
     }
+    this.biomeIdx = (world.biomes ?? []).map((b: Biome) => {
+      const rings = b.polygons.filter((r) => r.length >= 3);
+      let area = 0;
+      let biggest: Ring = rings[0] ?? [];
+      for (const r of rings) {
+        const a = ringArea(r);
+        if (a > area) {
+          area = a;
+          biggest = r;
+        }
+      }
+      return {
+        name: b.name,
+        isStartingLocation: b.isStartingLocation === true,
+        polygons: rings,
+        area,
+        centroid: biggest.length > 0 ? ringCentroid(biggest) : { x: 0, y: 0 },
+      };
+    });
+  }
+
+  /** Every biome's name + start flag (no geometry) — for discovery. */
+  public listBiomes(): { name: string; isStartingLocation: boolean }[] {
+    return this.biomeIdx.map((e) => ({ name: e.name, isStartingLocation: e.isStartingLocation }));
+  }
+
+  /**
+   * The biome a world position falls in. Returns the containing biome (the
+   * smallest-area one if regions nest), else the nearest biome (so a point in a
+   * thin coastal/border gap — or a cave under the surface — still resolves).
+   * `null` only when no biomes are loaded.
+   */
+  public biomeAt(coord: Coord): BiomeHit | null {
+    if (this.biomeIdx.length === 0) {
+      return null;
+    }
+    const { x, y } = coord;
+    let container: BiomeEntry | null = null;
+    for (const e of this.biomeIdx) {
+      if (e.polygons.some((r) => ringContains(x, y, r))) {
+        if (container === null || e.area < container.area) {
+          container = e;
+        }
+      }
+    }
+    if (container !== null) {
+      return {
+        name: container.name,
+        isStartingLocation: container.isStartingLocation,
+        contained: true,
+        distance: 0,
+        centroid: container.centroid,
+      };
+    }
+    let nearest = this.biomeIdx[0]!;
+    let best = Infinity;
+    for (const e of this.biomeIdx) {
+      for (const r of e.polygons) {
+        const d = pointRingDistance(x, y, r);
+        if (d < best) {
+          best = d;
+          nearest = e;
+        }
+      }
+    }
+    return {
+      name: nearest.name,
+      isStartingLocation: nearest.isStartingLocation,
+      contained: false,
+      distance: Math.round(best),
+      centroid: nearest.centroid,
+    };
   }
 
   private resolveResource(className: string | null): ResourceRef | null {
