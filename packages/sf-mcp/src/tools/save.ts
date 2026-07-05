@@ -36,6 +36,8 @@ const collectibleKindSchema = z.enum([
   'powerSlugYellow',
   'powerSlugPurple',
   'hardDrive',
+  'helmet',
+  'mtape',
 ]);
 
 // The host (foreman backend) injects the active playthrough's save path; the
@@ -144,6 +146,24 @@ export function registerSaveTools(server: McpServer, registry: SaveStoreRegistry
     async ({ savePath }): Promise<ToolResult> => {
       const store = registry.resolve(savePath);
       return ok(store, { collectibles: collectibleProgressView(store.getState(), world) });
+    },
+  );
+
+  server.registerTool(
+    'get_collected_identities',
+    {
+      title: 'Get collected collectible identities',
+      description:
+        "The identity keys of every collectible the save records as COLLECTED: `guids` (Mercer Spheres, Somersloops, power slugs, hard-drive pods — matched by pickup GUID) and `schematics` (customizer helmet/tapes, which unlock a cosmetic schematic rather than recording a GUID). A collectible is collected iff its guid is in `guids` or its schematic is in `schematics`. Use this to reconcile an explore order's collectibles against a re-uploaded save. Identity only — no coordinates.",
+      inputSchema: { savePath: savePathSchema },
+    },
+    async ({ savePath }): Promise<ToolResult> => {
+      const store = registry.resolve(savePath);
+      const state = store.getState();
+      return ok(store, {
+        guids: [...collectedGuidSet(state)],
+        schematics: [...unlockedSchematicSet(state)],
+      });
     },
   );
 

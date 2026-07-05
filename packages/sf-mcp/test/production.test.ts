@@ -4,7 +4,13 @@ import { describe, expect, it } from 'vitest';
 import type { GameDataIndex } from '../src/gameData.js';
 import { normaliseSave } from '@foreman/sf-save-data';
 import { productionView } from '../src/query/selectors.js';
-import { floatProp, makeSave, obj, objectProp, vec3 } from '../../sf-save-data/test/fixtures/save.js';
+import {
+  floatProp,
+  makeSave,
+  obj,
+  objectProp,
+  vec3,
+} from '../../sf-save-data/test/fixtures/save.js';
 
 const LVL = 'Persistent_Level:PersistentLevel';
 
@@ -54,10 +60,22 @@ const GAME: GameDataIndex = {
       isAlternate: false,
       craftTime: 6,
       ingredients: [
-        { itemClassName: 'Desc_IronIngot_C', displayName: 'Iron Ingot', amount: 3, perMinute: 30, unit: 'items' },
+        {
+          itemClassName: 'Desc_IronIngot_C',
+          displayName: 'Iron Ingot',
+          amount: 3,
+          perMinute: 30,
+          unit: 'items',
+        },
       ],
       products: [
-        { itemClassName: 'Desc_IronPlate_C', displayName: 'Iron Plate', amount: 2, perMinute: 20, unit: 'items' },
+        {
+          itemClassName: 'Desc_IronPlate_C',
+          displayName: 'Iron Plate',
+          amount: 2,
+          perMinute: 20,
+          unit: 'items',
+        },
       ],
       producedIn: ['Constructor'],
       producedInClasses: ['Build_ConstructorMk1_C'],
@@ -94,7 +112,15 @@ const WORLD: WorldLocations = {
   collectibles: [],
   resourceNodes: [
     // Co-located with the miner at (5000,0,0) so it resolves the resource + purity.
-    { id: 'n1', kind: 'resourceNode', resourceClass: 'Desc_OreIron_C', purity: 'pure', x: 5000, y: 0, z: 0 },
+    {
+      id: 'n1',
+      kind: 'resourceNode',
+      resourceClass: 'Desc_OreIron_C',
+      purity: 'pure',
+      x: 5000,
+      y: 0,
+      z: 0,
+    },
   ],
   lootPickups: [],
 };
@@ -147,7 +173,9 @@ describe('productionView (theoretical capacity)', () => {
       effectivePerMinute: 50, // 30 (×1.5) + 20 (×1.0)
       machineCount: 2,
     });
-    expect(plate?.sources).toEqual([{ label: 'Iron Plate', machineCount: 2, effectivePerMinute: 50 }]);
+    expect(plate?.sources).toEqual([
+      { label: 'Iron Plate', machineCount: 2, effectivePerMinute: 50 },
+    ]);
   });
 
   it('resolves an extractor resource + purity-scaled rate from its node', () => {

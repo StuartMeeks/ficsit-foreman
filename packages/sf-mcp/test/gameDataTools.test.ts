@@ -30,12 +30,27 @@ const gameData: GameData = JSON.parse(
     'utf8',
   ),
 );
-const emptyWorld: WorldLocations = {
+// A tiny world with one GUID-keyed and one schematic-keyed collectible, so the
+// collectible tools have something to return and we can assert identity survives.
+const testWorld: WorldLocations = {
   gameVersion: 'test',
   build: 0,
   source: 'test',
-  counts: {},
-  collectibles: [],
+  counts: { somersloop: 1, helmet: 1, hardDrive: 1 },
+  collectibles: [
+    { id: 'C1', kind: 'somersloop', guid: 'GUID-SLOOP-1', x: 100, y: 0, z: 0 },
+    { id: 'C2', kind: 'helmet', schematic: 'Schematic_Helmet_Beta_C', x: 200, y: 0, z: 0 },
+    // A hard-drive pod carries an unlock COST (what's needed to open it) — must survive.
+    {
+      id: 'C3',
+      kind: 'hardDrive',
+      guid: 'GUID-POD-1',
+      unlock: { powerMW: 250, item: { itemClass: 'Desc_IronPlate_C', amount: 50 } },
+      x: 300,
+      y: 0,
+      z: 0,
+    },
+  ],
   resourceNodes: [],
   lootPickups: [],
 };
@@ -50,7 +65,7 @@ beforeAll(async () => {
       handlers.set(name, handler);
     },
   } as unknown as McpServer;
-  registerGameDataTools(stubServer, graph, new WorldQueries(emptyWorld, gameData));
+  registerGameDataTools(stubServer, graph, new WorldQueries(testWorld, gameData));
 });
 
 /** Graph-backed tools: assert registration, a version-tagged happy payload, and misses. */
@@ -83,7 +98,12 @@ const graphCases: {
     happy: { item: 'Reinforced Iron Plate', targetPerMinute: 5 },
     miss: { item: 'Nope', targetPerMinute: 5 },
   },
-  { name: 'what_consumes', key: 'consumedBy', happy: { item: 'Iron Ingot' }, miss: { item: 'Nope' } },
+  {
+    name: 'what_consumes',
+    key: 'consumedBy',
+    happy: { item: 'Iron Ingot' },
+    miss: { item: 'Nope' },
+  },
   {
     name: 'compare_alternates',
     key: 'recipes',
@@ -92,7 +112,12 @@ const graphCases: {
   },
   { name: 'buildable_with', key: 'buildable', happy: { resources: ['Iron Ore'] } },
   { name: 'list_schematics', key: 'schematics', happy: {} },
-  { name: 'get_schematic', key: 'schematic', happy: { name: 'Plate Production' }, miss: { name: 'Nope' } },
+  {
+    name: 'get_schematic',
+    key: 'schematic',
+    happy: { name: 'Plate Production' },
+    miss: { name: 'Nope' },
+  },
   { name: 'get_building', key: 'building', happy: { name: 'Smelter' }, miss: { name: 'Nope' } },
   { name: 'list_power_generators', key: 'generators', happy: {} },
   { name: 'list_buildings', key: 'buildings', happy: {} },
@@ -141,5 +166,24 @@ describe('game-data tool registration (#225)', () => {
   it('rejects a mutating cypher_query', async () => {
     const res = await handlers.get('cypher_query')!({ query: 'MATCH (i:Item) DELETE i' });
     expect(res.isError).toBe(true);
+  });
+
+  // #207/#209: the foreman must be able to store a collectible's identity on a waypoint.
+  it('nearest_collectibles preserves collectible identity (guid / schematic)', async () => {
+    const res = await handlers.get('nearest_collectibles')!({ coord: { x: 0, y: 0, z: 0 } });
+    const body = JSON.parse(res.content[0]!.text) as { collectibles: Record<string, unknown>[] };
+    const sloop = body.collectibles.find((c) => c['kind'] === 'somersloop');
+    const helmet = body.collectibles.find((c) => c['kind'] === 'helmet');
+    expect(sloop?.['guid']).toBe('GUID-SLOOP-1');
+    expect(helmet?.['schematic']).toBe('Schematic_Helmet_Beta_C');
+    // A pod's unlock COST (power/items needed to open it) must survive for the waypoint.
+    const pod = body.collectibles.find((c) => c['kind'] === 'hardDrive');
+    expect((pod?.['unlock'] as { powerMW?: number } | undefined)?.powerMW).toBe(250);
+  });
+
+  it('list_collectibles preserves identity for the listed kind', async () => {
+    const res = await handlers.get('list_collectibles')!({ type: 'somersloop' });
+    const body = JSON.parse(res.content[0]!.text) as { collectibles?: Record<string, unknown>[] };
+    expect(body.collectibles?.[0]?.['guid']).toBe('GUID-SLOOP-1');
   });
 });
