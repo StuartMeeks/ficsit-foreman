@@ -1,7 +1,7 @@
 {
   "name": "@foreman/sf-game-data-graph",
   "version": "0.1.0",
-  "description": "Kùzu production graph for Satisfactory game data: builds the recipe/item/building/schematic graph from @foreman/sf-game-data and answers production-line, alternate-recipe, power and cost queries. Carries the heavy native `kuzu` dependency, kept out of the parser package.",
+  "description": "In-memory production graph for Satisfactory game data: builds the recipe/item/building/schematic query facade from @foreman/sf-game-data and answers production-line, alternate-recipe, power and cost queries. Pure TypeScript, no database dependency.",
   "license": "Apache-2.0",
   "type": "module",
   "main": "./dist/index.js",
@@ -13,8 +13,7 @@
     "dist"
   ],
   "dependencies": {
-    "@foreman/sf-game-data": "0.1.0",
-    "kuzu": "^0.11.3"
+    "@foreman/sf-game-data": "0.1.0"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",

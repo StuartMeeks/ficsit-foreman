@@ -92,9 +92,6 @@ async function run(): Promise<void> {
     case 'list_power_generators':
       result = graph.listPowerGenerators();
       break;
-    case 'cypher_query':
-      result = await graph.cypherQuery(str('query'));
-      break;
     case 'list_collectibles':
       result = worldQueries.listCollectibles(optKind('type'));
       break;
@@ -140,7 +137,6 @@ async function run(): Promise<void> {
           'get_building',
           'list_buildings',
           'list_power_generators',
-          'cypher_query',
           'list_collectibles',
           'nearest_collectibles',
           'nearest_resource_nodes',

@@ -98,7 +98,7 @@ presentation helpers live in **`@foreman/sf-present`** (reusable without the MCP
 | **`sf-present`** | Reusable presentation/formatting helpers — `humaniseClassName`, `cmToMetres`/`metresToCm`/`compassBearing`. Zero-dep leaf; usable without the MCP server. |
 | **`sf-flow`** | Pure steady-state material-flow solver — abstract network (per-item supply/demand, edge caps + filters) → delivered rates + throughput. Zero-dep leaf; game-data-agnostic (the `sf-mcp` adapter maps the save graph + game data onto it). Backs `find_bottlenecks`. |
 | **`sf-game-data`** | Static reference data: the offline C# extractor's merged `sf-game-data.json` (recipes / buildings / items + world-locations) loaded at runtime (→ `sf-core`). |
-| **`sf-game-data-graph`** | The game-data production graph **as a library** — **Kùzu** (carries the native addon) (→ `sf-game-data`). |
+| **`sf-game-data-graph`** | The game-data production graph **as a library** — a pure **in-memory** facade over `GameData` (item→recipe adjacency maps + TS traversal; no database, no native addon) (→ `sf-game-data`). |
 | **`sf-save-data`** | A player's save instance: the adopted @etothepii parser + normalise into the complete `SaveState` (incl. `topology`) (→ `sf-core`). |
 | **`sf-save-data-graph`** | The save-game connection graph **as a library** — a pure **in-memory** projection of `SaveState.topology` (no native deps, no facts of its own); provides adjacency, power circuits, splitter rules, and kind-aware directed-flow inference (→ `sf-save-data`). |
 | **`sf-mcp`** | Single, **domain-neutral** MCP server loading *both* graph libs (+ `sf-flow`, `sf-present`) and exposing their tools — **including cross-graph (save ↔ game-data) join tools** like `find_bottlenecks`. The one place the two domains meet; holds the effective-game-data join seam. |
@@ -109,10 +109,10 @@ app. The prefix marks which side of the reuse boundary a package sits on.
 
 **Dependency DAG (acyclic).** Solid arrows are npm/compile-time dependencies; dashed
 arrows are runtime edges (`ff-client → ff-server` over HTTP/SSE, `ff-server → sf-mcp` over
-the MCP transport via the gateway — `ff-server` does not `import` `sf-mcp`). `kuzu` (the
-graph engine, ~541 MB of native binaries) lives **only in `sf-game-data-graph`** — the
-save-game graph is a pure in-memory projection (no native deps), and `kuzu` never reaches
-`sf-core`, `sf-flow`, or the parser packages.
+the MCP transport via the gateway — `ff-server` does not `import` `sf-mcp`). Every `sf-*`
+package is now **pure TypeScript with no native dependency**: both graph libraries are
+in-memory projections over their source data (the game-data graph dropped its embedded
+Kùzu engine in #243), so no native addon reaches any package.
 
 ```mermaid
 graph TD
@@ -123,7 +123,7 @@ graph TD
     subgraph reusable["Reusable Satisfactory components (sf-*)"]
         mcp["sf-mcp<br/><i>MCP tools + graph join</i>"]
         flow["sf-flow<br/><i>steady-state flow solver</i>"]
-        gdg["sf-game-data-graph<br/><i>Kùzu production graph</i>"]
+        gdg["sf-game-data-graph<br/><i>in-memory production graph</i>"]
         gd["sf-game-data<br/><i>static game data</i>"]
         sdg["sf-save-data-graph<br/><i>in-memory connection graph</i>"]
         sd["sf-save-data<br/><i>.sav → SaveState</i>"]
@@ -198,6 +198,10 @@ by `sf-mcp` (it also imports `sf-game-data`/`sf-save-data` directly for their lo
 - ~~The save graph's **build/cache lifecycle** — Kùzu-per-save vs an in-memory adjacency
   structure.~~ ✅ Resolved (#122): a pure **in-memory** projection (rebuilt per parse,
   mtime-gated), ~150 ms vs ~5 s for Kùzu — so the save graph carries no native deps.
+- ~~Whether the **game-data graph** needs its embedded **Kùzu** engine.~~ ✅ Resolved
+  (#243): dropped for in-memory item→recipe adjacency maps — every query already re-derived
+  data present on `GameData`, and Kùzu cost ~3 s per boot + a ~541 MB native addon for no
+  capability the foreman used. No `sf-*` package carries a native dependency now.
 
 ---
 

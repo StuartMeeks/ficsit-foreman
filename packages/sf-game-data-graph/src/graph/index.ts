@@ -1,9 +1,6 @@
-import kuzu from 'kuzu';
-import type { Connection } from 'kuzu';
-
-import type { GameData, Item, Schematic } from '@foreman/sf-game-data';
+import type { GameData, Item, Recipe, Schematic } from '@foreman/sf-game-data';
 import type { QueryContext } from './context.js';
-import { loadGameData } from './loader.js';
+import { buildGraphIndex } from './indexes.js';
 import { Resolver } from './resolve.js';
 import {
   getItem,
@@ -45,30 +42,27 @@ import type {
   RecipeView,
 } from './types.js';
 
-/** Cypher keywords that mutate data; rejected by `cypherQuery`. */
-const MUTATING_KEYWORDS =
-  /\b(CREATE|DELETE|SET|MERGE|DROP|DETACH|ALTER|COPY|INSTALL|LOAD|REMOVE)\b/i;
-
-export type CypherResult = { rows: Record<string, unknown>[] } | { error: string };
-
 /**
- * The graph query facade. Holds the Kùzu connection plus the parsed `GameData`,
- * and exposes one method per MCP tool. Relationship and recursive queries hit
- * Kùzu; rich detail objects (full recipes, items, schematics) are served from
- * the in-memory `GameData`, which already has the fully-resolved nested shape.
+ * The graph query facade. Wraps the parsed `GameData` and exposes one method per
+ * MCP tool. Relationship queries read two precomputed item→recipe adjacency maps
+ * (`buildGraphIndex`); rich detail objects (full recipes, items, schematics) are
+ * served straight from `GameData`, which already has the fully-resolved nested
+ * shape. Everything is in-memory — there is no database.
  */
 export class GraphDB implements QueryContext {
   public readonly version: string;
   public readonly build?: number;
   public readonly resolver: Resolver;
+  public readonly producersByItem: Map<string, Recipe[]>;
+  public readonly consumersByItem: Map<string, Recipe[]>;
 
-  constructor(
-    public readonly conn: Connection,
-    public readonly gameData: GameData,
-  ) {
+  constructor(public readonly gameData: GameData) {
     this.version = gameData.version;
     this.build = gameData.build;
     this.resolver = new Resolver(gameData);
+    const index = buildGraphIndex(gameData);
+    this.producersByItem = index.producersByItem;
+    this.consumersByItem = index.consumersByItem;
   }
 
   public getItem(name: string): Item | undefined {
@@ -146,30 +140,13 @@ export class GraphDB implements QueryContext {
   public listPowerGenerators(): GeneratorSummary[] {
     return listPowerGenerators(this);
   }
-
-  /** Guarded read-only escape hatch. Rejects any mutating Cypher keyword. */
-  public async cypherQuery(query: string): Promise<CypherResult> {
-    if (MUTATING_KEYWORDS.test(query)) {
-      return {
-        error:
-          'Query rejected: only read-only Cypher is permitted (no CREATE/DELETE/SET/MERGE/DROP/…).',
-      };
-    }
-    try {
-      const result = await this.conn.query(query);
-      const all = await result.getAll();
-      result.close();
-      return { rows: all };
-    } catch (error) {
-      return { error: error instanceof Error ? error.message : String(error) };
-    }
-  }
 }
 
-/** Builds an in-memory Kùzu graph from `GameData` and returns the query facade. */
+/**
+ * Builds the in-memory query facade from `GameData`. Async for call-site
+ * stability (it was formerly an async Kùzu load); the build itself is synchronous
+ * and near-instant.
+ */
 export async function initGraph(gameData: GameData): Promise<GraphDB> {
-  const db = new kuzu.Database(':memory:');
-  const conn = new kuzu.Connection(db);
-  await loadGameData(conn, gameData);
-  return new GraphDB(conn, gameData);
+  return new GraphDB(gameData);
 }

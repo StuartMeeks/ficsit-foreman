@@ -1,11 +1,9 @@
-import type { Connection } from 'kuzu';
-
 import type { GameData, IngredientUnit, Item } from '@foreman/sf-game-data';
+import type { GraphIndex } from './indexes.js';
 import type { Resolver } from './resolve.js';
 
 /** Everything a query function needs. Implemented by `GraphDB`. */
-export interface QueryContext {
-  conn: Connection;
+export interface QueryContext extends GraphIndex {
   gameData: GameData;
   resolver: Resolver;
   version: string;

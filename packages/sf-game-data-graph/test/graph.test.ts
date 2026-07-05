@@ -151,23 +151,6 @@ describe('get_recipe byproducts', () => {
   });
 });
 
-describe('cypher_query guard', () => {
-  it('rejects mutating queries', async () => {
-    const result = await graph.cypherQuery('MATCH (i:Item) DELETE i');
-    expect('error' in result).toBe(true);
-  });
-
-  it('runs read-only queries', async () => {
-    const result = await graph.cypherQuery(
-      'MATCH (i:Item) WHERE i.isResource = true RETURN count(i) AS n',
-    );
-    expect('rows' in result).toBe(true);
-    if ('rows' in result) {
-      expect(Number(result.rows[0]?.['n'])).toBe(3);
-    }
-  });
-});
-
 describe('listItems', () => {
   it('lists every item and resource, sorted by display name', () => {
     const items = graph.listItems();

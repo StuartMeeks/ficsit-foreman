@@ -320,28 +320,6 @@ export function registerGameDataTools(
   );
 
   server.registerTool(
-    'cypher_query',
-    {
-      title: 'Cypher query (read-only)',
-      description:
-        'Guarded escape hatch. Executes a read-only Cypher query against the Kùzu graph. Rejects any query containing a mutating keyword (CREATE, DELETE, SET, MERGE, DROP, …). Node tables: Item, Recipe, Building (className, displayName, category, powerConsumption, maxPowerConsumption, powerProduction), Schematic. Rel tables: PRODUCES, CONSUMES, PRODUCED_IN, BUILD_COST, UNLOCKS_RECIPE, UNLOCKS_BUILDING, UNLOCKS_ITEM.',
-      inputSchema: { query: z.string() },
-    },
-    async ({ query }): Promise<ToolResult> => {
-      const result = await graph.cypherQuery(query);
-      if ('error' in result) {
-        return {
-          content: [
-            { type: 'text', text: JSON.stringify({ version: graph.version, error: result.error }) },
-          ],
-          isError: true,
-        };
-      }
-      return ok({ rows: result.rows });
-    },
-  );
-
-  server.registerTool(
     'list_collectibles',
     {
       title: 'List collectibles',

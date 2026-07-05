@@ -1,6 +1,5 @@
 import type { GameData, Ingredient, Recipe } from '@foreman/sf-game-data';
 import { type QueryContext, machineForRecipe, round } from '../context.js';
-import { rows } from '../run.js';
 import type {
   AlternateComparison,
   AlternateComparisonRow,
@@ -79,14 +78,9 @@ export function listRecipes(ctx: QueryContext, opts?: { search?: string }): Reci
   return results.sort((a, b) => a.displayName.localeCompare(b.displayName));
 }
 
-/** Class names of recipes that produce an item, via the PRODUCES edge. */
+/** Class names of recipes that produce an item. */
 async function producingRecipeClasses(ctx: QueryContext, itemClassName: string): Promise<string[]> {
-  const result = await rows(
-    ctx.conn,
-    `MATCH (r:Recipe)-[:PRODUCES]->(i:Item {className: $cn}) RETURN r.className AS className`,
-    { cn: itemClassName },
-  );
-  return result.map((row) => String(row['className']));
+  return (ctx.producersByItem.get(itemClassName) ?? []).map((recipe) => recipe.className);
 }
 
 export interface RecipesForResult {

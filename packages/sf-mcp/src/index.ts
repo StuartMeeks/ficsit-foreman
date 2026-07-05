@@ -63,8 +63,8 @@ async function main(): Promise<void> {
   loadEnv();
 
   // Game-data half: load the merged dataset (#161) — pre-extracted gameData +
-  // world locations from one sf-game-data.json — then build the Kùzu production
-  // graph and the spatial query layer from it.
+  // world locations from one sf-game-data.json — then build the in-memory
+  // production graph and the spatial query layer from it.
   const { gameData, world, path: datasetPath, warning: datasetWarning } = loadDataset();
   if (datasetWarning !== undefined) {
     logger.warn(datasetWarning);
