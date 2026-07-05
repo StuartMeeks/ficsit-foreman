@@ -18,6 +18,7 @@ import {
 import { ExpectedOutputsSection, NotesSection } from './workorder/ExpectedOutputsSection.js';
 import { LocationSection, ResourceNodesSection } from './workorder/LocationSections.js';
 import { OpportunitySections, RecipesSection } from './workorder/OpportunitySections.js';
+import { WaypointsSection, type WaypointsExecution } from './workorder/WaypointsSection.js';
 import { PlanNarrative } from './workorder/PlanNarrative.js';
 import { AuditView } from './workorder/AuditView.js';
 import { DiffTable } from './workorder/DiffTable.js';
@@ -193,6 +194,18 @@ export function WorkOrderPanel({
       run(() => actions.setBuildable(o.id, stepId, buildableId, count)),
   };
 
+  // Live execution wiring for an explore order's collection route.
+  const waypointExecution: WaypointsExecution = {
+    busy,
+    readOnly,
+    collected: (waypointId, collectibleId) =>
+      (o.waypoints ?? [])
+        .find((w) => w.id === waypointId)
+        ?.collectibles.find((c) => c.id === collectibleId)?.collected ?? false,
+    onToggle: (waypointId, collectibleId, collected) =>
+      run(() => actions.setWaypointCollectible(o.id, waypointId, collectibleId, collected)),
+  };
+
   const onComplete = (): void => {
     if (isComplete) {
       setCloseOutOpen(true);
@@ -317,7 +330,7 @@ export function WorkOrderPanel({
           <>
             {/* ══ Briefing — goal, summary and actions ══════════════════ */}
             <div className="wo-top">
-              <span className="wo-id">{woLabel(o.sequenceNumber)}</span>
+              <span className="wo-id">{woLabel(o.sequenceNumber, o.orderType)}</span>
               {o.tier !== undefined ? <span className="wo-tier">Tier {o.tier}</span> : null}
               <span className="spacer" />
               <span className={`chip state-${o.state}`}>{STATE_LABEL[o.state] ?? o.state}</span>
@@ -353,7 +366,7 @@ export function WorkOrderPanel({
                   const parent = history.find((h) => h.id === o.parentWorkOrderId);
                   const label =
                     parent !== undefined
-                      ? `${woLabel(parent.sequenceNumber)} ${parent.title}`
+                      ? `${woLabel(parent.sequenceNumber, parent.orderType)} ${parent.title}`
                       : 'parent order';
                   return onViewOrder !== undefined ? (
                     <button
@@ -514,7 +527,9 @@ export function WorkOrderPanel({
                   </div>
                 ) : closeOutOpen ? (
                   <div className="force-warn close-out">
-                    <span className="label">Close out {woLabel(o.sequenceNumber)}</span>
+                    <span className="label">
+                      Close out {woLabel(o.sequenceNumber, o.orderType)}
+                    </span>
                     <div className="field">
                       <label htmlFor="co-summary">Completion summary (optional)</label>
                       <input
@@ -649,12 +664,18 @@ export function WorkOrderPanel({
             ) : null}
 
             {/* ══ Work content — the how ════════════════════════════════ */}
-            <BuildStepsSection steps={o.buildSteps} execution={execution} />
-            <BuildCostSection steps={o.buildSteps} liveSteps={o.buildSteps} />
+            {o.orderType === 'explore' ? (
+              <WaypointsSection waypoints={o.waypoints ?? []} execution={waypointExecution} />
+            ) : (
+              <>
+                <BuildStepsSection steps={o.buildSteps} execution={execution} />
+                <BuildCostSection steps={o.buildSteps} liveSteps={o.buildSteps} />
+                <RecipesSection recipes={o.recipes} />
+              </>
+            )}
 
             <LocationSection location={o.locationRecommendation} />
             <ResourceNodesSection nodes={o.resourceNodes} />
-            <RecipesSection recipes={o.recipes} />
             <OpportunitySections opportunities={o.opportunities} />
 
             {o.childWorkOrderIds.length > 0 ? (

@@ -32,6 +32,7 @@ import {
   revertToRevision,
   setBuildableBuiltCount,
   setStepChecked,
+  setWaypointCollected,
   streamChat,
   transitionWorkOrder,
   uploadSave,
@@ -244,6 +245,12 @@ export interface WorkOrderActions {
   transition(id: string, action: WorkOrderAction, options?: TransitionOptions): Promise<void>;
   setStep(id: string, stepId: string, checked: boolean): Promise<void>;
   setBuildable(id: string, stepId: string, buildableId: string, builtCount: number): Promise<void>;
+  setWaypointCollectible(
+    id: string,
+    waypointId: string,
+    collectibleId: string,
+    collected: boolean,
+  ): Promise<void>;
   acknowledge(id: string, revisionNumber?: number): Promise<void>;
   revert(id: string, revisionNumber: number): Promise<void>;
   logHours(id: string, hours: number): Promise<void>;
@@ -545,6 +552,9 @@ export function useForeman(): ForemanState {
       },
       setBuildable: async (id, stepId, buildableId, builtCount) => {
         replaceOrder(await setBuildableBuiltCount(pid(), id, stepId, buildableId, builtCount));
+      },
+      setWaypointCollectible: async (id, waypointId, collectibleId, collected) => {
+        replaceOrder(await setWaypointCollected(pid(), id, waypointId, collectibleId, collected));
       },
       acknowledge: async (id, revisionNumber) => {
         replaceOrder(await acknowledgeRevision(pid(), id, revisionNumber));

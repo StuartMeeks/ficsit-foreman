@@ -371,6 +371,20 @@ export async function setBuildableBuiltCount(
   );
 }
 
+export async function setWaypointCollected(
+  playthroughId: string,
+  id: string,
+  waypointId: string,
+  collectibleId: string,
+  collected: boolean,
+): Promise<WorkOrder> {
+  return send<WorkOrder>(
+    `${wo(playthroughId, id)}/waypoints/${waypointId}/collectibles/${collectibleId}`,
+    'PATCH',
+    { collected },
+  );
+}
+
 export async function logHours(
   playthroughId: string,
   id: string,

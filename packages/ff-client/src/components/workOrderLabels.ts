@@ -1,7 +1,8 @@
-import type { WorkOrderRelationshipType, WorkOrderState } from '../api/types.js';
+import type { OrderType, WorkOrderRelationshipType, WorkOrderState } from '../api/types.js';
 
-/** Render a sequence number as the canonical WO-NNN id. */
-export const woLabel = (n: number): string => `WO-${String(n).padStart(3, '0')}`;
+/** Render a sequence number as its canonical id — WO-NNN (build) or EO-NNN (explore). */
+export const woLabel = (n: number, orderType: OrderType = 'build'): string =>
+  `${orderType === 'explore' ? 'EO' : 'WO'}-${String(n).padStart(3, '0')}`;
 
 /** Human-readable work-order state names (shared by the cockpit and history). */
 export const STATE_LABEL: Record<WorkOrderState, string> = {

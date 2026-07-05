@@ -14,7 +14,9 @@ export type CollectibleKind =
   | 'powerSlugBlue'
   | 'powerSlugYellow'
   | 'powerSlugPurple'
-  | 'hardDrive';
+  | 'hardDrive'
+  | 'helmet'
+  | 'mtape';
 
 export type Purity = 'impure' | 'normal' | 'pure';
 
@@ -110,6 +112,37 @@ export interface CollectibleOpportunity {
   optional: boolean;
 }
 
+export type OrderType = 'build' | 'explore';
+
+/** What a hard-drive pod / gated site needs to open (server-derived). */
+export interface UnlockCost {
+  item?: { itemClass: string; amount: number };
+  powerMW?: number;
+}
+
+/** One collectible on an explore-order route. Facts are server-derived; `collected` is execution. */
+export interface ExploreCollectible {
+  id: string;
+  kind: CollectibleKind;
+  guid?: string;
+  schematic?: string;
+  collected: boolean;
+  coordinates?: Coordinates;
+  reason?: string;
+  unlockCost?: UnlockCost;
+}
+
+/** A stop on an explore-order route. */
+export interface ExploreWaypoint {
+  id: string;
+  order: number;
+  label?: string;
+  coordinates: Coordinates;
+  relativeToPlayer?: string;
+  collectibles: ExploreCollectible[];
+  notes?: string;
+}
+
 export interface OverclockingOption {
   target: string;
   recommendation: string;
@@ -150,6 +183,8 @@ export type WorkOrderRelationshipType =
 export interface WorkOrder {
   id: string;
   sequenceNumber: number;
+  /** 'build' (WO-) or 'explore' (EO-, #207). */
+  orderType: OrderType;
   version: string;
 
   // Plan
@@ -165,6 +200,8 @@ export interface WorkOrder {
   recipes: RecipeAssignment[];
   expectedOutputs: ExpectedOutput[];
   buildSteps: WorkOrderStep[];
+  /** Explore orders only: the collection route. */
+  waypoints?: ExploreWaypoint[];
   opportunities?: WorkOrderOpportunities;
   blockedReason?: string;
   blockedResolutionHint?: string;
@@ -214,6 +251,7 @@ export type WorkOrderAuditEventType =
   | 'step_checked'
   | 'step_unchecked'
   | 'buildable_built_count_changed'
+  | 'collectible_collected'
   | 'hours_logged'
   | 'recipe_choice_changed'
   | 'build_plan_adapted'
@@ -237,6 +275,7 @@ export interface WorkOrderAuditEvent {
  * WorkOrderPlanSnapshot.
  */
 export interface WorkOrderPlanSnapshot {
+  orderType?: OrderType;
   title: string;
   goal: string;
   objective?: string;
@@ -252,6 +291,8 @@ export interface WorkOrderPlanSnapshot {
   expectedOutputs: ExpectedOutput[];
   /** Build steps, each carrying the buildables it requires (with per-unit cost). */
   buildSteps: WorkOrderStepDef[];
+  /** Explore orders only: the collection route. */
+  waypoints?: ExploreWaypoint[];
   opportunities?: WorkOrderOpportunities;
   blockedReason?: string;
   blockedResolutionHint?: string;
