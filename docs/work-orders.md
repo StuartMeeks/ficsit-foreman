@@ -712,8 +712,12 @@ below the fold under the step ledger.
 ## Non-goals for this implementation
 
 * No separate MCP server for work orders.
-* No automatic buildable-count detection / save-game reconciliation — built counts
-  are manual.
+* No automatic **buildable-count** detection / save-game reconciliation — built
+  counts are manual (buildable→save-instance matching is heuristic; #209-A was
+  cancelled). Note: this non-goal is **narrowed** by #209-B, which *does* auto-
+  reconcile **explore-order collectibles** on re-upload — those are identity-keyed
+  (GUID/schematic), so the match is exact. See
+  [`explore-orders.md`](./explore-orders.md).
 * No inferring logged hours from timestamps.
 * No requiring optional opportunities for completion.
 * No editing/reverting terminal work orders in place.
