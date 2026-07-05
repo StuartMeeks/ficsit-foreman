@@ -30,6 +30,8 @@ import path from 'node:path';
 const DATA_DIR = 'packages/sf-game-data/data';
 const CHANNELS = ['stable', 'experimental'];
 const BUNDLE_FILES = ['sf-game-data.json'];
+// Shared, build-independent hand-traced biome regions (#239) — NOT a channel dataset.
+const BIOMES_FILE = 'biomes.json';
 
 /** Fixed public world totals — the completeness oracle for a regenerated dataset. */
 const KNOWN_COLLECTIBLE_TOTALS = {
@@ -56,42 +58,86 @@ function git(command) {
   return execSync(command, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
 }
 
+/** Validates the shared biome-regions file (#239): a non-empty biomes[] with named,
+ *  polygon-bearing entries and exactly the four pioneer starting biomes. */
+function validateBiomes(file) {
+  let doc;
+  try {
+    doc = JSON.parse(fs.readFileSync(file, 'utf8'));
+  } catch (error) {
+    fail(`${file} is not valid JSON: ${error instanceof Error ? error.message : error}`);
+    return;
+  }
+  const biomes = doc?.biomes;
+  if (!Array.isArray(biomes) || biomes.length === 0) {
+    fail(`${file} must contain a non-empty "biomes" array.`);
+    return;
+  }
+  for (const b of biomes) {
+    if (typeof b?.name !== 'string' || b.name.length === 0) {
+      fail(`${file}: every biome needs a non-empty string "name".`);
+      return;
+    }
+    if (!Array.isArray(b?.polygons) || b.polygons.length === 0) {
+      fail(`${file}: biome '${b.name}' has no polygons.`);
+      return;
+    }
+  }
+  const starts = biomes.filter((b) => b?.isStartingLocation === true).length;
+  if (starts !== 4) {
+    fail(`${file}: expected 4 starting biomes, found ${starts}.`);
+  }
+  console.log(`${file} OK: ${biomes.length} biomes, ${starts} starting locations.`);
+}
+
 const changed = git(`git diff --name-only ${baseSha} ${headSha}`)
   .split('\n')
   .map((line) => line.trim())
   .filter(Boolean);
 
-// Every tracked bundle file under data/, excluding the human-facing README.
+// The shared biomes file is validated on its own (not a channel dataset).
+if (changed.includes(`${DATA_DIR}/${BIOMES_FILE}`)) {
+  validateBiomes(`${DATA_DIR}/${BIOMES_FILE}`);
+}
+
+// Every changed channel-bundle file under data/, excluding the README and the shared biomes file.
 const dataChanged = changed.filter(
-  (file) => file.startsWith(`${DATA_DIR}/`) && file !== `${DATA_DIR}/README.md`,
+  (file) =>
+    file.startsWith(`${DATA_DIR}/`) &&
+    file !== `${DATA_DIR}/README.md` &&
+    file !== `${DATA_DIR}/${BIOMES_FILE}`,
 );
 
-if (dataChanged.length === 0) {
-  console.log('No bundled game-data changes; nothing to validate.');
-  process.exit(0);
-}
-
-// --- 1. One channel per PR ---
-const touchedChannels = new Set(
-  dataChanged.map((file) => file.slice(DATA_DIR.length + 1).split('/')[0]),
-);
-if (touchedChannels.size > 1) {
-  fail(`Update one channel per PR. Channels touched: ${[...touchedChannels].join(', ')}.`);
-}
-const channel = [...touchedChannels][0];
-if (!CHANNELS.includes(channel)) {
-  fail(`Unknown channel directory '${channel}'. Allowed: ${CHANNELS.join(', ')}.`);
-}
-const channelDir = `${DATA_DIR}/${channel}`;
-const stray = changed.filter((file) => !file.startsWith(`${channelDir}/`));
-if (stray.length > 0) {
-  fail(
-    `A game-data PR must contain only files under ${channelDir}/. Unexpected changes:\n  ${stray.join('\n  ')}`,
+// --- Channel dataset validation (only when a channel bundle actually changed) ---
+if (dataChanged.length > 0) {
+  // 1. One channel per PR
+  const touchedChannels = new Set(
+    dataChanged.map((file) => file.slice(DATA_DIR.length + 1).split('/')[0]),
   );
-}
-
-if (CHANNELS.includes(channel)) {
-  validateBundle(channel, channelDir);
+  if (touchedChannels.size > 1) {
+    fail(`Update one channel per PR. Channels touched: ${[...touchedChannels].join(', ')}.`);
+  }
+  const channel = [...touchedChannels][0];
+  if (!CHANNELS.includes(channel)) {
+    fail(`Unknown channel directory '${channel}'. Allowed: ${CHANNELS.join(', ')}.`);
+  } else {
+    const channelDir = `${DATA_DIR}/${channel}`;
+    // A channel data PR may also touch the shared biomes.json / README, but nothing else.
+    const stray = changed.filter(
+      (file) =>
+        !file.startsWith(`${channelDir}/`) &&
+        file !== `${DATA_DIR}/${BIOMES_FILE}` &&
+        file !== `${DATA_DIR}/README.md`,
+    );
+    if (stray.length > 0) {
+      fail(
+        `A channel data PR must touch only ${channelDir}/ (optionally ${BIOMES_FILE} / README). Unexpected changes:\n  ${stray.join('\n  ')}`,
+      );
+    }
+    validateBundle(channel, channelDir);
+  }
+} else if (errors.length === 0) {
+  console.log('No channel-dataset changes; biomes.json validated (if changed).');
 }
 
 if (errors.length > 0) {
@@ -102,7 +148,7 @@ if (errors.length > 0) {
   process.exit(1);
 }
 
-console.log(`✓ bundled game data is valid (${channel} three-file bundle).`);
+console.log('✓ bundled game data is valid.');
 
 function readJson(file) {
   try {
