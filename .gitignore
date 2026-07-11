@@ -37,5 +37,7 @@ npm-debug.log*
 .better-auth-secret
 
 # Host-local extractor scratch (CUE4Parse clone lives under
-# packages/sf-game-data/extract/; this is for throwaway probes/experiments)
-/tools/
+# packages/sf-game-data/extract/; this is for throwaway probes/experiments).
+# The base-map renderer (#246) is a real committed tool — exempt it.
+/tools/*
+!/tools/fg-hprobe/

@@ -1,0 +1,20 @@
+# .NET build output
+bin/
+obj/
+
+# Oodle native library (proprietary; downloaded at runtime / copied from the game install —
+# never commit it, same policy as the extractor under packages/sf-game-data/extract/)
+*.dll
+
+# Render + probe output (regenerated; never committed)
+*.ppm
+*.png
+*.jpg
+*.tsv
+*.txt
+map-bounds.*
+
+# Community-derived masks used only as throwaway build-time oracles (licensing-encumbered;
+# the renderer no longer depends on them — see README/docs)
+topo_*.bin
+topo*.png
