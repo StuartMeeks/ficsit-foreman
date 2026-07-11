@@ -1,9 +1,13 @@
 #!/usr/bin/env python3
 """Reusable overlay for #246 base-map renders: biome outlines+labels + coordinate grid.
-Usage: python overlay.py <map.ppm> <sea_label e.g. -1699>
-Writes <base>_labeled.png + updates map-artifact.html embed. Grid = A-T x 1-17 (ds=2 renders)."""
-import json, base64, re, string, sys
+Usage: python overlay.py <map.ppm> <sea_label e.g. -1755>
+Writes <base>_labeled.png + updates map-artifact.html embed. Grid = 40x34 (ds=2 renders).
+Biome outlines come from the canonical dataset packages/sf-game-data/data/biomes.json (#239)."""
+import json, base64, os, re, string, sys
 from PIL import Image, ImageDraw, ImageFont
+
+BIOMES = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                      '..', '..', 'packages', 'sf-game-data', 'data', 'biomes.json')
 
 src = sys.argv[1]
 sea = sys.argv[2] if len(sys.argv) > 2 else "-1699"
@@ -12,19 +16,18 @@ im = Image.open(src).convert('RGB')
 W, H = im.size
 dr = ImageDraw.Draw(im, 'RGBA')
 
-# render grid params (ds=2): normalized biome coords -> world-cm -> pixel
+# render grid params (ds=2): world-cm biome coords -> pixel
 AX = AY = -50800.0; SCALE = 100.0; minSX = minSY = -2540 - 360; ds = 2  # -360 PADQ margin
-def px(nx, ny):
-    wx = -324698.832 + nx * 750000.664; wy = -375000.0 + ny * 750000.0
+def px(wx, wy):
     return (((wx - AX) / SCALE - minSX) / ds, ((wy - AY) / SCALE - minSY) / ds)
 def font(sz):
     try: return ImageFont.truetype('/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf', sz)
     except: return ImageFont.load_default()
 
-# biomes (outline + name)
-for b in json.load(open('biomes_final.json'))['biomes']:
+# biomes (outline + name) — polygons are world-cm rings in the canonical dataset
+for b in json.load(open(BIOMES))['biomes']:
     allp = []
-    for poly in b['polys']:
+    for poly in b['polygons']:
         pts = [px(x, y) for x, y in poly]; allp += pts
         dr.line(pts + [pts[0]], fill=(255, 240, 60, 200), width=3)
     cx = sum(p[0] for p in allp) / len(allp); cy = sum(p[1] for p in allp) / len(allp)
