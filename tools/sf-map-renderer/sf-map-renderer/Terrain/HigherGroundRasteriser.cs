@@ -42,9 +42,10 @@ public static class HigherGroundRasteriser
 
             var meshPath = placed.Mesh.ResolvedObject?.GetPathName() ?? "";
             var meshName = meshPath.Length > 0 ? meshPath[(meshPath.LastIndexOf('/') + 1)..].Split('.')[0] : "?";
+            var colour = ObjectPalette.ColourFor(meshPath, placed.Kind);
 
             var (gridX, gridY, worldZ) = ProjectVertices(geometry.Vertices, placed, state.Frame);
-            raised += RasteriseTriangles(state, geometry, placed, gridX, gridY, worldZ, options, rockColourHeight, floraColourHeight, meshName, rockProbe);
+            raised += RasteriseTriangles(state, geometry, placed, gridX, gridY, worldZ, options, rockColourHeight, floraColourHeight, meshName, colour, rockProbe);
 
             if (placed.Kind == PlacedMeshKind.Tree)
             {
@@ -86,7 +87,7 @@ public static class HigherGroundRasteriser
     private static long RasteriseTriangles(
         RenderState state, MeshGeometry geometry, PlacedMesh placed,
         double[] gridX, double[] gridY, double[] worldZ, RenderOptions options,
-        double rockColourHeight, double floraColourHeight, string meshName, RockFootprintProbe? rockProbe)
+        double rockColourHeight, double floraColourHeight, string meshName, (byte R, byte G, byte B) colour, RockFootprintProbe? rockProbe)
     {
         var frame = state.Frame;
         int width = frame.Width, height = frame.Height;
@@ -94,6 +95,7 @@ public static class HigherGroundRasteriser
         var baseHeight = state.BaseHeight;
         var isRock = state.IsRock;
         var objectKind = state.ObjectKind;
+        var objectColour = state.ObjectColour;
         var triangles = geometry.Triangles;
         var isFoliage = geometry.TriangleIsFoliage;
         var isTree = placed.Kind == PlacedMeshKind.Tree;
@@ -183,6 +185,9 @@ public static class HigherGroundRasteriser
                             }
 
                             objectKind[index] = objectValue;
+                            objectColour[index * 3] = colour.R;
+                            objectColour[index * 3 + 1] = colour.G;
+                            objectColour[index * 3 + 2] = colour.B;
                         }
 
                         raised++;
