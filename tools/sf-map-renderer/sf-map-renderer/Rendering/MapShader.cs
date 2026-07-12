@@ -81,6 +81,7 @@ public static class MapShader
                 var cell = idx * 3;
                 var landHeight = baseHeight[idx];
                 var isWater = isOcean[idx] || isLake[idx];
+                var waterSurface = isWater ? (waterZ[idx] != 0 ? waterZ[idx] : options.OceanZ) : 0.0;
                 double r, g, b;
 
                 if (landHeight == 0 && !isWater)
@@ -89,15 +90,29 @@ public static class MapShader
                 }
                 else if (isWater)
                 {
-                    var waterSurface = waterZ[idx] != 0 ? waterZ[idx] : options.OceanZ;
-                    var floorZ = landHeight == 0 ? waterSurface - 8000 : frame.HeightToZ(landHeight);
+                    // Floor is the raised solid top (terrain or a submerged rock), so shallow water over a
+                    // submerged spire reads shallow rather than deep. Void seabed falls back to a deep floor.
+                    var floorZ = landHeight == 0 ? waterSurface - 8000 : frame.HeightToZ(heightGrid[idx]);
                     // A square-root ramp over ~40 m gives shallow inland lakes/rivers a visible depth gradient
                     // (the old linear /7000 ramp mapped their 0–5 m to ~0, so every lake read the same pale blue),
                     // while deep ocean still saturates to the darkest tone.
                     var depth = Math.Clamp(Math.Sqrt(Math.Max(0, waterSurface - floorZ) / 4000.0), 0, 1);
-                    r = 22 + 40 * (1 - depth);
-                    g = 52 + 70 * (1 - depth);
-                    b = 104 + 74 * (1 - depth);
+                    // Inland water gets a darker deep end for more depth contrast; the ocean (and the blue-box
+                    // deep-sea margin it must match) keeps its original ramp, whose deep tone ≈ the (22,55,110)
+                    // volume-void override.
+                    var oceanBand = waterSurface is >= -1850 and <= -1600;
+                    if (oceanBand)
+                    {
+                        r = 22 + 40 * (1 - depth);
+                        g = 52 + 70 * (1 - depth);
+                        b = 104 + 74 * (1 - depth);
+                    }
+                    else
+                    {
+                        r = 15 + 49 * (1 - depth);
+                        g = 40 + 84 * (1 - depth);
+                        b = 88 + 92 * (1 - depth);
+                    }
                 }
                 else
                 {

@@ -119,6 +119,10 @@ public sealed class RenderSettings : AssetSettings
     [Description("LAYERAT: material-layer dump at coordinates \"x,y;...\".")]
     public string? LayerAt { get; init; }
 
+    [CommandOption("--water-trace <XY>")]
+    [Description("Trace which water pass/volume sets one cell's surface \"x,y\".")]
+    public string? WaterTrace { get; init; }
+
     [CommandOption("--z-test")]
     [Description("ztest: compare decoded Z against the collectibles (see --world-locations).")]
     public bool ZTest { get; init; }
@@ -160,6 +164,7 @@ public sealed class RenderSettings : AssetSettings
         Cells = Cells?.Split(',', StringSplitOptions.RemoveEmptyEntries).Select(c => c.Trim()).ToList(),
         LayerAt = ParseCoordinates(LayerAt),
         ZTestPath = ZTest ? WorldLocations : null,
+        WaterTrace = ParseCoordinates(WaterTrace)?.FirstOrDefault(),
     };
 
     private static double Parse(string value) => double.Parse(value, CultureInfo.InvariantCulture);

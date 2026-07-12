@@ -43,15 +43,26 @@ public static class RenderPipeline
             HigherGroundRasteriser.Rasterise(state, scene.Meshes, scene.FloraInstanceCount, scene.ExcludedRockCount, options, new MeshGeometryCache(), BuildRockProbe(probes, frame));
         }
 
+        var traceIndex = -1;
+        if (probes.WaterTrace is { } waterTrace)
+        {
+            int col = (int)Math.Round(frame.FractionalColumn(waterTrace.X)), row = (int)Math.Round(frame.FractionalRow(waterTrace.Y));
+            if (col >= 0 && col < frame.Width && row >= 0 && row < frame.Height)
+            {
+                traceIndex = row * frame.Width + col;
+                Console.WriteLine($"[water-trace] ({waterTrace.X:F0},{waterTrace.Y:F0}) -> cell ({col},{row})");
+            }
+        }
+
         WaterModelBuilder.FloodOceanVoid(state);
-        WaterModelBuilder.RasteriseVolumes(state, scene.WaterVolumes, options);
+        WaterModelBuilder.RasteriseVolumes(state, scene.WaterVolumes, scene.WaterSeeds, options, traceIndex);
         WaterModelBuilder.ApplyBlueBoxes(state, options);
         if (options.RenderRivers && scene.Rivers.Count > 0)
         {
-            WaterModelBuilder.StampRivers(state, scene.Rivers, options);
+            WaterModelBuilder.StampRivers(state, scene.Rivers, options, traceIndex);
         }
 
-        WaterModelBuilder.FillShallowPonds(state, scene.WaterSeeds, options);
+        WaterModelBuilder.FillShallowPonds(state, scene.WaterSeeds, options, traceIndex);
 
         if (probes.Cells != null)
         {
@@ -67,8 +78,10 @@ public static class RenderPipeline
 
         if (options.WetWater)
         {
-            WaterModelBuilder.FloodWetSand(state, options);
+            WaterModelBuilder.FloodWetSand(state, options, traceIndex);
         }
+
+        WaterModelBuilder.SinkSubmergedObjects(state, options);
 
         var images = MapShader.Render(state, options);
         MapWriter.Write(state, images, options, maxSectionX, maxSectionY);

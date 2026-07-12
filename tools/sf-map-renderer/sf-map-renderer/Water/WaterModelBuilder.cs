@@ -72,12 +72,24 @@ public static class WaterModelBuilder
         }
     }
 
+    /// <summary>How far below a volume's box floor (minZ) a cell's terrain may sit and still be flooded (cm).
+    /// A water box encloses its water, so ground far below the box floor isn't under that water — this rejects
+    /// a tall volume's footprint spilling over a cliff edge onto much lower terrain (a deep, dark over-flood).</summary>
+    private const double VolumeFloorToleranceCm = 3000.0;
+
+    /// <summary>Max distance from a volume's root origin to accept a BP_Water plane as its surface (cm). Large
+    /// enough to reach the plane of a big river/lake system (e.g. the Titan River Valley volumes sit ~340 m
+    /// from their nearest plane); nearest-wins keeps each volume paired to its own body.</summary>
+    private const double SurfacePairRadiusCm = 50000.0;
+
     /// <summary>
     /// Rasterise every FGWaterVolume face: a cell is water where the seabed is at/below the volume's surface.
-    /// Sea-band volumes snap to the unified <c>OCEANZ</c>; void cells inside an ocean-band volume become
+    /// Sea-band volumes snap to the unified <c>OCEANZ</c>; an inland volume takes the Z of its paired
+    /// <c>BP_Water</c> surface plane (the real water level) rather than its bounding-box top, which can sit
+    /// several metres above the water and flood the shore. Void cells inside an ocean-band volume become
     /// ocean-void (blue). Overlaps keep the highest surface.
     /// </summary>
-    public static void RasteriseVolumes(RenderState state, IReadOnlyList<WaterVolumeFace> volumes, RenderOptions options)
+    public static void RasteriseVolumes(RenderState state, IReadOnlyList<WaterVolumeFace> volumes, IReadOnlyList<WaterBodySeed> seeds, RenderOptions options, int traceIndex = -1)
     {
         Console.WriteLine($"water-volume rasterise ({volumes.Count} FGWaterVolume faces)...");
         var frame = state.Frame;
@@ -87,9 +99,65 @@ public static class WaterModelBuilder
         var waterZ = state.WaterZ;
         var volumeVoid = state.VolumeVoid;
 
-        foreach (var (polygon, rawSurfaceZ) in volumes)
+        // Per-face surface Z: the nearest BP_Water plane to the face's own centroid whose Z lies within the
+        // volume's box extent [minZ, boxTop] (the water is contained in the box, so a plane outside can't be its
+        // surface, and the centroid — unlike the root origin, which is sometimes (0,0,0) — is always the real
+        // water location). Falls back to the box top when none qualifies.
+        var pairedCount = 0;
+        double PairedSurfaceZ((double X, double Y)[] polygon, double minZ, double boxTopZ)
         {
-            var surfaceZ = IsOceanBand(rawSurfaceZ) ? options.OceanZ : rawSurfaceZ;
+            double centreX = 0, centreY = 0;
+            foreach (var p in polygon)
+            {
+                centreX += p.X;
+                centreY += p.Y;
+            }
+
+            centreX /= polygon.Length;
+            centreY /= polygon.Length;
+
+            var radiusSquared = SurfacePairRadiusCm * SurfacePairRadiusCm;
+            double best = boxTopZ, bestDistance = double.MaxValue;
+            var matched = false;
+            foreach (var seed in seeds)
+            {
+                if (seed.Z < minZ || seed.Z > boxTopZ)
+                {
+                    continue;
+                }
+
+                var distance = (seed.X - centreX) * (seed.X - centreX) + (seed.Y - centreY) * (seed.Y - centreY);
+                if (distance <= radiusSquared && distance < bestDistance)
+                {
+                    bestDistance = distance;
+                    best = seed.Z;
+                    matched = true;
+                }
+            }
+
+            if (matched)
+            {
+                pairedCount++;
+            }
+
+            return best;
+        }
+
+        foreach (var (polygon, rawSurfaceZ, minZ) in volumes)
+        {
+            var surfaceZ = IsOceanBand(rawSurfaceZ) ? options.OceanZ : PairedSurfaceZ(polygon, minZ, rawSurfaceZ);
+
+            if (traceIndex >= 0)
+            {
+                int tcol = traceIndex % width, trow = traceIndex / width;
+                if (Polygons.Contains(polygon, frame.WorldXAtColumn(tcol), frame.WorldYAtRow(trow)))
+                {
+                    var tb = baseHeight[traceIndex];
+                    var terrainZ = tb == 0 ? double.NaN : frame.HeightToZ(tb);
+                    Console.WriteLine($"[water-trace] VOLUME face covers cell: box=[{minZ:F0}..{rawSurfaceZ:F0}] oceanBand={IsOceanBand(rawSurfaceZ)} pairedSurf={surfaceZ:F0} terrainZ={terrainZ:F0} floods={(tb != 0 && terrainZ <= surfaceZ)}");
+                }
+            }
+
             double minX = polygon.Min(p => p.X), maxX = polygon.Max(p => p.X), minY = polygon.Min(p => p.Y), maxY = polygon.Max(p => p.Y);
             int gx0 = Math.Max(0, (int)frame.FractionalColumn(minX)), gx1 = Math.Min(width - 1, (int)Math.Ceiling(frame.FractionalColumn(maxX)));
             int gy0 = Math.Max(0, (int)frame.FractionalRow(minY)), gy1 = Math.Min(height - 1, (int)Math.Ceiling(frame.FractionalRow(maxY)));
@@ -99,9 +167,13 @@ public static class WaterModelBuilder
                 for (var gx = gx0; gx <= gx1; gx++)
                 {
                     var index = gy * width + gx;
-                    if (baseHeight[index] != 0 && frame.HeightToZ(baseHeight[index]) > surfaceZ)
+                    if (baseHeight[index] != 0)
                     {
-                        continue;
+                        var terrainZ = frame.HeightToZ(baseHeight[index]);
+                        if (terrainZ > surfaceZ || terrainZ < minZ - VolumeFloorToleranceCm)
+                        {
+                            continue;
+                        }
                     }
 
                     if (!Polygons.Contains(polygon, frame.WorldXAtColumn(gx), frame.WorldYAtRow(gy)))
@@ -127,6 +199,45 @@ public static class WaterModelBuilder
                 }
             }
         }
+
+        Console.WriteLine($"  volume faces paired to a BP_Water surface plane: {pairedCount} (else box top; radius {SurfacePairRadiusCm / 100:F0}m)");
+    }
+
+    /// <summary>
+    /// Clear the object flag on cells where a raised object (rock/coral/foliage) sits entirely below the water
+    /// surface — a submerged spire under a higher water layer. Without this the object composites over the water
+    /// and hides it (and the height-ranked "high water layer" the game shows here goes missing). Run after all
+    /// water passes so the shader and the layer classification both treat these cells as water.
+    /// </summary>
+    public static void SinkSubmergedObjects(RenderState state, RenderOptions options)
+    {
+        var frame = state.Frame;
+        var count = frame.Width * frame.Height;
+        var heightGrid = state.Height;
+        var waterZ = state.WaterZ;
+        var isOcean = state.IsOcean;
+        var isLake = state.IsLake;
+        var objectKind = state.ObjectKind;
+        var isRock = state.IsRock;
+        long sunk = 0;
+
+        for (var i = 0; i < count; i++)
+        {
+            if (objectKind[i] == 0 || !(isOcean[i] || isLake[i]))
+            {
+                continue;
+            }
+
+            var surface = waterZ[i] != 0 ? waterZ[i] : options.OceanZ;
+            if (frame.HeightToZ(heightGrid[i]) < surface)
+            {
+                objectKind[i] = 0;
+                isRock[i] = false;
+                sunk++;
+            }
+        }
+
+        Console.WriteLine($"submerged objects sunk (water renders over them): {sunk}");
     }
 
     /// <summary>Force void cells inside the far-west margin rectangles to ocean-blue.</summary>
@@ -165,7 +276,7 @@ public static class WaterModelBuilder
     }
 
     /// <summary>Hermite-sample each BP_River segment and stamp a ribbon where terrain is at/below the surface.</summary>
-    public static void StampRivers(RenderState state, IReadOnlyList<RiverActor> rivers, RenderOptions options)
+    public static void StampRivers(RenderState state, IReadOnlyList<RiverActor> rivers, RenderOptions options, int traceIndex = -1)
     {
         var riverHalfWidth = options.RiverHalfWidthCm;
         var riverTolerance = options.RiverToleranceCm;
@@ -232,6 +343,10 @@ public static class WaterModelBuilder
                             isLake[j] = true;
                             waterZ[j] = wz;
                             marked++;
+                            if (j == traceIndex)
+                            {
+                                Console.WriteLine($"[water-trace] RIVER writes surf={wz:F0}");
+                            }
                         }
                     }
                 }
@@ -242,7 +357,7 @@ public static class WaterModelBuilder
     }
 
     /// <summary>Fill shallow BP_Water bodies (a scaled/rotated surface plane) where not already ocean.</summary>
-    public static void FillShallowPonds(RenderState state, IReadOnlyList<WaterBodySeed> seeds, RenderOptions options)
+    public static void FillShallowPonds(RenderState state, IReadOnlyList<WaterBodySeed> seeds, RenderOptions options, int traceIndex = -1)
     {
         Console.WriteLine($"shallow-water supplement ({seeds.Count} BP_Water bodies)...");
         var frame = state.Frame;
@@ -298,6 +413,10 @@ public static class WaterModelBuilder
                         isLake[j] = true;
                         waterZ[j] = seed.Z;
                         marked++;
+                        if (j == traceIndex)
+                        {
+                            Console.WriteLine($"[water-trace] POND writes surf={seed.Z:F0} (BP_Water at {seed.X:F0},{seed.Y:F0} scale {seed.ScaleX:F0}x{seed.ScaleY:F0})");
+                        }
                     }
                 }
             }
@@ -310,7 +429,7 @@ public static class WaterModelBuilder
     /// Seed from shallow WetSand/Puddles cells, then BFS-spread through connected shallow below-sea terrain
     /// (any material) within a depth cap — the coastal shelf the meshed landscape hides underwater.
     /// </summary>
-    public static void FloodWetSand(RenderState state, RenderOptions options)
+    public static void FloodWetSand(RenderState state, RenderOptions options, int traceIndex = -1)
     {
         var frame = state.Frame;
         int width = frame.Width, height = frame.Height, cellCount = width * height;
@@ -343,6 +462,10 @@ public static class WaterModelBuilder
                 isLake[i] = true;
                 waterZ[i] = Math.Max(wetSea, frame.HeightToZ(baseHeight[i]));
                 queue.Enqueue(i);
+                if (i == traceIndex)
+                {
+                    Console.WriteLine($"[water-trace] WETSAND seed writes surf={waterZ[i]:F0}");
+                }
             }
         }
 
@@ -361,6 +484,10 @@ public static class WaterModelBuilder
                     waterZ[j] = Math.Max(wetSea, frame.HeightToZ(baseHeight[j]));
                     queue.Enqueue(j);
                     flooded++;
+                    if (j == traceIndex)
+                    {
+                        Console.WriteLine($"[water-trace] WETSAND spread writes surf={waterZ[j]:F0}");
+                    }
                 }
             }
 

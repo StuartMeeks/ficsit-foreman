@@ -30,8 +30,13 @@ public readonly record struct PlacedMesh(
     FVector Scale,
     PlacedMeshKind Kind);
 
-/// <summary>One convex BSP face of an <c>FGWaterVolume</c> (world-XY) with the volume's surface Z.</summary>
-public readonly record struct WaterVolumeFace((double X, double Y)[] Polygon, double SurfaceZ);
+/// <summary>
+/// One convex BSP face of an <c>FGWaterVolume</c> (world-XY) with the volume's box Z extent
+/// (<paramref name="MinZ"/>..<paramref name="SurfaceZ"/>). The rasteriser pairs the volume with its true
+/// <c>BP_Water</c> surface plane using the face's own centroid (the root origin is unreliable — some volumes
+/// sit at world (0,0,0) with world-space brush points).
+/// </summary>
+public readonly record struct WaterVolumeFace((double X, double Y)[] Polygon, double SurfaceZ, double MinZ);
 
 /// <summary>One cubic-Hermite segment of a river centreline, in the actor's local frame.</summary>
 public readonly record struct RiverSegment(

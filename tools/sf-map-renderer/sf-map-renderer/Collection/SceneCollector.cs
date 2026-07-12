@@ -201,10 +201,12 @@ public sealed class SceneCollector
         var yaw = root.RelativeYawRadians();
         double cos = Math.Cos(yaw), sin = Math.Sin(yaw);
 
-        double surfaceZ = -1e18;
+        double surfaceZ = -1e18, minZ = 1e18;
         foreach (var point in points)
         {
-            surfaceZ = Math.Max(surfaceZ, location.Z + point.Z * scale.Z);
+            var z = location.Z + point.Z * scale.Z;
+            surfaceZ = Math.Max(surfaceZ, z);
+            minZ = Math.Min(minZ, z);
         }
 
         (double X, double Y) ToWorld(FVector point)
@@ -244,7 +246,7 @@ public sealed class SceneCollector
 
             if (valid)
             {
-                WaterVolumes.Add(new WaterVolumeFace(polygon, surfaceZ));
+                WaterVolumes.Add(new WaterVolumeFace(polygon, surfaceZ, minZ));
             }
         }
     }
