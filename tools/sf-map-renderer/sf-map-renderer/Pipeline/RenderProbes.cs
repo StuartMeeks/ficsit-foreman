@@ -21,4 +21,7 @@ public sealed class RenderProbes
 
     /// <summary>ztest: when set, compare decoded Z against the collectibles at this path (returns after pass B).</summary>
     public string? ZTestPath { get; init; }
+
+    /// <summary>water-trace: log every water pass that writes this cell's surface, and each volume covering it.</summary>
+    public (double X, double Y)? WaterTrace { get; init; }
 }
