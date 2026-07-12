@@ -13,6 +13,9 @@
     <PackageReference Include="SixLabors.Fonts" />
     <PackageReference Include="Spectre.Console" />
     <PackageReference Include="Spectre.Console.Cli" />
+    <!-- Managed BC (DXT) texture decoder — used to sample average mesh-material albedo colours. MIT-licensed;
+         avoids CUE4Parse-Conversion, which would drag in the paid-line ImageSharp 3.x. -->
+    <PackageReference Include="AssetRipper.TextureDecoder" />
   </ItemGroup>
 
   <ItemGroup>

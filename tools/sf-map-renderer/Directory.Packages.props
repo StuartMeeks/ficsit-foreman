@@ -17,6 +17,10 @@
     <PackageVersion Include="SixLabors.ImageSharp.Drawing" Version="1.0.0" />
     <PackageVersion Include="SixLabors.Fonts" Version="1.0.1" />
 
+    <!-- Managed BC/DXT texture decoder (MIT) for sampling mesh-material albedo colours; matches the version
+         the CUE4Parse clone pins, so decode behaviour is identical without pulling CUE4Parse-Conversion. -->
+    <PackageVersion Include="AssetRipper.TextureDecoder" Version="2.6.2" />
+
     <!-- Command-line surface. -->
     <PackageVersion Include="Spectre.Console" Version="0.55.0" />
     <PackageVersion Include="Spectre.Console.Cli" Version="0.55.0" />

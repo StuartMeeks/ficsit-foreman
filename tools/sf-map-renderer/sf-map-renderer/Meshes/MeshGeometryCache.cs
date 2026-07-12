@@ -1,21 +1,30 @@
+using CUE4Parse.UE4.Assets.Exports.Material;
+
 using SfMapRenderer.Flora;
 
 namespace SfMapRenderer.Meshes;
 
-/// <summary>LOD0 geometry for a placed mesh: vertices, triangle indices, and a per-triangle foliage flag.</summary>
-public sealed record MeshGeometry(FVector[] Vertices, int[] Triangles, bool[] TriangleIsFoliage);
+/// <summary>
+/// LOD0 geometry for a placed mesh: vertices, triangle indices, a per-triangle foliage flag, and a per-triangle
+/// base colour sampled from the section's material texture (0,0,0 = not sampled → caller uses its palette).
+/// </summary>
+public sealed record MeshGeometry(FVector[] Vertices, int[] Triangles, bool[] TriangleIsFoliage, byte[] TriangleColour);
 
 /// <summary>
-/// Loads and caches a static mesh's LOD0 geometry (by asset path), classifying each triangle as foliage
-/// or trunk from its material section. LOD0 is used for full detail (smooth cliffs, no facets).
+/// Loads and caches a static mesh's LOD0 geometry (by asset path), classifying each triangle as foliage or
+/// trunk from its material section and sampling each section's material albedo colour. LOD0 is used for full
+/// detail (smooth cliffs, no facets) — and, conveniently, excludes the LOD billboard/imposter materials.
 /// </summary>
 public sealed class MeshGeometryCache
 {
-    private static readonly MeshGeometry Empty = new([], [], []);
+    private static readonly MeshGeometry Empty = new([], [], [], []);
 
     private readonly Dictionary<string, MeshGeometry> _cache = [];
+    private readonly MaterialColourSampler _sampler = new();
 
     public int Count => _cache.Count;
+
+    public int SampledMaterialCount => _sampler.Count;
 
     public MeshGeometry Get(FPackageIndex mesh)
     {
@@ -30,7 +39,7 @@ public sealed class MeshGeometryCache
         return geometry;
     }
 
-    private static MeshGeometry Load(FPackageIndex mesh)
+    private MeshGeometry Load(FPackageIndex mesh)
     {
         try
         {
@@ -53,32 +62,39 @@ public sealed class MeshGeometryCache
                     triangles[k] = (int)indexBuffer[k];
                 }
 
-                var triangleIsFoliage = new bool[indexBuffer.Length / 3];
+                var triangleCount = indexBuffer.Length / 3;
+                var triangleIsFoliage = new bool[triangleCount];
+                var triangleColour = new byte[triangleCount * 3];
                 if (lod.Sections != null)
                 {
                     foreach (var section in lod.Sections)
                     {
                         var material = materials != null && section.MaterialIndex < materials.Length ? materials[section.MaterialIndex] : null;
                         var materialPath = material?.MaterialInterface?.GetPathName() ?? "";
-                        var materialBaseName = materialPath.Contains('/')
-                            ? materialPath[(materialPath.LastIndexOf('/') + 1)..].Split('.')[0]
-                            : materialPath;
-                        var name = (material?.MaterialSlotName.Text ?? "") + " " + materialBaseName;
-                        if (!TreeSectionClassifier.IsFoliageMaterial(name))
-                        {
-                            continue;
-                        }
+                        var materialBaseName = materialPath.Contains('/') ? materialPath[(materialPath.LastIndexOf('/') + 1)..].Split('.')[0] : materialPath;
+                        var isFoliage = TreeSectionClassifier.IsFoliageMaterial((material?.MaterialSlotName.Text ?? "") + " " + materialBaseName);
+                        var colour = _sampler.Sample(material?.MaterialInterface?.Load() as UUnrealMaterial);
 
-                        for (var triangle = (int)(section.FirstIndex / 3);
-                             triangle < (section.FirstIndex + section.NumTriangles * 3) / 3 && triangle < triangleIsFoliage.Length;
-                             triangle++)
+                        var first = (int)(section.FirstIndex / 3);
+                        var last = Math.Min(triangleCount, (int)((section.FirstIndex + section.NumTriangles * 3) / 3));
+                        for (var triangle = first; triangle < last && triangle >= 0; triangle++)
                         {
-                            triangleIsFoliage[triangle] = true;
+                            if (isFoliage)
+                            {
+                                triangleIsFoliage[triangle] = true;
+                            }
+
+                            if (colour is { } c)
+                            {
+                                triangleColour[triangle * 3] = c.R;
+                                triangleColour[triangle * 3 + 1] = c.G;
+                                triangleColour[triangle * 3 + 2] = c.B;
+                            }
                         }
                     }
                 }
 
-                return new MeshGeometry(vertices, triangles, triangleIsFoliage);
+                return new MeshGeometry(vertices, triangles, triangleIsFoliage, triangleColour);
             }
         }
         catch

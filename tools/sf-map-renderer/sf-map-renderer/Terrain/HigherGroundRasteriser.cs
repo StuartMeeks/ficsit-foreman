@@ -98,6 +98,7 @@ public static class HigherGroundRasteriser
         var objectColour = state.ObjectColour;
         var triangles = geometry.Triangles;
         var isFoliage = geometry.TriangleIsFoliage;
+        var sampled = geometry.TriangleColour;
         var isTree = placed.Kind == PlacedMeshKind.Tree;
         var isFlora = placed.Kind is PlacedMeshKind.Coral or PlacedMeshKind.Tree;
         byte objectValue = placed.Kind switch { PlacedMeshKind.Rock => 1, PlacedMeshKind.Coral => 2, _ => 3 };
@@ -106,7 +107,18 @@ public static class HigherGroundRasteriser
 
         for (var t = 0; t + 2 < triangles.Length; t += 3)
         {
-            var triangleIsFoliage = isTree && t / 3 < isFoliage.Length && isFoliage[t / 3];
+            var triangle = t / 3;
+            var triangleIsFoliage = isTree && triangle < isFoliage.Length && isFoliage[triangle];
+
+            // This section's sampled material colour, or the placeholder palette colour when unsampled (0,0,0).
+            byte cr = colour.R, cg = colour.G, cb = colour.B;
+            if (triangle * 3 + 2 < sampled.Length && (sampled[triangle * 3] != 0 || sampled[triangle * 3 + 1] != 0 || sampled[triangle * 3 + 2] != 0))
+            {
+                cr = sampled[triangle * 3];
+                cg = sampled[triangle * 3 + 1];
+                cb = sampled[triangle * 3 + 2];
+            }
+
             if (isTree && options.TreePart != TreePart.Both)
             {
                 if (options.TreePart == TreePart.Trunk && triangleIsFoliage)
@@ -185,9 +197,9 @@ public static class HigherGroundRasteriser
                             }
 
                             objectKind[index] = objectValue;
-                            objectColour[index * 3] = colour.R;
-                            objectColour[index * 3 + 1] = colour.G;
-                            objectColour[index * 3 + 2] = colour.B;
+                            objectColour[index * 3] = cr;
+                            objectColour[index * 3 + 1] = cg;
+                            objectColour[index * 3 + 2] = cb;
                         }
 
                         raised++;
