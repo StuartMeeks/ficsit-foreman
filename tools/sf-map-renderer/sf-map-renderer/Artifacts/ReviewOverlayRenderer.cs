@@ -15,8 +15,8 @@ namespace SfMapRenderer.Artifacts;
 /// </summary>
 public static class ReviewOverlayRenderer
 {
-    private const int Columns = 40;
-    private const int Rows = 34;
+    private const int Columns = MapAnnotations.Columns;
+    private const int Rows = MapAnnotations.Rows;
 
     public static void Render(string ppmPath, string biomesPath)
     {
@@ -25,24 +25,31 @@ public static class ReviewOverlayRenderer
         int width = image.Width, height = image.Height;
         var biomes = BiomeDataset.Load(biomesPath);
         var nameFont = EmbeddedFont.At(30);
+        var areaFont = EmbeddedFont.At(23);
         var labelFont = EmbeddedFont.At(16);
 
         image.Mutate(ctx =>
         {
             foreach (var biome in biomes)
             {
-                var all = new List<PointF>();
                 foreach (var polygon in biome.Polygons)
                 {
                     var points = polygon.Select(p => MapAnnotations.Pixel(p.X, p.Y, 1.0)).ToArray();
-                    all.AddRange(points);
                     MapAnnotations.DrawPolyline(ctx, Color.FromRgba(255, 240, 60, 200), 3f, [.. points, points[0]]);
                 }
 
-                var centreX = all.Average(p => p.X);
-                var centreY = all.Average(p => p.Y);
-                var size = TextMeasurer.MeasureSize(biome.Name, new TextOptions(nameFont));
-                ctx.DrawText(biome.Name, nameFont, Color.Black, new PointF(centreX - size.Width / 2, centreY - size.Height / 2));
+                var centre = MapAnnotations.BiomeLabelAnchor(biome, width, height, 1.0);
+                var colour = MapAnnotations.ParseColour(biome.LabelColour, Color.Black);
+                var halo = colour == Color.White ? Color.Black : Color.White;
+                MapAnnotations.DrawCentredText(ctx, biome.DisplayLabel, nameFont, centre, colour, halo);
+            }
+
+            foreach (var area in biomes.SelectMany(b => b.SubLocations))
+            {
+                if (MapAnnotations.TryCellCentre(area.LabelCell, width, height, out var centre))
+                {
+                    MapAnnotations.DrawCentredText(ctx, area.Name, areaFont, centre, Color.Black, Color.White);
+                }
             }
 
             double cellWidth = (double)width / Columns, cellHeight = (double)height / Rows;

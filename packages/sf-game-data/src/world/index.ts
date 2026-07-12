@@ -108,7 +108,13 @@ function loadBiomes(dataDir: string): Biome[] {
     const parsed = JSON.parse(fs.readFileSync(path.join(dataDir, BIOMES_FILENAME), 'utf8')) as {
       biomes?: unknown;
     };
-    return Array.isArray(parsed.biomes) ? parsed.biomes.filter(isBiome) : [];
+    // The bundled name may carry line breaks for the map label; collapse them so the canonical
+    // name the game-data tools surface (describe_location, list_biomes, biome tags) stays clean.
+    return Array.isArray(parsed.biomes)
+      ? parsed.biomes
+          .filter(isBiome)
+          .map((b) => ({ ...b, name: b.name.replace(/\s*[\r\n]+\s*/g, ' ').trim() }))
+      : [];
   } catch {
     return [];
   }
