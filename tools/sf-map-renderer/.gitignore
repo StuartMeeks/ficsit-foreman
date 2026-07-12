@@ -1,0 +1,27 @@
+# .NET build output
+bin/
+obj/
+.vs/
+
+# Oodle native library (proprietary; copied from the game install — never commit it, same policy
+# as the extractor under packages/sf-game-data/extract/)
+*.dll
+
+# Render + probe output (regenerated; never committed)
+*.ppm
+*.jpg
+*.png
+*.tsv
+*.layers
+map-bounds.*
+map-labeled.png
+map-layers.html
+
+# Local verification / scratch
+_verify/
+build.log
+reflect.out
+
+# The embedded font IS committed (Lato, SIL Open Font Licence) — keep it + its licence.
+!Assets/Fonts/Lato-Regular.ttf
+!Assets/Fonts/OFL.txt

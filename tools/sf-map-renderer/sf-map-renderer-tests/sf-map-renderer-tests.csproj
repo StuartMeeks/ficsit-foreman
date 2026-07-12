@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>SfMapRenderer.Tests</RootNamespace>
+    <IsPackable>false</IsPackable>
+    <!-- Builds and runs on the host: it references the main project, which references the
+         host-only CUE4Parse clone. The tests themselves exercise the CUE4Parse-free logic. -->
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="xunit" />
+    <PackageReference Include="xunit.runner.visualstudio" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\sf-map-renderer\sf-map-renderer.csproj" />
+  </ItemGroup>
+
+</Project>

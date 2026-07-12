@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <!-- Assembly name defaults to the project file name (sf-map-renderer), matching the
+         sibling sf-game-data-* tools. The root namespace is the PascalCase form. -->
+    <RootNamespace>SfMapRenderer</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="SixLabors.ImageSharp" />
+    <PackageReference Include="SixLabors.ImageSharp.Drawing" />
+    <PackageReference Include="SixLabors.Fonts" />
+    <PackageReference Include="Spectre.Console" />
+    <PackageReference Include="Spectre.Console.Cli" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- CUE4Parse: an external, gitignored clone (see packages/sf-game-data/extract/README.md).
+         This project sits three levels under the repo root. -->
+    <ProjectReference Include="..\..\..\packages\sf-game-data\extract\CUE4Parse\CUE4Parse\CUE4Parse.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Embedded so overlay/layer text renders identically on any host (no system font needed).
+         Lato Regular — SIL Open Font Licence (OFL.txt sits beside the font). -->
+    <EmbeddedResource Include="Assets\Fonts\Lato-Regular.ttf" />
+  </ItemGroup>
+
+</Project>

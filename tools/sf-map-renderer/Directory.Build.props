@@ -1,0 +1,26 @@
+<Project>
+
+  <!--
+    Shared build settings for the sf-map-renderer solution (main project + tests).
+    MSBuild discovers this by walking up from each project directory, so it applies
+    only to projects under tools/sf-map-renderer/ — the referenced CUE4Parse project
+    lives outside this tree and keeps its own settings (it is not subjected to the
+    TreatWarningsAsErrors gate below).
+  -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+
+    <!--
+      EnforceCodeStyleInBuild is deliberately OFF. The .editorconfig is IDE /
+      `dotnet format` guidance; TreatWarningsAsErrors gates compiler warnings and
+      CA (NetAnalyzers) warnings, not IDE code-style (IDExxxx) rules. This keeps the
+      build honest about real issues without failing on pure formatting.
+    -->
+  </PropertyGroup>
+
+</Project>

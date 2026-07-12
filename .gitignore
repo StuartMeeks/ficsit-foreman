@@ -40,4 +40,4 @@ npm-debug.log*
 # packages/sf-game-data/extract/; this is for throwaway probes/experiments).
 # The base-map renderer (#246) is a real committed tool — exempt it.
 /tools/*
-!/tools/fg-hprobe/
+!/tools/sf-map-renderer/
