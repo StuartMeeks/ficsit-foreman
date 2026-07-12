@@ -112,17 +112,37 @@ export interface ResourceNode {
 }
 
 /**
+ * A named area within a biome (Sentence Case, e.g. `The Great Canyon`), placed on the
+ * base-map overlay by a grid cell. Overlay-only metadata; not used by biome resolution.
+ */
+export interface SubLocation {
+  /** Area name, Sentence Case — e.g. `The Great Canyon`. */
+  name: string;
+  /** A1..AN34 grid cell placing the label on the base-map overlay. */
+  labelCell?: string;
+}
+
+/**
  * A named surface biome region. Hand-traced (#239), build-independent, and loaded
  * from a separate bundled `biomes.json` (not the extractor-produced dataset).
  * Coordinates are Unreal world units (centimetres), matching everything else here.
  */
 export interface Biome {
-  /** Biome name, UPPER CASE — e.g. `ROCKY DESERT`. */
+  /** Biome name, UPPER CASE — e.g. `ROCKY DESERT`. The bundled file may carry line breaks for the
+   *  map label; the loader normalises those to single spaces so this stays a clean canonical name. */
   name: string;
   /** True for the four pioneer starting biomes (Grass Fields, Rocky Desert, Northern Forest, Dune Desert). */
   isStartingLocation?: boolean;
+  /** 1..4 for a starting biome — the overlay appends a `(START n)` line to the map label. Overlay-only. */
+  startIndex?: number;
   /** Display colour (hex) for map overlays; not used by biome resolution. */
   color?: string;
+  /** A1..AN34 grid cell placing the name label on the base-map overlay; not used by biome resolution. */
+  labelCell?: string;
+  /** Overlay label colour (`#rrggbb` or `white`/`black`) — e.g. white where the label sits over the void. Overlay-only. */
+  labelColor?: string;
+  /** Named areas within this biome, rendered as smaller labels on the base-map overlay; not used by resolution. */
+  subLocations?: SubLocation[];
   /** One or more filled rings; each is an array of `[x, y]` world-cm pairs. */
   polygons: [number, number][][];
 }

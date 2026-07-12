@@ -12,14 +12,30 @@ using SixLabors.ImageSharp.Processing;
 namespace SfMapRenderer.Artifacts;
 
 /// <summary>
-/// Builds the interactive, toggleable-layer HTML artifact from a LAYERS render: one transparent PNG per
-/// layer (ground/water/void from the surface raster; rocks/coral/foliage from the object raster; trunks as
-/// flat discs) plus biome/name/grid overlays, stacked with a checkbox each and pan/zoom (the port of layers.py).
+/// Builds the interactive, toggleable-layer HTML artifact from a LAYERS render. Layers come in three kinds,
+/// each stacked in the same pan/zoom frame so they scale together:
+/// <list type="bullet">
+///   <item><b>Raster</b> — the pixel data (void/water/ground from the surface raster; coral/rocks/trunks/foliage
+///   from the object raster), one transparent PNG per layer.</item>
+///   <item><b>Vector</b> — the biome edges, as SVG polygons (crisp at any zoom).</item>
+///   <item><b>Text</b> — the biome names and named areas, as positioned HTML text (embedded Lato, white halo).</item>
+/// </list>
+/// The grid stays raster for now (a future vector+text candidate).
 /// </summary>
 public static class LayeredMapArtifactBuilder
 {
-    private const int Columns = 40;
-    private const int Rows = 34;
+    private const int Columns = MapAnnotations.Columns;
+    private const int Rows = MapAnnotations.Rows;
+
+    private enum LayerKind
+    {
+        Raster,
+        Vector,
+        Text,
+    }
+
+    /// <summary>One toggleable layer: <paramref name="Content"/> is a base64 PNG, inner SVG, or inner HTML per <paramref name="Kind"/>.</summary>
+    private sealed record Layer(string Id, string Label, LayerKind Kind, string Content);
 
     public static void Build(string surfacePath, string objectPath, string layersPath, string biomesPath, int targetWidth)
     {
@@ -31,18 +47,19 @@ public static class LayeredMapArtifactBuilder
         var th = (int)Math.Round((double)tw * height / width);
         var scale = (double)tw / width;
 
-        var layers = new List<(string Id, string Label, string Base64)>
+        var layers = new List<Layer>
         {
-            ("void", "Void", RasterLayer(width, height, tw, th, i => (classes[i] & 3) == 0, surface, null)),
-            ("water", "Water", RasterLayer(width, height, tw, th, i => (classes[i] & 3) == 1, surface, null)),
-            ("ground", "Ground", RasterLayer(width, height, tw, th, i => (classes[i] & 3) == 2, surface, null)),
-            ("coral", "Coral", RasterLayer(width, height, tw, th, i => ((classes[i] >> 2) & 3) == 2, objectRaster, null)),
-            ("rocks", "Rocks", RasterLayer(width, height, tw, th, i => ((classes[i] >> 2) & 3) == 1, objectRaster, null)),
-            ("trunks", "Tree trunks", RasterLayer(width, height, tw, th, i => (classes[i] & 16) != 0, null, new Rgb24(120, 82, 52))),
-            ("foliage", "Tree foliage", RasterLayer(width, height, tw, th, i => ((classes[i] >> 2) & 3) == 3, objectRaster, null)),
-            ("biomes", "Biome edges", OverlayLayer(tw, th, ctx => DrawBiomeEdges(ctx, biomesPath, scale))),
-            ("names", "Biome names", OverlayLayer(tw, th, ctx => DrawBiomeNames(ctx, biomesPath, scale))),
-            ("grid", "Grid A1-AN34", OverlayLayer(tw, th, ctx => DrawGrid(ctx, tw, th, scale))),
+            Raster("void", "Void", RasterLayer(width, height, tw, th, i => (classes[i] & 3) == 0, surface, null)),
+            Raster("water", "Water", RasterLayer(width, height, tw, th, i => (classes[i] & 3) == 1, surface, null)),
+            Raster("ground", "Ground", RasterLayer(width, height, tw, th, i => (classes[i] & 3) == 2, surface, null)),
+            Raster("coral", "Coral", RasterLayer(width, height, tw, th, i => ((classes[i] >> 2) & 3) == 2, objectRaster, null)),
+            Raster("rocks", "Rocks", RasterLayer(width, height, tw, th, i => ((classes[i] >> 2) & 3) == 1, objectRaster, null)),
+            Raster("trunks", "Tree trunks", RasterLayer(width, height, tw, th, i => (classes[i] & 16) != 0, null, new Rgb24(120, 82, 52))),
+            Raster("foliage", "Tree foliage", RasterLayer(width, height, tw, th, i => ((classes[i] >> 2) & 3) == 3, objectRaster, null)),
+            new("biomes", "Biome edges", LayerKind.Vector, BiomeEdgesSvg(biomesPath, scale)),
+            new("names", "Biome names", LayerKind.Text, BiomeNamesHtml(biomesPath, tw, th, scale)),
+            new("areas", "Named areas", LayerKind.Text, NamedAreasHtml(biomesPath, tw, th, scale)),
+            Raster("grid", "Grid A1-AN34", OverlayLayer(tw, th, ctx => DrawGrid(ctx, tw, th, scale))),
         };
 
         var html = AssembleHtml(layers, tw, th);
@@ -50,7 +67,9 @@ public static class LayeredMapArtifactBuilder
         Console.WriteLine($"wrote map-layers.html  ({tw}x{th}, {layers.Count} layers, {html.Length / 1024} KB)");
     }
 
-    /// <summary>A full-extent layer: source colour where the predicate holds, transparent elsewhere, then downscaled.</summary>
+    private static Layer Raster(string id, string label, string base64) => new(id, label, LayerKind.Raster, base64);
+
+    /// <summary>A full-extent raster layer: source colour where the predicate holds, transparent elsewhere, then downscaled.</summary>
     private static string RasterLayer(int width, int height, int tw, int th, Func<int, bool> included, byte[]? source, Rgb24? flat)
     {
         var pixels = new byte[width * height * 4];
@@ -89,29 +108,64 @@ public static class LayeredMapArtifactBuilder
         return ToPngBase64(image);
     }
 
-    private static void DrawBiomeEdges(IImageProcessingContext ctx, string biomesPath, double scale)
+    /// <summary>The biome outlines as SVG polygons (one per ring), in the <c>tw×th</c> viewBox space.</summary>
+    private static string BiomeEdgesSvg(string biomesPath, double scale)
     {
+        var sb = new StringBuilder();
         foreach (var biome in BiomeDataset.Load(biomesPath))
         {
             foreach (var polygon in biome.Polygons)
             {
-                var points = polygon.Select(p => MapAnnotations.Pixel(p.X, p.Y, scale)).ToArray();
-                MapAnnotations.DrawPolyline(ctx, Color.FromRgba(255, 240, 60, 210), 2f, [.. points, points[0]]);
+                sb.Append("<polygon points=\"");
+                foreach (var p in polygon)
+                {
+                    var pt = MapAnnotations.Pixel(p.X, p.Y, scale);
+                    sb.Append(CultureInfo.InvariantCulture, $"{pt.X:0.#},{pt.Y:0.#} ");
+                }
+
+                sb.Append("\"/>");
             }
         }
+
+        return sb.ToString();
     }
 
-    private static void DrawBiomeNames(IImageProcessingContext ctx, string biomesPath, double scale)
+    private static string BiomeNamesHtml(string biomesPath, int tw, int th, double scale)
     {
-        var font = EmbeddedFont.At(Math.Max(11, (float)Math.Round(15 * scale / 0.4)));
+        var fontPx = Math.Max(11, Math.Round(15 * scale / 0.4));
+        var sb = new StringBuilder();
         foreach (var biome in BiomeDataset.Load(biomesPath))
         {
-            var all = biome.Polygons.SelectMany(poly => poly.Select(p => MapAnnotations.Pixel(p.X, p.Y, scale))).ToList();
-            var centreX = all.Average(p => p.X);
-            var centreY = all.Average(p => p.Y);
-            var size = TextMeasurer.MeasureSize(biome.Name, new TextOptions(font));
-            ctx.DrawText(biome.Name, font, Color.Black, new PointF(centreX - size.Width / 2, centreY - size.Height / 2));
+            var centre = MapAnnotations.BiomeLabelAnchor(biome, tw, th, scale);
+            AppendLabel(sb, biome.DisplayLabel, centre, fontPx, biome.LabelColour);
         }
+
+        return sb.ToString();
+    }
+
+    private static string NamedAreasHtml(string biomesPath, int tw, int th, double scale)
+    {
+        // Slightly smaller than the biome-name font (same Lato weight), Sentence Case as authored.
+        var fontPx = Math.Max(9, Math.Round(12 * scale / 0.4));
+        var sb = new StringBuilder();
+        foreach (var area in BiomeDataset.Load(biomesPath).SelectMany(b => b.SubLocations))
+        {
+            if (MapAnnotations.TryCellCentre(area.LabelCell, tw, th, out var centre))
+            {
+                AppendLabel(sb, area.Name, centre, fontPx, null);
+            }
+        }
+
+        return sb.ToString();
+    }
+
+    /// <summary>A positioned text label, centred on its point, with a contrast halo (white behind dark text).</summary>
+    private static void AppendLabel(StringBuilder sb, string text, PointF centre, double fontPx, string? colourSpec)
+    {
+        var white = string.Equals(colourSpec, "white", StringComparison.OrdinalIgnoreCase);
+        var html = System.Net.WebUtility.HtmlEncode(text).Replace("\r\n", "<br>").Replace("\n", "<br>");
+        sb.Append(CultureInfo.InvariantCulture,
+            $"<span class=\"lbl {(white ? "onDark" : "onLight")}\" style=\"left:{centre.X:0.#}px;top:{centre.Y:0.#}px;font-size:{fontPx:0.#}px;color:{(white ? "#fff" : "#000")};\">{html}</span>");
     }
 
     private static void DrawGrid(IImageProcessingContext ctx, int tw, int th, double scale)
@@ -145,27 +199,35 @@ public static class LayeredMapArtifactBuilder
         return Convert.ToBase64String(stream.ToArray());
     }
 
-    private static string AssembleHtml(List<(string Id, string Label, string Base64)> layers, int tw, int th)
+    private static string AssembleHtml(List<Layer> layers, int tw, int th)
     {
-        var images = new StringBuilder();
+        var elements = new StringBuilder();
         var rows = new StringBuilder();
         for (var i = 0; i < layers.Count; i++)
         {
-            var (id, label, base64) = layers[i];
-            images.Append(CultureInfo.InvariantCulture, $"<img class=\"ly\" id=\"ly-{id}\" style=\"z-index:{(i + 1) * 10};\" src=\"data:image/png;base64,{base64}\" alt=\"{label}\">\n");
-            rows.Append(CultureInfo.InvariantCulture, $"<label class=\"row\"><input type=\"checkbox\" data-ly=\"{id}\" checked> {label}</label>\n");
+            var layer = layers[i];
+            var z = (i + 1) * 10;
+            elements.Append(layer.Kind switch
+            {
+                LayerKind.Raster => $"<img class=\"ly\" id=\"ly-{layer.Id}\" style=\"z-index:{z};\" src=\"data:image/png;base64,{layer.Content}\" alt=\"{layer.Label}\">\n",
+                LayerKind.Vector => $"<svg class=\"ly vec\" id=\"ly-{layer.Id}\" style=\"z-index:{z};\" viewBox=\"0 0 {tw} {th}\" preserveAspectRatio=\"none\">{layer.Content}</svg>\n",
+                _ => $"<div class=\"ly txt\" id=\"ly-{layer.Id}\" style=\"z-index:{z};\">{layer.Content}</div>\n",
+            });
+            rows.Append(CultureInfo.InvariantCulture, $"<label class=\"row\"><input type=\"checkbox\" data-ly=\"{layer.Id}\" checked> {layer.Label}</label>\n");
         }
 
         return HtmlTemplate
-            .Replace("__TW__", tw.ToString(System.Globalization.CultureInfo.InvariantCulture))
-            .Replace("__TH__", th.ToString(System.Globalization.CultureInfo.InvariantCulture))
-            .Replace("__IMGS__", images.ToString())
+            .Replace("__TW__", tw.ToString(CultureInfo.InvariantCulture))
+            .Replace("__TH__", th.ToString(CultureInfo.InvariantCulture))
+            .Replace("__FONT__", Convert.ToBase64String(EmbeddedFont.RegularTtfBytes()))
+            .Replace("__ELEMENTS__", elements.ToString())
             .Replace("__ROWS__", rows.ToString());
     }
 
     private const string HtmlTemplate = """
 <title>Satisfactory base map — layers (#246)</title>
 <style>
+  @font-face { font-family:'Lato'; src:url(data:font/ttf;base64,__FONT__) format('truetype'); font-weight:400; font-style:normal; }
   :root { color-scheme: dark; }
   * { box-sizing:border-box; }
   body { margin:0; background:#14171c; color:#dfe3ea; font:14px/1.4 system-ui,sans-serif; }
@@ -174,7 +236,13 @@ public static class LayeredMapArtifactBuilder
           box-shadow:0 2px 16px #0008; cursor:grab; touch-action:none; }
   #map.drag { cursor:grabbing; }
   #view { position:absolute; top:0; left:0; width:__TW__px; aspect-ratio:__TW__/__TH__; transform-origin:0 0; }
-  #view img.ly { position:absolute; inset:0; width:100%; height:100%; pointer-events:none; }
+  #view .ly { position:absolute; inset:0; width:100%; height:100%; pointer-events:none; }
+  #view svg.ly { overflow:visible; }
+  .vec polygon { fill:none; stroke:rgba(255,240,60,.82); stroke-width:2; stroke-linejoin:round; }
+  .lbl { position:absolute; transform:translate(-50%,-50%); white-space:nowrap; text-align:center; line-height:1.05;
+         font-family:'Lato',system-ui,sans-serif; font-weight:400; }
+  .lbl.onLight { text-shadow:-1px -1px 2px #fff,1px -1px 2px #fff,-1px 1px 2px #fff,1px 1px 2px #fff,0 0 3px #fff; }
+  .lbl.onDark { text-shadow:-1px -1px 2px #000,1px -1px 2px #000,-1px 1px 2px #000,1px 1px 2px #000; }
   #panel { flex:0 0 190px; background:#1c2129; border:1px solid #2c333d; border-radius:10px; padding:12px 14px; align-self:flex-start; }
   #panel h1 { font-size:13px; letter-spacing:.06em; text-transform:uppercase; color:#8b97a8; margin:0 0 6px; }
   #panel .hint { color:#6b7686; font-size:11px; margin:0 0 10px; }
@@ -184,7 +252,7 @@ public static class LayeredMapArtifactBuilder
 </style>
 <div id="wrap">
   <div id="map"><div id="view">
-__IMGS__
+__ELEMENTS__
   </div></div>
   <div id="panel">
     <h1>Layers</h1>

@@ -9,11 +9,20 @@ public static class EmbeddedFont
 
     public static Font At(float size) => Family.CreateFont(size, FontStyle.Regular);
 
-    private static FontFamily Load()
+    /// <summary>The raw Lato Regular TTF, e.g. to embed as a base64 <c>@font-face</c> in the HTML artifact.</summary>
+    public static byte[] RegularTtfBytes()
     {
         var assembly = typeof(EmbeddedFont).Assembly;
         var resource = assembly.GetManifestResourceNames().First(n => n.EndsWith("Lato-Regular.ttf", StringComparison.Ordinal));
         using var stream = assembly.GetManifestResourceStream(resource)!;
+        using var buffer = new MemoryStream();
+        stream.CopyTo(buffer);
+        return buffer.ToArray();
+    }
+
+    private static FontFamily Load()
+    {
+        using var stream = new MemoryStream(RegularTtfBytes());
         return new FontCollection().Add(stream, System.Globalization.CultureInfo.InvariantCulture);
     }
 }
