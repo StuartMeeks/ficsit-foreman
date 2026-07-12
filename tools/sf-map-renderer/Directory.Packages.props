@@ -1,0 +1,35 @@
+<Project>
+
+  <!-- Central Package Management: versions live here; project files carry versionless
+       PackageReference items. The CUE4Parse dependency is a ProjectReference (not a
+       package) and sits outside this tree, so it is unaffected by CPM. -->
+  <PropertyGroup>
+    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+    <!-- Lets a PackageVersion below pin a transitive dependency's version without a direct
+         PackageReference — used to lift the vulnerable Microsoft.Bcl.Memory (see below). -->
+    <CentralPackageTransitivePinningEnabled>true</CentralPackageTransitivePinningEnabled>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Imaging (the Pillow/numpy port). Pinned to the Apache-2.0 line: ImageSharp 3.x+
+         and ImageSharp.Drawing 2.x+ use the paid Six Labors Split License. -->
+    <PackageVersion Include="SixLabors.ImageSharp" Version="2.1.13" />
+    <PackageVersion Include="SixLabors.ImageSharp.Drawing" Version="1.0.0" />
+    <PackageVersion Include="SixLabors.Fonts" Version="1.0.1" />
+
+    <!-- Command-line surface. -->
+    <PackageVersion Include="Spectre.Console" Version="0.55.0" />
+    <PackageVersion Include="Spectre.Console.Cli" Version="0.55.0" />
+
+    <!-- Transitive-pin: CUE4Parse pulls Microsoft.Bcl.Memory 9.0.0, which has a high-severity
+         DoS advisory (GHSA-73j8-2gch-69rq, fixed in 9.0.14). Lift it to a patched 9.0.x so the
+         vulnerability leaves our dependency closure — a real fix, not an audit suppression. -->
+    <PackageVersion Include="Microsoft.Bcl.Memory" Version="9.0.17" />
+
+    <!-- Tests (built and run on the host, since the main project references CUE4Parse). -->
+    <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.7.0" />
+    <PackageVersion Include="xunit" Version="2.9.3" />
+    <PackageVersion Include="xunit.runner.visualstudio" Version="3.1.5" />
+  </ItemGroup>
+
+</Project>

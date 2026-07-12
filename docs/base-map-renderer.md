@@ -5,7 +5,7 @@
 > formations, the full water model, a geometrically-derived ocean/void boundary, and **flora**
 > (alien coral + Titan-Forest trees, incl. instanced foliage). It also emits an **interactive,
 > toggleable-layer** HTML artifact (the step toward the eventual rotatable/tiltable 3D layered
-> map). The tool lives in the repo at `tools/fg-hprobe/` and runs **offline** on the Windows
+> map). The tool lives in the repo at `tools/sf-map-renderer/` and runs **offline** on the Windows
 > host against a real game install via CUE4Parse. Remaining: the other tree species, per-mesh
 > **textures**, and wiring the output into the interactive map (#64) and #239 coastline. This
 > document records the approach, the decode maths, every mechanism, and the diagnostic/override
@@ -30,8 +30,8 @@ fully removed in favour of pure game geometry — see *Off-map cliff exclusion*.
 ## Pipeline overview
 
 All stages run offline against a game install. Outputs: the flat composite raster (`map.ppm`),
-and — with `LAYERS=1` — a **surface** raster + an **object** raster + a per-cell class byte that
-`layers.py` assembles into the interactive layered artifact.
+and — with `--layers` — a **surface** raster + an **object** raster + a per-cell class byte that
+the `layers` command assembles into the interactive layered artifact.
 
 1. **Decode the landscape heightmap** → a height grid in a world-cm frame.
 2. **Colour the terrain** from the landscape material weightmaps.
@@ -103,7 +103,7 @@ landscape, i.e. holes down to the caves. Their heightmap still carries (deep) da
 handling they render as deep terrain. In pass B, any cell with
 `LandscapeVisibilityLayerInfo` weight ≥ **`VISTHRESH`** (128) has its height **nulled to 0**,
 turning it into void. This cleaned up **~113 k cells** map-wide (e.g. the AB24 pit, −253 m,
-ringed by +100 m terrain). Toggle with `VISHOLE=0`.
+ringed by +100 m terrain). Toggle with `--no-visibility-holes`.
 
 ## 5. Higher ground (rock meshes)
 
@@ -139,8 +139,8 @@ the giant Titan-Forest trees. These are placed both as individual `StaticMeshCom
 **instanced foliage**, and are rasterised the same way as rocks (tops z-buffered into the height
 grid), tagged `kind` 1 = coral · 2 = tree.
 
-- **Include filter** (env `FLORA`, default `/Environment/Foliage/Coral/,/Environment/Foliage/Trees/TitanTree`;
-  `FLORA=off` disables): `/Coral/*` (CoralTree, CoralCactus, SmallShell/BigShell, Coral_Root,
+- **Include filter** (`--flora`, default `/Environment/Foliage/Coral/,/Environment/Foliage/Trees/TitanTree`;
+  `--flora off` disables): `/Coral/*` (CoralTree, CoralCactus, SmallShell/BigShell, Coral_Root,
   PlateauShell, CraterTree) → coral; `/Trees/TitanTree` → tree. The other tree species
   (Kapok, DioTree, GreenTree, BluePalm, Bamboo, …) are catalogued but not yet enabled.
 - **Instanced foliage.** ~90 % of flora (and all trees) are `FoliageInstancedStaticMeshComponent`s
@@ -151,7 +151,7 @@ grid), tagged `kind` 1 = coral · 2 = tree.
 - **Colour threshold.** Flora canopies droop to the ground at the rim, so a 3 m cut trims them to a
   core; flora uses its own low cut **`FLORAH`** (default 50 cm) so the full canopy colours. Coral
   renders at true scale (e.g. `SM_CoralTree_02` is 34 m × 2.5 = ~86 m).
-- **Trunk vs foliage** (env `TREEPART` = `trunk` | `foliage` | `both`, default both). Tree meshes
+- **Trunk vs foliage** (`--tree-part` = `trunk` | `foliage` | `both`, default both). Tree meshes
   are one static mesh with separate **material sections** — bark/trunk vs leaf/branch. `GetMesh`
   classifies each LOD0 section by material **basename** (keywords leaf/branch/liana/ivy/frond/
   mushroom/canopy → foliage; else trunk — must use the *basename*, not the full path, or the
@@ -187,7 +187,7 @@ The full water stack, in order (all off `baseH` = seabed, pre-rock):
   `SM_RiverPlane` along a segment with a `SplineParams` struct (Start/End Pos + Tangent in the
   local frame, Start/End Scale where `.X` = cross-stream width). We cubic-Hermite-sample each
   segment's centreline, transform to world, and stamp a disc ribbon of half-width
-  `RIVERW (200) × scaleX` wherever terrain ≤ `surfZ + RIVERTOL (400)`. Toggle `RIVERS=0`.
+  `RIVERW (200) × scaleX` wherever terrain ≤ `surfZ + RIVERTOL (400)`. Toggle `--no-rivers`.
 - **BP_Water ponds.** Small shallow bodies with a visual `WaterSurface` plane but no
   FGWaterVolume — a footprint fill clipped to terrain ≤ surface, only where not already ocean.
 - **Wet-sand shallow shelf.** The landscape mesh continues underwater past the shoreline, so
@@ -195,8 +195,8 @@ The full water stack, in order (all off `baseH` = seabed, pre-rock):
   the **`WetSand`/`Puddles`** material. Seed = shallow WetSand/Puddles cells, then **BFS-spread
   through connected shallow below-sea terrain** (any material) within a depth cap. Coral/sand
   shelf fills only where a wet seed reaches it, so isolated inland coral and deep crater walls
-  stay dry. Tunables: `WETSEA` (−1755), `WETRISE` (0), `WETDEEP` (500 cm cap), `WETTHRESH` (50).
-  `WETWATER=0` disables.
+  stay dry. Tunables: `--wet-sea` (−1755), `--wet-rise` (0), `--wet-deep` (500 cm cap), `--wet-threshold` (50).
+  `--no-wet-sand` disables.
 
 ### Ocean vs void — the classifier that matters
 
@@ -244,7 +244,7 @@ only clip (the earlier topo/geometry clip-mode masks have been removed).
 ## 9. Layered output & the interactive artifact
 
 The endgame is a layered map, so the renderer keeps the surface and the objects **separable**
-rather than baking one flat image. With **`LAYERS=1`** it emits, alongside the flat `map.ppm`:
+rather than baking one flat image. With **`--layers`** it emits, alongside the flat `map.ppm`:
 
 - **`map.surf.ppm`** — the base **surface** colour for *every* cell (land / water / void),
   hillshaded on the bare **landscape** (no rocks/flora). Because it is full, hiding an object
@@ -254,7 +254,7 @@ rather than baking one flat image. With **`LAYERS=1`** it emits, alongside the f
 - **`map.layers`** — one byte per cell: bits 0–1 `sClass` (0 void · 1 water · 2 land), bits 2–3
   `objKind` (0 none · 1 rock · 2 coral · 3 foliage), bit 4 = trunk-disc present.
 
-**`layers.py`** reads those three files and builds the self-contained interactive HTML artifact:
+The **`layers`** command reads those three files and builds the self-contained interactive HTML artifact:
 one transparent PNG per layer (`ground`/`water`/`void` from the surface raster, `rocks`/`coral`/
 `foliage` from the object raster, `trunks` as flat discs) plus biome-outline / biome-name / grid
 overlays, stacked by height-ranked z-order with a **checkbox per layer** and **pan/zoom** (scroll
@@ -267,72 +267,75 @@ PNG and rebuilds the (tiny) HTML.
 > object, so hiding a layer reveals the *surface* beneath, not the next object down. True
 > per-pixel multi-depth compositing is the natural fit for the eventual 3D (canvas/WebGL) version.
 
-## The offline tool (`fg-hprobe`)
+## The offline tool (`sf-map-renderer`)
 
-A single C# console program (CUE4Parse + `EGame.GAME_UE5_6`), committed at **`tools/fg-hprobe/`**.
-It builds/runs **only on the Windows game host** (`ssh winbuild`,
-`D:\Code\StuartMeeks\ficsit-foreman\tools\fg-hprobe`); the VM has no game files (see the
-dev-environment note in `CLAUDE.md`). Needs the CUE4Parse clone at
+A single **C#-only** console program (CUE4Parse + `EGame.GAME_UE5_6`), committed at
+**`tools/sf-map-renderer/`**. It builds/runs **only on the Windows game host** (`ssh winbuild`); the
+VM has no game files (see the dev-environment note in `CLAUDE.md`). It needs the CUE4Parse clone at
 `packages/sf-game-data/extract/CUE4Parse/` (same as the extractor) + the Oodle DLL from the game
-install. See the tool's `README.md`.
+install. The imaging that used to live in the Python companions (`overlay.py`/`layers.py`, Pillow +
+numpy) is now done in-process with **SixLabors.ImageSharp** (the Apache-2.0 line: ImageSharp 2.x +
+ImageSharp.Drawing 1.0), with the Lato label font embedded in the assembly. See the tool's
+`README.md` for the build/run details and the full project layout.
 
-- **Inputs:** `SF_PAKS` (paks dir), `SF_USMAP` (mappings). Run: `dotnet run -c Release` with env
-  vars set (PowerShell: `$env:DS=2; dotnet run -c Release`).
-- **Output:** `map.ppm` at the chosen `DS` (+ the `LAYERS=1` rasters above). Two Python companions
-  run on the VM (Pillow + numpy): **`overlay.py`** annotates a flat render with the **40 × 34**
-  coordinate grid (cols A–Z then AA–AN, rows 1–34; single label per cell) + biome outlines;
-  **`layers.py`** builds the interactive layered artifact.
+- **Build:** `dotnet build sf-map-renderer.slnx -c Release`.
+- **Command surface** (Spectre.Console.Cli; `--help` on each): `render` (the base map), `overlay`
+  (the labelled review image), `layers` (the interactive layered artifact), and `probe <name>` (a
+  standalone diagnostic survey).
+- **Inputs:** `--paks` / `--usmap` (default a Steam install; also honour `SF_PAKS` / `SF_USMAP`).
+- **Output:** `map.ppm` (+ the `--layers` rasters above) and `map-bounds.txt`, to the working
+  directory; `overlay <map.ppm>` adds `<name>_labeled.png` / `_embed.jpg` (the **40 × 34** grid,
+  cols A–Z then AA–AN, + biome outlines/names); `layers` writes `map-layers.html`.
 
-### Environment-variable reference
+### Render options (were environment variables)
 
-| Var | Default | Purpose |
-|---|---|---|
-| `SF_PAKS`, `SF_USMAP` | game install paths | CUE4Parse inputs |
-| `DS` | 8 | output downsample (use **2** for full-res 3917×3409) |
-| `ZADJ` | 0 | landscape Z offset (leave 0 — the "+51" was a mis-diagnosis) |
-| `ROCKS` | on | rasterise `/Environment/Rock/` meshes |
-| `ROCKEXCLUDEAT` | ~15 instances | per-instance exclusion list `"Mesh@x,y;…"` |
-| `FLORA` | coral + TitanTree | flora folders to render (path substrings; `off` disables) |
-| `FLORAH` | 50 | flora colour-cut, cm above landscape (low so canopies fill) |
-| `TREEPART` | both | tree sections to raise — `trunk` \| `foliage` \| `both` |
-| `TRUNKBAND` | 250 | trunk-disc slice height, cm above the ground it touches |
-| `LAYERS` | off | also emit `map.surf.ppm` + `map.obj.ppm` + `map.layers` |
-| `OCEANZ` | −1755 | unified sea level for ocean-band volumes |
-| `BLUEBOX` | west margin | force void cells ocean-blue in world-XY rectangles |
-| `VISHOLE` / `VISTHRESH` | on / 128 | null landscape-visibility holes to void |
-| `RIVERS` / `RIVERW` / `RIVERTOL` | on / 200 / 400 | BP_River ribbon stamping |
-| `WETWATER` / `WETSEA` / `WETRISE` / `WETDEEP` / `WETTHRESH` | on / −1755 / 0 / 500 / 50 | wet-sand shallow shelf |
+Every former environment variable is now a typed `render` option with the same default, so a bare
+`render` reproduces the old default render exactly:
 
-### Diagnostic probes (`MODE=…` and probe vars)
+| Option | Default | Was | Purpose |
+|---|---|---|---|
+| `--paks` / `--usmap` | Steam install | `SF_PAKS`/`SF_USMAP` | CUE4Parse inputs |
+| `--downsample` | 8 | `DS` | output downsample (use **2** for full-res 3917×3409) |
+| `--z-adjust` | 0 | `ZADJ` | landscape Z offset (leave 0 — the "+51" was a mis-diagnosis) |
+| `--no-rocks` | off | `ROCKS=0` | skip the rock/flora higher-ground pass |
+| `--rock-exclude` | ~15 instances | `ROCKEXCLUDEAT` | per-instance exclusion list `"Mesh@x,y;…"` |
+| `--flora` | coral + TitanTree | `FLORA` | flora folders (path substrings; `off` disables) |
+| `--flora-height` | 50 | `FLORAH` | flora colour-cut, cm above landscape |
+| `--tree-part` | both | `TREEPART` | tree sections — `trunk` \| `foliage` \| `both` |
+| `--trunk-band` | 250 | `TRUNKBAND` | trunk-disc slice height, cm |
+| `--layers` | off | `LAYERS=1` | also emit `map.surf.ppm` + `map.obj.ppm` + `map.layers` |
+| `--ocean-z` | −1755 | `OCEANZ` | unified sea level for ocean-band volumes |
+| `--blue-box` | west margin | `BLUEBOX` | force void cells ocean-blue in world-XY rectangles |
+| `--no-visibility-holes` / `--visibility-threshold` | off / 128 | `VISHOLE`/`VISTHRESH` | null landscape-visibility holes to void |
+| `--no-rivers` / `--river-width` / `--river-tolerance` | off / 200 / 400 | `RIVERS`/`RIVERW`/`RIVERTOL` | BP_River ribbon stamping |
+| `--no-wet-sand` / `--wet-sea` / `--wet-rise` / `--wet-deep` / `--wet-threshold` | off / −1755 / 0 / 500 / 50 | `WETWATER`/… | wet-sand shallow shelf |
+| `--sea-level` | −1646 | `SEA` | ocean surface Z for the land colour ramp + bounds sidecar |
 
-These early-return with a report instead of rendering (unless noted):
+### Diagnostic probes
 
-- **`PROBEXY="x,y;…"`** — per world-coord: rockTopZ, seabedZ, isRock, isOcean, isLake,
-  waterZ(surf), oceanVoid, volVoid, and a `render=` prediction (OCEAN / land-rock /
-  OCEAN(void) / VOID(grey)). The first-reach diagnostic for land/water/void disputes.
-- **`ROCKAT="x,y,label;…"`** — during the rock pass, reports which instances rasterise onto each
-  target cell (mesh @ origin, z, scale). Traces a rendered landmass to the exact meshes to
-  exclude. (Runs as part of a normal render.)
-- **`MODE=volat` + `VA="x,y;…"`** — which FGWaterVolume covers each coord + its authored surfZ.
-  The tool that proved the ocean/void classifier.
-- **`MODE=objectsat` + `OA`/`OAR`/`OAMESH`/`OALIST`/`OAALL`** — placed actors near a coord
-  (histogram, or per-instance list with `OALIST=1`; `OAALL=1` includes foliage/landscape types).
-- **`MODE=floradump`** — flora placement survey: individual vs instanced components, and whether
-  the instanced transforms are readable.
-- **`MODE=meshinspect` + `MI="x,y,substr"`** — full transform + parent chain + mesh local bounds
-  for a placed mesh (used to debug flora sizing).
-- **`MODE=meshsections` + `MS="names"`** — a mesh's material sections (slot/material + triangles +
-  Z-range) — how trunk vs foliage split.
-- **`LAYERAT="x,y;…"`** — per-cell weightmap dump (which material layers + weights). Confirmed the
-  visibility holes.
-- Others: `MODE=meshes` (mesh-path histogram), `oceandump`/`voldist`/`voldump` (water-volume
-  surveys), `oceanmesh` (SM_GEN_WaterPlane footprints), `proxy` (proxy Z/scale histogram),
-  `riverdump`, `pickupdump`, `nearwater`, `sealevel`, `ztest`.
+Probes that ride on a render are `render` options that early-return with a report instead of writing
+the map (unless noted):
+
+- **`--probe-xy "x,y;…"`** — per world-coord: rockTopZ, seabedZ, isRock, isOcean, isLake, waterZ,
+  oceanVoid, volVoid, and a `render=` prediction. The first-reach land/water/void diagnostic.
+- **`--rock-at "x,y,label;…"`** — which instances rasterise onto each target cell (mesh @ origin, z,
+  scale); traces a rendered landmass to the meshes to exclude. Runs as part of a full render.
+- **`--layer-at "x,y;…"`** — per-cell weightmap dump (material layers + weights). Runs during a render.
+- **`--cells "J4,H3,…"`** — land/sea/lake/void percentages of named cells (a 20 × 17 lettered grid).
+- **`--z-test`** (+ `--world-locations`) — decoded Z vs each collectible's true Z (mean offset).
+
+Standalone surveys are **`probe <name>`**: `meshes`, `landscape-layers` (was `MODE=layers`), `proxy`,
+`floradump`, `meshinspect`, `meshsections`, `volat` (`--at`), `objectsat`
+(`--at`/`--radius`/`--list`/`--mesh`/`--all`), `voldist`, `voldump`, `oceandump`, `oceanmesh`,
+`riverdump`, `pickupdump` (`--at`/`--radius`), `nearwater` (`--at`), `sealevel`.
 
 ## Open items / next steps
 
-- **Refactor `Program.cs`** — it has grown large and organic; a structural refactor is planned
-  (this doc + the code are the map for it).
+- ~~**Refactor `Program.cs`**~~ **done** — `fg-hprobe`'s single ~1830-line `Program.cs` plus its
+  Python companions are now the C#-only **`sf-map-renderer`** solution: pass A/B, higher-ground, the
+  water model, shading and output split into single-responsibility classes behind a Spectre command
+  surface, with the Pillow/numpy overlays ported to ImageSharp. Renderer + probe outputs were
+  verified byte-identical to the pre-refactor baseline.
 - **The other tree species** — fold Kapok/DioTree/GreenTree/BluePalm/Bamboo/… into `FLORA` for
   full forest canopy (denser + slower, same proven path).
 - **Per-mesh textures** — replace the placeholder flora/rock colours by sampling each mesh's

@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="sf-map-renderer/sf-map-renderer.csproj" />
+  <Project Path="sf-map-renderer-tests/sf-map-renderer-tests.csproj" />
+</Solution>
