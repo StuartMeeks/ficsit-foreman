@@ -1,13 +1,20 @@
 # Base-map renderer (#246)
 
-> Status: **in progress — approach settled, not yet a committed tool.** A first-party,
-> top-down base map of the *Satisfactory* world is rendering correctly end-to-end (landscape
-> relief, terrain colour, rock formations, the full water model, and a geometrically-derived
-> ocean/void boundary). It is produced **offline** by a spike tool (`fg-hprobe`) that runs on
-> the Windows host against a real game install via CUE4Parse. The remaining work is packaging
-> it as a committed repo tool and wiring its output into the interactive map (#64) and the
-> #239 coastline. This document records the approach, the decode maths, every mechanism, and
-> the diagnostic/override surface so the work can resume cold.
+> Status: **in progress — rendering end-to-end; committed tool.** A first-party, top-down base
+> map of the *Satisfactory* world renders correctly: landscape relief, terrain colour, rock
+> formations, the full water model, a geometrically-derived ocean/void boundary, and **flora**
+> (alien coral + Titan-Forest trees, incl. instanced foliage). It also emits an **interactive,
+> toggleable-layer** HTML artifact (the step toward the eventual rotatable/tiltable 3D layered
+> map). The tool lives in the repo at `tools/fg-hprobe/` and runs **offline** on the Windows
+> host against a real game install via CUE4Parse. Remaining: the other tree species, per-mesh
+> **textures**, and wiring the output into the interactive map (#64) and #239 coastline. This
+> document records the approach, the decode maths, every mechanism, and the diagnostic/override
+> surface so the work can resume cold.
+>
+> **Ultimate goal (Stu):** a **3D, rotatable/tiltable** map with independently toggleable
+> **layers** — topography, altitude shading, biomes, ground textures, mesh textures, resource
+> nodes, collectibles, flora, … Every feature is built to be a separable layer, not baked into
+> one flat image.
 
 ## Why this exists
 
@@ -22,20 +29,26 @@ fully removed in favour of pure game geometry — see *Off-map cliff exclusion*.
 
 ## Pipeline overview
 
-All stages run offline against a game install. Output is a single top-down raster (PPM),
-optionally annotated with a coordinate/biome overlay for review.
+All stages run offline against a game install. Outputs: the flat composite raster (`map.ppm`),
+and — with `LAYERS=1` — a **surface** raster + an **object** raster + a per-cell class byte that
+`layers.py` assembles into the interactive layered artifact.
 
 1. **Decode the landscape heightmap** → a height grid in a world-cm frame.
 2. **Colour the terrain** from the landscape material weightmaps.
-3. **Raise "higher ground"** — rasterise placed rock/cliff meshes' tops into the height grid.
-4. **Null visibility holes** — cells masked by the landscape visibility layer become void.
-5. **Lay the water** — FGWaterVolume footprints (ocean + lakes) + BP_River ribbons +
+3. **Null visibility holes** — cells masked by the landscape visibility layer become void.
+4. **Raise "higher ground"** — rasterise placed rock/cliff meshes' tops into the height grid,
+   tracking the **height-ranked topmost object** per cell (`objKind`).
+5. **Raise flora** — rasterise coral + trees (individual + instanced foliage) as flora; split
+   tree meshes into trunk vs foliage sections; compute a filled trunk cross-section per tree.
+6. **Lay the water** — FGWaterVolume footprints (ocean + lakes) + BP_River ribbons +
    BP_Water ponds + a wet-sand-seeded shallow shelf.
-6. **Classify ocean vs void** — a void cell is ocean iff it sits inside an ocean
+7. **Classify ocean vs void** — a void cell is ocean iff it sits inside an ocean
    FGWaterVolume footprint (`volVoid`); everything else off-map is grey void.
-7. **Exclude off-map junk** — a small, explicit list of enormous cliff meshes placed beyond
+8. **Exclude off-map junk** — a small, explicit list of enormous cliff meshes placed beyond
    the playable edge, removed by mesh-name + origin.
-8. **Render** — hillshade the land, depth-shade the water, paint void, and blit rock on top.
+9. **Render** — compute a full **surface** colour (land/water/void, hillshaded on the bare
+   landscape) and a separate **object** colour (rock/coral/foliage on the object height), so
+   layers can reveal the ground beneath an object; the flat composite is surface + object.
 
 ## 1. Landscape decode (the crux)
 
@@ -111,11 +124,46 @@ separate placed `StaticMeshComponent`s. We rasterise their tops into the height 
 - A cell is coloured rock-grey only where a formation rises **> ~3 m** above the landscape
   baseline (so scattered boulders add relief without greying everything).
 - **Rocks draw *on top of* water.** Water is classified on `baseH` (a clone of the height grid
-  taken *before* the rock pass = the seabed), so submerged spires don't punch holes in the
-  water or block the shelf spread; in the render, `isRock` cells draw grey over the water
-  (`if (isOcean && !isRock)` for the water branch). This is the Spire Coast archipelago.
+  taken *before* the rock/flora passes = the seabed), so submerged spires don't punch holes in
+  the water; in the render an object cell (`objKind ≠ 0`) draws over the water branch. This is
+  the Spire Coast archipelago.
+- **Height-ranked topmost object (`objKind`).** As each rock/coral/tree triangle sets a new max
+  height above the colour threshold, the cell records that object's category (1 rock · 2 coral ·
+  3 tree). So where objects overlap, the **taller** one wins per cell — a rock over a shorter
+  coral, a canopy over a trunk — which is the render/layer z-order.
 
-## 6. Water model
+## 6. Flora (coral & trees)
+
+The landscape + rock passes miss the conspicuous alien flora — the "mushroom/coral" landmarks and
+the giant Titan-Forest trees. These are placed both as individual `StaticMeshComponent`s **and** as
+**instanced foliage**, and are rasterised the same way as rocks (tops z-buffered into the height
+grid), tagged `kind` 1 = coral · 2 = tree.
+
+- **Include filter** (env `FLORA`, default `/Environment/Foliage/Coral/,/Environment/Foliage/Trees/TitanTree`;
+  `FLORA=off` disables): `/Coral/*` (CoralTree, CoralCactus, SmallShell/BigShell, Coral_Root,
+  PlateauShell, CraterTree) → coral; `/Trees/TitanTree` → tree. The other tree species
+  (Kapok, DioTree, GreenTree, BluePalm, Bamboo, …) are catalogued but not yet enabled.
+- **Instanced foliage.** ~90 % of flora (and all trees) are `FoliageInstancedStaticMeshComponent`s
+  with **no** `RelativeLocation` — the transforms live in the serialized instance buffer. Cast to
+  CUE4Parse `UInstancedStaticMeshComponent`; its `PerInstanceSMData` array carries per-instance
+  `FTransform`s. World position = the component's `TranslatedInstanceSpaceOrigin` (a UProperty
+  FVector) **+** the instance `.Translation`; rotation = `.Rotation.Rotator()`; scale = `.Scale3D`.
+- **Colour threshold.** Flora canopies droop to the ground at the rim, so a 3 m cut trims them to a
+  core; flora uses its own low cut **`FLORAH`** (default 50 cm) so the full canopy colours. Coral
+  renders at true scale (e.g. `SM_CoralTree_02` is 34 m × 2.5 = ~86 m).
+- **Trunk vs foliage** (env `TREEPART` = `trunk` | `foliage` | `both`, default both). Tree meshes
+  are one static mesh with separate **material sections** — bark/trunk vs leaf/branch. `GetMesh`
+  classifies each LOD0 section by material **basename** (keywords leaf/branch/liana/ivy/frond/
+  mushroom/canopy → foliage; else trunk — must use the *basename*, not the full path, or the
+  `/Foliage/` folder falsely matches everything).
+- **Trunk cross-section (filled disc).** A trunk mesh is a hollow tube, so rasterising its wall
+  gives a *ring*. Instead, per tree, find the highest ground point the trunk footprint touches,
+  take a horizontal **slice** of the trunk-section vertices at **`TRUNKBAND`** (default 250 cm)
+  above it, and **fill** the disc enclosing the slice (radius = 75th-pctile of the ring, capped).
+- **Placeholder colours** (per-mesh textures are the next step): coral `(205,116,104)`, tree
+  foliage `(70,120,74)`, trunk `(120,82,52)`, rock `(143,135,122)`.
+
+## 7. Water model
 
 The full water stack, in order (all off `baseH` = seabed, pre-rock):
 
@@ -171,7 +219,7 @@ long-standing north-edge-above-Spire-Coast blue bleed for free.
   those void cells blue — the one honest exception layered on top of the geometric classifier
   (default covers ~599 k cells in the west margin).
 
-## 7. Off-map cliff exclusion
+## 8. Off-map cliff exclusion
 
 Beyond the playable landscape edge the game places enormous decorative cliff meshes (the
 "Abyss Cliffs" formations, north/east/SE cliff walls). Top-down they read as junk landmasses
@@ -193,20 +241,47 @@ instances (CliffFormation_05, CliffPillar_01, CaveSplitter_01) covering the east
 corner, bottom strip, and north edge. All other rock is rendered — per-instance exclusion is the
 only clip (the earlier topo/geometry clip-mode masks have been removed).
 
+## 9. Layered output & the interactive artifact
+
+The endgame is a layered map, so the renderer keeps the surface and the objects **separable**
+rather than baking one flat image. With **`LAYERS=1`** it emits, alongside the flat `map.ppm`:
+
+- **`map.surf.ppm`** — the base **surface** colour for *every* cell (land / water / void),
+  hillshaded on the bare **landscape** (no rocks/flora). Because it is full, hiding an object
+  reveals the ground beneath.
+- **`map.obj.ppm`** — the **object** colour (rock / coral / foliage), hillshaded on the object
+  height, only where an object is topmost.
+- **`map.layers`** — one byte per cell: bits 0–1 `sClass` (0 void · 1 water · 2 land), bits 2–3
+  `objKind` (0 none · 1 rock · 2 coral · 3 foliage), bit 4 = trunk-disc present.
+
+**`layers.py`** reads those three files and builds the self-contained interactive HTML artifact:
+one transparent PNG per layer (`ground`/`water`/`void` from the surface raster, `rocks`/`coral`/
+`foliage` from the object raster, `trunks` as flat discs) plus biome-outline / biome-name / grid
+overlays, stacked by height-ranked z-order with a **checkbox per layer** and **pan/zoom** (scroll
+to zoom to cursor, drag to pan). It reads the canonical `packages/sf-game-data/data/biomes.json`.
+Layers: Void · Water · Ground · Coral · Rocks · Tree trunks · Tree foliage · Biome edges ·
+Biome names · Grid (A1–AN34). Each layer is its own PNG, so touching one layer only re-emits that
+PNG and rebuilds the (tiny) HTML.
+
+> Layer model note: layers are **height-ranked won-cells** — each cell shows its single topmost
+> object, so hiding a layer reveals the *surface* beneath, not the next object down. True
+> per-pixel multi-depth compositing is the natural fit for the eventual 3D (canvas/WebGL) version.
+
 ## The offline tool (`fg-hprobe`)
 
-A single C# console program (CUE4Parse + `EGame.GAME_UE5_6`). It is **not yet committed to the
-repo** — it lives in the session scratchpad and is deployed to the Windows host
-(`ssh winbuild`, `D:\Code\StuartMeeks\ficsit-foreman\tools\fg-hprobe`) which has a game install.
-The VM cannot run it (no game files; see the dev-environment note in `CLAUDE.md`). Packaging it
-as a committed tool (likely alongside the #164 `sf-game-data-extractor`) is the main open task.
+A single C# console program (CUE4Parse + `EGame.GAME_UE5_6`), committed at **`tools/fg-hprobe/`**.
+It builds/runs **only on the Windows game host** (`ssh winbuild`,
+`D:\Code\StuartMeeks\ficsit-foreman\tools\fg-hprobe`); the VM has no game files (see the
+dev-environment note in `CLAUDE.md`). Needs the CUE4Parse clone at
+`packages/sf-game-data/extract/CUE4Parse/` (same as the extractor) + the Oodle DLL from the game
+install. See the tool's `README.md`.
 
 - **Inputs:** `SF_PAKS` (paks dir), `SF_USMAP` (mappings). Run: `dotnet run -c Release` with env
   vars set (PowerShell: `$env:DS=2; dotnet run -c Release`).
-- **Output:** `map.ppm` at the chosen `DS`. A companion Python script, `overlay.py`, draws the
-  review overlay: a **40 × 34** coordinate grid (cols A–Z then AA–AN, rows 1–34; single label per
-  cell, no sub-squares — half the earlier cell size for precise call-outs) plus biome outlines,
-  and updates the hosted artifact.
+- **Output:** `map.ppm` at the chosen `DS` (+ the `LAYERS=1` rasters above). Two Python companions
+  run on the VM (Pillow + numpy): **`overlay.py`** annotates a flat render with the **40 × 34**
+  coordinate grid (cols A–Z then AA–AN, rows 1–34; single label per cell) + biome outlines;
+  **`layers.py`** builds the interactive layered artifact.
 
 ### Environment-variable reference
 
@@ -217,6 +292,11 @@ as a committed tool (likely alongside the #164 `sf-game-data-extractor`) is the 
 | `ZADJ` | 0 | landscape Z offset (leave 0 — the "+51" was a mis-diagnosis) |
 | `ROCKS` | on | rasterise `/Environment/Rock/` meshes |
 | `ROCKEXCLUDEAT` | ~15 instances | per-instance exclusion list `"Mesh@x,y;…"` |
+| `FLORA` | coral + TitanTree | flora folders to render (path substrings; `off` disables) |
+| `FLORAH` | 50 | flora colour-cut, cm above landscape (low so canopies fill) |
+| `TREEPART` | both | tree sections to raise — `trunk` \| `foliage` \| `both` |
+| `TRUNKBAND` | 250 | trunk-disc slice height, cm above the ground it touches |
+| `LAYERS` | off | also emit `map.surf.ppm` + `map.obj.ppm` + `map.layers` |
 | `OCEANZ` | −1755 | unified sea level for ocean-band volumes |
 | `BLUEBOX` | west margin | force void cells ocean-blue in world-XY rectangles |
 | `VISHOLE` / `VISTHRESH` | on / 128 | null landscape-visibility holes to void |
@@ -235,23 +315,32 @@ These early-return with a report instead of rendering (unless noted):
   exclude. (Runs as part of a normal render.)
 - **`MODE=volat` + `VA="x,y;…"`** — which FGWaterVolume covers each coord + its authored surfZ.
   The tool that proved the ocean/void classifier.
-- **`MODE=objectsat` + `OA`/`OAR`/`OAMESH`/`OALIST`** — placed actors near a coord (histogram, or
-  per-instance list with `OALIST=1`).
+- **`MODE=objectsat` + `OA`/`OAR`/`OAMESH`/`OALIST`/`OAALL`** — placed actors near a coord
+  (histogram, or per-instance list with `OALIST=1`; `OAALL=1` includes foliage/landscape types).
+- **`MODE=floradump`** — flora placement survey: individual vs instanced components, and whether
+  the instanced transforms are readable.
+- **`MODE=meshinspect` + `MI="x,y,substr"`** — full transform + parent chain + mesh local bounds
+  for a placed mesh (used to debug flora sizing).
+- **`MODE=meshsections` + `MS="names"`** — a mesh's material sections (slot/material + triangles +
+  Z-range) — how trunk vs foliage split.
 - **`LAYERAT="x,y;…"`** — per-cell weightmap dump (which material layers + weights). Confirmed the
-  visibility-hole holes.
+  visibility holes.
 - Others: `MODE=meshes` (mesh-path histogram), `oceandump`/`voldist`/`voldump` (water-volume
   surveys), `oceanmesh` (SM_GEN_WaterPlane footprints), `proxy` (proxy Z/scale histogram),
   `riverdump`, `pickupdump`, `nearwater`, `sealevel`, `ztest`.
 
 ## Open items / next steps
 
-- **Package as a committed repo tool** (the main task): move `fg-hprobe` into the repo (likely
-  as part of / beside the #164 `sf-game-data-extractor` producer), decide the output format
-  (raw 16-bit height + bounds sidecar, and/or finished rasters + a land/water/void mask), and
-  wire it into the #64 interactive map and the #239 coastline. Write British-English, follow the
-  standard commit/PR conventions.
-- **AA30** — a "missing land" cell Stu is aware of (root cause known to him); parked, not yet
-  addressed.
+- **Refactor `Program.cs`** — it has grown large and organic; a structural refactor is planned
+  (this doc + the code are the map for it).
+- **The other tree species** — fold Kapok/DioTree/GreenTree/BluePalm/Bamboo/… into `FLORA` for
+  full forest canopy (denser + slower, same proven path).
+- **Per-mesh textures** — replace the placeholder flora/rock colours by sampling each mesh's
+  material/texture for a realistic top-down look (a layer in its own right).
+- **Wire the output into #64** (interactive map base layer) and the **#239** coastline; decide the
+  shipped output format (rasters vs a land/water/void mask + relief).
+- **True per-pixel multi-depth compositing** for the rotatable/tiltable 3D layered map (canvas/
+  WebGL), superseding the won-cells layer model.
 - Any remaining off-map landmasses are handled the same way: name the cells → `ROCKAT` →
   add to `ROCKEXCLUDEAT`.
 
