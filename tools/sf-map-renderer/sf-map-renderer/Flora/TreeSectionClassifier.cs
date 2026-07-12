@@ -8,7 +8,7 @@ namespace SfMapRenderer.Flora;
 public static class TreeSectionClassifier
 {
     private static readonly string[] FoliageKeywords =
-        ["leaf", "branch", "liana", "ivy", "frond", "mushroom", "canopy", "foliage"];
+        ["leaf", "branch", "liana", "ivy", "frond", "mushroom", "canopy", "foliage", "moss"];
 
     /// <summary>
     /// True if a section's material name denotes foliage. The name must be the material <em>basename</em>,

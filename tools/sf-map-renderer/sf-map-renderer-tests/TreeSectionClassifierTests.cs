@@ -12,6 +12,7 @@ public class TreeSectionClassifierTests
     [InlineData("Canopy", true)]
     [InlineData("SM_Mushroom_Cap", true)]
     [InlineData("Liana_Mat", true)]
+    [InlineData("MI_HangingMoss_02", true)]
     [InlineData("T_Bark", false)]
     [InlineData("Trunk_Wood", false)]
     [InlineData("Stone", false)]
