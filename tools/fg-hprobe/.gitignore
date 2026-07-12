@@ -12,7 +12,9 @@ obj/
 *.jpg
 *.tsv
 *.txt
+*.layers
 map-bounds.*
+map-layers.html
 
 # Community-derived masks used only as throwaway build-time oracles (licensing-encumbered;
 # the renderer no longer depends on them — see README/docs)

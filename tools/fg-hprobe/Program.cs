@@ -95,6 +95,154 @@ if ((Environment.GetEnvironmentVariable("MODE") ?? "") == "rockprobe")
     return;
 }
 
+if ((Environment.GetEnvironmentVariable("MODE") ?? "") == "meshsections")
+{
+    // Are tree trunks separable from foliage? Dump each mesh's material sections (slot name + material +
+    // triangles + section Z-range) for meshes whose path matches MS (default the tree families).
+    var want = (Environment.GetEnvironmentVariable("MS") ?? "TitanTree,Kapok,GreenTree,DioTree,BluePalm").Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+    var seen = new HashSet<string>();
+    foreach (var cell in cells)
+    {
+        try
+        {
+            foreach (var e in provider.LoadPackage(cell).GetExports())
+            {
+                if (!e.ExportType.Contains("StaticMeshComponent")) continue;
+                var pi = e.Properties.FirstOrDefault(p => p.Name.Text == "StaticMesh")?.Tag?.GenericValue as CUE4Parse.UE4.Objects.UObject.FPackageIndex;
+                var path = pi?.ResolvedObject?.GetPathName();
+                if (path == null || !want.Any(w => path.Contains(w))) continue;
+                var name = path[(path.LastIndexOf('/') + 1)..].Split('.')[0];
+                if (!seen.Add(name)) continue;
+                if (pi!.ResolvedObject?.Load() is not CUE4Parse.UE4.Assets.Exports.StaticMesh.UStaticMesh sm || sm.RenderData?.LODs is not { Length: > 0 } lods) continue;
+                var lod = lods[0]; var vb = lod.PositionVertexBuffer?.Verts; var ib = lod.IndexBuffer;
+                var mats = sm.StaticMaterials;
+                Console.WriteLine($"\n{name}  ({lod.Sections?.Length ?? 0} sections, {mats?.Length ?? 0} materials)");
+                if (lod.Sections != null)
+                    foreach (var sec in lod.Sections)
+                    {
+                        var slot = mats != null && sec.MaterialIndex < mats.Length ? mats[sec.MaterialIndex] : null;
+                        var slotName = slot?.MaterialSlotName.Text ?? "?";
+                        var matPath = slot?.MaterialInterface?.GetPathName() ?? "?";
+                        var matName = matPath.Contains('/') ? matPath[(matPath.LastIndexOf('/') + 1)..].Split('.')[0] : matPath;
+                        double mnz = 1e18, mxz = -1e18;
+                        if (vb != null && ib != null)
+                            for (var i = sec.FirstIndex; i < sec.FirstIndex + sec.NumTriangles * 3 && i < ib.Length; i++)
+                            { var vi = ib[i]; if (vi < vb.Length) { mnz = Math.Min(mnz, vb[vi].Z); mxz = Math.Max(mxz, vb[vi].Z); } }
+                        Console.WriteLine($"    slot='{slotName}' mat={matName} tris={sec.NumTriangles} Z[{mnz / 100:F1}..{mxz / 100:F1}]m");
+                    }
+                if (seen.Count >= want.Length) { Console.WriteLine("\nDONE"); return; }
+            }
+        }
+        catch { }
+    }
+    Console.WriteLine("\nDONE");
+    return;
+}
+
+if ((Environment.GetEnvironmentVariable("MODE") ?? "") == "meshinspect")
+{
+    // Full transform + parent chain + mesh local bounds for components whose mesh path contains a
+    // substring, near a coord. MI="x,y,substr" (default coral at AA30). To debug flora sizing.
+    var mi = (Environment.GetEnvironmentVariable("MI") ?? "178202,250734,CoralTree").Split(',');
+    double tx = double.Parse(mi[0]), ty = double.Parse(mi[1]); string sub = mi[2];
+    double rad = double.TryParse(Environment.GetEnvironmentVariable("OAR"), out var rr2) ? rr2 : 20000;
+    var found = 0;
+    foreach (var cell in cells)
+    {
+        try
+        {
+            foreach (var e in provider.LoadPackage(cell).GetExports())
+            {
+                if (!e.ExportType.Contains("StaticMeshComponent")) continue;
+                var pi = e.Properties.FirstOrDefault(p => p.Name.Text == "StaticMesh")?.Tag?.GenericValue as CUE4Parse.UE4.Objects.UObject.FPackageIndex;
+                var path = pi?.ResolvedObject?.GetPathName();
+                if (path == null || !path.Contains(sub)) continue;
+                if (!e.Properties.Any(p => p.Name.Text == "RelativeLocation")) continue;
+                var loc = e.GetOrDefault<FVector>("RelativeLocation");
+                if (Math.Sqrt((loc.X - tx) * (loc.X - tx) + (loc.Y - ty) * (loc.Y - ty)) > rad) continue;
+                var scl = e.Properties.Any(p => p.Name.Text == "RelativeScale3D") ? e.GetOrDefault<FVector>("RelativeScale3D") : new FVector(1, 1, 1);
+                var rot = e.Properties.Any(p => p.Name.Text == "RelativeRotation") ? e.GetOrDefault<FRotator>("RelativeRotation") : new FRotator(0, 0, 0);
+                Console.WriteLine($"\n{path[(path.LastIndexOf('/') + 1)..]} [{e.ExportType}]");
+                Console.WriteLine($"  RelativeLocation=({loc.X:F0},{loc.Y:F0},{loc.Z:F0}) RelativeScale3D=({scl.X:F2},{scl.Y:F2},{scl.Z:F2}) rot=({rot.Pitch:F0},{rot.Yaw:F0},{rot.Roll:F0})");
+                // parent chain (AttachParent) with each parent's transform
+                var parent = e.GetOrDefault<UObject?>("AttachParent");
+                int depth = 0;
+                while (parent != null && depth++ < 6)
+                {
+                    var ploc = parent.Properties.Any(p => p.Name.Text == "RelativeLocation") ? parent.GetOrDefault<FVector>("RelativeLocation") : new FVector(0, 0, 0);
+                    var pscl = parent.Properties.Any(p => p.Name.Text == "RelativeScale3D") ? parent.GetOrDefault<FVector>("RelativeScale3D") : new FVector(1, 1, 1);
+                    Console.WriteLine($"  ^ parent [{parent.ExportType}] '{parent.Name}' loc=({ploc.X:F0},{ploc.Y:F0},{ploc.Z:F0}) scale=({pscl.X:F2},{pscl.Y:F2},{pscl.Z:F2})");
+                    parent = parent.GetOrDefault<UObject?>("AttachParent");
+                }
+                // mesh local bounds (LOD0 vertex bbox)
+                if (pi?.ResolvedObject?.Load() is CUE4Parse.UE4.Assets.Exports.StaticMesh.UStaticMesh sm && sm.RenderData?.LODs is { Length: > 0 } lods && lods[0].PositionVertexBuffer?.Verts is { Length: > 0 } vb)
+                {
+                    double mnx = 1e18, mxx = -1e18, mny = 1e18, mxy = -1e18, mnz = 1e18, mxz = -1e18;
+                    foreach (var v in vb) { mnx = Math.Min(mnx, v.X); mxx = Math.Max(mxx, v.X); mny = Math.Min(mny, v.Y); mxy = Math.Max(mxy, v.Y); mnz = Math.Min(mnz, v.Z); mxz = Math.Max(mxz, v.Z); }
+                    Console.WriteLine($"  mesh local bounds: X[{mnx:F0},{mxx:F0}] Y[{mny:F0},{mxy:F0}] Z[{mnz:F0},{mxz:F0}]  -> XY extent {(mxx - mnx) / 100:F1}m x {(mxy - mny) / 100:F1}m; scaled x{scl.X:F1} = {(mxx - mnx) / 100 * scl.X:F1}m x {(mxy - mny) / 100 * scl.Y:F1}m");
+                }
+                if (++found >= 6) { Console.WriteLine("\n(stopping at 6)"); Console.WriteLine("DONE"); return; }
+            }
+        }
+        catch { }
+    }
+    Console.WriteLine($"\n{found} matched"); Console.WriteLine("DONE");
+    return;
+}
+
+if ((Environment.GetEnvironmentVariable("MODE") ?? "") == "floradump")
+{
+    // Feasibility probe: how are flora (Coral/Trees) placed — individual components vs instanced foliage —
+    // and can we read the per-instance transforms? Inspect components whose mesh matches FLORA (default coral+trees).
+    var want = (Environment.GetEnvironmentVariable("FLORA") ?? "/Foliage/Coral/,/Foliage/Trees/")
+        .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+    var byType = new Dictionary<string, int>();
+    var instancedSamples = new List<string>();
+    var nn = 0;
+    foreach (var cell in cells)
+    {
+        if (++nn % 2000 == 0) Console.WriteLine($"  ...{nn}/{cells.Count}");
+        try
+        {
+            foreach (var e in provider.LoadPackage(cell).GetExports())
+            {
+                if (!e.ExportType.Contains("StaticMeshComponent")) continue;
+                var pi = e.Properties.FirstOrDefault(p => p.Name.Text == "StaticMesh")?.Tag?.GenericValue as CUE4Parse.UE4.Objects.UObject.FPackageIndex;
+                var path = pi?.ResolvedObject?.GetPathName();
+                if (path == null || !want.Any(w => path.Contains(w))) continue;
+                var hasLoc = e.Properties.Any(p => p.Name.Text == "RelativeLocation");
+                var key = $"{e.ExportType}  loc={hasLoc}";
+                byType[key] = byType.GetValueOrDefault(key) + 1;
+                if (e.ExportType.Contains("Instanced") && instancedSamples.Count < 6)
+                {
+                    // Try the CUE4Parse typed instanced-mesh class (parses the serialized instance buffer).
+                    string info;
+                    if (e is CUE4Parse.UE4.Assets.Exports.Component.StaticMesh.UInstancedStaticMeshComponent ismc)
+                    {
+                        var cnt = ismc.PerInstanceSMData?.Length ?? -1;
+                        string first = "";
+                        if (cnt > 0)
+                        {
+                            var tr = ismc.PerInstanceSMData![0].TransformData; // FTransform (instance-space)
+                            first = $" inst0.T=({tr.Translation.X:F0},{tr.Translation.Y:F0},{tr.Translation.Z:F0}) scale={tr.Scale3D.X:F1}";
+                        }
+                        info = $"typed UInstancedStaticMeshComponent PerInstanceSMData.Length={cnt}{first}";
+                    }
+                    else info = $"NOT a UInstancedStaticMeshComponent (runtime type {e.GetType().Name})";
+                    instancedSamples.Add($"{path[(path.LastIndexOf('/') + 1)..]} [{e.ExportType}] -> {info}");
+                }
+            }
+        }
+        catch { }
+    }
+    Console.WriteLine("\n=== flora component types (count · has RelativeLocation) ===");
+    foreach (var (k, c) in byType.OrderByDescending(x => x.Value)) Console.WriteLine($"  {c,7}  {k}");
+    Console.WriteLine("\n=== instanced-component samples (can we read instances?) ===");
+    foreach (var s in instancedSamples) Console.WriteLine($"  {s}");
+    Console.WriteLine("\nDONE");
+    return;
+}
+
 if ((Environment.GetEnvironmentVariable("MODE") ?? "") == "meshes")
 {
     // Histogram placed StaticMesh assets (by folder + by asset) to find rock/cliff/mesa
@@ -167,6 +315,7 @@ if ((Environment.GetEnvironmentVariable("MODE") ?? "") == "objectsat")
     var pts = (Environment.GetEnvironmentVariable("OA") ?? "0,0").Split(';', StringSplitOptions.RemoveEmptyEntries)
         .Select(s => { var a = s.Split(','); return (x: double.Parse(a[0]), y: double.Parse(a[1]), label: a.Length > 2 ? a[2] : s); }).ToList();
     double rad = double.TryParse(Environment.GetEnvironmentVariable("OAR"), out var rr) ? rr : 30000;
+    var oaAll = Environment.GetEnvironmentVariable("OAALL") == "1"; // include Landscape/Foliage types + dump every mesh
     var lvl = provider.Files.Keys.Where(k => k.Contains("/GameLevel01/") && k.EndsWith(".umap")).ToList();
     var perPt = pts.Select(_ => new Dictionary<string, int>()).ToList();
     var nn = 0;
@@ -186,22 +335,26 @@ if ((Environment.GetEnvironmentVariable("MODE") ?? "") == "objectsat")
                 if (loc == null) continue;
                 var l = loc.Value;
                 var t = e.ExportType;
-                if (t.Contains("Landscape") || t.Contains("Foliage")) continue;
+                if (!oaAll && (t.Contains("Landscape") || t.Contains("Foliage"))) continue;
                 var pi2 = e.Properties.FirstOrDefault(p => p.Name.Text is "StaticMesh" or "mStaticMesh")?.Tag?.GenericValue as CUE4Parse.UE4.Objects.UObject.FPackageIndex;
                 var mp = pi2?.ResolvedObject?.GetPathName() ?? "";
-                if (Environment.GetEnvironmentVariable("OAMESH") == "1" && mp.Length > 0) { var mm = mp[..mp.LastIndexOf('.')]; mm = mm[(mm.IndexOf("/Environment/") is var ii && ii >= 0 ? ii : mm.LastIndexOf('/'))..]; t = $"{t} [{mm}]"; }
+                // asset folder for grouping: keep from the last "/Content" root or /Environment onward
+                string meshTag = mp.Length > 0 ? mp[(mp.IndexOf("/Environment/") is var ei && ei >= 0 ? ei : mp.LastIndexOf('/'))..] : "";
+                if (Environment.GetEnvironmentVariable("OAMESH") == "1" && meshTag.Length > 0) t = $"{t} [{meshTag}]";
                 for (var k = 0; k < pts.Count; k++)
-                    if (Math.Sqrt((l.X - pts[k].x) * (l.X - pts[k].x) + (l.Y - pts[k].y) * (l.Y - pts[k].y)) <= rad)
+                {
+                    var dist = Math.Sqrt((l.X - pts[k].x) * (l.X - pts[k].x) + (l.Y - pts[k].y) * (l.Y - pts[k].y));
+                    if (dist <= rad)
                     {
                         perPt[k][t] = perPt[k].GetValueOrDefault(t) + 1;
-                        // OALIST=1: dump each Rock instance's exact origin + mesh (for building ROCKEXCLUDEAT).
-                        if (Environment.GetEnvironmentVariable("OALIST") == "1" && mp.Contains("/Environment/Rock/"))
+                        // OALIST=1: dump each nearby placed mesh (origin + mesh + distance). Rock-only unless OAALL.
+                        if (Environment.GetEnvironmentVariable("OALIST") == "1" && mp.Length > 0 && (oaAll || mp.Contains("/Environment/Rock/")))
                         {
                             var scl = e.Properties.Any(p => p.Name.Text == "RelativeScale3D") ? e.GetOrDefault<FVector>("RelativeScale3D") : new FVector(1, 1, 1);
-                            var mn = mp[(mp.LastIndexOf('/') + 1)..]; mn = mn[..mn.LastIndexOf('.')];
-                            Console.WriteLine($"  [{pts[k].label}] {mn}@{l.X:F0},{l.Y:F0}  z={l.Z:F0} scale=({scl.X:F1},{scl.Y:F1},{scl.Z:F1})");
+                            Console.WriteLine($"  [{pts[k].label}] d={dist:F0} {e.ExportType} {meshTag}@{l.X:F0},{l.Y:F0},{l.Z:F0} scale=({scl.X:F1},{scl.Y:F1},{scl.Z:F1})");
                         }
                     }
+                }
             }
         }
         catch { }
@@ -792,7 +945,22 @@ void TryAddWater(UObject e)
 // HIGHER GROUND: rock/cliff/mesa formations are individual StaticMeshComponents (under
 // /Environment/Rock/) placed on top of the landscape. Collect each instance's transform so we
 // can rasterise the mesh tops into the height grid (max(landscape, meshTop)).
-var rocks = new List<(CUE4Parse.UE4.Objects.UObject.FPackageIndex pi, FVector loc, FRotator rot, FVector scale)>();
+// kind: 0 = rock/cliff (grey relief), 1 = coral flora, 2 = tree flora. Flora gets a distinct colour and is
+// drawn on top of water. Placed both as individual StaticMeshComponents AND as instanced foliage (below).
+var rocks = new List<(CUE4Parse.UE4.Objects.UObject.FPackageIndex pi, FVector loc, FRotator rot, FVector scale, byte kind)>();
+// Flora folders to render. Default = the alien Coral family + the Titan Forest giant trees. Comma-separated;
+// path-substring match. Coral (`/Coral/`) -> kind 1, trees (`/Trees/`) -> kind 2. Set FLORA=off to disable.
+var floraEnv = Environment.GetEnvironmentVariable("FLORA") ?? "/Environment/Foliage/Coral/,/Environment/Foliage/Trees/TitanTree";
+var floraFolders = floraEnv == "off" ? Array.Empty<string>()
+    : floraEnv.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+// classify a mesh path -> kind (255 = not wanted). Rock always on; flora per floraFolders.
+byte MeshKind(string path)
+{
+    if (path.Contains("/Environment/Rock/")) return 0;
+    if (floraFolders.Any(f => path.Contains(f))) return (byte) (path.Contains("/Coral/") ? 1 : 2);
+    return 255;
+}
+var floraInstances = 0;
 // Instance-level excludes: "MeshName@x,y" entries (world-cm, matched within ±100m). Kills one specific
 // placed instance without touching the mesh's other legit uses (CliffFormation_05 has 544 placements!).
 // Each off-map landmass is a few mega-meshes, traced via the ROCKAT footprint probe. Defaults so far:
@@ -813,17 +981,35 @@ void TryAddRock(UObject e)
     if (!e.ExportType.Contains("StaticMeshComponent")) return;
     var pi = e.Properties.FirstOrDefault(p => p.Name.Text == "StaticMesh")?.Tag?.GenericValue as CUE4Parse.UE4.Objects.UObject.FPackageIndex;
     var path = pi?.ResolvedObject?.GetPathName();
-    if (path == null || !path.Contains("/Environment/Rock/")) return;
-    if (!e.Properties.Any(p => p.Name.Text == "RelativeLocation")) return;
+    if (path == null) return;
+    var kind = MeshKind(path);
+    if (kind == 255) return;
+    // Instanced foliage (FoliageInstancedStaticMeshComponent) has NO RelativeLocation — its transforms live
+    // in the serialized instance buffer. Handle those in the branch below; here only individual placements.
+    if (!e.Properties.Any(p => p.Name.Text == "RelativeLocation"))
+    {
+        if (kind >= 1 && e is CUE4Parse.UE4.Assets.Exports.Component.StaticMesh.UInstancedStaticMeshComponent ismc && ismc.PerInstanceSMData is { Length: > 0 } insts)
+        {
+            var origin = e.GetOrDefault<FVector>("TranslatedInstanceSpaceOrigin"); // per-component world offset for FP precision
+            foreach (var it in insts)
+            {
+                var tr = it.TransformData; // FTransform, instance-space
+                var wl = new FVector(origin.X + tr.Translation.X, origin.Y + tr.Translation.Y, origin.Z + tr.Translation.Z);
+                rocks.Add((pi!, wl, tr.Rotation.Rotator(), tr.Scale3D, kind));
+                floraInstances++;
+            }
+        }
+        return;
+    }
     var loc = e.GetOrDefault<FVector>("RelativeLocation");
-    if (rockExcludeAt.Any(x => path.Contains(x.name + ".") && Math.Abs(loc.X - x.x) < 10000 && Math.Abs(loc.Y - x.y) < 10000))
+    if (kind == 0 && rockExcludeAt.Any(x => path.Contains(x.name + ".") && Math.Abs(loc.X - x.x) < 10000 && Math.Abs(loc.Y - x.y) < 10000))
     {
         rockExcluded++;
         return;
     }
     var rot = e.Properties.Any(p => p.Name.Text == "RelativeRotation") ? e.GetOrDefault<FRotator>("RelativeRotation") : new FRotator(0, 0, 0);
     var scl = e.Properties.Any(p => p.Name.Text == "RelativeScale3D") ? e.GetOrDefault<FVector>("RelativeScale3D") : new FVector(1, 1, 1);
-    rocks.Add((pi!, loc, rot, scl));
+    rocks.Add((pi!, loc, rot, scl, kind));
 }
 
 // WATER from the game's actual geometry: each FGWaterVolume is a brush (UModel.Points). Transform the
@@ -1073,6 +1259,9 @@ double cell_cm = ds * SCALE;
 // HIGHER GROUND: rasterise the placed rock meshes' tops into the height grid (max with the
 // landscape). Each mesh is transformed by its instance (scale→rotate→translate) and z-buffered.
 var isRock = new bool[outW * outH];
+var floraKind = new byte[outW * outH]; // 0=none, 1=coral, 2=tree — flora tops (distinct colour, drawn on top of water)
+var objKind = new byte[outW * outH];   // HEIGHT-RANKED topmost object: 0=none, 1=rock, 2=coral, 3=tree(foliage). Drives layer z-order.
+var trunkMask = new bool[outW * outH]; // a trunk section covers this cell (for the trunks layer, viewed with foliage hidden)
 // Base seabed = the landscape heightmap BEFORE rocks raise it. Water is classified against THIS, so
 // rock spires (whose bases are submerged) don't punch holes in the water or block the shelf spread —
 // they render as grey islands ON TOP of the water instead. Zof(baseH) = base ground Z.
@@ -1143,13 +1332,22 @@ var clipMode = Environment.GetEnvironmentVariable("ROCKCLIPMODE") ?? "none"; // 
 var rockSeaZ = double.TryParse(Environment.GetEnvironmentVariable("OCEANZ"), out var _rsz) ? _rsz : -1755.0;
 if (Environment.GetEnvironmentVariable("ROCKS") != "0")
 {
-    Console.WriteLine($"higher-ground: rasterising {rocks.Count} rock instances...");
-    var meshCache = new Dictionary<string, (FVector[] verts, int[] tris)>();
-    (FVector[] verts, int[] tris) GetMesh(CUE4Parse.UE4.Objects.UObject.FPackageIndex pi)
+    Console.WriteLine($"higher-ground: rasterising {rocks.Count} instances (flora: {rocks.Count(r => r.kind == 1)} coral + {rocks.Count(r => r.kind == 2)} tree; {floraInstances} from instanced foliage)...");
+    // A tree mesh is one static mesh with separate material sections for bark/trunk vs leaves/branches.
+    // Classify each section by material name so trunk and foliage can be rendered as separate layers.
+    static bool IsFoliageMat(string n)
+    {
+        n = n.ToLowerInvariant();
+        return n.Contains("leaf") || n.Contains("branch") || n.Contains("liana") || n.Contains("ivy")
+            || n.Contains("frond") || n.Contains("mushroom") || n.Contains("canopy") || n.Contains("foliage");
+    }
+    // per triangle: foliage[ti] = true if the triangle belongs to a foliage section (else trunk/other).
+    var meshCache = new Dictionary<string, (FVector[] verts, int[] tris, bool[] foliage)>();
+    (FVector[] verts, int[] tris, bool[] foliage) GetMesh(CUE4Parse.UE4.Objects.UObject.FPackageIndex pi)
     {
         var path = pi.ResolvedObject?.GetPathName() ?? "";
         if (meshCache.TryGetValue(path, out var cached)) return cached;
-        var res = (Array.Empty<FVector>(), Array.Empty<int>());
+        var res = (Array.Empty<FVector>(), Array.Empty<int>(), Array.Empty<bool>());
         try
         {
             if (pi.ResolvedObject?.Load() is CUE4Parse.UE4.Assets.Exports.StaticMesh.UStaticMesh sm && sm.RenderData?.LODs is { Length: > 0 } lods)
@@ -1161,7 +1359,19 @@ if (Environment.GetEnvironmentVariable("ROCKS") != "0")
                     {
                         var tri = new int[ib.Length];
                         for (var k = 0; k < ib.Length; k++) tri[k] = ib[k];
-                        res = (vb, tri);
+                        var fol = new bool[ib.Length / 3];
+                        var mats = sm.StaticMaterials;
+                        if (lod.Sections != null)
+                            foreach (var sec in lod.Sections)
+                            {
+                                var slot = mats != null && sec.MaterialIndex < mats.Length ? mats[sec.MaterialIndex] : null;
+                                var mpath = slot?.MaterialInterface?.GetPathName() ?? "";
+                                var mbase = mpath.Contains('/') ? mpath[(mpath.LastIndexOf('/') + 1)..].Split('.')[0] : mpath; // basename only — the /Foliage/ FOLDER must not count
+                                var mn = (slot?.MaterialSlotName.Text ?? "") + " " + mbase;
+                                if (!IsFoliageMat(mn)) continue;
+                                for (var ti = (int) (sec.FirstIndex / 3); ti < (sec.FirstIndex + sec.NumTriangles * 3) / 3 && ti < fol.Length; ti++) fol[ti] = true;
+                            }
+                        res = (vb, tri, fol);
                         break;
                     }
                 }
@@ -1171,9 +1381,16 @@ if (Environment.GetEnvironmentVariable("ROCKS") != "0")
         meshCache[path] = res;
         return res;
     }
+    // TREEPART: which tree sections to rasterise — trunk | foliage | both (default). A toggleable sub-layer.
+    var treePart = Environment.GetEnvironmentVariable("TREEPART") ?? "both";
+    // Height band (cm) above a tree's base within which trunk triangles count as the "trunk cross-section".
+    var trunkBand = double.TryParse(Environment.GetEnvironmentVariable("TRUNKBAND"), out var _tb) ? _tb : 250.0;
     const double D2R = Math.PI / 180.0, H_PER_CM = 128.0 / 100.0; // h16 units per world-cm (inverse of ZSCALE*SCALE)
     var landH = (float[]) height.Clone(); // landscape baseline, to colour only substantial formations as rock
     const double ROCK_COLOUR_H = 300.0 * H_PER_CM; // grey a cell only where a formation rises >~3 m above ground
+    // Flora canopies droop toward the ground at the edges, so a 3 m cut trims them to a small core. Use a
+    // low cut (default 50 cm) so the full canopy footprint colours. Env FLORAH tunes it (cm).
+    double floraColourH = (double.TryParse(Environment.GetEnvironmentVariable("FLORAH"), out var _fh) ? _fh : 50.0) * H_PER_CM;
     long raised = 0;
     // ROCKAT="x,y;..." — report which rock instance(s) rasterise onto each target world-XY cell (mesh@origin),
     // so a rendered landmass can be traced to the exact instances and excluded via ROCKEXCLUDEAT.
@@ -1181,9 +1398,9 @@ if (Environment.GetEnvironmentVariable("ROCKS") != "0")
         .Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
         .Select(s => { var a = s.Split(','); return (gx: (int) Math.Round(((double.Parse(a[0]) - ACTOR_X) / SCALE - minSX) / ds), gy: (int) Math.Round(((double.Parse(a[1]) - ACTOR_Y) / SCALE - minSY) / ds), label: s); }).ToList();
     var rockAtHits = new Dictionary<int, HashSet<string>>();
-    foreach (var (pi, loc, rot, scale) in rocks)
+    foreach (var (pi, loc, rot, scale, kind) in rocks)
     {
-        var (verts, tris) = GetMesh(pi);
+        var (verts, tris, foliage) = GetMesh(pi);
         if (verts.Length == 0 || tris.Length < 3) continue;
         var _mpath = pi.ResolvedObject?.GetPathName() ?? "";
         var meshName = _mpath.Length > 0 ? _mpath[(_mpath.LastIndexOf('/') + 1)..].Split('.')[0] : "?";
@@ -1206,6 +1423,14 @@ if (Environment.GetEnvironmentVariable("ROCKS") != "0")
         }
         for (var t = 0; t + 2 < tris.Length; t += 3)
         {
+            // is this triangle a foliage section (vs trunk)? used by TREEPART + the trunk mask.
+            var isFol = kind == 2 && t / 3 < foliage.Length && foliage[t / 3];
+            // Tree sub-layer filter: skip trunk or foliage triangles per TREEPART (trees only; kind 2).
+            if (kind == 2 && treePart != "both")
+            {
+                if (treePart == "trunk" && isFol) continue;
+                if (treePart == "foliage" && !isFol) continue;
+            }
             int i0 = tris[t], i1 = tris[t + 1], i2 = tris[t + 2];
             if (i0 >= verts.Length || i1 >= verts.Length || i2 >= verts.Length) continue;
             double ax = gxA[i0], ay = gyA[i0], az = zA[i0], bx = gxA[i1], by = gyA[i1], bz = zA[i1], cx2 = gxA[i2], cy2 = gyA[i2], cz = zA[i2];
@@ -1230,7 +1455,7 @@ if (Environment.GetEnvironmentVariable("ROCKS") != "0")
                 // Per-cell clip modes (fallbacks). The DEFAULT "island" mode raises all rock here and
                 // instead removes DETACHED floaters in a connectivity post-pass below (keeps coastal
                 // cliffs attached to the mainland). land|void|basezero|outervoid = topo/geometry masks.
-                if (rockClip && (clipMode switch {
+                if (kind == 0 && rockClip && (clipMode switch { // clip modes apply to rock only, not flora
                         "land" => landMask != null && landMask[idx] == 0,
                         "void" => voidMask != null && voidMask[idx] != 0,
                         "basezero" => baseH[idx] == 0,
@@ -1239,12 +1464,66 @@ if (Environment.GetEnvironmentVariable("ROCKS") != "0")
                         "surface" => outerVoid[idx] && z <= rockSeaZ, // over void keep only above-waterline rock
                         _ => false })) // "none": render everything
                     continue;
-                if (h16 > height[idx]) { height[idx] = (float) h16; if (h16 - landH[idx] > ROCK_COLOUR_H) isRock[idx] = true; raised++; }
+                var aboveThresh = h16 - landH[idx] > (kind >= 1 ? floraColourH : ROCK_COLOUR_H);
+                if (h16 > height[idx])
+                {
+                    height[idx] = (float) h16;
+                    if (aboveThresh)
+                    {
+                        if (kind >= 1) floraKind[idx] = kind; else isRock[idx] = true;
+                        objKind[idx] = (byte) (kind == 0 ? 1 : kind == 1 ? 2 : 3); // height-ranked topmost object
+                    }
+                    raised++;
+                }
                 if (rockAtTargets.Count > 0)
                     foreach (var tgt in rockAtTargets)
                         if (Math.Abs(pxx - tgt.gx) <= 1 && Math.Abs(py - tgt.gy) <= 1)
                             (rockAtHits.TryGetValue(tgt.gy * outW + tgt.gx, out var st) ? st : rockAtHits[tgt.gy * outW + tgt.gx] = new HashSet<string>())
                                 .Add($"{meshName}@{loc.X:F0},{loc.Y:F0} (z={z:F0},scale={scale.Z:F1})");
+            }
+        }
+        // TRUNK CROSS-SECTION (per tree): a FILLED near-circular disc. The trunk mesh is a hollow tube, so
+        // rasterising its wall gives a ring; instead take a horizontal SLICE of the trunk-section verts at
+        // trunkBand (250cm) above the HIGHEST ground point the trunk footprint touches, then fill the disc
+        // enclosing those slice points.
+        if (kind == 2)
+        {
+            double ghi = -1e18;
+            for (var t = 0; t + 2 < tris.Length; t += 3)
+            {
+                if (t / 3 < foliage.Length && foliage[t / 3]) continue; // trunk-section triangles only
+                for (var e = 0; e < 3; e++)
+                {
+                    int vi = tris[t + e]; if (vi >= verts.Length) continue;
+                    int cxg = (int) Math.Round(gxA[vi]), cyg = (int) Math.Round(gyA[vi]);
+                    if (cxg < 0 || cyg < 0 || cxg >= outW || cyg >= outH) continue;
+                    var lhv = landH[cyg * outW + cxg]; if (lhv != 0) ghi = Math.Max(ghi, Zof(lhv));
+                }
+            }
+            if (ghi > -1e17)
+            {
+                double hs = ghi + trunkBand; double sx = 0, sy = 0; int sn = 0;
+                var pts = new List<(double gx, double gy)>();
+                for (var t = 0; t + 2 < tris.Length; t += 3)
+                {
+                    if (t / 3 < foliage.Length && foliage[t / 3]) continue;
+                    for (var e = 0; e < 3; e++)
+                    {
+                        int vi = tris[t + e]; if (vi >= verts.Length) continue;
+                        if (Math.Abs(zA[vi] - hs) < 150) { pts.Add((gxA[vi], gyA[vi])); sx += gxA[vi]; sy += gyA[vi]; sn++; }
+                    }
+                }
+                if (sn >= 3)
+                {
+                    double cx = sx / sn, cy = sy / sn;
+                    var dists = pts.Select(p => Math.Sqrt((p.gx - cx) * (p.gx - cx) + (p.gy - cy) * (p.gy - cy))).OrderBy(d => d).ToList();
+                    double r = Math.Min(8.0, Math.Max(0.6, dists[(int) (dists.Count * 0.75)])); // 75th pctile radius, capped
+                    int gx0 = Math.Max(0, (int) (cx - r)), gx1 = Math.Min(outW - 1, (int) Math.Ceiling(cx + r));
+                    int gy0 = Math.Max(0, (int) (cy - r)), gy1 = Math.Min(outH - 1, (int) Math.Ceiling(cy + r));
+                    for (var gy = gy0; gy <= gy1; gy++)
+                    for (var gx = gx0; gx <= gx1; gx++)
+                        if ((gx - cx) * (gx - cx) + (gy - cy) * (gy - cy) <= r * r) trunkMask[gy * outW + gx] = true;
+                }
             }
         }
     }
@@ -1583,65 +1862,89 @@ if (Environment.GetEnvironmentVariable("WETWATER") != "0")
 
 var lx = -0.7071; var ly = -0.7071; var lz = 1.0; var ll = Math.Sqrt(lx * lx + ly * ly + lz * lz);
 lx /= ll; ly /= ll; lz /= ll;
-var rgb = new byte[outW * outH * 3];
-for (var y = 0; y < outH; y++)
-for (var x = 0; x < outW; x++)
+// SURFACE colour (land/water/void hillshaded on the LANDSCAPE, ignoring objects) + OBJECT colour (rock/
+// coral/foliage on the object height) are computed SEPARATELY, so layers can reveal the ground beneath an
+// object. comp = surface with the object drawn on top = the flat composite (map.ppm). lx/ly/lz already unit.
+var surfRgb = new byte[outW * outH * 3];
+var objRgb = new byte[outW * outH * 3];
+var compRgb = new byte[outW * outH * 3];
+double lxN = lx, lyN = ly, lzN = lz;
+double Shade(float[] h, int x, int y, int idx)
 {
-    var idx = y * outW + x;
-    var hc = height[idx];
-    var zc = hc == 0 ? -99999 : Zof(hc);
-    if (Environment.GetEnvironmentVariable("DEBUG") == "1")
-    {
-        var i3 = idx * 3;
-        if (hc == 0) { rgb[i3] = 255; rgb[i3 + 1] = 0; rgb[i3 + 2] = 255; }              // void = magenta
-        else if (isLake[idx]) { rgb[i3] = 0; rgb[i3 + 1] = 230; rgb[i3 + 2] = 230; }     // inland-body fill = cyan
-        else if (isOcean[idx] && !isRock[idx]) { rgb[i3] = 0; rgb[i3 + 1] = 90; rgb[i3 + 2] = 220; } // SEA flood = blue (rock spires draw as land)
-        else { var g = (byte) Math.Clamp((zc - SEA_Z) / 200.0 + 50, 0, 255); rgb[i3] = g; rgb[i3 + 1] = g; rgb[i3 + 2] = g; } // land = grey by height
-        continue;
-    }
-    if (isOcean[idx] && !isRock[idx]) // rock spires sit ON TOP of the water -> fall through to land/rock shading
-    {
-        // depth below this cell's own water surface, measured to the SEABED (base landscape, not rocks)
-        var surf = waterZ[idx];
-        var zcBase = baseH[idx] == 0 ? surf - 8000 : Zof(baseH[idx]);
-        var depthCm = surf - zcBase;
-        var depth = Math.Clamp(depthCm / 7000.0, 0, 1); // 0..70m -> shallow..deep
-        rgb[idx * 3] = (byte)(22 + 36 * (1 - depth));
-        rgb[idx * 3 + 1] = (byte)(52 + 64 * (1 - depth));
-        rgb[idx * 3 + 2] = (byte)(104 + 74 * (1 - depth));
-        continue;
-    }
-    if (hc == 0) // void inside an ocean FGWaterVolume -> ocean-blue; void outside every volume -> dark grey
-    {
-        if (volVoid[idx]) { rgb[idx * 3] = 22; rgb[idx * 3 + 1] = 55; rgb[idx * 3 + 2] = 110; }
-        else { rgb[idx * 3] = 46; rgb[idx * 3 + 1] = 49; rgb[idx * 3 + 2] = 55; }
-        continue;
-    }
-    // land: hillshade
-    var xl = x > 0 ? height[idx - 1] : hc; var xr = x < outW - 1 ? height[idx + 1] : hc;
-    var yt = y > 0 ? height[idx - outW] : hc; var yb = y < outH - 1 ? height[idx + outW] : hc;
+    var hc = h[idx];
+    var xl = x > 0 ? h[idx - 1] : hc; var xr = x < outW - 1 ? h[idx + 1] : hc;
+    var yt = y > 0 ? h[idx - outW] : hc; var yb = y < outH - 1 ? h[idx + outW] : hc;
     if (xl == 0) xl = hc; if (xr == 0) xr = hc; if (yt == 0) yt = hc; if (yb == 0) yb = hc;
     var dzdx = (Zof(xr) - Zof(xl)) / (2 * cell_cm);
     var dzdy = (Zof(yb) - Zof(yt)) / (2 * cell_cm);
     var nx = -dzdx; var ny = -dzdy; var nz = 1.0; var nl = Math.Sqrt(nx * nx + ny * ny + nz * nz);
-    var shade = Math.Clamp((nx * lx + ny * ly + nz * lz) / nl, 0, 1);
-    double baseR, baseG, baseB;
-    if (isRock[idx]) { baseR = 143; baseG = 135; baseB = 122; } // higher-ground rock formation
-    else if (terr[idx * 3] != 0 || terr[idx * 3 + 1] != 0 || terr[idx * 3 + 2] != 0)
-    { baseR = terr[idx * 3]; baseG = terr[idx * 3 + 1]; baseB = terr[idx * 3 + 2]; }
-    else { var e = Math.Clamp((zc - SEA_Z) / 40000.0, 0, 1); baseR = 90 + 130 * e; baseG = 120 + 100 * e; baseB = 70 + 120 * e; }
-    var s = 0.45 + 0.55 * shade;
-    rgb[idx * 3] = (byte)Math.Clamp(baseR * s, 0, 255);
-    rgb[idx * 3 + 1] = (byte)Math.Clamp(baseG * s, 0, 255);
-    rgb[idx * 3 + 2] = (byte)Math.Clamp(baseB * s, 0, 255);
+    return 0.45 + 0.55 * Math.Clamp((nx * lxN + ny * lyN + nz * lzN) / nl, 0, 1);
+}
+for (var y = 0; y < outH; y++)
+for (var x = 0; x < outW; x++)
+{
+    var idx = y * outW + x; var i3 = idx * 3;
+    var lh = baseH[idx]; // landscape height (pre-rock/flora)
+    var water = isOcean[idx] || isLake[idx];
+    double sr, sg, sb;
+    if (lh == 0 && !water) // no landscape mesh -> void, unless it's ocean-void (volVoid = blue = water layer)
+    {
+        if (volVoid[idx]) { sr = 22; sg = 55; sb = 110; }
+        else { sr = 46; sg = 49; sb = 55; }
+    }
+    else if (water)
+    {
+        var wsurf = waterZ[idx] != 0 ? waterZ[idx] : oceanZ;
+        var zcBase = lh == 0 ? wsurf - 8000 : Zof(lh);
+        var depth = Math.Clamp((wsurf - zcBase) / 7000.0, 0, 1);
+        sr = 22 + 36 * (1 - depth); sg = 52 + 64 * (1 - depth); sb = 104 + 74 * (1 - depth);
+    }
+    else // land: terrain colour hillshaded on the LANDSCAPE (no rocks/flora)
+    {
+        var s = Shade(baseH, x, y, idx);
+        double br, bg, bb;
+        if (terr[i3] != 0 || terr[i3 + 1] != 0 || terr[i3 + 2] != 0) { br = terr[i3]; bg = terr[i3 + 1]; bb = terr[i3 + 2]; }
+        else { var e = Math.Clamp((Zof(lh) - SEA_Z) / 40000.0, 0, 1); br = 90 + 130 * e; bg = 120 + 100 * e; bb = 70 + 120 * e; }
+        sr = br * s; sg = bg * s; sb = bb * s;
+    }
+    surfRgb[i3] = (byte) Math.Clamp(sr, 0, 255); surfRgb[i3 + 1] = (byte) Math.Clamp(sg, 0, 255); surfRgb[i3 + 2] = (byte) Math.Clamp(sb, 0, 255);
+    compRgb[i3] = surfRgb[i3]; compRgb[i3 + 1] = surfRgb[i3 + 1]; compRgb[i3 + 2] = surfRgb[i3 + 2];
+    if (objKind[idx] != 0) // rock/coral/foliage on top, hillshaded on the object height
+    {
+        var s = Shade(height, x, y, idx);
+        double br, bg, bb;
+        if (objKind[idx] == 2) { br = 205; bg = 116; bb = 104; }       // coral
+        else if (objKind[idx] == 3) { br = 70; bg = 120; bb = 74; }    // tree foliage
+        else { br = 143; bg = 135; bb = 122; }                          // rock
+        objRgb[i3] = (byte) Math.Clamp(br * s, 0, 255); objRgb[i3 + 1] = (byte) Math.Clamp(bg * s, 0, 255); objRgb[i3 + 2] = (byte) Math.Clamp(bb * s, 0, 255);
+        compRgb[i3] = objRgb[i3]; compRgb[i3 + 1] = objRgb[i3 + 1]; compRgb[i3 + 2] = objRgb[i3 + 2];
+    }
 }
 
-var outPpm = Path.Combine(Directory.GetCurrentDirectory(), "map.ppm");
-using (var fs = new FileStream(outPpm, FileMode.Create))
+void WritePpm(string name, byte[] data)
 {
+    using var fs = new FileStream(Path.Combine(Directory.GetCurrentDirectory(), name), FileMode.Create);
     var header = System.Text.Encoding.ASCII.GetBytes($"P6\n{outW} {outH}\n255\n");
-    fs.Write(header, 0, header.Length);
-    fs.Write(rgb, 0, rgb.Length);
+    fs.Write(header, 0, header.Length); fs.Write(data, 0, data.Length);
+}
+var outPpm = Path.Combine(Directory.GetCurrentDirectory(), "map.ppm");
+WritePpm("map.ppm", compRgb);
+// LAYERS: emit the surface + object colour rasters and a per-cell class byte for the interactive artifact.
+//   byte = sClass(bits0-1: 0 void·1 water·2 land) | objKind(bits2-3: 0 none·1 rock·2 coral·3 foliage) | trunk(bit4)
+if (Environment.GetEnvironmentVariable("LAYERS") == "1")
+{
+    WritePpm("map.surf.ppm", surfRgb);
+    WritePpm("map.obj.ppm", objRgb);
+    var lay = new byte[outW * outH];
+    for (var i = 0; i < lay.Length; i++)
+    {
+        var lh = baseH[i]; var water = isOcean[i] || isLake[i];
+        byte sc = (byte) ((lh == 0 && !water) ? (volVoid[i] ? 1 : 0) : water ? 1 : 2);
+        byte b = (byte) (sc | (objKind[i] << 2)); if (trunkMask[i]) b |= 16;
+        lay[i] = b;
+    }
+    File.WriteAllBytes(Path.Combine(Directory.GetCurrentDirectory(), "map.layers"), lay);
+    Console.WriteLine($"wrote map.surf.ppm + map.obj.ppm + map.layers ({lay.Length} cells; trunk cells={trunkMask.Count(t => t)})");
 }
 double wx0 = ACTOR_X + minSX * SCALE, wy0 = ACTOR_Y + minSY * SCALE;
 double wx1 = ACTOR_X + (maxSX + 127) * SCALE, wy1 = ACTOR_Y + (maxSY + 127) * SCALE;
