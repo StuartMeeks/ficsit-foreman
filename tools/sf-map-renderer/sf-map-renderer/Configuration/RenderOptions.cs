@@ -74,8 +74,11 @@ public sealed class RenderOptions
     /// <summary>Ocean surface Z used for the land-elevation colour ramp fallback + the bounds sidecar (<c>SEA</c>).</summary>
     public double SeaLevelZ { get; init; } = -1646.0;
 
+    // All coral and every tree species under /Foliage/Trees/ (Kapok, DioTree, GreenTree, BluePalm, Bamboo,
+    // PurpleTree, SnailBottomTree, TitanTree, Huegelainen/BalloonTree, DypsisPalm, SnakeLegs, AmberTree,
+    // DeadSwampTree, …) — the full aerial canopy. Coral vs tree is decided by a /Coral/ segment.
     private static readonly string[] DefaultFloraFolders =
-        ["/Environment/Foliage/Coral/", "/Environment/Foliage/Trees/TitanTree"];
+        ["/Environment/Foliage/Coral/", "/Environment/Foliage/Trees/"];
 
     // The settled ~15-instance off-map cliff list: east column, SE corner, bottom strip, north edge.
     private static readonly RockExclusion[] DefaultRockExclusions =
