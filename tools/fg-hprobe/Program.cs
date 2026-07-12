@@ -1266,70 +1266,8 @@ var trunkMask = new bool[outW * outH]; // a trunk section covers this cell (for 
 // rock spires (whose bases are submerged) don't punch holes in the water or block the shelf spread —
 // they render as grey islands ON TOP of the water instead. Zof(baseH) = base ground Z.
 var baseH = (float[]) height.Clone();
-// OUTER VOID: seabed-void (baseH==0, no landscape mesh) that is border-connected = genuinely off-map.
-// Computed on baseH (BEFORE rocks raise height, so rock cells don't block the flood-fill). Distinguishes
-// Abyss floaters (rock over border-connected void → clip) from Spire spires (over reef, or over small
-// INLAND baseH==0 gaps surrounded by seabed → keep). Fully geometric — the deterministic rock-clip source.
-var outerVoid = new bool[outW * outH];
-{
-    var oq = new Queue<int>();
-    void OV(int i) { if (!outerVoid[i] && baseH[i] == 0) { outerVoid[i] = true; oq.Enqueue(i); } }
-    for (var x = 0; x < outW; x++) { OV(x); OV((outH - 1) * outW + x); }
-    for (var y = 0; y < outH; y++) { OV(y * outW); OV(y * outW + outW - 1); }
-    while (oq.Count > 0)
-    {
-        var i = oq.Dequeue(); int cx = i % outW, cy = i / outW;
-        if (cx > 0) OV(i - 1); if (cx < outW - 1) OV(i + 1);
-        if (cy > 0) OV(i - outW); if (cy < outH - 1) OV(i + outW);
-    }
-    Console.WriteLine($"outer void (border-connected seabed-void): {outerVoid.Count(b => b)} cells");
-}
-// VOID DISTANCE: cells from each outer-void cell to the nearest landmass (non-outer-void). Coastal cliffs
-// overhang the void by only a thin fringe (small dist); Abyss masses extend far out (large dist). The
-// default "fringe" rock-clip keeps rock within MARGIN cells of land, clips rock deeper in the void.
-var voidDist = new int[outW * outH];
-{
-    var dq = new Queue<int>();
-    for (var i = 0; i < outerVoid.Length; i++) { if (!outerVoid[i]) { voidDist[i] = 0; dq.Enqueue(i); } else voidDist[i] = int.MaxValue; }
-    while (dq.Count > 0)
-    {
-        var i = dq.Dequeue(); int cx = i % outW, cy = i / outW; int nd = voidDist[i] + 1;
-        void D(int j) { if (outerVoid[j] && voidDist[j] > nd) { voidDist[j] = nd; dq.Enqueue(j); } }
-        if (cx > 0) D(i - 1); if (cx < outW - 1) D(i + 1);
-        if (cy > 0) D(i - outW); if (cy < outH - 1) D(i + outW);
-    }
-}
-var voidMargin = int.TryParse(Environment.GetEnvironmentVariable("VOIDMARGIN"), out var _vm) ? _vm : 12;
-// Topo-map void mask (aligned to the render grid): 1 = off-map abyss (from the authoritative topological
-// map's black region). Used to clip rock ONLY where it's genuinely off-map — so rock spires/islands over
-// water (topo blue, not black) are KEPT, unlike the blunt baseH==0 clip. Grid-index, so it's ds-specific.
-byte[]? voidMask = null;
-{
-    var vmPath = Environment.GetEnvironmentVariable("VOIDMASK");
-    if (vmPath != null && File.Exists(vmPath))
-    {
-        var vm = File.ReadAllBytes(vmPath);
-        if (vm.Length == outW * outH) { voidMask = vm; Console.WriteLine($"loaded topo void mask ({vm.Length} cells, {vm.Count(b => b != 0)} void)"); }
-        else Console.WriteLine($"VOIDMASK size {vm.Length} != grid {outW * outH} — ignored (wrong ds?)");
-    }
-}
-// Topo LAND mask (1 = topo says land, 0 = water/void). Preferred over voidMask: clip rock where NOT land, so
-// the Abyss Cliffs (topo water) get clipped while Spire spires/islands (topo land) are kept. Grid-index, ds-specific.
-byte[]? landMask = null;
-{
-    var lmPath = Environment.GetEnvironmentVariable("LANDMASK");
-    if (lmPath != null && File.Exists(lmPath))
-    {
-        var lm = File.ReadAllBytes(lmPath);
-        if (lm.Length == outW * outH) { landMask = lm; Console.WriteLine($"loaded topo land mask ({lm.Length} cells, {lm.Count(b => b != 0)} land)"); }
-        else Console.WriteLine($"LANDMASK size {lm.Length} != grid {outW * outH} — ignored (wrong ds?)");
-    }
-}
-var rockClip = Environment.GetEnvironmentVariable("ROCKCLIP") != "0";
-var clipMode = Environment.GetEnvironmentVariable("ROCKCLIPMODE") ?? "none"; // default: render ALL rock; junk removed per-mesh via ROCKEXCLUDE
-// Sea level used by the "surface" clip: over off-map void, only rock ABOVE the waterline is visible land
-// (islands/cliffs); submerged rock lies under the ocean. Same value as the ocean unify (OCEANZ).
-var rockSeaZ = double.TryParse(Environment.GetEnvironmentVariable("OCEANZ"), out var _rsz) ? _rsz : -1755.0;
+// Off-map cliff landmasses (the "Abyss floaters") are removed by naming the specific mega-mesh instances in
+// ROCKEXCLUDEAT (traced with the ROCKAT probe) — not by any geometric clip. All rock is otherwise rendered.
 if (Environment.GetEnvironmentVariable("ROCKS") != "0")
 {
     Console.WriteLine($"higher-ground: rasterising {rocks.Count} instances (flora: {rocks.Count(r => r.kind == 1)} coral + {rocks.Count(r => r.kind == 2)} tree; {floraInstances} from instanced foliage)...");
@@ -1452,18 +1390,6 @@ if (Environment.GetEnvironmentVariable("ROCKS") != "0")
                 double z = l1 * az + l2 * bz + l3 * cz;
                 var h16 = 32768.0 + (z - ACTOR_Z) * H_PER_CM;
                 var idx = py * outW + pxx;
-                // Per-cell clip modes (fallbacks). The DEFAULT "island" mode raises all rock here and
-                // instead removes DETACHED floaters in a connectivity post-pass below (keeps coastal
-                // cliffs attached to the mainland). land|void|basezero|outervoid = topo/geometry masks.
-                if (kind == 0 && rockClip && (clipMode switch { // clip modes apply to rock only, not flora
-                        "land" => landMask != null && landMask[idx] == 0,
-                        "void" => voidMask != null && voidMask[idx] != 0,
-                        "basezero" => baseH[idx] == 0,
-                        "outervoid" => outerVoid[idx],
-                        "fringe" => outerVoid[idx] && voidDist[idx] > voidMargin, // keep coastal fringe, clip deep-void masses
-                        "surface" => outerVoid[idx] && z <= rockSeaZ, // over void keep only above-waterline rock
-                        _ => false })) // "none": render everything
-                    continue;
                 var aboveThresh = h16 - landH[idx] > (kind >= 1 ? floraColourH : ROCK_COLOUR_H);
                 if (h16 > height[idx])
                 {
@@ -1534,34 +1460,6 @@ if (Environment.GetEnvironmentVariable("ROCKS") != "0")
         if (rockAtHits.TryGetValue(tgt.gy * outW + tgt.gx, out var st)) foreach (var s in st.OrderByDescending(x => x)) Console.WriteLine($"    {s}");
         else Console.WriteLine("    (no rock rasterised here)");
     }
-
-    // CONNECTIVITY POST-PASS (default clipMode=island): keep rock CONNECTED to the mainland (coastal
-    // cliffs), remove DETACHED rock islands floating in border-void (Abyss floaters). Flood-fill from
-    // every landscape cell (baseH!=0) through 8-connected SOLID cells (height!=0 = landscape or rock);
-    // any rock cell the flood never reaches sits alone over void → revert it to seabed/void.
-    if (rockClip && clipMode == "island")
-    {
-        var reach = new bool[outW * outH];
-        var mq = new Queue<int>();
-        for (var i = 0; i < baseH.Length; i++) if (baseH[i] != 0) { reach[i] = true; mq.Enqueue(i); } // seeds = real landscape
-        while (mq.Count > 0)
-        {
-            var i = mq.Dequeue(); int cx = i % outW, cy = i / outW;
-            for (var dy = -1; dy <= 1; dy++)
-            for (var dx = -1; dx <= 1; dx++)
-            {
-                if (dx == 0 && dy == 0) continue;
-                int nx = cx + dx, ny = cy + dy;
-                if (nx < 0 || ny < 0 || nx >= outW || ny >= outH) continue;
-                int j = ny * outW + nx;
-                if (!reach[j] && height[j] != 0) { reach[j] = true; mq.Enqueue(j); } // spread through solid (rock or land)
-            }
-        }
-        int reverted = 0;
-        for (var i = 0; i < height.Length; i++)
-            if (isRock[i] && !reach[i]) { height[i] = baseH[i]; isRock[i] = false; reverted++; } // detached floater → drop
-        Console.WriteLine($"connectivity clip: reverted {reverted} detached rock-island cells (kept coastal cliffs).");
-    }
 }
 
 // OCEAN = below-sea cells connected to the map edge, BUT void (unmeshed, no data) is a
@@ -1604,7 +1502,6 @@ bool oceanBand(double z) => z >= -1850 && z <= -1600;
 // volVoid = VOID cells (no seabed mesh) that fall inside an ocean-band FGWaterVolume footprint. This is the
 // AUTHORITATIVE ocean-vs-void signal for the off-map region: the game's water physics volume is present
 // there even though the landscape mesh isn't. Renders blue; void OUTSIDE every volume renders grey.
-// Replaces the old seaVoid R=300 distance dilation (which both over- and under-reached).
 var volVoid = new bool[outW * outH];
 foreach (var (poly, surfZRaw) in volumes)
 {
@@ -1748,32 +1645,6 @@ if (Environment.GetEnvironmentVariable("CELLS") is { Length: > 0 } cells2)
 }
 
 
-// Void aesthetics: OPEN-OCEAN void (border-connected = oceanVoid) near the sea reads as ocean-blue
-// (so the west/east/north oceans extend to the frame). Restricted to oceanVoid so ENCLOSED void holes
-// (inland landscape holes, e.g. I12 b4 by the swamp, or E15 d4) never turn blue — they stay dark-grey.
-var seaVoid = new bool[outW * outH];
-{
-    const int R = 300;
-    var depth = new int[outW * outH];
-    var sq = new Queue<int>();
-    for (var i = 0; i < outW * outH; i++)
-    {
-        if (height[i] != 0 || !oceanVoid[i]) continue; // only the open sea (border-connected void)
-        int cx = i % outW, cy = i / outW;
-        var adj = (cx > 0 && isOcean[i - 1]) || (cx < outW - 1 && isOcean[i + 1]) || (cy > 0 && isOcean[i - outW]) || (cy < outH - 1 && isOcean[i + outW]);
-        if (adj) { seaVoid[i] = true; sq.Enqueue(i); }
-    }
-    while (sq.Count > 0)
-    {
-        var i = sq.Dequeue(); if (depth[i] >= R) continue; int cx = i % outW, cy = i / outW;
-        void S(int j) { if (height[j] == 0 && oceanVoid[j] && !seaVoid[j]) { seaVoid[j] = true; depth[j] = depth[i] + 1; sq.Enqueue(j); } }
-        if (cx > 0) S(i - 1);
-        if (cx < outW - 1) S(i + 1);
-        if (cy > 0) S(i - outW);
-        if (cy < outH - 1) S(i + outW);
-    }
-}
-
 if (Environment.GetEnvironmentVariable("PROBEXY") is { Length: > 0 } pxy)
 {
     foreach (var pair in pxy.Split(';', StringSplitOptions.RemoveEmptyEntries))
@@ -1787,39 +1658,6 @@ if (Environment.GetEnvironmentVariable("PROBEXY") is { Length: > 0 } pxy)
     }
     Console.WriteLine("DONE");
     return;
-}
-
-// COASTAL SHELF: the landscape mesh continues UNDERWATER past the shoreline, so meshed terrain
-// below sea level renders as land right up to the mesh edge (the blue void beyond). Flood such
-// below-sea terrain wherever it connects — through other below-sea terrain — to the ocean-void
-// (seaVoid). Above-sea terrain is a wall, so enclosed below-sea DRY basins (held by a coastline
-// ridge) never get seeded and stay land. Fills the coastal shelf (Spire Coast etc.) to sea level.
-// OFF by default: connectivity floods too broadly (over-floods the southern coast, which connects
-// to the ocean via below-sea terrain). The material-based wet-sand pass below is the precise
-// mechanism for coastal shallows. Opt in with SHELF=1 for diagnostics only.
-if (Environment.GetEnvironmentVariable("SHELF") == "1")
-{
-    double shelfSea = double.TryParse(Environment.GetEnvironmentVariable("SHELFZ"), out var sz) ? sz : -1699.0;
-    var q = new Queue<int>();
-    bool BelowSea(int i) => height[i] != 0 && Zof(height[i]) < shelfSea;
-    for (var i = 0; i < outW * outH; i++)
-    {
-        if (isOcean[i] || !BelowSea(i)) continue;
-        int cx = i % outW, cy = i / outW;
-        var touchesSea = (cx > 0 && seaVoid[i - 1]) || (cx < outW - 1 && seaVoid[i + 1]) || (cy > 0 && seaVoid[i - outW]) || (cy < outH - 1 && seaVoid[i + outW]);
-        if (touchesSea) { isOcean[i] = true; waterZ[i] = shelfSea; q.Enqueue(i); }
-    }
-    long shelfN = q.Count;
-    while (q.Count > 0)
-    {
-        var i = q.Dequeue(); int cx = i % outW, cy = i / outW;
-        void SP(int j) { if (!isOcean[j] && BelowSea(j)) { isOcean[j] = true; waterZ[j] = shelfSea; q.Enqueue(j); shelfN++; } }
-        if (cx > 0) SP(i - 1);
-        if (cx < outW - 1) SP(i + 1);
-        if (cy > 0) SP(i - outW);
-        if (cy < outH - 1) SP(i + outW);
-    }
-    Console.WriteLine($"coastal-shelf flood: {shelfN} cells (seed from seaVoid, spread through below-sea terrain)");
 }
 
 // SUBMERGED WET-SAND: enclosed below-sea shallows with no water actor (Spire Coast lagoons) that
