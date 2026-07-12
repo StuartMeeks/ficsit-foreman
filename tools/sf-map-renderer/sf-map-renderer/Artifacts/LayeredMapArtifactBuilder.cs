@@ -3,9 +3,7 @@ using System.Text;
 
 using SfMapRenderer.Imaging;
 
-using SixLabors.Fonts;
 using SixLabors.ImageSharp;
-using SixLabors.ImageSharp.Drawing.Processing;
 using SixLabors.ImageSharp.PixelFormats;
 using SixLabors.ImageSharp.Processing;
 
@@ -59,7 +57,7 @@ public static class LayeredMapArtifactBuilder
             new("biomes", "Biome edges", LayerKind.Vector, BiomeEdgesSvg(biomesPath, scale)),
             new("names", "Biome names", LayerKind.Text, BiomeNamesHtml(biomesPath, tw, th, scale)),
             new("areas", "Named areas", LayerKind.Text, NamedAreasHtml(biomesPath, tw, th, scale)),
-            Raster("grid", "Grid A1-AN34", OverlayLayer(tw, th, ctx => DrawGrid(ctx, tw, th, scale))),
+            new("grid", "Grid A1-AN34", LayerKind.Vector, GridSvg(tw, th, scale)),
         };
 
         var html = AssembleHtml(layers, tw, th);
@@ -98,13 +96,6 @@ public static class LayeredMapArtifactBuilder
 
         using var image = Image.LoadPixelData<Rgba32>(pixels, width, height);
         image.Mutate(x => x.Resize(new ResizeOptions { Size = new Size(tw, th), Sampler = KnownResamplers.Lanczos3, Mode = ResizeMode.Stretch }));
-        return ToPngBase64(image);
-    }
-
-    private static string OverlayLayer(int tw, int th, Action<IImageProcessingContext> draw)
-    {
-        using var image = new Image<Rgba32>(tw, th);
-        image.Mutate(draw);
         return ToPngBase64(image);
     }
 
@@ -168,28 +159,32 @@ public static class LayeredMapArtifactBuilder
             $"<span class=\"lbl {(white ? "onDark" : "onLight")}\" style=\"left:{centre.X:0.#}px;top:{centre.Y:0.#}px;font-size:{fontPx:0.#}px;color:{(white ? "#fff" : "#000")};\">{html}</span>");
     }
 
-    private static void DrawGrid(IImageProcessingContext ctx, int tw, int th, double scale)
+    /// <summary>The A1..AN34 coordinate grid as SVG lines plus a cell label per cell (vector, crisp at any zoom).</summary>
+    private static string GridSvg(int tw, int th, double scale)
     {
         double cellWidth = (double)tw / Columns, cellHeight = (double)th / Rows;
-        var gridColor = Color.FromRgba(0, 255, 255, 150);
+        var fontPx = Math.Max(7, Math.Round(11 * scale / 0.4));
+        var sb = new StringBuilder();
         for (var c = 0; c <= Columns; c++)
         {
-            MapAnnotations.DrawPolyline(ctx, gridColor, 1f, [new PointF((float)(c * cellWidth), 0), new PointF((float)(c * cellWidth), th)]);
+            sb.Append(CultureInfo.InvariantCulture, $"<line x1=\"{c * cellWidth:0.#}\" y1=\"0\" x2=\"{c * cellWidth:0.#}\" y2=\"{th}\"/>");
         }
 
         for (var r = 0; r <= Rows; r++)
         {
-            MapAnnotations.DrawPolyline(ctx, gridColor, 1f, [new PointF(0, (float)(r * cellHeight)), new PointF(tw, (float)(r * cellHeight))]);
+            sb.Append(CultureInfo.InvariantCulture, $"<line x1=\"0\" y1=\"{r * cellHeight:0.#}\" x2=\"{tw}\" y2=\"{r * cellHeight:0.#}\"/>");
         }
 
-        var font = EmbeddedFont.At(Math.Max(9, (float)Math.Round(13 * scale / 0.4)));
         for (var c = 0; c < Columns; c++)
         {
             for (var r = 0; r < Rows; r++)
             {
-                ctx.DrawText($"{MapAnnotations.ColumnLabel(c)}{r + 1}", font, Color.Black, new PointF((float)(c * cellWidth + 2), (float)(r * cellHeight + 1)));
+                sb.Append(CultureInfo.InvariantCulture,
+                    $"<text x=\"{c * cellWidth + 2:0.#}\" y=\"{r * cellHeight + fontPx + 1:0.#}\" font-size=\"{fontPx:0.#}\">{MapAnnotations.ColumnLabel(c)}{r + 1}</text>");
             }
         }
+
+        return sb.ToString();
     }
 
     private static string ToPngBase64(Image image)
@@ -239,6 +234,8 @@ public static class LayeredMapArtifactBuilder
   #view .ly { position:absolute; inset:0; width:100%; height:100%; pointer-events:none; }
   #view svg.ly { overflow:visible; }
   .vec polygon { fill:none; stroke:rgba(255,240,60,.82); stroke-width:2; stroke-linejoin:round; }
+  #ly-grid line { stroke:rgba(0,255,255,.5); stroke-width:1; vector-effect:non-scaling-stroke; }
+  #ly-grid text { fill:#000; font-family:'Lato',system-ui,sans-serif; }
   .lbl { position:absolute; transform:translate(-50%,-50%); white-space:nowrap; text-align:center; line-height:1.05;
          font-family:'Lato',system-ui,sans-serif; font-weight:400; }
   .lbl.onLight { text-shadow:-1px -1px 2px #fff,1px -1px 2px #fff,-1px 1px 2px #fff,1px 1px 2px #fff,0 0 3px #fff; }

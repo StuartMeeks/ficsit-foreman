@@ -19,6 +19,7 @@ public sealed class RenderState
         WetWeight = new byte[cellCount];
         IsRock = new bool[cellCount];
         ObjectKind = new byte[cellCount];
+        ObjectColour = new byte[cellCount * 3];
         TrunkMask = new bool[cellCount];
         IsOcean = new bool[cellCount];
         IsLake = new bool[cellCount];
@@ -47,6 +48,9 @@ public sealed class RenderState
 
     /// <summary>Height-ranked topmost object: 0 none · 1 rock · 2 coral · 3 tree foliage.</summary>
     public byte[] ObjectKind { get; }
+
+    /// <summary>Per-family base colour of the topmost object (three bytes per cell, before hillshade; 0,0,0 = none).</summary>
+    public byte[] ObjectColour { get; }
 
     /// <summary>A tree-trunk cross-section disc covers this cell.</summary>
     public bool[] TrunkMask { get; }

@@ -25,6 +25,7 @@ public static class MapShader
         var waterZ = state.WaterZ;
         var volumeVoid = state.VolumeVoid;
         var objectKind = state.ObjectKind;
+        var objectColour = state.ObjectColour;
 
         double lightX = -0.7071, lightY = -0.7071, lightZ = 1.0;
         var length = Math.Sqrt(lightX * lightX + lightY * lightY + lightZ * lightZ);
@@ -90,9 +91,12 @@ public static class MapShader
                 {
                     var waterSurface = waterZ[idx] != 0 ? waterZ[idx] : options.OceanZ;
                     var floorZ = landHeight == 0 ? waterSurface - 8000 : frame.HeightToZ(landHeight);
-                    var depth = Math.Clamp((waterSurface - floorZ) / 7000.0, 0, 1);
-                    r = 22 + 36 * (1 - depth);
-                    g = 52 + 64 * (1 - depth);
+                    // A square-root ramp over ~40 m gives shallow inland lakes/rivers a visible depth gradient
+                    // (the old linear /7000 ramp mapped their 0–5 m to ~0, so every lake read the same pale blue),
+                    // while deep ocean still saturates to the darkest tone.
+                    var depth = Math.Clamp(Math.Sqrt(Math.Max(0, waterSurface - floorZ) / 4000.0), 0, 1);
+                    r = 22 + 40 * (1 - depth);
+                    g = 52 + 70 * (1 - depth);
                     b = 104 + 74 * (1 - depth);
                 }
                 else
@@ -128,12 +132,16 @@ public static class MapShader
                 if (objectKind[idx] != 0)
                 {
                     var shade = Shade(heightGrid, x, y, idx);
-                    (double baseR, double baseG, double baseB) = objectKind[idx] switch
-                    {
-                        2 => (205, 116, 104), // coral
-                        3 => (70, 120, 74),   // tree foliage
-                        _ => (143, 135, 122), // rock
-                    };
+                    // The per-family base colour written by the rasteriser; fall back to the kind palette if unset.
+                    (double baseR, double baseG, double baseB) =
+                        objectColour[cell] != 0 || objectColour[cell + 1] != 0 || objectColour[cell + 2] != 0
+                            ? (objectColour[cell], objectColour[cell + 1], objectColour[cell + 2])
+                            : objectKind[idx] switch
+                            {
+                                2 => (205, 116, 104), // coral
+                                3 => (70, 120, 74),   // tree foliage
+                                _ => (143, 135, 122), // rock
+                            };
                     objectRaster[cell] = (byte)Math.Clamp(baseR * shade, 0, 255);
                     objectRaster[cell + 1] = (byte)Math.Clamp(baseG * shade, 0, 255);
                     objectRaster[cell + 2] = (byte)Math.Clamp(baseB * shade, 0, 255);
