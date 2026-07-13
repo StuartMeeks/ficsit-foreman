@@ -109,9 +109,9 @@ public static class MapShader
                     }
                     else
                     {
-                        r = 15 + 49 * (1 - depth);
-                        g = 40 + 84 * (1 - depth);
-                        b = 88 + 92 * (1 - depth);
+                        r = 8 + 62 * (1 - depth);
+                        g = 28 + 108 * (1 - depth);
+                        b = 72 + 118 * (1 - depth);
                     }
                 }
                 else
@@ -153,7 +153,7 @@ public static class MapShader
                             ? (objectColour[cell], objectColour[cell + 1], objectColour[cell + 2])
                             : objectKind[idx] switch
                             {
-                                2 => (205, 116, 104), // coral
+                                2 => (152, 100, 170), // coral (purple)
                                 3 => (70, 120, 74),   // tree foliage
                                 _ => (143, 135, 122), // rock
                             };

@@ -49,7 +49,13 @@ public sealed class RenderOptions
     public bool EmitLayers { get; init; }
 
     /// <summary>Unified sea level for ocean-band water volumes (<c>OCEANZ</c>).</summary>
-    public double OceanZ { get; init; } = -1755.0;
+    public double OceanZ { get; init; } = -1730.0;
+
+    /// <summary>Strength of the landscape macro-variation pigment overlay, 0 disables (<c>PIGMENT</c>).</summary>
+    public double PigmentStrength { get; init; } = 0.6;
+
+    /// <summary>Per-instance rock colour jitter strength, 0 disables (<c>ROCKJITTER</c>).</summary>
+    public double RockJitter { get; init; } = 0.18;
 
     /// <summary>World-XY rectangles forcing void cells ocean-blue (<c>BLUEBOX</c>).</summary>
     public IReadOnlyList<WorldRect> BlueBoxes { get; init; } = DefaultBlueBoxes;
@@ -66,7 +72,7 @@ public sealed class RenderOptions
 
     /// <summary>Wet-sand shallow shelf (<c>WETWATER</c> and its tunables).</summary>
     public bool WetWater { get; init; } = true;
-    public double WetSeaZ { get; init; } = -1755.0;
+    public double WetSeaZ { get; init; } = -1730.0;
     public double WetRiseCm { get; init; }
     public double WetDeepCm { get; init; } = 500.0;
     public int WetThreshold { get; init; } = 50;

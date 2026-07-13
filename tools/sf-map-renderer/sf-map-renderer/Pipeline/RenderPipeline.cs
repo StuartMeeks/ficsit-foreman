@@ -28,8 +28,11 @@ public static class RenderPipeline
         var (frame, maxSectionX, maxSectionY) = BuildFrame(scene, options);
         var state = new RenderState(frame);
 
+        // The world-aligned macro pigment tints both the terrain and the placed rock, from the shared material.
+        var pigment = new MacroPigment(scene.Tiles.Count > 0 ? scene.Tiles[0].Material : null, options.PigmentStrength);
+
         var layerAt = probes.LayerAt != null ? new LayerSampleProbe(probes.LayerAt, frame) : null;
-        HeightmapDecoder.Decode(state, scene.Tiles, options, layerAt);
+        HeightmapDecoder.Decode(state, scene.Tiles, options, pigment, layerAt);
 
         if (probes.ZTestPath != null)
         {
@@ -40,7 +43,7 @@ public static class RenderPipeline
         state.SnapshotSeabed();
         if (options.RenderRocks)
         {
-            HigherGroundRasteriser.Rasterise(state, scene.Meshes, scene.FloraInstanceCount, scene.ExcludedRockCount, options, new MeshGeometryCache(), BuildRockProbe(probes, frame));
+            HigherGroundRasteriser.Rasterise(state, scene.Meshes, scene.FloraInstanceCount, scene.ExcludedRockCount, options, new MeshGeometryCache(), pigment, BuildRockProbe(probes, frame));
         }
 
         var traceIndex = -1;

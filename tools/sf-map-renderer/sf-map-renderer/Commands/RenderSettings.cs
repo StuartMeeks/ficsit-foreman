@@ -53,7 +53,15 @@ public sealed class RenderSettings : AssetSettings
 
     [CommandOption("--ocean-z <Z>")]
     [Description("Unified sea level for ocean-band water volumes.")]
-    public double OceanZ { get; init; } = -1755.0;
+    public double OceanZ { get; init; } = -1730.0;
+
+    [CommandOption("--pigment <STRENGTH>")]
+    [Description("Landscape macro-variation pigment overlay strength 0..1 (0 disables). Default 0.6.")]
+    public double Pigment { get; init; } = 0.6;
+
+    [CommandOption("--rock-jitter <STRENGTH>")]
+    [Description("Per-instance rock colour jitter 0..1 (0 disables). Default 0.18.")]
+    public double RockJitter { get; init; } = 0.18;
 
     [CommandOption("--blue-box <LIST>")]
     [Description("World-XY rectangles forcing void to ocean-blue \"x0,y0,x1,y1;...\" (default: west margin).")]
@@ -85,7 +93,7 @@ public sealed class RenderSettings : AssetSettings
 
     [CommandOption("--wet-sea <Z>")]
     [Description("Wet-sand true water surface.")]
-    public double WetSea { get; init; } = -1755.0;
+    public double WetSea { get; init; } = -1730.0;
 
     [CommandOption("--wet-rise <CM>")]
     [Description("Wet cells this far above sea still count.")]
@@ -143,6 +151,8 @@ public sealed class RenderSettings : AssetSettings
         TrunkBandCm = TrunkBand,
         EmitLayers = Layers,
         OceanZ = OceanZ,
+        PigmentStrength = Pigment,
+        RockJitter = RockJitter,
         BlueBoxes = BlueBox == null ? new RenderOptions().BlueBoxes : ParseBlueBoxes(BlueBox),
         NullVisibilityHoles = !NoVisibilityHoles,
         VisibilityThreshold = VisibilityThreshold,

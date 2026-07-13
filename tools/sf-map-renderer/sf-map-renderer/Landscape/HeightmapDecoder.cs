@@ -21,6 +21,7 @@ public static class HeightmapDecoder
         RenderState state,
         IReadOnlyList<LandscapeTile> tiles,
         RenderOptions options,
+        MacroPigment pigment,
         ILayerAtSink? layerAt = null)
     {
         var frame = state.Frame;
@@ -32,6 +33,9 @@ public static class HeightmapDecoder
 
         Console.WriteLine("pass B: decode heightmap + weightmaps, splat...");
         layerAt?.PrintSetup();
+        // Sample the real per-layer terrain colours from the shared material once (pigment is built in the pipeline).
+        var layerColours = new TerrainLayerColours(tiles.Count > 0 ? tiles[0].Material : null);
+        Console.WriteLine($"terrain: layer colours from material; macro pigment {(pigment.Available ? $"on (strength {options.PigmentStrength})" : "off")}");
         var processed = 0;
         int heightFailures = 0, weightFailures = 0;
         foreach (var tile in tiles)
@@ -68,7 +72,7 @@ public static class HeightmapDecoder
 
             try
             {
-                SplatTerrain(state, tile, options, terrain, wetWeight, heightGrid, tileWidth, tileHeight, downsample, minSectionX, minSectionY, width, height, layerAt);
+                SplatTerrain(state, tile, options, terrain, wetWeight, heightGrid, tileWidth, tileHeight, downsample, minSectionX, minSectionY, width, height, layerAt, layerColours, pigment);
             }
             catch (Exception ex)
             {
@@ -111,7 +115,7 @@ public static class HeightmapDecoder
     private static void SplatTerrain(
         RenderState state, LandscapeTile tile, RenderOptions options, byte[] terrain, byte[] wetWeight, float[] heightGrid,
         int tileWidth, int tileHeight, int downsample, int minSectionX, int minSectionY, int width, int height,
-        ILayerAtSink? layerAt)
+        ILayerAtSink? layerAt, TerrainLayerColours layerColours, MacroPigment pigment)
     {
         var weightData = tile.Weightmaps
             .Select(t =>
@@ -188,7 +192,7 @@ public static class HeightmapDecoder
                         }
                     }
 
-                    var (r, g, b) = TerrainPalette.ColourFor(allocation.Layer);
+                    var (r, g, b) = layerColours.ColourFor(allocation.Layer);
                     sumR += weight * r;
                     sumG += weight * g;
                     sumB += weight * b;
@@ -198,9 +202,12 @@ public static class HeightmapDecoder
                 if (sumWeight > 0)
                 {
                     var cell = (row * width + column) * 3;
-                    terrain[cell] = (byte)(sumR / sumWeight);
-                    terrain[cell + 1] = (byte)(sumG / sumWeight);
-                    terrain[cell + 2] = (byte)(sumB / sumWeight);
+                    var blended = ((byte)(sumR / sumWeight), (byte)(sumG / sumWeight), (byte)(sumB / sumWeight));
+                    // Overlay the world-aligned macro pigment (u,v across the landscape) for regional variation.
+                    var (pr, pg, pb) = pigment.Apply(blended, (double)column / width, (double)row / height);
+                    terrain[cell] = pr;
+                    terrain[cell + 1] = pg;
+                    terrain[cell + 2] = pb;
                 }
             }
         }

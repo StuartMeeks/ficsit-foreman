@@ -1,6 +1,7 @@
 using SfMapRenderer.Collection;
 using SfMapRenderer.Configuration;
 using SfMapRenderer.Diagnostics;
+using SfMapRenderer.Landscape;
 using SfMapRenderer.Meshes;
 using SfMapRenderer.Rendering;
 
@@ -22,6 +23,7 @@ public static class HigherGroundRasteriser
         int excludedRockCount,
         RenderOptions options,
         MeshGeometryCache cache,
+        MacroPigment pigment,
         RockFootprintProbe? rockProbe)
     {
         var coral = meshes.Count(m => m.Kind == PlacedMeshKind.Coral);
@@ -44,8 +46,13 @@ public static class HigherGroundRasteriser
             var meshName = meshPath.Length > 0 ? meshPath[(meshPath.LastIndexOf('/') + 1)..].Split('.')[0] : "?";
             var colour = ObjectPalette.ColourFor(meshPath, placed.Kind);
 
+            // A stable per-instance colour jitter breaks up families of same-coloured rock (within a region).
+            var jitter = placed.Kind == PlacedMeshKind.Rock
+                ? RockJitter.Factor(placed.Location, options.RockJitter)
+                : (1.0, 1.0, 1.0);
+
             var (gridX, gridY, worldZ) = ProjectVertices(geometry.Vertices, placed, state.Frame);
-            raised += RasteriseTriangles(state, geometry, placed, gridX, gridY, worldZ, options, rockColourHeight, floraColourHeight, meshName, colour, rockProbe);
+            raised += RasteriseTriangles(state, geometry, placed, gridX, gridY, worldZ, options, rockColourHeight, floraColourHeight, meshName, colour, pigment, jitter, rockProbe);
 
             if (placed.Kind == PlacedMeshKind.Tree)
             {
@@ -87,7 +94,8 @@ public static class HigherGroundRasteriser
     private static long RasteriseTriangles(
         RenderState state, MeshGeometry geometry, PlacedMesh placed,
         double[] gridX, double[] gridY, double[] worldZ, RenderOptions options,
-        double rockColourHeight, double floraColourHeight, string meshName, (byte R, byte G, byte B) colour, RockFootprintProbe? rockProbe)
+        double rockColourHeight, double floraColourHeight, string meshName, (byte R, byte G, byte B) colour, MacroPigment pigment,
+        (double R, double G, double B) jitter, RockFootprintProbe? rockProbe)
     {
         var frame = state.Frame;
         int width = frame.Width, height = frame.Height;
@@ -98,15 +106,32 @@ public static class HigherGroundRasteriser
         var objectColour = state.ObjectColour;
         var triangles = geometry.Triangles;
         var isFoliage = geometry.TriangleIsFoliage;
+        var sampled = geometry.TriangleColour;
         var isTree = placed.Kind == PlacedMeshKind.Tree;
         var isFlora = placed.Kind is PlacedMeshKind.Coral or PlacedMeshKind.Tree;
+        // Coral (emissive glow, missed by albedo) and DesertRock (a virtual-textured blend that doesn't decode,
+        // and which should track the sand) keep their fixed palette colour instead of the sampled albedo.
+        var usePalette = placed.Kind == PlacedMeshKind.Coral || meshName.Contains("DesertRock", StringComparison.OrdinalIgnoreCase);
         byte objectValue = placed.Kind switch { PlacedMeshKind.Rock => 1, PlacedMeshKind.Coral => 2, _ => 3 };
         var colourThreshold = isFlora ? floraColourHeight : rockColourHeight;
         long raised = 0;
 
         for (var t = 0; t + 2 < triangles.Length; t += 3)
         {
-            var triangleIsFoliage = isTree && t / 3 < isFoliage.Length && isFoliage[t / 3];
+            var triangle = t / 3;
+            var triangleIsFoliage = isTree && triangle < isFoliage.Length && isFoliage[triangle];
+
+            // This section's sampled material colour, or the fixed palette colour (0,0,0 when unsampled, or when
+            // the family is forced to the palette — see usePalette).
+            byte cr = colour.R, cg = colour.G, cb = colour.B;
+            if (!usePalette
+                && triangle * 3 + 2 < sampled.Length && (sampled[triangle * 3] != 0 || sampled[triangle * 3 + 1] != 0 || sampled[triangle * 3 + 2] != 0))
+            {
+                cr = sampled[triangle * 3];
+                cg = sampled[triangle * 3 + 1];
+                cb = sampled[triangle * 3 + 2];
+            }
+
             if (isTree && options.TreePart != TreePart.Both)
             {
                 if (options.TreePart == TreePart.Trunk && triangleIsFoliage)
@@ -185,9 +210,24 @@ public static class HigherGroundRasteriser
                             }
 
                             objectKind[index] = objectValue;
-                            objectColour[index * 3] = colour.R;
-                            objectColour[index * 3 + 1] = colour.G;
-                            objectColour[index * 3 + 2] = colour.B;
+                            if (placed.Kind == PlacedMeshKind.Rock)
+                            {
+                                // Per-instance jitter (breaks up same-family rock) then the world-aligned macro
+                                // pigment (so desert rock reads orange with the sand, red-jungle rock reddish).
+                                var jr = (byte)Math.Clamp(cr * jitter.R, 0, 255);
+                                var jg = (byte)Math.Clamp(cg * jitter.G, 0, 255);
+                                var jb = (byte)Math.Clamp(cb * jitter.B, 0, 255);
+                                var (pr, pg, pb) = pigment.Apply((jr, jg, jb), (double)px / width, (double)py / height);
+                                objectColour[index * 3] = pr;
+                                objectColour[index * 3 + 1] = pg;
+                                objectColour[index * 3 + 2] = pb;
+                            }
+                            else
+                            {
+                                objectColour[index * 3] = cr;
+                                objectColour[index * 3 + 1] = cg;
+                                objectColour[index * 3 + 2] = cb;
+                            }
                         }
 
                         raised++;
