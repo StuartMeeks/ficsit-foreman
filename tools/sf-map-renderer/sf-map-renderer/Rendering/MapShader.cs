@@ -174,6 +174,143 @@ public static class MapShader
             }
         }
 
+        if (options.EastFade is not null || options.CapturedFade is not null)
+        {
+            EastCoastFade(surface, composite, state, width, height, options);
+        }
+
         return new MapImages(surface, objectRaster, composite);
+    }
+
+    /// <summary>
+    /// Within one region (the coast east of the swamp + dune desert), softens the hard line where the shallow
+    /// coastal water meets the flat deep-sea void: recolours the void cells there by their distance to the coast
+    /// so the sea deepens smoothly from the shore to deep ocean blue, extending east. Only void cells are touched
+    /// (captured ocean and the void's extent are unchanged); the region edge is feathered and low-frequency noise
+    /// keeps it from reading as a uniform bubble. North/south voids are outside the region and untouched.
+    /// </summary>
+    private static void EastCoastFade(byte[] surface, byte[] composite, RenderState state, int width, int height, RenderOptions options)
+    {
+        var frame = state.Frame;
+        var heightGrid = state.Height;
+        var volumeVoid = state.VolumeVoid;
+        var objectKind = state.ObjectKind;
+        var count = width * height;
+
+        // Chamfer distance-to-coast (0 at solid land, near-Euclidean), so the gradient follows the coastline.
+        const float Infinity = 1e9f, Ortho = 1f, Diag = 1.41421356f;
+        var dist = new float[count];
+        for (var i = 0; i < count; i++)
+        {
+            dist[i] = heightGrid[i] != 0 && !state.IsOcean[i] && !state.IsLake[i] && !volumeVoid[i] && !state.OceanVoid[i] ? 0f : Infinity;
+        }
+
+        for (var y = 0; y < height; y++)
+        {
+            for (var x = 0; x < width; x++)
+            {
+                var i = y * width + x;
+                var d = dist[i];
+                if (x > 0) { d = Math.Min(d, dist[i - 1] + Ortho); }
+                if (y > 0) { d = Math.Min(d, dist[i - width] + Ortho); }
+                if (x > 0 && y > 0) { d = Math.Min(d, dist[i - width - 1] + Diag); }
+                if (x < width - 1 && y > 0) { d = Math.Min(d, dist[i - width + 1] + Diag); }
+                dist[i] = d;
+            }
+        }
+
+        for (var y = height - 1; y >= 0; y--)
+        {
+            for (var x = width - 1; x >= 0; x--)
+            {
+                var i = y * width + x;
+                var d = dist[i];
+                if (x < width - 1) { d = Math.Min(d, dist[i + 1] + Ortho); }
+                if (y < height - 1) { d = Math.Min(d, dist[i + width] + Ortho); }
+                if (x < width - 1 && y < height - 1) { d = Math.Min(d, dist[i + width + 1] + Diag); }
+                if (x > 0 && y < height - 1) { d = Math.Min(d, dist[i + width - 1] + Diag); }
+                dist[i] = d;
+            }
+        }
+
+        var cellCm = frame.CellWidthCm;
+        var rampCm = options.EastFadeDistanceCm;
+        var feather = options.EastFadeFeatherCm;
+        var eastFade = options.EastFade;
+        var capturedFade = options.CapturedFade;
+        for (var i = 0; i < count; i++)
+        {
+            if (objectKind[i] != 0)
+            {
+                continue;
+            }
+
+            double wx = frame.WorldXAtColumn(i % width), wy = frame.WorldYAtRow(i / width);
+            double weight;
+            if (heightGrid[i] == 0 && volumeVoid[i])
+            {
+                weight = eastFade is { } ef ? EdgeWeight(ef, wx, wy, feather) : 0; // deep-sea void
+            }
+            else if (heightGrid[i] != 0 && state.IsOcean[i] && !state.IsRiver[i] && state.WaterZ[i] is >= -1850 and <= -1600)
+            {
+                weight = capturedFade is { } cf ? EdgeWeight(cf, wx, wy, feather) : 0; // captured seabed (SE only)
+            }
+            else
+            {
+                continue;
+            }
+
+            if (weight <= 0)
+            {
+                continue;
+            }
+
+            var noise = (SeaNoise(wx, wy, options.EastFadeNoiseWavelengthCm) - 0.5) * 2.0 * options.EastFadeNoise;
+            var shore = 1 - Math.Clamp(dist[i] * cellCm / rampCm + noise, 0, 1);
+            double r = 22 + 40 * shore, g = 52 + 70 * shore, b = 104 + 74 * shore;
+            var c = i * 3;
+            surface[c] = (byte)(surface[c] * (1 - weight) + r * weight);
+            surface[c + 1] = (byte)(surface[c + 1] * (1 - weight) + g * weight);
+            surface[c + 2] = (byte)(surface[c + 2] * (1 - weight) + b * weight);
+            composite[c] = surface[c];
+            composite[c + 1] = surface[c + 1];
+            composite[c + 2] = surface[c + 2];
+        }
+    }
+
+    /// <summary>Feathered membership of one rectangle: 1 inside, smoothstep to 0 across <paramref name="feather"/>.</summary>
+    private static double EdgeWeight(WorldRect r, double wx, double wy, double feather)
+    {
+        var dx = Math.Max(r.X0 - wx, wx - r.X1);
+        var dy = Math.Max(r.Y0 - wy, wy - r.Y1);
+        var signed = dx <= 0 && dy <= 0 ? Math.Max(dx, dy) : Math.Sqrt(Math.Max(dx, 0) * Math.Max(dx, 0) + Math.Max(dy, 0) * Math.Max(dy, 0));
+        if (feather <= 0)
+        {
+            return signed <= 0 ? 1.0 : 0.0;
+        }
+
+        var t = Math.Clamp((feather - signed) / (2 * feather), 0, 1);
+        return t * t * (3 - 2 * t);
+    }
+
+    // Smooth two-octave value noise in [0,1] from a world position (deterministic; no libraries).
+    private static double SeaNoise(double wx, double wy, double wavelength) =>
+        0.65 * ValueNoise(wx / wavelength, wy / wavelength) + 0.35 * ValueNoise(wx / (wavelength * 0.5), wy / (wavelength * 0.5));
+
+    private static double ValueNoise(double fx, double fy)
+    {
+        int x0 = (int)Math.Floor(fx), y0 = (int)Math.Floor(fy);
+        double tx = fx - x0, ty = fy - y0;
+        double sx = tx * tx * (3 - 2 * tx), sy = ty * ty * (3 - 2 * ty);
+        double a = Lattice(x0, y0) + (Lattice(x0 + 1, y0) - Lattice(x0, y0)) * sx;
+        double bb = Lattice(x0, y0 + 1) + (Lattice(x0 + 1, y0 + 1) - Lattice(x0, y0 + 1)) * sx;
+        return a + (bb - a) * sy;
+    }
+
+    private static double Lattice(int x, int y)
+    {
+        var h = (uint)(x * 374761393 + y * 668265263);
+        h = (h ^ (h >> 13)) * 1274126177u;
+        return ((h ^ (h >> 16)) & 0xFFFFFF) / (double)0x1000000;
     }
 }
