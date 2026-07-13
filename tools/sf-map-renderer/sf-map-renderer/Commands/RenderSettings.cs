@@ -53,7 +53,7 @@ public sealed class RenderSettings : AssetSettings
 
     [CommandOption("--ocean-z <Z>")]
     [Description("Unified sea level for ocean-band water volumes.")]
-    public double OceanZ { get; init; } = -1755.0;
+    public double OceanZ { get; init; } = -1730.0;
 
     [CommandOption("--blue-box <LIST>")]
     [Description("World-XY rectangles forcing void to ocean-blue \"x0,y0,x1,y1;...\" (default: west margin).")]
@@ -85,7 +85,7 @@ public sealed class RenderSettings : AssetSettings
 
     [CommandOption("--wet-sea <Z>")]
     [Description("Wet-sand true water surface.")]
-    public double WetSea { get; init; } = -1755.0;
+    public double WetSea { get; init; } = -1730.0;
 
     [CommandOption("--wet-rise <CM>")]
     [Description("Wet cells this far above sea still count.")]

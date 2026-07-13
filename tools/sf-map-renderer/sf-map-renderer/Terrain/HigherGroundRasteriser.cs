@@ -111,8 +111,10 @@ public static class HigherGroundRasteriser
             var triangleIsFoliage = isTree && triangle < isFoliage.Length && isFoliage[triangle];
 
             // This section's sampled material colour, or the placeholder palette colour when unsampled (0,0,0).
+            // Coral keeps its fixed palette purple — its albedo misses the in-game emissive glow.
             byte cr = colour.R, cg = colour.G, cb = colour.B;
-            if (triangle * 3 + 2 < sampled.Length && (sampled[triangle * 3] != 0 || sampled[triangle * 3 + 1] != 0 || sampled[triangle * 3 + 2] != 0))
+            if (placed.Kind != PlacedMeshKind.Coral
+                && triangle * 3 + 2 < sampled.Length && (sampled[triangle * 3] != 0 || sampled[triangle * 3 + 1] != 0 || sampled[triangle * 3 + 2] != 0))
             {
                 cr = sampled[triangle * 3];
                 cg = sampled[triangle * 3 + 1];

@@ -27,7 +27,9 @@ public class ObjectPaletteTests
     public void UnknownFamilyFallsBackToTheKindDefault()
     {
         Assert.Equal(((byte)70, (byte)120, (byte)74), ObjectPalette.ColourFor(".../Trees/Unknown/SM_X", PlacedMeshKind.Tree));
-        Assert.Equal(((byte)205, (byte)116, (byte)104), ObjectPalette.ColourFor(".../Coral/Unknown/SM_X", PlacedMeshKind.Coral));
+        // All coral renders one fixed purple, regardless of species.
+        Assert.Equal(((byte)152, (byte)100, (byte)170), ObjectPalette.ColourFor(".../Coral/CoralTree/SM_X", PlacedMeshKind.Coral));
+        Assert.Equal(((byte)152, (byte)100, (byte)170), ObjectPalette.ColourFor(".../Coral/Unknown/SM_X", PlacedMeshKind.Coral));
         Assert.Equal(((byte)143, (byte)135, (byte)122), ObjectPalette.ColourFor(".../Rock/Unknown/SM_X", PlacedMeshKind.Rock));
     }
 }

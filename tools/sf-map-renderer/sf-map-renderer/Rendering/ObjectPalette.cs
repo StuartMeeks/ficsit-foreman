@@ -27,13 +27,6 @@ public static class ObjectPalette
         ("/TitanTree", 70, 120, 74),
     ];
 
-    private static readonly (string Folder, byte R, byte G, byte B)[] Corals =
-    [
-        ("/CoralCactus", 196, 120, 150),
-        ("/CoralTree", 158, 120, 168),
-        ("/CraterTree", 168, 108, 128),
-    ];
-
     private static readonly (string Folder, byte R, byte G, byte B)[] Rocks =
     [
         ("/DesertRock", 182, 152, 112),        // tan desert rock
@@ -46,13 +39,16 @@ public static class ObjectPalette
     ];
 
     private static readonly (byte R, byte G, byte B) DefaultTree = (70, 120, 74);
-    private static readonly (byte R, byte G, byte B) DefaultCoral = (205, 116, 104);
+    // In-game the alien coral (trees + shells) glows a magenta/purple from its emissive — the base-texture
+    // albedo samples green/brown and misses that, so all coral renders as one fixed purple-ish hue instead.
+    private static readonly (byte R, byte G, byte B) DefaultCoral = (152, 100, 170);
     private static readonly (byte R, byte G, byte B) DefaultRock = (143, 135, 122);
 
     public static (byte R, byte G, byte B) ColourFor(string path, PlacedMeshKind kind) => kind switch
     {
         PlacedMeshKind.Tree => Match(path, Trees, DefaultTree),
-        PlacedMeshKind.Coral => Match(path, Corals, DefaultCoral),
+        PlacedMeshKind.Coral => DefaultCoral, // all coral one purple hue, ignoring albedo + per-species table
+
         _ => Match(path, Rocks, DefaultRock),
     };
 
