@@ -54,6 +54,10 @@ public sealed class RenderOptions
     /// <summary>Strength of the landscape macro-variation pigment overlay, 0 disables (<c>PIGMENT</c>).</summary>
     public double PigmentStrength { get; init; } = 0.6;
 
+    /// <summary>Flood terrain that sits below sea level and connects to the ocean (<c>FLOODSUBSEA</c>) — fills
+    /// under-water-flattened channels (e.g. the U10 cascade outflow) that carry no water actor.</summary>
+    public bool FloodSubSea { get; init; } = true;
+
     /// <summary>Per-instance rock colour jitter strength, 0 disables (<c>ROCKJITTER</c>).</summary>
     public double RockJitter { get; init; } = 0.18;
 

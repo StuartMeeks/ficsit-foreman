@@ -1,5 +1,3 @@
-using CUE4Parse.UE4.Assets.Objects;
-
 using SfMapRenderer.Assets;
 
 namespace SfMapRenderer.Diagnostics.Surveys;
@@ -41,52 +39,37 @@ public static class WaterfallProbe
             }
         }
 
-        foreach (var (distance, export) in hits.OrderBy(h => h.Distance).Take(2))
+        foreach (var (distance, export) in hits.OrderBy(h => h.Distance).Take(40))
         {
             Dump(distance, export);
         }
 
-        Console.WriteLine("\nDONE");
+        Console.WriteLine($"\nDONE ({hits.Count} falls in radius)");
     }
 
     private static void Dump(double distance, UObject export)
     {
-        Console.WriteLine($"\n===== {export.ExportType}  {export.Name}  ({distance / 100:F0}m) =====");
         var root = export.GetOrDefault<UObject?>("RootComponent");
-        if (root != null)
+        if (root == null)
         {
-            Console.WriteLine($"  root loc={root.GetOrDefault<FVector>("RelativeLocation")}  scale={root.GetOrDefault<FVector>("RelativeScale3D")}");
+            return;
         }
 
-        Console.WriteLine($"  Width={export.GetOrDefault<int>("Width")}  Curvature={export.GetOrDefault<double>("Curvature Amount")}");
-        foreach (var compName in new[] { "Waterfall Top Center", "Waterfall Bottom Center" })
+        var loc = root.RelativeLocation();
+        var scale = root.RelativeScale();
+        var yaw = root.RelativeYawRadians();
+        double cos = Math.Cos(yaw), sin = Math.Sin(yaw);
+
+        (double X, double Y, double Z) World(string compName)
         {
             var comp = export.GetOrDefault<UObject?>(compName);
-            if (comp != null)
-            {
-                var rel = comp.GetOrDefault<FVector>("RelativeLocation");
-                Console.WriteLine($"  {compName}: rel={rel}  hasAbs={comp.HasRelativeLocation()}");
-            }
+            var rel = comp?.GetOrDefault<FVector>("RelativeLocation") ?? new FVector(0, 0, 0);
+            double sx = rel.X * scale.X, sy = rel.Y * scale.Y;
+            return (loc.X + sx * cos - sy * sin, loc.Y + sx * sin + sy * cos, loc.Z + rel.Z * scale.Z);
         }
 
-        // Spline-mesh component array, as BP_River carries?
-        foreach (var arrayName in new[] { "mSplineMeshComponents", "SplineMeshComponents", "mSplineComponent", "Spline" })
-        {
-            var arr = export.GetOrDefault<UScriptArray?>(arrayName);
-            if (arr != null)
-            {
-                Console.WriteLine($"  {arrayName}: {arr.Properties.Count} entries");
-            }
-
-            var single = export.GetOrDefault<UObject?>(arrayName);
-            if (single != null)
-            {
-                Console.WriteLine($"  {arrayName}: single component {single.ExportType} {single.Name}");
-                foreach (var p in single.Properties)
-                {
-                    Console.WriteLine($"      .{p.Name} ({p.PropertyType})");
-                }
-            }
-        }
+        var top = World("Waterfall Top Center");
+        var bottom = World("Waterfall Bottom Center");
+        Console.WriteLine($"  {distance / 100,4:F0}m {export.Name,-46} W={export.GetOrDefault<int>("Width"),2} top=({top.X:F0},{top.Y:F0},{top.Z:F0}) bot=({bottom.X:F0},{bottom.Y:F0},{bottom.Z:F0})");
     }
 }

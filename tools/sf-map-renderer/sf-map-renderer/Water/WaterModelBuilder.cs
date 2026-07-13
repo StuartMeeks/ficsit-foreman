@@ -72,6 +72,80 @@ public static class WaterModelBuilder
         }
     }
 
+    /// <summary>
+    /// Flood terrain that sits below sea level and is connected (4-neighbour) to the open ocean — an under-water
+    /// channel the game flattened the landscape for but whose water body carries no actor we parse (e.g. the U10
+    /// cascade outflow). Self-limiting: banks above sea level stop the fill.
+    /// </summary>
+    public static void FloodSubSeaConnected(RenderState state, RenderOptions options)
+    {
+        if (!options.FloodSubSea)
+        {
+            return;
+        }
+
+        var frame = state.Frame;
+        int width = frame.Width, height = frame.Height;
+        var heightGrid = state.Height;
+        var baseHeight = state.BaseHeight;
+        var isOcean = state.IsOcean;
+        var oceanVoid = state.OceanVoid;
+        var waterZ = state.WaterZ;
+        var surface = options.OceanZ;
+        var cellCount = width * height;
+        var visited = new bool[cellCount];
+        var queue = new Queue<int>();
+
+        // Seed from the open sea (flooded void ocean + ocean-band classified sea).
+        for (var i = 0; i < cellCount; i++)
+        {
+            if (oceanVoid[i] || (isOcean[i] && IsOceanBand(waterZ[i] != 0 ? waterZ[i] : surface)))
+            {
+                visited[i] = true;
+                queue.Enqueue(i);
+            }
+        }
+
+        long filled = 0;
+
+        void Try(int j)
+        {
+            if (visited[j])
+            {
+                return;
+            }
+
+            visited[j] = true;
+            if (heightGrid[j] == 0 || isOcean[j] || state.IsLake[j])
+            {
+                return; // void (handled elsewhere) or already water
+            }
+
+            var terrainZ = frame.HeightToZ(baseHeight[j] != 0 ? baseHeight[j] : heightGrid[j]);
+            if (terrainZ >= surface)
+            {
+                return; // a bank at/above sea level — stop the fill here
+            }
+
+            isOcean[j] = true;
+            waterZ[j] = surface;
+            filled++;
+            queue.Enqueue(j);
+        }
+
+        while (queue.Count > 0)
+        {
+            var i = queue.Dequeue();
+            int cx = i % width, cy = i / width;
+            if (cx > 0) { Try(i - 1); }
+            if (cx < width - 1) { Try(i + 1); }
+            if (cy > 0) { Try(i - width); }
+            if (cy < height - 1) { Try(i + width); }
+        }
+
+        Console.WriteLine($"sub-sea flood: filled={filled} cells below {surface:F0}");
+    }
+
     /// <summary>How far below a volume's box floor (minZ) a cell's terrain may sit and still be flooded (cm).
     /// A water box encloses its water, so ground far below the box floor isn't under that water — this rejects
     /// a tall volume's footprint spilling over a cliff edge onto much lower terrain (a deep, dark over-flood).</summary>

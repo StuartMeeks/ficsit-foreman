@@ -66,6 +66,7 @@ public static class RenderPipeline
         }
 
         WaterModelBuilder.FillShallowPonds(state, scene.WaterSeeds, options, traceIndex);
+        WaterModelBuilder.FloodSubSeaConnected(state, options);
 
         if (probes.Cells != null)
         {

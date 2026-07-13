@@ -40,7 +40,7 @@ public sealed class PointProbe
                 : raisedHeight != 0 ? "land/rock"
                 : state.VolumeVoid[idx] ? "OCEAN(void)"
                 : "VOID(grey)";
-            Console.WriteLine($"({wx:F0},{wy:F0}) col={column} row={row} rockTopZ={rockTopZ:F0} seabedZ={seabedZ:F0} isRock={state.IsRock[idx]}  isOcean={state.IsOcean[idx]} isLake={state.IsLake[idx]} isRiver={state.IsRiver[idx]}  oceanVoid={state.OceanVoid[idx]} volVoid={state.VolumeVoid[idx]}  render={render}");
+            Console.WriteLine($"({wx:F0},{wy:F0}) col={column} row={row} h16={state.Height[idx]:F0} baseH16={seabed:F0} rockTopZ={rockTopZ:F0} seabedZ={seabedZ:F0} isRock={state.IsRock[idx]}  isOcean={state.IsOcean[idx]} isLake={state.IsLake[idx]} isRiver={state.IsRiver[idx]}  oceanVoid={state.OceanVoid[idx]} volVoid={state.VolumeVoid[idx]}  render={render}");
 
             // Replicate the MapShader water branch so we can see why a flowing/downhill cell reads dark.
             if (state.IsOcean[idx] || state.IsLake[idx])
