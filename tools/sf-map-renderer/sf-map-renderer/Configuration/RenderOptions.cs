@@ -58,6 +58,11 @@ public sealed class RenderOptions
     /// under-water-flattened channels (e.g. the U10 cascade outflow) that carry no water actor.</summary>
     public bool FloodSubSea { get; init; } = true;
 
+    /// <summary>Max depth below sea level a sub-sea cell may sit and still flood (cm). Keeps the fill to shallow
+    /// coastal inlets/channels; deep dry basins the game leaves unflooded (Grass Fields, Blue Crater) are
+    /// excluded because their floor drops far below sea level.</summary>
+    public double SubSeaMaxDepthCm { get; init; } = 300.0;
+
     /// <summary>Per-instance rock colour jitter strength, 0 disables (<c>ROCKJITTER</c>).</summary>
     public double RockJitter { get; init; } = 0.18;
 

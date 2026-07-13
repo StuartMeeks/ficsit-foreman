@@ -122,9 +122,10 @@ public static class WaterModelBuilder
             }
 
             var terrainZ = frame.HeightToZ(baseHeight[j] != 0 ? baseHeight[j] : heightGrid[j]);
-            if (terrainZ >= surface)
+            if (terrainZ >= surface || terrainZ < surface - options.SubSeaMaxDepthCm)
             {
-                return; // a bank at/above sea level — stop the fill here
+                // Above sea level = a bank; far below = a deep dry basin the game doesn't flood. Stop either way.
+                return;
             }
 
             isOcean[j] = true;
