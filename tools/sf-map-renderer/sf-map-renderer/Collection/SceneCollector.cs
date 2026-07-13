@@ -100,6 +100,13 @@ public sealed class SceneCollector
             return;
         }
 
+        // HLOD components are low-detail merged proxies for distant streaming; the real instances are also present
+        // as foliage/individual components, so rendering the proxy too double-plants the same tree/rock. Skip them.
+        if (type.Contains("HLOD", StringComparison.Ordinal))
+        {
+            return;
+        }
+
         var mesh = export.MeshIndex();
         var path = mesh?.ResolvedObject?.GetPathName();
         if (path == null)

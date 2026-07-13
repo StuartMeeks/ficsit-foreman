@@ -118,11 +118,13 @@ public sealed class RenderOptions
     /// <summary>Ocean surface Z used for the land-elevation colour ramp fallback + the bounds sidecar (<c>SEA</c>).</summary>
     public double SeaLevelZ { get; init; } = -1646.0;
 
-    // All coral and every tree species under /Foliage/Trees/ (Kapok, DioTree, GreenTree, BluePalm, Bamboo,
-    // PurpleTree, SnailBottomTree, TitanTree, Huegelainen/BalloonTree, DypsisPalm, SnakeLegs, AmberTree,
-    // DeadSwampTree, …) — the full aerial canopy. Coral vs tree is decided by a /Coral/ segment.
+    // The full world flora: everything under /Environment/Foliage/ (Coral, Trees, Grass, Flowers, and all
+    // /SmallFoliage/ — ferns, bushes, roots) plus the large bushes under /Environment/Bush/. ~2.6M instances,
+    // ~2 min full-res; the FGFoliage decode (base-map-foliage-decode.md) is what makes this affordable. A
+    // /Coral/ segment marks coral; everything else renders as the tree kind (leafy, sampled albedo). Narrow
+    // with --flora (e.g. "/Foliage/Trees/,/Environment/Bush/") for a trees-only map.
     private static readonly string[] DefaultFloraFolders =
-        ["/Environment/Foliage/Coral/", "/Environment/Foliage/Trees/"];
+        ["/Environment/Foliage/", "/Environment/Bush/"];
 
     // The settled ~15-instance off-map cliff list: east column, SE corner, bottom strip, north edge.
     private static readonly RockExclusion[] DefaultRockExclusions =

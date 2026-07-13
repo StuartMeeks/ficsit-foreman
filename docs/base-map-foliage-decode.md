@@ -95,21 +95,41 @@ small plants. Delivery = "more trees".
 
 ## 4. Slices
 
-1. **Decode + probe (this investigation, mostly done).** `ObjectTypeRegistry` registration in
-   `GameAssetProvider`; `treeat` probe proving the formula. Land the registration + a tidied probe.
-2. **Collector read.** `SceneCollector.TryAddMesh` reads `FGFoliageInstancedSMC` with the
-   cell-offset formula; include-filter defaults to trees + large only. Instance count logged; log
-   what was dropped (no silent truncation).
-3. **Render + tune.** Render, eyeball via the map-editor artifact, tune the include-filter and any
-   density/perf cap. Update [base-map-renderer.md](./base-map-renderer.md) §6 to document the
-   FGFoliage formula alongside the stock one.
+1. **Decode + probe — DONE.** `ObjectTypeRegistry` registration in `GameAssetProvider`; `treeat`
+   probe proving the cell-offset formula.
+2. **Collector read — DONE.** `SceneCollector.TryAddMesh` reads `FGFoliageInstancedSMC` with the
+   cell-offset formula; include-filter defaults to trees + coral. Counts logged. (~150k flora.)
+3. **Bushes, textures, double-render — DONE.** Large bushes added to the filter; per-mesh textures
+   confirmed working; HLOD double-render fixed; artifact updated. See §6 below.
 
-## 5. Risks / open questions
+## 5. Slice 3 outcomes
 
-- **Performance:** even trees-only may be a large instance count. If raster time balloons, add a
-  per-species density cap or a min-scale cut; `log()` whatever is dropped.
-- **Double-render:** confirm species aren't present in *both* stock foliage and FGFoliage (would
-  double-plant). Likely disjoint (stock = coral + TitanTree; FGFoliage = everything else) but
-  verify during slice 2.
-- **What counts as "large".** The trees-vs-grass line is a filter tuning question settled visually
-  in slice 3, not a hard spec.
+- **Double-render (audited via `probe florasrc`).** FGFoliage is **disjoint** from stock foliage —
+  none of the 13 meshes present in more than one component type involve `FGFoliageInstancedSMC`, so
+  the FGFoliage addition introduces no double-planting. The audit did surface a *pre-existing* issue:
+  **HLOD components** (`HLODInstancedStaticMeshComponent`) are 1:1 low-detail proxies that
+  double-planted 13 tree/rock meshes (e.g. `SM_TitanTree_01`: StaticMeshComponent=73 **and** HLOD=73).
+  Fixed by skipping any component whose type contains `HLOD` in `TryAddMesh` — the real instances
+  remain. (~500 proxy instances dropped.)
+- **Flora scope — now all foliage by default.** The filter was first widened to add large bushes
+  (`/Environment/Bush/`), then — once a full-map render of *everything* was measured at **~114 s
+  full-res (downsample 2) for ~2.6M instances** — the default was opened to the whole flora set:
+  `DefaultFloraFolders = ["/Environment/Foliage/", "/Environment/Bush/"]` (Coral, Trees, Grass,
+  Flowers, all `/SmallFoliage/`, plus the large bushes). Small foliage reads as ground cover, not
+  clutter, at true scale. A `/Coral/` segment marks coral; everything else is the tree kind.
+  `--flora "/Foliage/Trees/,/Environment/Bush/"` narrows to a trees-only map. The FGFoliage decode
+  is what makes rendering the full set affordable.
+- **Per-mesh textures — already implemented, now verified.** `MeshGeometryCache` samples each mesh
+  section's material albedo (`MaterialColourSampler`) into `TriangleColour`; the rasteriser uses it,
+  falling back to `ObjectPalette` only for coral (emissive glow the albedo misses → fixed purple) and
+  DesertRock (virtual-textured, doesn't decode). A full render sampled **146 of 191** unique meshes;
+  the rest are the deliberate palette fallbacks. Bushes inherit the same path.
+
+## 6. Risks / open questions (remaining)
+
+- **Performance:** trees + bushes = ~178k instances; raster time is acceptable at ds2. No cap needed
+  yet — revisit if further families are added.
+- **Coral colour** stays a fixed purple by design (albedo misses the emissive). Sampling it would
+  read green/brown; left as-is.
+- **Canopy scale.** The big titan-forest canopies render at true scale and read as large blobs; a
+  density/scale pass is possible but not currently warranted.

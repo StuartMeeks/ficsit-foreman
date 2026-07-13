@@ -60,7 +60,7 @@ public static class HigherGroundRasteriser
             }
         }
 
-        Console.WriteLine($"higher-ground: {cache.Count} unique meshes, raised {raised} cells, excluded {excludedRockCount} instances.");
+        Console.WriteLine($"higher-ground: {cache.Count} unique meshes ({cache.SampledMaterialCount} materials albedo-sampled), raised {raised} cells, excluded {excludedRockCount} instances.");
         rockProbe?.Report();
     }
 
