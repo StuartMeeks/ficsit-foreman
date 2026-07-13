@@ -59,6 +59,10 @@ public sealed class RenderSettings : AssetSettings
     [Description("Landscape macro-variation pigment overlay strength 0..1 (0 disables). Default 0.6.")]
     public double Pigment { get; init; } = 0.6;
 
+    [CommandOption("--no-flood-sub-sea")]
+    [Description("Do not flood below-sea-level terrain connected to the ocean.")]
+    public bool NoFloodSubSea { get; init; }
+
     [CommandOption("--rock-jitter <STRENGTH>")]
     [Description("Per-instance rock colour jitter 0..1 (0 disables). Default 0.18.")]
     public double RockJitter { get; init; } = 0.18;
@@ -153,6 +157,7 @@ public sealed class RenderSettings : AssetSettings
         OceanZ = OceanZ,
         PigmentStrength = Pigment,
         RockJitter = RockJitter,
+        FloodSubSea = !NoFloodSubSea,
         BlueBoxes = BlueBox == null ? new RenderOptions().BlueBoxes : ParseBlueBoxes(BlueBox),
         NullVisibilityHoles = !NoVisibilityHoles,
         VisibilityThreshold = VisibilityThreshold,

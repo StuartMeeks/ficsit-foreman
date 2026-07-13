@@ -72,6 +72,153 @@ public static class WaterModelBuilder
         }
     }
 
+    /// <summary>
+    /// Render the whole river channel uniformly light, not just the narrow ribbon. The mid-river ribbon is drawn
+    /// as a flat shallow sheet, but the wider FGWaterVolume water on the banks keeps an inflated surface and reads
+    /// darker than the ribbon beside it. This flood-fills the flowing flag from the river across the connected
+    /// deep channel water (depth &gt; <see cref="RenderOptions.FlowingBankDepthCm"/>) so the banks match the
+    /// centre. Shallow water is already ~ribbon-light so it is skipped and blocks the spread, and the fill only
+    /// reaches <see cref="RenderOptions.ChannelReachCm"/> from a river centreline, so a deep lake merely touched
+    /// by a river keeps its interior depth shading. The ocean is never touched.
+    /// </summary>
+    public static void SpreadFlowingWater(RenderState state, RenderOptions options)
+    {
+        var frame = state.Frame;
+        int width = frame.Width, height = frame.Height;
+        var heightGrid = state.Height;
+        var isOcean = state.IsOcean;
+        var isLake = state.IsLake;
+        var isRiver = state.IsRiver;
+        var waterZ = state.WaterZ;
+        var threshold = options.FlowingBankDepthCm;
+        var maxReach = (int)Math.Round(options.ChannelReachCm / frame.CellWidthCm);
+        var distance = new int[width * height];
+        Array.Fill(distance, -1);
+        var queue = new Queue<int>();
+
+        for (var i = 0; i < width * height; i++)
+        {
+            if (isRiver[i])
+            {
+                distance[i] = 0;
+                queue.Enqueue(i);
+            }
+        }
+
+        long marked = 0;
+
+        void Try(int from, int j)
+        {
+            if (distance[j] != -1)
+            {
+                return; // already reached (multi-source BFS gives the min distance)
+            }
+
+            distance[j] = distance[from] + 1;
+            if (distance[j] > maxReach || !(isOcean[j] || isLake[j]) || heightGrid[j] == 0)
+            {
+                return; // out of reach, or not inland water — also blocks the spread past here
+            }
+
+            var surface = waterZ[j] != 0 ? waterZ[j] : options.OceanZ;
+            if (IsOceanBand(surface) || surface - frame.HeightToZ(heightGrid[j]) <= threshold)
+            {
+                return; // the sea, or shallow water already ~ribbon-light — leave it and stop here
+            }
+
+            isRiver[j] = true; // deep channel water beside the river — render it flowing, like the ribbon
+            marked++;
+            queue.Enqueue(j);
+        }
+
+        while (queue.Count > 0)
+        {
+            var i = queue.Dequeue();
+            int cx = i % width, cy = i / width;
+            if (cx > 0) { Try(i, i - 1); }
+            if (cx < width - 1) { Try(i, i + 1); }
+            if (cy > 0) { Try(i, i - width); }
+            if (cy < height - 1) { Try(i, i + width); }
+        }
+
+        Console.WriteLine($"flowing-water spread: {marked} bank cells (reach {maxReach} cells, depth > {threshold:F0})");
+    }
+
+    /// <summary>
+    /// Flood terrain that sits below sea level and is connected (4-neighbour) to the open ocean — an under-water
+    /// channel the game flattened the landscape for but whose water body carries no actor we parse (e.g. the U10
+    /// cascade outflow). Self-limiting: banks above sea level stop the fill.
+    /// </summary>
+    public static void FloodSubSeaConnected(RenderState state, RenderOptions options)
+    {
+        if (!options.FloodSubSea)
+        {
+            return;
+        }
+
+        var frame = state.Frame;
+        int width = frame.Width, height = frame.Height;
+        var heightGrid = state.Height;
+        var baseHeight = state.BaseHeight;
+        var isOcean = state.IsOcean;
+        var oceanVoid = state.OceanVoid;
+        var waterZ = state.WaterZ;
+        var surface = options.OceanZ;
+        var cellCount = width * height;
+        var visited = new bool[cellCount];
+        var queue = new Queue<int>();
+
+        // Seed from the open sea (flooded void ocean + ocean-band classified sea).
+        for (var i = 0; i < cellCount; i++)
+        {
+            if (oceanVoid[i] || (isOcean[i] && IsOceanBand(waterZ[i] != 0 ? waterZ[i] : surface)))
+            {
+                visited[i] = true;
+                queue.Enqueue(i);
+            }
+        }
+
+        long filled = 0;
+
+        void Try(int j)
+        {
+            if (visited[j])
+            {
+                return;
+            }
+
+            visited[j] = true;
+            if (heightGrid[j] == 0 || isOcean[j] || state.IsLake[j])
+            {
+                return; // void (handled elsewhere) or already water
+            }
+
+            var terrainZ = frame.HeightToZ(baseHeight[j] != 0 ? baseHeight[j] : heightGrid[j]);
+            if (terrainZ >= surface || terrainZ < surface - options.SubSeaMaxDepthCm)
+            {
+                // Above sea level = a bank; far below = a deep dry basin the game doesn't flood. Stop either way.
+                return;
+            }
+
+            isOcean[j] = true;
+            waterZ[j] = surface;
+            filled++;
+            queue.Enqueue(j);
+        }
+
+        while (queue.Count > 0)
+        {
+            var i = queue.Dequeue();
+            int cx = i % width, cy = i / width;
+            if (cx > 0) { Try(i - 1); }
+            if (cx < width - 1) { Try(i + 1); }
+            if (cy > 0) { Try(i - width); }
+            if (cy < height - 1) { Try(i + width); }
+        }
+
+        Console.WriteLine($"sub-sea flood: filled={filled} cells below {surface:F0}");
+    }
+
     /// <summary>How far below a volume's box floor (minZ) a cell's terrain may sit and still be flooded (cm).
     /// A water box encloses its water, so ground far below the box floor isn't under that water — this rejects
     /// a tall volume's footprint spilling over a cliff edge onto much lower terrain (a deep, dark over-flood).</summary>

@@ -65,7 +65,9 @@ public static class RenderPipeline
             WaterModelBuilder.StampRivers(state, scene.Rivers, options, traceIndex);
         }
 
+        WaterModelBuilder.SpreadFlowingWater(state, options);
         WaterModelBuilder.FillShallowPonds(state, scene.WaterSeeds, options, traceIndex);
+        WaterModelBuilder.FloodSubSeaConnected(state, options);
 
         if (probes.Cells != null)
         {

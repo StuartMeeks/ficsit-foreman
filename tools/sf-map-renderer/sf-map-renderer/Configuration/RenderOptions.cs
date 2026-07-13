@@ -54,11 +54,49 @@ public sealed class RenderOptions
     /// <summary>Strength of the landscape macro-variation pigment overlay, 0 disables (<c>PIGMENT</c>).</summary>
     public double PigmentStrength { get; init; } = 0.6;
 
+    /// <summary>Flood terrain that sits below sea level and connects to the ocean (<c>FLOODSUBSEA</c>) — fills
+    /// under-water-flattened channels (e.g. the U10 cascade outflow) that carry no water actor.</summary>
+    public bool FloodSubSea { get; init; } = true;
+
+    /// <summary>Max depth below sea level a sub-sea cell may sit and still flood (cm). Keeps the fill to shallow
+    /// coastal inlets/channels; deep dry basins the game leaves unflooded (Grass Fields, Blue Crater) are
+    /// excluded because their floor drops far below sea level.</summary>
+    public double SubSeaMaxDepthCm { get; init; } = 300.0;
+
+    /// <summary>Connected channel water deeper than this (cm) and within <see cref="ChannelReachCm"/> of a river
+    /// is rendered as flowing (light), so the steep banks match the mid-river ribbon instead of reading darker.
+    /// Shallow water is already ~ribbon-light and is left to its depth shading.</summary>
+    public double FlowingBankDepthCm { get; init; } = 250.0;
+
+    /// <summary>How far from a river centreline (cm) the flowing treatment reaches — the max channel half-width.
+    /// Bounds the spread so a deep lake merely touched by a river keeps its interior depth shading.</summary>
+    public double ChannelReachCm { get; init; } = 5000.0;
+
     /// <summary>Per-instance rock colour jitter strength, 0 disables (<c>ROCKJITTER</c>).</summary>
     public double RockJitter { get; init; } = 0.18;
 
     /// <summary>World-XY rectangles forcing void cells ocean-blue (<c>BLUEBOX</c>).</summary>
     public IReadOnlyList<WorldRect> BlueBoxes { get; init; } = DefaultBlueBoxes;
+
+    /// <summary>Region (coast east of the swamp + dune desert) where the deep-sea void is recoloured by distance
+    /// to the coast, so the shallow coastal water fades smoothly to deep ocean blue extending east instead of
+    /// meeting the flat void at a hard line. Null disables. Only void cells inside are touched.</summary>
+    public WorldRect? EastFade { get; init; } = new(150000, -360000, 470000, 140000);
+
+    /// <summary>Region (the SE, east of the swamp) where the captured seabed is ALSO faded into the deep gradient,
+    /// so the blocky edge between visible-seabed shallow water and the flat void is smoothed. Kept south of the
+    /// north void so that stays untouched. Null disables.</summary>
+    public WorldRect? CapturedFade { get; init; } = new(240000, -120000, 470000, 140000);
+
+    /// <summary>Distance from the coast (cm) over which the east fade reaches full deep ocean blue.</summary>
+    public double EastFadeDistanceCm { get; init; } = 25000.0;
+
+    /// <summary>Feather (cm) over which the east-fade region edge blends in, avoiding a hard boundary.</summary>
+    public double EastFadeFeatherCm { get; init; } = 20000.0;
+
+    /// <summary>Amplitude (0..1) + wavelength (cm) of low-frequency noise on the east fade, for natural variation.</summary>
+    public double EastFadeNoise { get; init; } = 0.15;
+    public double EastFadeNoiseWavelengthCm { get; init; } = 5000.0;
 
     /// <summary>Null landscape-visibility holes to void (<c>VISHOLE</c>) at weight ≥ <see cref="VisibilityThreshold"/>.</summary>
     public bool NullVisibilityHoles { get; init; } = true;

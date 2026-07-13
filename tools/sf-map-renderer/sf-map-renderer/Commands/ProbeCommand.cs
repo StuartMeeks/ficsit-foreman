@@ -55,6 +55,14 @@ public sealed class ProbeCommand : Command<ProbeSettings>
             case "matcolour": MaterialColourProbe.Report(assets, ParseList(settings.Substr)); break;
             case "terrainmat": TerrainMaterialProbe.Report(assets); break;
             case "pigment": PigmentProbe.Report(assets); break;
+            case "waterfall":
+                var (wfx, wfy) = ParseSingle(settings.At, 49963, -137409);
+                WaterfallProbe.Report(assets, wfx, wfy);
+                break;
+            case "actorsat":
+                var (aax, aay) = ParseSingle(settings.At, 57900, -148900);
+                ActorsAtProbe.Report(assets, aax, aay, Radius(settings, 15000));
+                break;
             case "meshinspect":
                 var (mix, miy) = ParseSingle(settings.At, 178202, 250734);
                 MeshInspectProbe.Report(assets, mix, miy, settings.Substr ?? "CoralTree", Radius(settings, 20000));
