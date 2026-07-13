@@ -148,6 +148,10 @@ grid), tagged `kind` 1 = coral · 2 = tree.
   CUE4Parse `UInstancedStaticMeshComponent`; its `PerInstanceSMData` array carries per-instance
   `FTransform`s. World position = the component's `TranslatedInstanceSpaceOrigin` (a UProperty
   FVector) **+** the instance `.Translation`; rotation = `.Rotation.Rotator()`; scale = `.Scale3D`.
+  **Note:** this formula is for *stock* foliage only. Satisfactory's custom `FGFoliageInstancedSMC`
+  (the ~3.3 M-instance bulk — most trees + all small foliage) uses a *different* decode (the cell
+  offset lives on the owning `InstancedFoliageActor`, not `TranslatedInstanceSpaceOrigin`) — see
+  [base-map-foliage-decode.md](./base-map-foliage-decode.md).
 - **Colour threshold.** Flora canopies droop to the ground at the rim, so a 3 m cut trims them to a
   core; flora uses its own low cut **`FLORAH`** (default 50 cm) so the full canopy colours. Coral
   renders at true scale (e.g. `SM_CoralTree_02` is 34 m × 2.5 = ~86 m).
