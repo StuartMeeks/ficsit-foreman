@@ -67,6 +67,56 @@ public sealed class MaterialColourSampler
         }
     }
 
+    /// <summary>
+    /// Decode a texture to an interleaved RGB grid at the largest mip no wider than <paramref name="maxDim"/>
+    /// (or the smallest available mip if all exceed it). Used to sample a world-aligned map per cell.
+    /// </summary>
+    public static (byte[] Rgb, int Width, int Height)? DecodeRgb(UTexture2D texture, int maxDim)
+    {
+        var mips = texture.PlatformData?.Mips;
+        if (mips is not { Length: > 0 })
+        {
+            return null;
+        }
+
+        FTexture2DMipMap? chosen = null, smallest = null;
+        foreach (var mip in mips)
+        {
+            if (mip?.BulkData?.Data is not { Length: > 0 } || mip.SizeX < 4 || mip.SizeY < 4)
+            {
+                continue;
+            }
+
+            if (mip.SizeX <= maxDim && (chosen == null || mip.SizeX > chosen.SizeX))
+            {
+                chosen = mip;
+            }
+
+            if (smallest == null || mip.SizeX < smallest.SizeX)
+            {
+                smallest = mip;
+            }
+        }
+
+        chosen ??= smallest;
+        if (chosen?.BulkData?.Data is not { Length: > 0 } bytes
+            || !TryDecode(texture.Format, bytes, chosen.SizeX, chosen.SizeY, out var pixels, out var bgra))
+        {
+            return null;
+        }
+
+        var rgb = new byte[chosen.SizeX * chosen.SizeY * 3];
+        int rIndex = bgra ? 2 : 0, bIndex = bgra ? 0 : 2;
+        for (int src = 0, dst = 0; src + 3 < pixels.Length && dst + 2 < rgb.Length; src += 4, dst += 3)
+        {
+            rgb[dst] = pixels[src + rIndex];
+            rgb[dst + 1] = pixels[src + 1];
+            rgb[dst + 2] = pixels[src + bIndex];
+        }
+
+        return (rgb, chosen.SizeX, chosen.SizeY);
+    }
+
     /// <summary>Average opaque albedo of a texture (decodes a small mip), or null if it cannot be decoded.</summary>
     public static (byte R, byte G, byte B)? AverageTexture(UTexture2D texture)
     {

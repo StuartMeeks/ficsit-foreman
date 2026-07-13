@@ -55,6 +55,10 @@ public sealed class RenderSettings : AssetSettings
     [Description("Unified sea level for ocean-band water volumes.")]
     public double OceanZ { get; init; } = -1730.0;
 
+    [CommandOption("--pigment <STRENGTH>")]
+    [Description("Landscape macro-variation pigment overlay strength 0..1 (0 disables). Default 0.6.")]
+    public double Pigment { get; init; } = 0.6;
+
     [CommandOption("--blue-box <LIST>")]
     [Description("World-XY rectangles forcing void to ocean-blue \"x0,y0,x1,y1;...\" (default: west margin).")]
     public string? BlueBox { get; init; }
@@ -143,6 +147,7 @@ public sealed class RenderSettings : AssetSettings
         TrunkBandCm = TrunkBand,
         EmitLayers = Layers,
         OceanZ = OceanZ,
+        PigmentStrength = Pigment,
         BlueBoxes = BlueBox == null ? new RenderOptions().BlueBoxes : ParseBlueBoxes(BlueBox),
         NullVisibilityHoles = !NoVisibilityHoles,
         VisibilityThreshold = VisibilityThreshold,
