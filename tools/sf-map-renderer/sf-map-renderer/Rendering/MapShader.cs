@@ -24,6 +24,7 @@ public static class MapShader
         var isLake = state.IsLake;
         var waterZ = state.WaterZ;
         var volumeVoid = state.VolumeVoid;
+        var isRiver = state.IsRiver;
         var objectKind = state.ObjectKind;
         var objectColour = state.ObjectColour;
 
@@ -93,6 +94,12 @@ public static class MapShader
                     // Floor is the raised solid top (terrain or a submerged rock), so shallow water over a
                     // submerged spire reads shallow rather than deep. Void seabed falls back to a deep floor.
                     var floorZ = landHeight == 0 ? waterSurface - 8000 : frame.HeightToZ(heightGrid[idx]);
+                    // Flowing water (river/waterfall channel) is a thin sheet following the terrain — render it
+                    // shallow (light) regardless of how far the slope or a void seabed drops below the surface.
+                    if (isRiver[idx])
+                    {
+                        floorZ = waterSurface - 200;
+                    }
                     // A square-root ramp over ~40 m gives shallow inland lakes/rivers a visible depth gradient
                     // (the old linear /7000 ramp mapped their 0–5 m to ~0, so every lake read the same pale blue),
                     // while deep ocean still saturates to the darkest tone.

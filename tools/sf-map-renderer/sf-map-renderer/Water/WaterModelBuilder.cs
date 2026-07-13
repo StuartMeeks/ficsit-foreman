@@ -287,6 +287,7 @@ public static class WaterModelBuilder
         var heightGrid = state.Height;
         var isOcean = state.IsOcean;
         var isLake = state.IsLake;
+        var isRiver = state.IsRiver;
         var waterZ = state.WaterZ;
         long marked = 0;
 
@@ -323,12 +324,16 @@ public static class WaterModelBuilder
                         for (var gx = gx0; gx <= gx1; gx++)
                         {
                             var j = gy * width + gx;
-                            if (isOcean[j] || heightGrid[j] == 0)
+
+                            // Leave genuine ocean (ocean-band surface) alone; a river must not lower the sea.
+                            if (isOcean[j] && IsOceanBand(waterZ[j]))
                             {
                                 continue;
                             }
 
-                            if (frame.HeightToZ(heightGrid[j]) > wz + riverTolerance)
+                            // Clip to the wet channel: skip banks whose terrain rises above the local river
+                            // surface. Void cells (no seabed, e.g. a fall lip) still count as flowing water.
+                            if (heightGrid[j] != 0 && frame.HeightToZ(heightGrid[j]) > wz + riverTolerance)
                             {
                                 continue;
                             }
@@ -341,7 +346,11 @@ public static class WaterModelBuilder
 
                             isOcean[j] = true;
                             isLake[j] = true;
-                            waterZ[j] = wz;
+                            isRiver[j] = true;
+                            // The river carries the true terrain-following surface; lower any inflated volume
+                            // surface (a tall waterfall box, or an upstream plane) to it so the channel reads
+                            // shallow instead of tens of metres deep.
+                            waterZ[j] = waterZ[j] == 0 ? wz : Math.Min(waterZ[j], wz);
                             marked++;
                             if (j == traceIndex)
                             {
