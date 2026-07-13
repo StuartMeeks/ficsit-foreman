@@ -46,8 +46,13 @@ public static class HigherGroundRasteriser
             var meshName = meshPath.Length > 0 ? meshPath[(meshPath.LastIndexOf('/') + 1)..].Split('.')[0] : "?";
             var colour = ObjectPalette.ColourFor(meshPath, placed.Kind);
 
+            // A stable per-instance colour jitter breaks up families of same-coloured rock (within a region).
+            var jitter = placed.Kind == PlacedMeshKind.Rock
+                ? RockJitter.Factor(placed.Location, options.RockJitter)
+                : (1.0, 1.0, 1.0);
+
             var (gridX, gridY, worldZ) = ProjectVertices(geometry.Vertices, placed, state.Frame);
-            raised += RasteriseTriangles(state, geometry, placed, gridX, gridY, worldZ, options, rockColourHeight, floraColourHeight, meshName, colour, pigment, rockProbe);
+            raised += RasteriseTriangles(state, geometry, placed, gridX, gridY, worldZ, options, rockColourHeight, floraColourHeight, meshName, colour, pigment, jitter, rockProbe);
 
             if (placed.Kind == PlacedMeshKind.Tree)
             {
@@ -89,7 +94,8 @@ public static class HigherGroundRasteriser
     private static long RasteriseTriangles(
         RenderState state, MeshGeometry geometry, PlacedMesh placed,
         double[] gridX, double[] gridY, double[] worldZ, RenderOptions options,
-        double rockColourHeight, double floraColourHeight, string meshName, (byte R, byte G, byte B) colour, MacroPigment pigment, RockFootprintProbe? rockProbe)
+        double rockColourHeight, double floraColourHeight, string meshName, (byte R, byte G, byte B) colour, MacroPigment pigment,
+        (double R, double G, double B) jitter, RockFootprintProbe? rockProbe)
     {
         var frame = state.Frame;
         int width = frame.Width, height = frame.Height;
@@ -204,14 +210,24 @@ public static class HigherGroundRasteriser
                             }
 
                             objectKind[index] = objectValue;
-                            // Rock takes the same world-aligned macro pigment as the terrain, so desert rock
-                            // reads orange with the sand and red-jungle rock reddish instead of a flat grey.
-                            var (or, og, ob) = placed.Kind == PlacedMeshKind.Rock
-                                ? pigment.Apply((cr, cg, cb), (double)px / width, (double)py / height)
-                                : (cr, cg, cb);
-                            objectColour[index * 3] = or;
-                            objectColour[index * 3 + 1] = og;
-                            objectColour[index * 3 + 2] = ob;
+                            if (placed.Kind == PlacedMeshKind.Rock)
+                            {
+                                // Per-instance jitter (breaks up same-family rock) then the world-aligned macro
+                                // pigment (so desert rock reads orange with the sand, red-jungle rock reddish).
+                                var jr = (byte)Math.Clamp(cr * jitter.R, 0, 255);
+                                var jg = (byte)Math.Clamp(cg * jitter.G, 0, 255);
+                                var jb = (byte)Math.Clamp(cb * jitter.B, 0, 255);
+                                var (pr, pg, pb) = pigment.Apply((jr, jg, jb), (double)px / width, (double)py / height);
+                                objectColour[index * 3] = pr;
+                                objectColour[index * 3 + 1] = pg;
+                                objectColour[index * 3 + 2] = pb;
+                            }
+                            else
+                            {
+                                objectColour[index * 3] = cr;
+                                objectColour[index * 3 + 1] = cg;
+                                objectColour[index * 3 + 2] = cb;
+                            }
                         }
 
                         raised++;

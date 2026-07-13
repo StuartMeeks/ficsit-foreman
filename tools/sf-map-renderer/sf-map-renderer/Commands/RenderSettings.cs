@@ -59,6 +59,10 @@ public sealed class RenderSettings : AssetSettings
     [Description("Landscape macro-variation pigment overlay strength 0..1 (0 disables). Default 0.6.")]
     public double Pigment { get; init; } = 0.6;
 
+    [CommandOption("--rock-jitter <STRENGTH>")]
+    [Description("Per-instance rock colour jitter 0..1 (0 disables). Default 0.18.")]
+    public double RockJitter { get; init; } = 0.18;
+
     [CommandOption("--blue-box <LIST>")]
     [Description("World-XY rectangles forcing void to ocean-blue \"x0,y0,x1,y1;...\" (default: west margin).")]
     public string? BlueBox { get; init; }
@@ -148,6 +152,7 @@ public sealed class RenderSettings : AssetSettings
         EmitLayers = Layers,
         OceanZ = OceanZ,
         PigmentStrength = Pigment,
+        RockJitter = RockJitter,
         BlueBoxes = BlueBox == null ? new RenderOptions().BlueBoxes : ParseBlueBoxes(BlueBox),
         NullVisibilityHoles = !NoVisibilityHoles,
         VisibilityThreshold = VisibilityThreshold,

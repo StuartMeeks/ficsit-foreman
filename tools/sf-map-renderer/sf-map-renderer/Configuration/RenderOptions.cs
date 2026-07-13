@@ -54,6 +54,9 @@ public sealed class RenderOptions
     /// <summary>Strength of the landscape macro-variation pigment overlay, 0 disables (<c>PIGMENT</c>).</summary>
     public double PigmentStrength { get; init; } = 0.6;
 
+    /// <summary>Per-instance rock colour jitter strength, 0 disables (<c>ROCKJITTER</c>).</summary>
+    public double RockJitter { get; init; } = 0.18;
+
     /// <summary>World-XY rectangles forcing void cells ocean-blue (<c>BLUEBOX</c>).</summary>
     public IReadOnlyList<WorldRect> BlueBoxes { get; init; } = DefaultBlueBoxes;
 
