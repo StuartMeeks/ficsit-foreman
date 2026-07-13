@@ -53,6 +53,7 @@ public sealed class ProbeCommand : Command<ProbeSettings>
             case "floradump": FloraDumpProbe.Report(assets); break;
             case "meshsections": MeshSectionProbe.Report(assets, ParseList(settings.Substr)); break;
             case "matcolour": MaterialColourProbe.Report(assets, ParseList(settings.Substr)); break;
+            case "terrainmat": TerrainMaterialProbe.Report(assets); break;
             case "meshinspect":
                 var (mix, miy) = ParseSingle(settings.At, 178202, 250734);
                 MeshInspectProbe.Report(assets, mix, miy, settings.Substr ?? "CoralTree", Radius(settings, 20000));

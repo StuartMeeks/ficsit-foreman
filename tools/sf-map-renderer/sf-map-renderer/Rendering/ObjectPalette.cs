@@ -29,7 +29,7 @@ public static class ObjectPalette
 
     private static readonly (string Folder, byte R, byte G, byte B)[] Rocks =
     [
-        ("/DesertRock", 182, 152, 112),        // tan desert rock
+        ("/DesertRock", 190, 152, 124),        // light sandstone, tracks the desert sand colour
         ("/DestructibleRock", 156, 124, 102),
         ("/SmoothRock", 152, 144, 130),
         ("/Rubble", 150, 140, 124),

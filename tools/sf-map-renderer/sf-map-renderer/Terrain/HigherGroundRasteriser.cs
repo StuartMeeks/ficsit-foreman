@@ -101,6 +101,9 @@ public static class HigherGroundRasteriser
         var sampled = geometry.TriangleColour;
         var isTree = placed.Kind == PlacedMeshKind.Tree;
         var isFlora = placed.Kind is PlacedMeshKind.Coral or PlacedMeshKind.Tree;
+        // Coral (emissive glow, missed by albedo) and DesertRock (a virtual-textured blend that doesn't decode,
+        // and which should track the sand) keep their fixed palette colour instead of the sampled albedo.
+        var usePalette = placed.Kind == PlacedMeshKind.Coral || meshName.Contains("DesertRock", StringComparison.OrdinalIgnoreCase);
         byte objectValue = placed.Kind switch { PlacedMeshKind.Rock => 1, PlacedMeshKind.Coral => 2, _ => 3 };
         var colourThreshold = isFlora ? floraColourHeight : rockColourHeight;
         long raised = 0;
@@ -110,10 +113,10 @@ public static class HigherGroundRasteriser
             var triangle = t / 3;
             var triangleIsFoliage = isTree && triangle < isFoliage.Length && isFoliage[triangle];
 
-            // This section's sampled material colour, or the placeholder palette colour when unsampled (0,0,0).
-            // Coral keeps its fixed palette purple — its albedo misses the in-game emissive glow.
+            // This section's sampled material colour, or the fixed palette colour (0,0,0 when unsampled, or when
+            // the family is forced to the palette — see usePalette).
             byte cr = colour.R, cg = colour.G, cb = colour.B;
-            if (placed.Kind != PlacedMeshKind.Coral
+            if (!usePalette
                 && triangle * 3 + 2 < sampled.Length && (sampled[triangle * 3] != 0 || sampled[triangle * 3 + 1] != 0 || sampled[triangle * 3 + 2] != 0))
             {
                 cr = sampled[triangle * 3];

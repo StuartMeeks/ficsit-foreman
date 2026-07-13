@@ -54,10 +54,9 @@ public sealed class MaterialColourSampler
 
             if ((parameters.TryGetTexture2d(out var texture, CMaterialParams2.Diffuse[0]) || parameters.TryGetFirstTexture2d(out texture))
                 && texture is UTexture2D texture2d
-                && PickSmallMip(texture2d) is { BulkData.Data: { Length: > 0 } bytes } mip
-                && TryDecode(texture2d.Format, bytes, mip.SizeX, mip.SizeY, out var rgba, out var bgra))
+                && AverageTexture(texture2d) is { } sampled)
             {
-                return Average(rgba, bgra);
+                return sampled;
             }
 
             return TryVectorColour(parameters);
@@ -66,6 +65,18 @@ public sealed class MaterialColourSampler
         {
             return null;
         }
+    }
+
+    /// <summary>Average opaque albedo of a texture (decodes a small mip), or null if it cannot be decoded.</summary>
+    public static (byte R, byte G, byte B)? AverageTexture(UTexture2D texture)
+    {
+        if (PickSmallMip(texture) is { BulkData.Data: { Length: > 0 } bytes } mip
+            && TryDecode(texture.Format, bytes, mip.SizeX, mip.SizeY, out var rgba, out var bgra))
+        {
+            return Average(rgba, bgra);
+        }
+
+        return null;
     }
 
     /// <summary>A base-colour vector parameter (sRGB-encoded), ignoring near-white/near-black tint defaults.</summary>

@@ -19,7 +19,7 @@ public class ObjectPaletteTests
     [Fact]
     public void DesertRockIsTanAndCliffIsGrey()
     {
-        Assert.Equal(((byte)182, (byte)152, (byte)112), ObjectPalette.ColourFor(".../Environment/Rock/DesertRock/SM_DesertRock_01", PlacedMeshKind.Rock));
+        Assert.Equal(((byte)190, (byte)152, (byte)124), ObjectPalette.ColourFor(".../Environment/Rock/DesertRock/SM_DesertRock_01", PlacedMeshKind.Rock));
         Assert.Equal(((byte)140, (byte)132, (byte)120), ObjectPalette.ColourFor(".../Environment/Rock/Cliff/CliffPillar_01", PlacedMeshKind.Rock));
     }
 

@@ -9,7 +9,8 @@ public sealed record LandscapeTile(
     int SectionY,
     UTexture2D Heightmap,
     UTexture2D[] Weightmaps,
-    WeightmapAllocation[] Allocations);
+    WeightmapAllocation[] Allocations,
+    UUnrealMaterial? Material);
 
 /// <summary>A shallow water body (BP_Water/river/pond) with a visual surface plane but no gameplay volume.</summary>
 public readonly record struct WaterBodySeed(double X, double Y, double Z, double ScaleX, double ScaleY, double Yaw);

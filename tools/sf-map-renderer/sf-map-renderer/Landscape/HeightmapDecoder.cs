@@ -32,6 +32,8 @@ public static class HeightmapDecoder
 
         Console.WriteLine("pass B: decode heightmap + weightmaps, splat...");
         layerAt?.PrintSetup();
+        // Sample the real per-layer terrain colours from the shared landscape material once.
+        var layerColours = new TerrainLayerColours(tiles.Count > 0 ? tiles[0].Material : null);
         var processed = 0;
         int heightFailures = 0, weightFailures = 0;
         foreach (var tile in tiles)
@@ -68,7 +70,7 @@ public static class HeightmapDecoder
 
             try
             {
-                SplatTerrain(state, tile, options, terrain, wetWeight, heightGrid, tileWidth, tileHeight, downsample, minSectionX, minSectionY, width, height, layerAt);
+                SplatTerrain(state, tile, options, terrain, wetWeight, heightGrid, tileWidth, tileHeight, downsample, minSectionX, minSectionY, width, height, layerAt, layerColours);
             }
             catch (Exception ex)
             {
@@ -111,7 +113,7 @@ public static class HeightmapDecoder
     private static void SplatTerrain(
         RenderState state, LandscapeTile tile, RenderOptions options, byte[] terrain, byte[] wetWeight, float[] heightGrid,
         int tileWidth, int tileHeight, int downsample, int minSectionX, int minSectionY, int width, int height,
-        ILayerAtSink? layerAt)
+        ILayerAtSink? layerAt, TerrainLayerColours layerColours)
     {
         var weightData = tile.Weightmaps
             .Select(t =>
@@ -188,7 +190,7 @@ public static class HeightmapDecoder
                         }
                     }
 
-                    var (r, g, b) = TerrainPalette.ColourFor(allocation.Layer);
+                    var (r, g, b) = layerColours.ColourFor(allocation.Layer);
                     sumR += weight * r;
                     sumG += weight * g;
                     sumB += weight * b;

@@ -49,12 +49,19 @@ public sealed class SceneCollector
             .Where(a => a.Layer.Length > 0)
             .ToArray();
 
+        // The landscape material instance carries every layer's diffuse texture + tint (all tiles share it).
+        var material = (export.GetOrDefault<UObject[]?>("MaterialInstances") ?? [])
+            .OfType<UUnrealMaterial>()
+            .FirstOrDefault()
+            ?? export.GetOrDefault<UObject?>("OverrideMaterial") as UUnrealMaterial;
+
         Tiles.Add(new LandscapeTile(
             export.GetOrDefault<int>("SectionBaseX"),
             export.GetOrDefault<int>("SectionBaseY"),
             heightmap,
             weightmaps,
-            allocations));
+            allocations,
+            material));
     }
 
     /// <summary>A shallow water body: its visual WaterSurface plane (location + scale + yaw in degrees).</summary>
