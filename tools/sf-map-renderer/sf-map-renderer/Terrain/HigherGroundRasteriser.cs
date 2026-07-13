@@ -1,6 +1,7 @@
 using SfMapRenderer.Collection;
 using SfMapRenderer.Configuration;
 using SfMapRenderer.Diagnostics;
+using SfMapRenderer.Landscape;
 using SfMapRenderer.Meshes;
 using SfMapRenderer.Rendering;
 
@@ -22,6 +23,7 @@ public static class HigherGroundRasteriser
         int excludedRockCount,
         RenderOptions options,
         MeshGeometryCache cache,
+        MacroPigment pigment,
         RockFootprintProbe? rockProbe)
     {
         var coral = meshes.Count(m => m.Kind == PlacedMeshKind.Coral);
@@ -45,7 +47,7 @@ public static class HigherGroundRasteriser
             var colour = ObjectPalette.ColourFor(meshPath, placed.Kind);
 
             var (gridX, gridY, worldZ) = ProjectVertices(geometry.Vertices, placed, state.Frame);
-            raised += RasteriseTriangles(state, geometry, placed, gridX, gridY, worldZ, options, rockColourHeight, floraColourHeight, meshName, colour, rockProbe);
+            raised += RasteriseTriangles(state, geometry, placed, gridX, gridY, worldZ, options, rockColourHeight, floraColourHeight, meshName, colour, pigment, rockProbe);
 
             if (placed.Kind == PlacedMeshKind.Tree)
             {
@@ -87,7 +89,7 @@ public static class HigherGroundRasteriser
     private static long RasteriseTriangles(
         RenderState state, MeshGeometry geometry, PlacedMesh placed,
         double[] gridX, double[] gridY, double[] worldZ, RenderOptions options,
-        double rockColourHeight, double floraColourHeight, string meshName, (byte R, byte G, byte B) colour, RockFootprintProbe? rockProbe)
+        double rockColourHeight, double floraColourHeight, string meshName, (byte R, byte G, byte B) colour, MacroPigment pigment, RockFootprintProbe? rockProbe)
     {
         var frame = state.Frame;
         int width = frame.Width, height = frame.Height;
@@ -202,9 +204,14 @@ public static class HigherGroundRasteriser
                             }
 
                             objectKind[index] = objectValue;
-                            objectColour[index * 3] = cr;
-                            objectColour[index * 3 + 1] = cg;
-                            objectColour[index * 3 + 2] = cb;
+                            // Rock takes the same world-aligned macro pigment as the terrain, so desert rock
+                            // reads orange with the sand and red-jungle rock reddish instead of a flat grey.
+                            var (or, og, ob) = placed.Kind == PlacedMeshKind.Rock
+                                ? pigment.Apply((cr, cg, cb), (double)px / width, (double)py / height)
+                                : (cr, cg, cb);
+                            objectColour[index * 3] = or;
+                            objectColour[index * 3 + 1] = og;
+                            objectColour[index * 3 + 2] = ob;
                         }
 
                         raised++;

@@ -21,6 +21,7 @@ public static class HeightmapDecoder
         RenderState state,
         IReadOnlyList<LandscapeTile> tiles,
         RenderOptions options,
+        MacroPigment pigment,
         ILayerAtSink? layerAt = null)
     {
         var frame = state.Frame;
@@ -32,10 +33,8 @@ public static class HeightmapDecoder
 
         Console.WriteLine("pass B: decode heightmap + weightmaps, splat...");
         layerAt?.PrintSetup();
-        // Sample the real per-layer terrain colours + world-aligned macro pigment from the shared material once.
-        var landscapeMaterial = tiles.Count > 0 ? tiles[0].Material : null;
-        var layerColours = new TerrainLayerColours(landscapeMaterial);
-        var pigment = new MacroPigment(landscapeMaterial, options.PigmentStrength);
+        // Sample the real per-layer terrain colours from the shared material once (pigment is built in the pipeline).
+        var layerColours = new TerrainLayerColours(tiles.Count > 0 ? tiles[0].Material : null);
         Console.WriteLine($"terrain: layer colours from material; macro pigment {(pigment.Available ? $"on (strength {options.PigmentStrength})" : "off")}");
         var processed = 0;
         int heightFailures = 0, weightFailures = 0;
