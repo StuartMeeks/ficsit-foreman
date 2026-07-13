@@ -63,6 +63,15 @@ public sealed class RenderOptions
     /// excluded because their floor drops far below sea level.</summary>
     public double SubSeaMaxDepthCm { get; init; } = 300.0;
 
+    /// <summary>Connected channel water deeper than this (cm) and within <see cref="ChannelReachCm"/> of a river
+    /// is rendered as flowing (light), so the steep banks match the mid-river ribbon instead of reading darker.
+    /// Shallow water is already ~ribbon-light and is left to its depth shading.</summary>
+    public double FlowingBankDepthCm { get; init; } = 250.0;
+
+    /// <summary>How far from a river centreline (cm) the flowing treatment reaches — the max channel half-width.
+    /// Bounds the spread so a deep lake merely touched by a river keeps its interior depth shading.</summary>
+    public double ChannelReachCm { get; init; } = 5000.0;
+
     /// <summary>Per-instance rock colour jitter strength, 0 disables (<c>ROCKJITTER</c>).</summary>
     public double RockJitter { get; init; } = 0.18;
 
