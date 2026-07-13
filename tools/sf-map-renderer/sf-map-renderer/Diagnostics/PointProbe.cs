@@ -36,12 +36,26 @@ public sealed class PointProbe
             var seabed = state.BaseHeight[idx];
             var rockTopZ = raisedHeight == 0 ? double.NaN : frame.HeightToZ(raisedHeight);
             var seabedZ = seabed == 0 ? double.NaN : frame.HeightToZ(seabed);
-            var waterSurface = state.IsOcean[idx] ? state.WaterZ[idx].ToString("F0", CultureInfo.InvariantCulture) : "-";
             var render = state.IsOcean[idx] && !state.IsRock[idx] ? "OCEAN"
                 : raisedHeight != 0 ? "land/rock"
                 : state.VolumeVoid[idx] ? "OCEAN(void)"
                 : "VOID(grey)";
-            Console.WriteLine($"({wx:F0},{wy:F0}) rockTopZ={rockTopZ:F0} seabedZ={seabedZ:F0} isRock={state.IsRock[idx]}  isOcean={state.IsOcean[idx]} isLake={state.IsLake[idx]}  waterZ(surf)={waterSurface}  oceanVoid={state.OceanVoid[idx]} volVoid={state.VolumeVoid[idx]}  render={render}");
+            Console.WriteLine($"({wx:F0},{wy:F0}) col={column} row={row} rockTopZ={rockTopZ:F0} seabedZ={seabedZ:F0} isRock={state.IsRock[idx]}  isOcean={state.IsOcean[idx]} isLake={state.IsLake[idx]} isRiver={state.IsRiver[idx]}  oceanVoid={state.OceanVoid[idx]} volVoid={state.VolumeVoid[idx]}  render={render}");
+
+            // Replicate the MapShader water branch so we can see why a flowing/downhill cell reads dark.
+            if (state.IsOcean[idx] || state.IsLake[idx])
+            {
+                var waterSurface = state.WaterZ[idx] != 0 ? state.WaterZ[idx] : -1730.0;
+                var floorZ = seabed == 0 ? waterSurface - 8000 : frame.HeightToZ(state.Height[idx]);
+                if (state.IsRiver[idx])
+                {
+                    floorZ = waterSurface - 200;
+                }
+
+                var depth = Math.Clamp(Math.Sqrt(Math.Max(0, waterSurface - floorZ) / 4000.0), 0, 1);
+                var oceanBand = waterSurface is >= -1850 and <= -1600;
+                Console.WriteLine($"      WATER waterZ(surf)={waterSurface:F0} floorZ={floorZ:F0} depthCm={waterSurface - floorZ:F0} depth={depth:F2} band={(oceanBand ? "ocean" : "inland")}");
+            }
         }
 
         Console.WriteLine("DONE");

@@ -23,6 +23,7 @@ public sealed class RenderState
         TrunkMask = new bool[cellCount];
         IsOcean = new bool[cellCount];
         IsLake = new bool[cellCount];
+        IsRiver = new bool[cellCount];
         WaterZ = new double[cellCount];
         OceanVoid = new bool[cellCount];
         VolumeVoid = new bool[cellCount];
@@ -57,6 +58,9 @@ public sealed class RenderState
 
     public bool[] IsOcean { get; }
     public bool[] IsLake { get; }
+
+    /// <summary>Flowing water (BP_River / waterfall channel) — rendered as a shallow thin sheet, not by depth.</summary>
+    public bool[] IsRiver { get; }
 
     /// <summary>Surface Z of the water covering an ocean/lake cell.</summary>
     public double[] WaterZ { get; }
