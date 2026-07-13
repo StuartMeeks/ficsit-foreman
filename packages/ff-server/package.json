@@ -24,7 +24,7 @@
     "db:push": "prisma db push"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.110.0",
+    "@anthropic-ai/sdk": "^0.111.0",
     "@foreman/sf-game-data": "0.1.0",
     "@modelcontextprotocol/sdk": "^1.12.0",
     "@prisma/adapter-better-sqlite3": "^7.8.0",
@@ -34,7 +34,7 @@
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
     "multer": "^2.2.0",
-    "openai": "^6.45.0",
+    "openai": "^6.46.0",
     "zod": "^4.4.3"
   },
   "devDependencies": {
