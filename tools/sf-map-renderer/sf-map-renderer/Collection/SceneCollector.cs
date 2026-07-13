@@ -90,7 +90,12 @@ public sealed class SceneCollector
     /// <summary>A placed rock or flora mesh (individual component or, for flora, instanced foliage).</summary>
     public void TryAddMesh(UObject export)
     {
-        if (!export.ExportType.Contains("StaticMeshComponent", StringComparison.Ordinal))
+        var type = export.ExportType;
+
+        // "…StaticMeshComponent" covers stock components; "…InstancedSMC" covers Satisfactory's custom
+        // FGFoliageInstancedSMC — the ~3.3M-instance bulk of world foliage (see base-map-foliage-decode.md).
+        if (!type.Contains("StaticMeshComponent", StringComparison.Ordinal)
+            && !type.Contains("InstancedSMC", StringComparison.Ordinal))
         {
             return;
         }
@@ -116,7 +121,17 @@ public sealed class SceneCollector
                 && export is UInstancedStaticMeshComponent instanced
                 && instanced.PerInstanceSMData is { Length: > 0 } instances)
             {
+                // Stock foliage stores per-instance translations relative to TranslatedInstanceSpaceOrigin.
+                // FGFoliageInstancedSMC stores them relative to the owning InstancedFoliageActor's cell:
+                // the km-scale offset lives on the actor RootComponent (this component's AttachParent), and
+                // TranslatedInstanceSpaceOrigin is only instance[0] — adding it would double-count.
                 var origin = export.GetOrDefault<FVector>("TranslatedInstanceSpaceOrigin");
+                if (type == "FGFoliageInstancedSMC")
+                {
+                    var attach = export.GetOrDefault<UObject?>("AttachParent");
+                    origin = attach is { } a && a.HasRelativeLocation() ? a.RelativeLocation() : new FVector(0, 0, 0);
+                }
+
                 foreach (var instance in instances)
                 {
                     var transform = instance.TransformData;

@@ -2,6 +2,8 @@ using CUE4Parse.Compression;
 using CUE4Parse.Encryption.Aes;
 using CUE4Parse.FileProvider;
 using CUE4Parse.MappingsProvider.Usmap;
+using CUE4Parse.UE4.Assets;
+using CUE4Parse.UE4.Assets.Exports.Component.StaticMesh;
 using CUE4Parse.UE4.Objects.Core.Misc;
 using CUE4Parse.UE4.Versions;
 
@@ -19,6 +21,12 @@ public sealed class GameAssetProvider : IDisposable
     {
         OodleHelper.DownloadOodleDll();
         OodleHelper.Initialize();
+
+        // Satisfactory stores the bulk of world foliage (trees, bushes, coral) in its own
+        // FGFoliageInstancedSMC component. CUE4Parse only deserialises the per-instance transform buffer
+        // when it constructs an export as a UInstancedStaticMeshComponent subclass, and it doesn't know
+        // FGFoliageInstancedSMC is one — so map it to HISM (its actual base) to recover those instances.
+        ObjectTypeRegistry.RegisterClass("FGFoliageInstancedSMC", typeof(UHierarchicalInstancedStaticMeshComponent));
 
         _provider = new DefaultFileProvider(paksDirectory, SearchOption.TopDirectoryOnly, new VersionContainer(EGame.GAME_UE5_6));
         _provider.MappingsContainer = new FileUsmapTypeMappingsProvider(usmapPath);
