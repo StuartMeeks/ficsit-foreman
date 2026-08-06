@@ -4,15 +4,31 @@ name: Dependabot auto-merge
 # updates are merged automatically once CI passes; major updates are left for a
 # human to review.
 #
-# The merge is performed by Dependabot itself (via the `@dependabot squash and
-# merge` command), because the Dependabot app is the actor exempted in the
-# `main protection` ruleset bypass list — so its merge clears the required
-# code-owner review while human pull requests stay gated.
+# The merge is enabled through GitHub's native auto-merge (`gh pr merge --auto`),
+# which queues the pull request and merges it as soon as the required checks
+# pass. This replaces the previous approach of commenting `@dependabot squash and
+# merge`: GitHub removed that command (along with `@dependabot merge`, `cancel
+# merge`, `close` and `reopen`) on 27 January 2026. Dependabot ignores the
+# removed commands silently — no reply, no error — so the old workflow looked
+# healthy while never merging anything.
+#
+# Why AUTOMERGE_TOKEN and not GITHUB_TOKEN: the `main protection` ruleset
+# requires a code-owner approval, and only a bypass actor can merge without one.
+# Bypass is limited to the Admin role and the Dependabot app, and GitHub refuses
+# to add the GitHub Actions app as a bypass actor on a user-owned repository
+# ("Actor GitHub Actions integration must be part of the ruleset source or owner
+# organization"). The merge therefore has to be enabled by a repository admin,
+# so AUTOMERGE_TOKEN is a fine-grained PAT scoped to this repository with
+# contents: read and write + pull requests: read and write.
+#
+# The bypass only clears the *review* requirement. Auto-merge still waits for the
+# required status checks (build-test, validate-game-data), so a red build blocks
+# the merge exactly as before.
 #
 # Uses `pull_request_target` so the workflow definition is always taken from the
 # default branch and runs for every Dependabot PR. This is safe here: the job
-# only reads PR metadata and posts a comment — it never checks out or executes
-# pull-request code.
+# only reads PR metadata, posts a comment and enables auto-merge — it never
+# checks out or executes pull-request code.
 
 on:
   pull_request_target:
@@ -27,6 +43,11 @@ jobs:
     runs-on: ubuntu-latest
     if: ${{ github.event.pull_request.user.login == 'dependabot[bot]' }}
     timeout-minutes: 5
+    env:
+      PR_URL: ${{ github.event.pull_request.html_url }}
+      # Mirrored into the environment so the steps below can test for its
+      # presence: the `secrets` context is not available in a step-level `if`.
+      AUTOMERGE_TOKEN: ${{ secrets.AUTOMERGE_TOKEN }}
     steps:
       - name: Fetch Dependabot metadata
         id: meta
@@ -34,18 +55,31 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Auto-merge patch and minor updates
+      - name: Enable auto-merge for patch and minor updates
         if: >-
-          steps.meta.outputs.update-type == 'version-update:semver-patch' ||
-          steps.meta.outputs.update-type == 'version-update:semver-minor'
-        run: gh pr comment "$PR_URL" --body "@dependabot squash and merge"
+          env.AUTOMERGE_TOKEN != '' &&
+          (steps.meta.outputs.update-type == 'version-update:semver-patch' ||
+          steps.meta.outputs.update-type == 'version-update:semver-minor')
+        run: gh pr merge --auto --squash "$PR_URL"
         env:
-          PR_URL: ${{ github.event.pull_request.html_url }}
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.AUTOMERGE_TOKEN }}
 
+      # Without the token the merge would fail on every Dependabot PR and paint
+      # CI red. Warn instead, so the gap is visible but the run stays green.
+      - name: Warn when the merge token is missing
+        if: >-
+          env.AUTOMERGE_TOKEN == '' &&
+          (steps.meta.outputs.update-type == 'version-update:semver-patch' ||
+          steps.meta.outputs.update-type == 'version-update:semver-minor')
+        run: |
+          echo "::warning::AUTOMERGE_TOKEN is not set — auto-merge is disabled and this pull request needs a manual merge."
+
+      # Only on the first open: `synchronize` fires on every Dependabot rebase,
+      # and commenting there repeats the same note on a long-lived PR.
       - name: Flag major updates for manual review
-        if: steps.meta.outputs.update-type == 'version-update:semver-major'
+        if: >-
+          steps.meta.outputs.update-type == 'version-update:semver-major' &&
+          github.event.action != 'synchronize'
         run: gh pr comment "$PR_URL" --body "🔍 Major version update — left for manual review (auto-merge covers patch/minor only)."
         env:
-          PR_URL: ${{ github.event.pull_request.html_url }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
