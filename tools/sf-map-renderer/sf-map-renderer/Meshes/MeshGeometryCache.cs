@@ -8,7 +8,12 @@ namespace SfMapRenderer.Meshes;
 /// LOD0 geometry for a placed mesh: vertices, triangle indices, a per-triangle foliage flag, and a per-triangle
 /// base colour sampled from the section's material texture (0,0,0 = not sampled → caller uses its palette).
 /// </summary>
-public sealed record MeshGeometry(FVector[] Vertices, int[] Triangles, bool[] TriangleIsFoliage, byte[] TriangleColour);
+public sealed record MeshGeometry(FVector[] Vertices, int[] Triangles, bool[] TriangleIsFoliage, byte[] TriangleColour)
+{
+    /// <summary>Average sampled albedo across the mesh's sampled sections (0,0,0 = nothing sampled → use palette).
+    /// Used by the ground-cover pass to tint terrain with a single representative colour per grass/plant mesh.</summary>
+    public (byte R, byte G, byte B) Representative { get; init; }
+}
 
 /// <summary>
 /// Loads and caches a static mesh's LOD0 geometry (by asset path), classifying each triangle as foliage or
@@ -94,7 +99,10 @@ public sealed class MeshGeometryCache
                     }
                 }
 
-                return new MeshGeometry(vertices, triangles, triangleIsFoliage, triangleColour);
+                return new MeshGeometry(vertices, triangles, triangleIsFoliage, triangleColour)
+                {
+                    Representative = AverageSampled(triangleColour),
+                };
             }
         }
         catch
@@ -103,5 +111,25 @@ public sealed class MeshGeometryCache
         }
 
         return Empty;
+    }
+
+    /// <summary>Mean of the non-zero (sampled) per-triangle colours, or (0,0,0) if nothing was sampled.</summary>
+    private static (byte R, byte G, byte B) AverageSampled(byte[] triangleColour)
+    {
+        long r = 0, g = 0, b = 0, n = 0;
+        for (var i = 0; i + 2 < triangleColour.Length; i += 3)
+        {
+            if (triangleColour[i] == 0 && triangleColour[i + 1] == 0 && triangleColour[i + 2] == 0)
+            {
+                continue;
+            }
+
+            r += triangleColour[i];
+            g += triangleColour[i + 1];
+            b += triangleColour[i + 2];
+            n++;
+        }
+
+        return n == 0 ? default : ((byte)(r / n), (byte)(g / n), (byte)(b / n));
     }
 }

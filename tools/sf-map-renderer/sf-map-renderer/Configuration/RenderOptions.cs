@@ -39,6 +39,20 @@ public sealed class RenderOptions
     /// <summary>Flora colour cut in cm above the landscape (<c>FLORAH</c>) — low, so canopies fill.</summary>
     public double FloraColourHeightCm { get; init; } = 50.0;
 
+    /// <summary>Strength (0..1) of the baked Landscape-Grass overlay on the terrain — colours the ground with the
+    /// game's real per-vertex grass carpet (green Grass/Forest, red Red-Jungle, …) even where the weightmap is
+    /// bare sand, reproducing the aerial look. 0 disables (and skips reading the baked grass data).</summary>
+    public double GrassStrength { get; init; } = 1.0;
+
+    /// <summary>Debug: paint the terrain purely by the baked Landscape-Grass data — each vertex flat-coloured by its
+    /// dominant grass type (green grass, red grass, sand/pebble, gravel, …) — to see where the game bakes grass.</summary>
+    public bool GrassDebug { get; init; }
+
+    /// <summary>Strength (0..1) that dense ground-cover foliage (grass, ferns, small plants) tints the terrain
+    /// toward its own colour — so vegetated ground (e.g. Jungle Spires tops) reads green from above instead of
+    /// showing the bare sandy weightmap through sparse foliage. 0 disables.</summary>
+    public double GroundCoverStrength { get; init; } = 0.9;
+
     /// <summary>Which tree sections to raise (<c>TREEPART</c>).</summary>
     public TreePart TreePart { get; init; } = TreePart.Both;
 

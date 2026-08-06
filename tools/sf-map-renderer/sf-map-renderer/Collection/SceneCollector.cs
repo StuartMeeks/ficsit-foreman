@@ -1,5 +1,10 @@
+using CUE4Parse.UE4.Assets.Exports.Component.Landscape;
+using CUE4Parse.UE4.Assets.Exports.Material;
+using CUE4Parse.UE4.Assets.Exports.StaticMesh;
+
 using SfMapRenderer.Assets;
 using SfMapRenderer.Configuration;
+using SfMapRenderer.Meshes;
 
 namespace SfMapRenderer.Collection;
 
@@ -12,6 +17,8 @@ namespace SfMapRenderer.Collection;
 public sealed class SceneCollector
 {
     private readonly RenderOptions _options;
+    private readonly MaterialColourSampler _grassSampler = new();
+    private readonly Dictionary<string, (byte R, byte G, byte B)?> _grassColour = new(StringComparer.Ordinal);
 
     public SceneCollector(RenderOptions options)
     {
@@ -55,14 +62,192 @@ public sealed class SceneCollector
             .FirstOrDefault()
             ?? export.GetOrDefault<UObject?>("OverrideMaterial") as UUnrealMaterial;
 
+        var (grassOverlay, grassStride) = _options.GrassStrength > 0 && export is ULandscapeComponent lc
+            ? BuildGrassOverlay(lc)
+            : (null, 0);
+
         Tiles.Add(new LandscapeTile(
             export.GetOrDefault<int>("SectionBaseX"),
             export.GetOrDefault<int>("SectionBaseY"),
             heightmap,
             weightmaps,
             allocations,
-            material));
+            material)
+        {
+            GrassOverlay = grassOverlay,
+            GrassStride = grassStride,
+        });
     }
+
+    // A grass type is "vegetation" (a grass carpet that colours the ground) rather than pebble/twig debris.
+    private static bool IsVegetationGrass(string name) =>
+        name.Contains("Grass", StringComparison.OrdinalIgnoreCase)
+        || name.Contains("Forest", StringComparison.OrdinalIgnoreCase)
+        || name.Contains("Jungle", StringComparison.OrdinalIgnoreCase)
+        || name.Equals("CoralRock", StringComparison.OrdinalIgnoreCase);
+
+    // Debug palette: flat colour per grass-type family so the baked grass map is legible at a glance.
+    private static (byte R, byte G, byte B) DebugGrassColour(string name) =>
+        name.Contains("Red", StringComparison.OrdinalIgnoreCase) || name.Contains("Pink", StringComparison.OrdinalIgnoreCase) ? ((byte)220, (byte)40, (byte)40)
+        : name.Contains("Grass", StringComparison.OrdinalIgnoreCase) || name.Contains("Forest", StringComparison.OrdinalIgnoreCase) || name.Contains("Jungle", StringComparison.OrdinalIgnoreCase) || name.Equals("CoralRock", StringComparison.OrdinalIgnoreCase) ? ((byte)30, (byte)200, (byte)30)
+        : name.Contains("Gravel", StringComparison.OrdinalIgnoreCase) ? ((byte)120, (byte)120, (byte)120)
+        : name.Contains("Soil", StringComparison.OrdinalIgnoreCase) ? ((byte)120, (byte)90, (byte)55)
+        : name.Contains("Sand", StringComparison.OrdinalIgnoreCase) ? ((byte)210, (byte)185, (byte)140)
+        : ((byte)255, (byte)0, (byte)255);
+
+    /// <summary>
+    /// Turn the component's baked Landscape-Grass density into a per-vertex overlay (R,G,B, coverage): the
+    /// density-weighted colour of the vegetation grass types present, and their summed density as coverage.
+    /// In debug mode, instead colour every vertex by its DOMINANT grass type (all types) at full coverage.
+    /// </summary>
+    private (byte[]? Overlay, int Stride) BuildGrassOverlay(ULandscapeComponent lc)
+    {
+        var grass = lc.GrassData;
+        if (grass?.WeightOffsets is not { Count: > 0 } || grass.HeightWeightData is not { Length: > 0 } data)
+        {
+            return (null, 0);
+        }
+
+        var stride0 = lc.SubsectionSizeQuads * lc.NumSubsections + 1;
+        if (_options.GrassDebug)
+        {
+            var all = grass.WeightOffsets.Select(kv => (Name: kv.Key.ResolvedObject?.Name.Text ?? "?", kv.Value)).ToArray();
+            var dbg = new byte[grass.NumElements * 4];
+            for (var i = 0; i < grass.NumElements; i++)
+            {
+                byte best = 0; var name = "";
+                foreach (var (nm, off) in all)
+                {
+                    if (off + i < data.Length && data[off + i] > best) { best = data[off + i]; name = nm; }
+                }
+
+                if (best == 0)
+                {
+                    continue;
+                }
+
+                var (r, g, b) = DebugGrassColour(name);
+                dbg[i * 4] = r; dbg[i * 4 + 1] = g; dbg[i * 4 + 2] = b; dbg[i * 4 + 3] = 255;
+            }
+
+            return (dbg, stride0);
+        }
+
+        var veg = grass.WeightOffsets
+            .Where(kv => IsVegetationGrass(kv.Key.ResolvedObject?.Name.Text ?? ""))
+            .Select(kv => (kv.Value, Colour: GrassColour(kv.Key)))
+            .Where(t => t.Colour is not null)
+            .Select(t => (Offset: t.Value, Colour: t.Colour!.Value))
+            .ToArray();
+        if (veg.Length == 0)
+        {
+            return (null, 0);
+        }
+
+        var num = grass.NumElements;
+        var stride = lc.SubsectionSizeQuads * lc.NumSubsections + 1;
+        var overlay = new byte[num * 4];
+        for (var i = 0; i < num; i++)
+        {
+            long sumW = 0, r = 0, g = 0, b = 0;
+            foreach (var (offset, colour) in veg)
+            {
+                if (offset + i >= data.Length)
+                {
+                    continue;
+                }
+
+                int d = data[offset + i];
+                sumW += d;
+                r += d * colour.R;
+                g += d * colour.G;
+                b += d * colour.B;
+            }
+
+            if (sumW == 0)
+            {
+                continue;
+            }
+
+            overlay[i * 4] = (byte)(r / sumW);
+            overlay[i * 4 + 1] = (byte)(g / sumW);
+            overlay[i * 4 + 2] = (byte)(b / sumW);
+            overlay[i * 4 + 3] = (byte)Math.Min(255, sumW);
+        }
+
+        return (overlay, stride);
+    }
+
+    // Colour of a grass type's carpet, DERIVED from game data (no hardcoded palette): the albedo of its primary
+    // leafy grass mesh multiplied by that material's "Color Tint" parameter — this is what makes Grass read green,
+    // GrassRed red, etc. Cached per grass type; null if nothing in the type decodes.
+    private (byte R, byte G, byte B)? GrassColour(FPackageIndex grassTypeIndex)
+    {
+        var key = grassTypeIndex.ResolvedObject?.Name.Text ?? grassTypeIndex.ResolvedObject?.GetPathName() ?? "";
+        if (_grassColour.TryGetValue(key, out var cached))
+        {
+            return cached;
+        }
+
+        var colour = DeriveGrassColour(grassTypeIndex);
+        _grassColour[key] = colour;
+        return colour;
+    }
+
+    private (byte R, byte G, byte B)? DeriveGrassColour(FPackageIndex grassTypeIndex)
+    {
+        var varieties = grassTypeIndex.ResolvedObject?.Load()?.GetOrDefault<FStructFallback[]?>("GrassVarieties") ?? [];
+        (byte R, byte G, byte B)? anyAlbedo = null;
+        foreach (var v in varieties)
+        {
+            var meshIndex = v.GetOrDefault<FPackageIndex?>("GrassMesh");
+            var meshPath = meshIndex?.ResolvedObject?.GetPathName();
+            if (meshPath == null
+                || meshIndex!.ResolvedObject?.Load() is not UStaticMesh mesh
+                || mesh.StaticMaterials is not { Length: > 0 } mats
+                || mats[0].MaterialInterface?.Load() is not UUnrealMaterial material
+                || _grassSampler.Sample(material) is not { } albedo)
+            {
+                continue;
+            }
+
+            anyAlbedo ??= albedo;
+
+            // The carpet colour is the leafy foliage, not the scattered pebbles/twigs a grass type also spawns.
+            if (!meshPath.Contains("/Foliage/", StringComparison.Ordinal) && !meshPath.Contains("/Grass/", StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            var (tr, tg, tb) = GrassTint(material);
+            return (Tinted(albedo.R, tr), Tinted(albedo.G, tg), Tinted(albedo.B, tb));
+        }
+
+        // No leafy variety decoded — fall back to any variety's real sampled albedo (still game data), else skip.
+        return anyAlbedo;
+    }
+
+    // The material's "Color Tint" multiplier (identity when absent — not a colour, just "untinted").
+    private static (float R, float G, float B) GrassTint(UUnrealMaterial material)
+    {
+        try
+        {
+            var parameters = new CMaterialParams2();
+            material.GetParams(parameters, EMaterialFormat.AllLayers);
+            if (parameters.Colors.TryGetValue("Color Tint", out var tint))
+            {
+                return (tint.R, tint.G, tint.B);
+            }
+        }
+        catch
+        {
+            // Untinted.
+        }
+
+        return (1f, 1f, 1f);
+    }
+
+    private static byte Tinted(byte albedo, float tint) => (byte)Math.Clamp(albedo * Math.Clamp(tint, 0f, 1f), 0, 255);
 
     /// <summary>A shallow water body: its visual WaterSurface plane (location + scale + yaw in degrees).</summary>
     public void TryAddWaterSeed(UObject export)

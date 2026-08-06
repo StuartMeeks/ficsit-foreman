@@ -34,6 +34,10 @@ public static class HigherGroundRasteriser
         var floraColourHeight = options.FloraColourHeightCm * WorldFrame.HeightUnitsPerCm;
         long raised = 0;
 
+        // Dense grass/small-foliage doesn't z-buffer as canopy (its thin geometry can't fill a cell at map scale);
+        // instead it accumulates a colour per cell and tints the terrain green — see BlendGroundCover.
+        var groundCover = options.GroundCoverStrength > 0 ? new GroundCover(state.Frame.Width * state.Frame.Height) : null;
+
         foreach (var placed in meshes)
         {
             var geometry = cache.Get(placed.Mesh);
@@ -46,12 +50,21 @@ public static class HigherGroundRasteriser
             var meshName = meshPath.Length > 0 ? meshPath[(meshPath.LastIndexOf('/') + 1)..].Split('.')[0] : "?";
             var colour = ObjectPalette.ColourFor(meshPath, placed.Kind);
 
+            var (gridX, gridY, worldZ) = ProjectVertices(geometry.Vertices, placed, state.Frame);
+
+            if (groundCover != null && placed.Kind == PlacedMeshKind.Tree
+                && (meshPath.Contains("/Foliage/SmallFoliage/", StringComparison.Ordinal) || meshPath.Contains("/Foliage/Grass/", StringComparison.Ordinal)))
+            {
+                var tint = geometry.Representative != default ? geometry.Representative : colour;
+                groundCover.Stamp(gridX, gridY, state.Frame, tint);
+                continue;
+            }
+
             // A stable per-instance colour jitter breaks up families of same-coloured rock (within a region).
             var jitter = placed.Kind == PlacedMeshKind.Rock
                 ? RockJitter.Factor(placed.Location, options.RockJitter)
                 : (1.0, 1.0, 1.0);
 
-            var (gridX, gridY, worldZ) = ProjectVertices(geometry.Vertices, placed, state.Frame);
             raised += RasteriseTriangles(state, geometry, placed, gridX, gridY, worldZ, options, rockColourHeight, floraColourHeight, meshName, colour, pigment, jitter, rockProbe);
 
             if (placed.Kind == PlacedMeshKind.Tree)
@@ -60,7 +73,8 @@ public static class HigherGroundRasteriser
             }
         }
 
-        Console.WriteLine($"higher-ground: {cache.Count} unique meshes ({cache.SampledMaterialCount} materials albedo-sampled), raised {raised} cells, excluded {excludedRockCount} instances.");
+        var tinted = groundCover?.Blend(state.ObjectColour, state.ObjectKind, options.GroundCoverStrength) ?? 0;
+        Console.WriteLine($"higher-ground: {cache.Count} unique meshes ({cache.SampledMaterialCount} materials albedo-sampled), raised {raised} cells, {tinted} ground-cover-tinted, excluded {excludedRockCount} instances.");
         rockProbe?.Report();
     }
 

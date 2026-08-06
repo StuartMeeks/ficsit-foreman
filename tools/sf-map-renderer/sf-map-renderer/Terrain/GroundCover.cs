@@ -74,28 +74,28 @@ public sealed class GroundCover
         }
     }
 
-    /// <summary>Blend the accumulated cover into the terrain colour; returns the number of cells tinted.</summary>
-    public int Blend(byte[] terrain, double strength)
+    /// <summary>
+    /// Blend the accumulated foliage cover into the colour of a grass-carpeted rock/mesh top (objectKind 1 = rock) —
+    /// grass grows on top of the spire meshes, so the mesh top must read as its cover, not bare rock. The landscape
+    /// ground is left to the baked Landscape-Grass overlay (the authoritative per-vertex signal); tinting it here too
+    /// would let a stray/dull foliage colour override the correct baked grass. Returns the number of cells tinted.
+    /// </summary>
+    public int Blend(byte[] objectColour, byte[] objectKind, double strength)
     {
         var tinted = 0;
         for (var cell = 0; cell < _count.Length; cell++)
         {
             var n = _count[cell];
-            if (n == 0)
+            if (n == 0 || objectKind[cell] != 1)
             {
                 continue;
             }
 
             var t = cell * 3;
-            if (terrain[t] == 0 && terrain[t + 1] == 0 && terrain[t + 2] == 0)
-            {
-                continue; // void / unpainted terrain
-            }
-
             var factor = Math.Min(1.0, n / Saturation) * strength;
-            terrain[t] = Mix(terrain[t], _sum[t] / n, factor);
-            terrain[t + 1] = Mix(terrain[t + 1], _sum[t + 1] / n, factor);
-            terrain[t + 2] = Mix(terrain[t + 2], _sum[t + 2] / n, factor);
+            objectColour[t] = Mix(objectColour[t], _sum[t] / n, factor);
+            objectColour[t + 1] = Mix(objectColour[t + 1], _sum[t + 1] / n, factor);
+            objectColour[t + 2] = Mix(objectColour[t + 2], _sum[t + 2] / n, factor);
             tinted++;
         }
 

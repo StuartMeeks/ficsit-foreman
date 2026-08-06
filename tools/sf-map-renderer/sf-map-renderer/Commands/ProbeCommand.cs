@@ -60,6 +60,10 @@ public sealed class ProbeCommand : Command<ProbeSettings>
                 TreeAtProbe.Report(assets, tax, tay, Radius(settings, 6000));
                 break;
             case "florasrc": FloraSourceProbe.Report(assets); break;
+            case "grassdata":
+                var (gdx, gdy) = ParseSingle(settings.At, -140100, 157000);
+                GrassDataProbe.Report(assets, gdx, gdy);
+                break;
             case "waterfall":
                 var (wfx, wfy) = ParseSingle(settings.At, 49963, -137409);
                 WaterfallProbe.Report(assets, wfx, wfy);

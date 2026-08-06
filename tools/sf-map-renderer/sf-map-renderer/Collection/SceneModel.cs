@@ -10,7 +10,17 @@ public sealed record LandscapeTile(
     UTexture2D Heightmap,
     UTexture2D[] Weightmaps,
     WeightmapAllocation[] Allocations,
-    UUnrealMaterial? Material);
+    UUnrealMaterial? Material)
+{
+    /// <summary>Baked Landscape-Grass overlay, 4 bytes per vertex (R,G,B, coverage 0-255) laid out row-major by
+    /// <see cref="GrassStride"/>. Coverage is the summed density of the vegetation grass types (Grass/Forest/…)
+    /// the game spawns here — so the ground reads as its real grass colour even when the weightmap is bare sand.
+    /// Null when the component has no baked grass data.</summary>
+    public byte[]? GrassOverlay { get; init; }
+
+    /// <summary>Row stride (vertices per row) of <see cref="GrassOverlay"/>; 0 when absent.</summary>
+    public int GrassStride { get; init; }
+}
 
 /// <summary>A shallow water body (BP_Water/river/pond) with a visual surface plane but no gameplay volume.</summary>
 public readonly record struct WaterBodySeed(double X, double Y, double Z, double ScaleX, double ScaleY, double Yaw);
