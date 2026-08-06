@@ -12,22 +12,30 @@ name: Dependabot auto-merge
 # removed commands silently — no reply, no error — so the old workflow looked
 # healthy while never merging anything.
 #
-# Why AUTOMERGE_TOKEN and not GITHUB_TOKEN: the `main protection` ruleset
-# requires a code-owner approval, and only a bypass actor can merge without one.
-# Bypass is limited to the Admin role and the Dependabot app, and GitHub refuses
-# to add the GitHub Actions app as a bypass actor on a user-owned repository
-# ("Actor GitHub Actions integration must be part of the ruleset source or owner
-# organization"). The merge therefore has to be enabled by a repository admin,
-# so AUTOMERGE_TOKEN is a fine-grained PAT scoped to this repository with
-# contents: read and write + pull requests: read and write.
+# Queuing the merge is not enough on its own: the `main protection` ruleset
+# requires a code-owner approval, so an unapproved pull request sits at
+# reviewDecision: REVIEW_REQUIRED forever with every check green. Being a ruleset
+# bypass actor does not help — bypass applies only to an *interactive* merge by
+# that actor (`gh pr merge --admin`), while auto-merge waits for every merge
+# requirement, review included.
 #
-# The bypass only clears the *review* requirement. Auto-merge still waits for the
-# required status checks (build-test, validate-game-data), so a red build blocks
-# the merge exactly as before.
+# So the workflow approves as well as queues. CODEOWNERS makes @StuartMeeks the
+# owner of every path, and GITHUB_TOKEN cannot stand in for them: the repository
+# disallows Actions approvals, and github-actions[bot] is not a code owner.
+# Both the approval and the merge therefore use AUTOMERGE_TOKEN, a fine-grained
+# PAT scoped to this repository with contents: read and write + pull requests:
+# read and write. GitHub refuses to add the GitHub Actions app as a bypass actor
+# on a user-owned repository ("Actor GitHub Actions integration must be part of
+# the ruleset source or owner organization"), which is why a PAT is used at all.
+#
+# This does mean patch and minor bumps merge without a human reading them — the
+# point of auto-merge, but worth being explicit about. Majors still stop for
+# review. Required checks are never bypassed: auto-merge waits for build-test and
+# validate-game-data, so a red build blocks the merge regardless of the approval.
 #
 # Uses `pull_request_target` so the workflow definition is always taken from the
 # default branch and runs for every Dependabot PR. This is safe here: the job
-# only reads PR metadata, posts a comment and enables auto-merge — it never
+# only reads PR metadata, approves, comments and enables auto-merge — it never
 # checks out or executes pull-request code.
 
 on:
@@ -54,6 +62,19 @@ jobs:
         uses: dependabot/fetch-metadata@v3
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      # Satisfies the code-owner review. Re-runs on `synchronize` because the
+      # ruleset dismisses stale reviews on push and requires the approval to
+      # follow the last push, so every Dependabot rebase needs a fresh one.
+      - name: Approve patch and minor updates
+        if: >-
+          env.AUTOMERGE_TOKEN != '' &&
+          (steps.meta.outputs.update-type == 'version-update:semver-patch' ||
+          steps.meta.outputs.update-type == 'version-update:semver-minor')
+        run: |
+          gh pr review --approve "$PR_URL" --body "Automated approval: ${{ steps.meta.outputs.update-type }} dependency update."
+        env:
+          GH_TOKEN: ${{ secrets.AUTOMERGE_TOKEN }}
 
       - name: Enable auto-merge for patch and minor updates
         if: >-
