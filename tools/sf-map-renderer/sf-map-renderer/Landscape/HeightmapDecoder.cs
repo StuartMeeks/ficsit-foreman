@@ -16,6 +16,10 @@ public static class HeightmapDecoder
     // PF_B8G8R8A8 on disk is {B,G,R,A}; a weightmap channel R,G,B,A maps to these byte offsets.
     private static readonly int[] ChannelByteOffset = [2, 1, 0, 3];
 
+    // Baked grass density (0-255) at which the grass carpet fully covers the ground; grass overlays sand, so even
+    // a moderate baked density reads as full cover from above. Below it, the overlay scales down.
+    private const double GrassSaturation = 110.0;
+
     /// <param name="layerAt">Optional LAYERAT probe sink, driven per weightmap sample.</param>
     public static void Decode(
         RenderState state,
@@ -205,6 +209,20 @@ public static class HeightmapDecoder
                     var blended = ((byte)(sumR / sumWeight), (byte)(sumG / sumWeight), (byte)(sumB / sumWeight));
                     // Overlay the world-aligned macro pigment (u,v across the landscape) for regional variation.
                     var (pr, pg, pb) = pigment.Apply(blended, (double)column / width, (double)row / height);
+
+                    // Overlay the game's baked Landscape-Grass carpet (green/red per biome) where it grows.
+                    if (tile.GrassOverlay is { } grass && tile.GrassStride > 0)
+                    {
+                        var g = (j * tile.GrassStride + i) * 4;
+                        if (g + 3 < grass.Length && grass[g + 3] > 0)
+                        {
+                            var f = Math.Min(1.0, grass[g + 3] / GrassSaturation) * options.GrassStrength;
+                            pr = (byte)(pr * (1 - f) + grass[g] * f);
+                            pg = (byte)(pg * (1 - f) + grass[g + 1] * f);
+                            pb = (byte)(pb * (1 - f) + grass[g + 2] * f);
+                        }
+                    }
+
                     terrain[cell] = pr;
                     terrain[cell + 1] = pg;
                     terrain[cell + 2] = pb;

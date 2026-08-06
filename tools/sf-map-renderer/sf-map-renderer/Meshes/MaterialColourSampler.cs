@@ -45,6 +45,11 @@ public sealed class MaterialColourSampler
     private static readonly string[] BaseColourParams =
         ["Rock Base Color", "BaseColor", "Base Color", "Base Colour", "Diffuse Color", "DiffuseColor", "Albedo Color"];
 
+    // The named albedo texture parameters that carry a mesh's REAL per-species base colour. Satisfactory's foliage/
+    // rock proxy materials share a generic first texture (e.g. TX_Grass_01_BC) but route the true albedo through
+    // these params — so a blue crater grass reads blue, pink grass pink, etc. Preferred over the first texture.
+    private static readonly string[] AlbedoTextureParams = ["PM_Diffuse", "Grass Albedo", "Albedo"];
+
     private static (byte R, byte G, byte B)? Compute(UUnrealMaterial material)
     {
         try
@@ -52,9 +57,21 @@ public sealed class MaterialColourSampler
             var parameters = new CMaterialParams2();
             material.GetParams(parameters, EMaterialFormat.AllLayers);
 
-            if ((parameters.TryGetTexture2d(out var texture, CMaterialParams2.Diffuse[0]) || parameters.TryGetFirstTexture2d(out texture))
-                && texture is UTexture2D texture2d
-                && AverageTexture(texture2d) is { } sampled)
+            UTexture2D? texture2d = null;
+            foreach (var name in AlbedoTextureParams)
+            {
+                if (parameters.Textures.TryGetValue(name, out var named) && named is UTexture2D namedTexture)
+                {
+                    texture2d = namedTexture;
+                    break;
+                }
+            }
+
+            texture2d ??= (parameters.TryGetTexture2d(out var texture, CMaterialParams2.Diffuse[0]) || parameters.TryGetFirstTexture2d(out texture))
+                ? texture as UTexture2D
+                : null;
+
+            if (texture2d != null && AverageTexture(texture2d) is { } sampled)
             {
                 return sampled;
             }

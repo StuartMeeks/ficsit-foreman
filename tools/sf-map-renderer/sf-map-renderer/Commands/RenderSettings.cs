@@ -67,6 +67,18 @@ public sealed class RenderSettings : AssetSettings
     [Description("Per-instance rock colour jitter 0..1 (0 disables). Default 0.18.")]
     public double RockJitter { get; init; } = 0.18;
 
+    [CommandOption("--ground-cover <STRENGTH>")]
+    [Description("How strongly dense grass/small foliage tints the terrain green 0..1 (0 disables). Default 0.9.")]
+    public double GroundCover { get; init; } = 0.9;
+
+    [CommandOption("--grass <STRENGTH>")]
+    [Description("Strength of the baked Landscape-Grass overlay on the terrain 0..1 (0 disables). Default 1.")]
+    public double Grass { get; init; } = 1.0;
+
+    [CommandOption("--grass-debug")]
+    [Description("Debug: paint terrain by the baked grass data (dominant grass type per vertex). Use with --grass 1.")]
+    public bool GrassDebug { get; init; }
+
     [CommandOption("--blue-box <LIST>")]
     [Description("World-XY rectangles forcing void to ocean-blue \"x0,y0,x1,y1;...\" (default: west margin).")]
     public string? BlueBox { get; init; }
@@ -157,6 +169,9 @@ public sealed class RenderSettings : AssetSettings
         OceanZ = OceanZ,
         PigmentStrength = Pigment,
         RockJitter = RockJitter,
+        GroundCoverStrength = GroundCover,
+        GrassStrength = Grass,
+        GrassDebug = GrassDebug,
         FloodSubSea = !NoFloodSubSea,
         BlueBoxes = BlueBox == null ? new RenderOptions().BlueBoxes : ParseBlueBoxes(BlueBox),
         NullVisibilityHoles = !NoVisibilityHoles,

@@ -1,9 +1,11 @@
 using CUE4Parse.UE4.Assets.Exports;
 using CUE4Parse.UE4.Assets.Exports.Material;
+using CUE4Parse.UE4.Assets.Exports.StaticMesh;
 using CUE4Parse.UE4.Assets.Exports.Texture;
 using CUE4Parse.UE4.Assets.Objects;
 
 using SfMapRenderer.Assets;
+using SfMapRenderer.Meshes;
 
 namespace SfMapRenderer.Diagnostics.Surveys;
 
@@ -31,6 +33,38 @@ public static class TerrainMaterialProbe
                     foreach (var prop in export.Properties)
                     {
                         Console.WriteLine($"    {prop.Name}  ({prop.PropertyType})");
+                    }
+
+                    var grassTypes = export.GetOrDefault<UObject[]?>("GrassTypes");
+                    Console.WriteLine($"\n  GrassTypes: {grassTypes?.Length ?? 0}");
+                    foreach (var gt in grassTypes ?? [])
+                    {
+                        Console.WriteLine($"    {gt?.Name} ({gt?.ExportType})");
+                        var varieties = gt?.GetOrDefault<FStructFallback[]?>("GrassVarieties");
+                        var sampler = new MaterialColourSampler();
+                        foreach (var v in varieties ?? [])
+                        {
+                            var meshIdx = v.GetOrDefault<FPackageIndex?>("GrassMesh");
+                            var meshPath = meshIdx?.ResolvedObject?.GetPathName();
+                            (byte R, byte G, byte B)? albedo = null;
+                            var colours = "";
+                            if (meshIdx?.ResolvedObject?.Load() is UStaticMesh sm && sm.StaticMaterials is { Length: > 0 } mats
+                                && mats[0].MaterialInterface?.Load() is UUnrealMaterial mat)
+                            {
+                                albedo = sampler.Sample(mat);
+                                var mp = new CMaterialParams2();
+                                try { mat.GetParams(mp, EMaterialFormat.AllLayers); } catch { }
+                                colours = "mat=" + mat.Name + " tex=[" + string.Join(" ", mp.Textures.Select(kv =>
+                                {
+                                    var t2 = kv.Value as UTexture2D;
+                                    var avg = t2 != null && MaterialColourSampler.AverageTexture(t2) is { } cc ? $"({cc.R},{cc.G},{cc.B})" : "";
+                                    return $"{kv.Key}:{(kv.Value as UTexture2D)?.Name}{avg}";
+                                })) + "]";
+                            }
+
+                            var name = meshPath != null ? meshPath[(meshPath.LastIndexOf('/') + 1)..] : "?";
+                            Console.WriteLine($"        variety {name,-34} albedo={(albedo is { } c ? $"({c.R},{c.G},{c.B})" : "?")}  colourParams=[{colours}]");
+                        }
                     }
 
                     foreach (var name in new[] { "MaterialInstances", "OverrideMaterials", "MaterialInstancesDynamic", "LandscapeMaterial", "Material" })

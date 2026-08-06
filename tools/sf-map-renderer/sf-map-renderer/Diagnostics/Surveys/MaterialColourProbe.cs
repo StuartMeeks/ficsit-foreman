@@ -55,8 +55,32 @@ public static class MaterialColourProbe
                         var colour = sampler.Sample(material);
                         var materialName = slot.MaterialInterface?.Name ?? "?";
                         Console.WriteLine(colour is { } c
-                            ? $"    {materialName,-40} -> ({c.R},{c.G},{c.B})"
+                            ? $"    {materialName,-40} -> albedo ({c.R},{c.G},{c.B})"
                             : $"    {materialName,-40} -> (no colour)");
+
+                        if (material == null)
+                        {
+                            continue;
+                        }
+
+                        var mp = new CMaterialParams2();
+                        try { material.GetParams(mp, EMaterialFormat.AllLayers); } catch { continue; }
+                        foreach (var (key, value) in mp.Textures)
+                        {
+                            if (key.Contains("Emiss", StringComparison.OrdinalIgnoreCase) || key.Contains("Glow", StringComparison.OrdinalIgnoreCase))
+                            {
+                                var avg = value is CUE4Parse.UE4.Assets.Exports.Texture.UTexture2D t && MaterialColourSampler.AverageTexture(t) is { } cc ? $"({cc.R},{cc.G},{cc.B})" : "";
+                                Console.WriteLine($"        TEX {key} = {(value as CUE4Parse.UE4.Assets.Exports.Texture.UTexture2D)?.Name} {avg}");
+                            }
+                        }
+
+                        foreach (var (key, value) in mp.Colors)
+                        {
+                            if (key.Contains("Emiss", StringComparison.OrdinalIgnoreCase) || key.Contains("Glow", StringComparison.OrdinalIgnoreCase) || key.Contains("Color", StringComparison.OrdinalIgnoreCase) || key.Contains("Colour", StringComparison.OrdinalIgnoreCase))
+                            {
+                                Console.WriteLine($"        COL {key} = ({value.R:0.00},{value.G:0.00},{value.B:0.00})");
+                            }
+                        }
                     }
 
                     if (seen.Count >= want.Count)

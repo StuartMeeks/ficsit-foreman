@@ -146,6 +146,7 @@ public static class RenderPipeline
         }
 
         Console.WriteLine($"water seeds: {collector.WaterSeeds.Count}");
+        Console.WriteLine($"placed meshes: {collector.Meshes.Count} (flora instances incl. FGFoliage: {collector.FloraInstanceCount}, excluded rocks: {collector.ExcludedRockCount})");
         return collector;
     }
 

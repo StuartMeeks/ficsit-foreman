@@ -37,6 +37,7 @@ docs/                 product.md · architecture.md · work-orders.md · playthr
 | Explore orders (#207) — collection-route order type + collectible re-upload reconciliation (#209-B) | [`docs/explore-orders.md`](./docs/explore-orders.md) |
 | The session/playthrough & foreman model (design) | [`docs/playthroughs.md`](./docs/playthroughs.md) |
 | The first-party top-down base-map renderer (#246) — landscape decode, water model, ocean/void, offline tool | [`docs/base-map-renderer.md`](./docs/base-map-renderer.md) |
+| FGFoliage decode (#246 "other trees") — reading Satisfactory's custom ~3.3 M-instance foliage component | [`docs/base-map-foliage-decode.md`](./docs/base-map-foliage-decode.md) |
 | The save subsystem (identity, re-upload history, same-game) — design & roadmap | [`docs/save-subsystem.md`](./docs/save-subsystem.md) |
 | Crash-site loot & drop-pod unlock costs (#107) — design | [`docs/crash-site-loot.md`](./docs/crash-site-loot.md) |
 | The game-data parsing logic & class-map (implemented by the C# parser) | [`packages/sf-game-data/PARSER.md`](./packages/sf-game-data/PARSER.md) |

@@ -139,15 +139,24 @@ the giant Titan-Forest trees. These are placed both as individual `StaticMeshCom
 **instanced foliage**, and are rasterised the same way as rocks (tops z-buffered into the height
 grid), tagged `kind` 1 = coral · 2 = tree.
 
-- **Include filter** (`--flora`, default `/Environment/Foliage/Coral/,/Environment/Foliage/Trees/TitanTree`;
-  `--flora off` disables): `/Coral/*` (CoralTree, CoralCactus, SmallShell/BigShell, Coral_Root,
-  PlateauShell, CraterTree) → coral; `/Trees/TitanTree` → tree. The other tree species
-  (Kapok, DioTree, GreenTree, BluePalm, Bamboo, …) are catalogued but not yet enabled.
-- **Instanced foliage.** ~90 % of flora (and all trees) are `FoliageInstancedStaticMeshComponent`s
-  with **no** `RelativeLocation` — the transforms live in the serialized instance buffer. Cast to
-  CUE4Parse `UInstancedStaticMeshComponent`; its `PerInstanceSMData` array carries per-instance
-  `FTransform`s. World position = the component's `TranslatedInstanceSpaceOrigin` (a UProperty
-  FVector) **+** the instance `.Translation`; rotation = `.Rotation.Rotator()`; scale = `.Scale3D`.
+- **Include filter** (`--flora`, default `/Environment/Foliage/,/Environment/Bush/` = **all flora**;
+  `--flora off` disables): every mesh under `/Foliage/` (Coral, all `/Trees/` species, Grass,
+  Flowers, `/SmallFoliage/` ferns/bushes/roots) plus the large `/Environment/Bush/` bushes.
+  A `/Coral/` segment → coral; everything else → tree. ~2.6M instances, ~2 min full-res. Narrow
+  with e.g. `--flora "/Foliage/Trees/,/Environment/Bush/"` for a trees-only map.
+- **Instanced foliage.** The bulk of flora has **no** `RelativeLocation` — transforms live in the
+  serialized instance buffer of a `UInstancedStaticMeshComponent`, whose `PerInstanceSMData` carries
+  per-instance `FTransform`s. Two sources, two world-position formulas:
+  - *Stock* `FoliageInstancedStaticMeshComponent`: position = `TranslatedInstanceSpaceOrigin` (a
+    UProperty FVector) **+** the instance `.Translation`.
+  - *Satisfactory's* `FGFoliageInstancedSMC` (the ~3.3 M-instance bulk — most trees, all small
+    foliage): position = the owning `InstancedFoliageActor` cell offset (the actor RootComponent
+    `RelativeLocation`, via `AttachParent`) **+** the instance `.Translation`. See
+    [base-map-foliage-decode.md](./base-map-foliage-decode.md).
+
+  Rotation = `.Rotation.Rotator()`; scale = `.Scale3D`. **HLOD** components
+  (`HLODInstancedStaticMeshComponent`) are skipped — they are 1:1 low-detail proxies of the real
+  instances and would double-plant.
 - **Colour threshold.** Flora canopies droop to the ground at the rim, so a 3 m cut trims them to a
   core; flora uses its own low cut **`FLORAH`** (default 50 cm) so the full canopy colours. Coral
   renders at true scale (e.g. `SM_CoralTree_02` is 34 m × 2.5 = ~86 m).
