@@ -119,9 +119,13 @@ export interface TwoFactorEnrolment {
  * The pioneer must then confirm a TOTP code via {@link verifyTotp} to finish.
  */
 export async function enableTwoFactor(password: string): Promise<TwoFactorEnrolment> {
-  const { data, error } = await authClient.twoFactor.enable({ password });
+  const { data, error } = await authClient.twoFactor.enable({ password, method: 'totp' });
   if (error !== null || data === null) {
     throw new Error(messageOf(error, 'Could not start two-factor setup.'));
+  }
+  // better-auth 1.7+ returns a union keyed on `method`; only TOTP carries enrolment data.
+  if (data.method !== 'totp') {
+    throw new Error('Unexpected two-factor method returned by the server.');
   }
   return { totpURI: data.totpURI, backupCodes: data.backupCodes };
 }
