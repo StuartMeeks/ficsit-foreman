@@ -27,7 +27,8 @@
   },
   "overrides": {
     "@hono/node-server": "^1.19.13",
-    "tar": "^7.5.16"
+    "tar": "^7.5.16",
+    "mysql2": "^3.24.6"
   },
   "packageManager": "npm@11.17.0",
   "allowScripts": {
