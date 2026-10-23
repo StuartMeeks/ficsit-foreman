@@ -1,5 +1,3 @@
-import type { ContentBlock } from '@anthropic-ai/sdk/resources/messages';
-
 import type { ToolDefinition } from '../mcp/client.js';
 
 /**
@@ -25,7 +23,7 @@ export interface NeutralTextMessage {
 }
 
 /** Native content for replay within one request; never persisted as chat text. */
-export type ProviderContinuation = { provider: 'anthropic'; content: ContentBlock[] };
+export type ProviderContinuation = { provider: 'anthropic'; content: unknown[] };
 
 /** An assistant turn that produced text and/or tool calls (in-loop only). */
 export interface NeutralAssistantTurn {
