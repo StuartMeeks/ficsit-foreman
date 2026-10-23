@@ -134,7 +134,11 @@ function toAnthropicMessages(messages: NeutralMessage[]): Anthropic.MessageParam
       out.push({ role: 'user', content: message.content });
     } else if ('toolCalls' in message) {
       if (message.continuation?.provider === 'anthropic') {
-        out.push({ role: 'assistant', content: message.continuation.content });
+        // Safe: only AnthropicProvider produces 'anthropic' continuations.
+        out.push({
+          role: 'assistant',
+          content: message.continuation.content as Anthropic.ContentBlockParam[],
+        });
         continue;
       }
       const blocks: Anthropic.ContentBlockParam[] = [];
